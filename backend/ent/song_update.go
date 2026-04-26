@@ -208,6 +208,27 @@ func (_u *SongUpdate) AddBitDepth(v int) *SongUpdate {
 	return _u
 }
 
+// SetYear sets the "year" field.
+func (_u *SongUpdate) SetYear(v int) *SongUpdate {
+	_u.mutation.ResetYear()
+	_u.mutation.SetYear(v)
+	return _u
+}
+
+// SetNillableYear sets the "year" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableYear(v *int) *SongUpdate {
+	if v != nil {
+		_u.SetYear(*v)
+	}
+	return _u
+}
+
+// AddYear adds value to the "year" field.
+func (_u *SongUpdate) AddYear(v int) *SongUpdate {
+	_u.mutation.AddYear(v)
+	return _u
+}
+
 // SetLyricsEmbedded sets the "lyrics_embedded" field.
 func (_u *SongUpdate) SetLyricsEmbedded(v string) *SongUpdate {
 	_u.mutation.SetLyricsEmbedded(v)
@@ -600,6 +621,12 @@ func (_u *SongUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedBitDepth(); ok {
 		_spec.AddField(song.FieldBitDepth, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Year(); ok {
+		_spec.SetField(song.FieldYear, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedYear(); ok {
+		_spec.AddField(song.FieldYear, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.LyricsEmbedded(); ok {
 		_spec.SetField(song.FieldLyricsEmbedded, field.TypeString, value)
@@ -1016,6 +1043,27 @@ func (_u *SongUpdateOne) SetNillableBitDepth(v *int) *SongUpdateOne {
 // AddBitDepth adds value to the "bit_depth" field.
 func (_u *SongUpdateOne) AddBitDepth(v int) *SongUpdateOne {
 	_u.mutation.AddBitDepth(v)
+	return _u
+}
+
+// SetYear sets the "year" field.
+func (_u *SongUpdateOne) SetYear(v int) *SongUpdateOne {
+	_u.mutation.ResetYear()
+	_u.mutation.SetYear(v)
+	return _u
+}
+
+// SetNillableYear sets the "year" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableYear(v *int) *SongUpdateOne {
+	if v != nil {
+		_u.SetYear(*v)
+	}
+	return _u
+}
+
+// AddYear adds value to the "year" field.
+func (_u *SongUpdateOne) AddYear(v int) *SongUpdateOne {
+	_u.mutation.AddYear(v)
 	return _u
 }
 
@@ -1441,6 +1489,12 @@ func (_u *SongUpdateOne) sqlSave(ctx context.Context) (_node *Song, err error) {
 	}
 	if value, ok := _u.mutation.AddedBitDepth(); ok {
 		_spec.AddField(song.FieldBitDepth, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Year(); ok {
+		_spec.SetField(song.FieldYear, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedYear(); ok {
+		_spec.AddField(song.FieldYear, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.LyricsEmbedded(); ok {
 		_spec.SetField(song.FieldLyricsEmbedded, field.TypeString, value)

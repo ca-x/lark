@@ -26,9 +26,11 @@ export interface Song {
   sample_rate: number;
   bit_rate: number;
   bit_depth: number;
+  year: number;
   netease_id: string;
   favorite: boolean;
   play_count: number;
+  resume_position_seconds: number;
   has_lyrics: boolean;
   lyrics_source: string;
 }

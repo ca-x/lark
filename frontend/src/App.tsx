@@ -14,6 +14,7 @@ import {
   House,
   ListBullets,
   MagnifyingGlass,
+  MicrophoneStage,
   MusicNotes,
   Pause,
   Play,
@@ -82,6 +83,7 @@ type Collection = {
   title: string;
   subtitle: string;
   songs: Song[];
+  albums?: Album[];
   coverUrl?: string;
   artistId?: number;
   artistName?: string;
@@ -148,13 +150,52 @@ function formatDuration(seconds: number) {
   return `${m}:${s}`;
 }
 
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString();
+}
+
+function resumePosition(song?: Song | null) {
+  const progress = song?.resume_position_seconds || 0;
+  const duration = song?.duration_seconds || 0;
+  if (progress < 5) return 0;
+  if (duration > 0 && progress >= duration - 5) return 0;
+  return progress;
+}
+
+function albumsFromSongs(
+  songs: Song[],
+  fallbackArtistId = 0,
+  fallbackArtistName = "",
+) {
+  const grouped = new Map<number, Album>();
+  songs.forEach((song) => {
+    if (!song.album_id) return;
+    const existing = grouped.get(song.album_id);
+    grouped.set(song.album_id, {
+      id: song.album_id,
+      title: song.album,
+      artist_id: song.artist_id || fallbackArtistId,
+      artist: song.artist || fallbackArtistName,
+      album_artist: song.artist || fallbackArtistName,
+      favorite: false,
+      song_count: (existing?.song_count ?? 0) + 1,
+    });
+  });
+  return Array.from(grouped.values()).sort((a, b) =>
+    a.title.localeCompare(b.title),
+  );
+}
+
 function formatQuality(song: Song) {
+  const year = song.year ? String(song.year) : "";
   const bits = song.bit_depth ? `${song.bit_depth}bit` : "";
   const rate = song.sample_rate
     ? `${(song.sample_rate / 1000).toFixed(song.sample_rate % 1000 ? 1 : 0)}kHz`
     : "";
   return (
-    [song.format.toUpperCase(), bits, rate].filter(Boolean).join(" · ") ||
+    [year, song.format.toUpperCase(), bits, rate].filter(Boolean).join(" · ") ||
     song.mime
   );
 }
@@ -270,6 +311,7 @@ export default function App() {
   const [playMode, setPlayMode] = useState<PlayMode>("sequence");
   const [view, setView] = useState<View>("home");
   const [query, setQuery] = useState("");
+  const [albumArtistFilter, setAlbumArtistFilter] = useState(0);
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [lyricCandidates, setLyricCandidates] = useState<LyricCandidate[]>([]);
@@ -283,10 +325,13 @@ export default function App() {
   const [sleepLeft, setSleepLeft] = useState(0);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [inlineLyrics, setInlineLyrics] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lyricsScrollRef = useRef<HTMLDivElement | null>(null);
   const lyricFollowPausedUntil = useRef(0);
   const messageTimerRef = useRef<number | null>(null);
+  const resumeSeekRef = useRef(0);
+  const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
   const t = useMemo(() => createT(settings.language), [settings.language]);
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
   const activeLyric = useMemo(() => {
@@ -305,6 +350,19 @@ export default function App() {
       activeIndex -= 1;
     return lyricLines[activeIndex].key;
   }, [lyricLines, progress]);
+  const activeLyricText = useMemo(() => {
+    if (!current) return t("nowPlaying");
+    if (!lyricLines.length) return lyricsLoading ? t("matchingLyrics") : t("noLyrics");
+    const line = lyricLines.find((item) => item.key === activeLyric);
+    if (!line) return lyricLines.find((item) => item.at >= 0)?.text || t("lyrics");
+    return (
+      lyricLines
+        .filter((item) => item.groupKey === line.groupKey)
+        .map((item) => item.text)
+        .filter(Boolean)
+        .join(" / ") || line.text
+    );
+  }, [activeLyric, current, lyricLines, lyricsLoading, t]);
 
   useEffect(() => {
     void bootstrap();
@@ -316,7 +374,9 @@ export default function App() {
   }, [settings.theme, settings.language, t]);
   useEffect(() => {
     if (!current) return;
-    setProgress(0);
+    const resume = resumePosition(current);
+    resumeSeekRef.current = resume;
+    setProgress(resume);
     setDuration(current.duration_seconds || 0);
     setLyrics(null);
     setLyricCandidates([]);
@@ -444,6 +504,34 @@ export default function App() {
     showMessage(t("done"));
   }
 
+  function syncPlaybackProgress(completed = false) {
+    if (!current) return;
+    const audio = audioRef.current;
+    const currentProgress = audio?.currentTime ?? progress;
+    const mediaDuration = audio?.duration;
+    const currentDuration =
+      Number.isFinite(mediaDuration) && mediaDuration && mediaDuration > 0
+        ? mediaDuration
+        : duration || current.duration_seconds || 0;
+    const now = Date.now();
+    const last = lastProgressSyncRef.current;
+    if (
+      !completed &&
+      last.songId === current.id &&
+      now - last.at < 8000 &&
+      Math.abs(currentProgress - last.progress) < 8
+    )
+      return;
+    lastProgressSyncRef.current = {
+      songId: current.id,
+      at: now,
+      progress: currentProgress,
+    };
+    void api
+      .saveProgress(current.id, currentProgress, currentDuration, completed)
+      .catch(() => undefined);
+  }
+
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
     const [songItems, albumItems, artistItems, playlistItems] =
       await Promise.all([
@@ -464,6 +552,7 @@ export default function App() {
 
   async function playSong(song: Song, list = songs) {
     const sameSong = current?.id === song.id;
+    if (current && !sameSong) syncPlaybackProgress(false);
     setCurrent(song);
     setQueue(list.length ? list : [song]);
     setDuration((value) => value || song.duration_seconds || 0);
@@ -483,6 +572,7 @@ export default function App() {
 
   function next(delta: 1 | -1, ended = false) {
     if (!current || queue.length === 0) return;
+    if (ended) syncPlaybackProgress(true);
     if (ended && playMode === "repeat-one") {
       const audio = audioRef.current;
       if (audio) {
@@ -558,6 +648,7 @@ export default function App() {
     } catch {
       audio.currentTime = target;
     }
+    syncPlaybackProgress(false);
     if (current && !playing) setPlaying(true);
   }
 
@@ -720,11 +811,15 @@ export default function App() {
     const artist = artists.find((item) => item.id === id);
     const title =
       artist?.name || fallbackName || items[0]?.artist || t("artists");
+    const artistAlbums = albums.filter((album) => album.artist_id === id);
     setCollection({
       type: "artist",
       title,
       subtitle: `${items.length} ${t("count")}`,
       songs: items,
+      albums: artistAlbums.length
+        ? artistAlbums
+        : albumsFromSongs(items, id, title),
       coverUrl: `/api/artists/${id}/cover`,
       artistId: id,
       artistName: title,
@@ -775,6 +870,18 @@ export default function App() {
         ? t("playModeShuffle")
         : t("playModeRepeatOne");
   const playableDuration = duration || current?.duration_seconds || 0;
+  const albumArtistOptions = useMemo(() => {
+    const seen = new Map<number, string>();
+    albums.forEach((album) => {
+      if (album.artist_id) seen.set(album.artist_id, album.artist || t("artist"));
+    });
+    return Array.from(seen.entries()).sort((a, b) =>
+      a[1].localeCompare(b[1], settings.language),
+    );
+  }, [albums, settings.language, t]);
+  const visibleAlbums = albumArtistFilter
+    ? albums.filter((album) => album.artist_id === albumArtistFilter)
+    : albums;
   const screenTitle =
     collection && view === "collection"
       ? collection.title
@@ -903,6 +1010,10 @@ export default function App() {
                 onFavorite={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
+                onOpenAlbum={(song) => {
+                  const album = albums.find((item) => item.id === song.album_id);
+                  if (album) void openAlbum(album);
+                }}
                 onOpenArtist={(song) =>
                   void openArtistById(song.artist_id, song.artist)
                 }
@@ -933,9 +1044,15 @@ export default function App() {
                 onFavorite={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
+                onOpenAlbum={(song) => {
+                  const album = albums.find((item) => item.id === song.album_id);
+                  if (album) void openAlbum(album);
+                }}
                 onOpenArtist={(song) =>
                   void openArtistById(song.artist_id, song.artist)
                 }
+                onOpenAlbumCard={(album) => void openAlbum(album)}
+                onPlayAlbumCard={(album) => void playAlbum(album)}
                 onOpenCollectionArtist={
                   collection.artistId
                     ? () =>
@@ -971,7 +1088,23 @@ export default function App() {
                 t={t}
                 title={t("albums")}
                 variant="album"
-                items={albums.map((a) => ({
+                action={
+                  <label className="filter-pill">
+                    <span>{t("filterByArtist")}</span>
+                    <select
+                      value={albumArtistFilter}
+                      onChange={(event) => setAlbumArtistFilter(Number(event.target.value))}
+                    >
+                      <option value={0}>{t("allArtists")}</option>
+                      {albumArtistOptions.map(([id, name]) => (
+                        <option key={id} value={id}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                }
+                items={visibleAlbums.map((a) => ({
                   id: a.id,
                   title: a.title,
                   subtitle: `${a.song_count} ${t("count")}`,
@@ -1094,14 +1227,31 @@ export default function App() {
                 const nextTime = Number(e.target.value);
                 audioRef.current.currentTime = nextTime;
                 setProgress(nextTime);
+                syncPlaybackProgress(false);
               }
             }}
           />
-          <span>
-            {formatDuration(progress)} / {formatDuration(playableDuration)}
+          <span className={inlineLyrics ? "inline-lyrics-line" : ""}>
+            {inlineLyrics ? (
+              <>
+                <MicrophoneStage weight="fill" /> {activeLyricText}
+              </>
+            ) : (
+              <>
+                {formatDuration(progress)} / {formatDuration(playableDuration)}
+              </>
+            )}
           </span>
         </div>
         <div className="volume">
+          <button
+            className={inlineLyrics ? "lyric-toggle active" : "lyric-toggle"}
+            title={t("inlineLyrics")}
+            aria-label={t("inlineLyrics")}
+            onClick={() => setInlineLyrics((value) => !value)}
+          >
+            <MicrophoneStage />
+          </button>
           <button
             className={queueOpen ? "queue-toggle active" : "queue-toggle"}
             title={t("queue")}
@@ -1156,6 +1306,17 @@ export default function App() {
             setDuration(
               Number.isFinite(d) && d > 0 ? d : current?.duration_seconds || 0,
             );
+            if (resumeSeekRef.current > 0) {
+              const target = Math.min(
+                resumeSeekRef.current,
+                Number.isFinite(d) && d > 0
+                  ? Math.max(0, d - 3)
+                  : resumeSeekRef.current,
+              );
+              e.currentTarget.currentTime = target;
+              setProgress(target);
+              resumeSeekRef.current = 0;
+            }
           }}
           onDurationChange={(e) => {
             const d = e.currentTarget.duration;
@@ -1163,8 +1324,12 @@ export default function App() {
               Number.isFinite(d) && d > 0 ? d : current?.duration_seconds || 0,
             );
           }}
-          onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
+          onTimeUpdate={(e) => {
+            setProgress(e.currentTarget.currentTime);
+            syncPlaybackProgress(false);
+          }}
           onSeeking={(e) => setProgress(e.currentTarget.currentTime)}
+          onPause={() => syncPlaybackProgress(false)}
           onEnded={() => next(1, true)}
         />
       </footer>
@@ -1335,19 +1500,20 @@ function HomeView({
   const featuredAlbums = albums.slice(0, 4);
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
+  const heroPlaying = playing && current?.id === heroSong?.id;
   return (
     <section className="home-view">
       <section className="hero">
         <Turntable
           song={heroSong}
-          playing={playing && current?.id === heroSong?.id}
+          playing={heroPlaying}
         />
         <div>
           <div className="home-user-card">
             <UserAvatar user={user} />
             <span>{user.nickname || user.username}</span>
           </div>
-          <p>{t("jumpBackIn")}</p>
+          <p>{heroPlaying ? t("nowPlaying") : t("jumpBackIn")}</p>
           <h1>{heroSong?.title ?? `${t("brand")} Music`}</h1>
           <h2>
             {heroSong ? `${heroSong.artist} · ${heroSong.album}` : t("noSongs")}
@@ -1358,7 +1524,8 @@ function HomeView({
               disabled={!heroSong}
               onClick={() => heroSong && onPlay(heroSong)}
             >
-              <Play weight="fill" /> {t("play")}
+              {heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
+              {heroPlaying ? t("nowPlaying") : t("play")}
             </button>
             {heroSong?.artist_id ? (
               <button
@@ -1666,6 +1833,9 @@ function CollectionView({
   onFavorite,
   onAdd,
   onInsertNext,
+  onOpenAlbum,
+  onOpenAlbumCard,
+  onPlayAlbumCard,
   onOpenArtist,
   onOpenCollectionArtist,
 }: {
@@ -1678,10 +1848,21 @@ function CollectionView({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  onOpenAlbum?: (song: Song) => void;
+  onOpenAlbumCard?: (album: Album) => void;
+  onPlayAlbumCard?: (album: Album) => void;
   onOpenArtist: (song: Song) => void;
   onOpenCollectionArtist?: () => void;
 }) {
   const label = collectionLabel(collection.type, t);
+  const [artistView, setArtistView] = useState<"songs" | "albums">("songs");
+  const artistAlbums = useMemo(
+    () =>
+      collection.albums?.length
+        ? collection.albums
+        : albumsFromSongs(collection.songs, collection.artistId, collection.artistName),
+    [collection],
+  );
   return (
     <section className="collection-view">
       <button className="back-button" onClick={onBack}>
@@ -1719,16 +1900,76 @@ function CollectionView({
           </div>
         </div>
       </div>
-      <SongTable
-        songs={collection.songs}
-        current={current}
-        t={t}
-        onPlay={onPlay}
-        onFavorite={onFavorite}
-        onAdd={onAdd}
-        onInsertNext={(song) => onInsertNext([song])}
-        onOpenArtist={onOpenArtist}
-      />
+      {collection.type === "artist" ? (
+        <div className="collection-tabs">
+          <button
+            className={artistView === "songs" ? "active" : ""}
+            onClick={() => setArtistView("songs")}
+          >
+            {t("songs")}
+          </button>
+          <button
+            className={artistView === "albums" ? "active" : ""}
+            onClick={() => setArtistView("albums")}
+          >
+            {t("albums")}
+          </button>
+        </div>
+      ) : null}
+      {collection.type === "artist" && artistView === "albums" ? (
+        <div className="artist-album-grid">
+          {artistAlbums.map((album) => (
+            <article key={album.id} className="artist-album-card">
+              <button
+                className="cover plain-cover"
+                style={
+                  {
+                    "--cover-url": `url(${albumCoverUrl(album)})`,
+                  } as React.CSSProperties
+                }
+                onClick={() => onOpenAlbumCard?.(album)}
+              >
+                <Record weight="fill" />
+                <span
+                  className="card-play"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={t("play")}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onPlayAlbumCard?.(album);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onPlayAlbumCard?.(album);
+                    }
+                  }}
+                >
+                  <Play weight="fill" />
+                </span>
+              </button>
+              <strong>{album.title}</strong>
+              <span>
+                {album.song_count} {t("count")}
+              </span>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <SongTable
+          songs={collection.songs}
+          current={current}
+          t={t}
+          onPlay={onPlay}
+          onFavorite={onFavorite}
+          onAdd={onAdd}
+          onInsertNext={(song) => onInsertNext([song])}
+          onOpenAlbum={onOpenAlbum}
+          onOpenArtist={onOpenArtist}
+        />
+      )}
     </section>
   );
 }
@@ -1757,6 +1998,7 @@ function LibraryView({
   onFavorite,
   onAdd,
   onInsertNext,
+  onOpenAlbum,
   onOpenArtist,
   onScan,
   onUpload,
@@ -1769,6 +2011,7 @@ function LibraryView({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  onOpenAlbum: (song: Song) => void;
   onOpenArtist: (song: Song) => void;
   onScan: () => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -1829,6 +2072,7 @@ function LibraryView({
           onFavorite={onFavorite}
           onAdd={onAdd}
           onInsertNext={(song) => onInsertNext([song])}
+          onOpenAlbum={onOpenAlbum}
           onOpenArtist={onOpenArtist}
           selectedIds={selected}
           onToggleSelected={toggleSelected}
@@ -1876,6 +2120,9 @@ function FullLyrics({
   const [seekTargetKey, setSeekTargetKey] = useState("");
   const userScrollUntil = useRef(0);
   const seekTimer = useRef<number | null>(null);
+  const backgroundStyle = coverUrl(song)
+    ? ({ "--cover-url": `url(${coverUrl(song)})` } as React.CSSProperties)
+    : undefined;
   useEffect(() => {
     return () => {
       if (seekTimer.current != null) window.clearTimeout(seekTimer.current);
@@ -1912,7 +2159,7 @@ function FullLyrics({
     window.requestAnimationFrame(syncSeekTargetFromScroll);
   };
   return (
-    <section className="full-lyrics">
+    <section className="full-lyrics" style={backgroundStyle}>
       <Turntable song={song} playing={false} decorative />
       <div className="full-lyrics-head">
         <button
@@ -2181,6 +2428,8 @@ function SettingsPanel({
   const darkThemes = themes.slice(0, 5);
   const lightThemes = themes.slice(5);
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const [users, setUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [nickname, setNickname] = useState(user.nickname || user.username);
   const [avatarDataURL, setAvatarDataURL] = useState(user.avatar_data_url || "");
   const nicknameLabel = settings.language === "zh-CN" ? "昵称" : "Nickname";
@@ -2190,6 +2439,16 @@ function SettingsPanel({
     { id: "users", label: t("userManagement") },
     { id: "site", label: t("siteSettings") },
   ];
+
+  useEffect(() => {
+    if (activeTab !== "users" || user.role !== "admin") return;
+    setUsersLoading(true);
+    void api
+      .users()
+      .then(setUsers)
+      .catch(() => setUsers([]))
+      .finally(() => setUsersLoading(false));
+  }, [activeTab, user.role]);
 
   return (
     <section className="settings-page">
@@ -2251,16 +2510,38 @@ function SettingsPanel({
       {activeTab === "users" && (
         <div className="settings-grid settings-tab-panel" role="tabpanel">
           {user.role === "admin" ? (
-            <label className="switch-row settings-wide-row">
-              <span>{t("allowRegistration")}</span>
-              <input
-                type="checkbox"
-                checked={settings.registration_enabled}
-                onChange={(e) =>
-                  setSettings({ ...settings, registration_enabled: e.target.checked })
-                }
-              />
-            </label>
+            <>
+              <label className="switch-row settings-wide-row">
+                <span>{t("allowRegistration")}</span>
+                <input
+                  type="checkbox"
+                  checked={settings.registration_enabled}
+                  onChange={(e) =>
+                    setSettings({ ...settings, registration_enabled: e.target.checked })
+                  }
+                />
+              </label>
+              <div className="user-list settings-wide-row">
+                <div className="user-list-head">
+                  <strong>{t("userList")}</strong>
+                  <span>{usersLoading ? t("loading") : `${users.length} ${t("users")}`}</span>
+                </div>
+                {users.map((item) => (
+                  <div className="user-list-row" key={item.id}>
+                    <UserAvatar user={item} />
+                    <div>
+                      <strong>{item.nickname || item.username}</strong>
+                      <span>@{item.username}</span>
+                    </div>
+                    <em>{item.role === "admin" ? "Admin" : "User"}</em>
+                    <small>{formatDateTime(item.created_at)}</small>
+                  </div>
+                ))}
+                {!usersLoading && users.length === 0 ? (
+                  <div className="settings-empty">{t("emptyCollection")}</div>
+                ) : null}
+              </div>
+            </>
           ) : (
             <div className="settings-empty settings-wide-row">{t("adminOnly")}</div>
           )}
@@ -2369,6 +2650,7 @@ function SongTable({
   onFavorite,
   onAdd,
   onInsertNext,
+  onOpenAlbum,
   onOpenArtist,
   selectedIds,
   onToggleSelected,
@@ -2380,6 +2662,7 @@ function SongTable({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext?: (song: Song) => void;
+  onOpenAlbum?: (song: Song) => void;
   onOpenArtist?: (song: Song) => void;
   selectedIds?: Set<number>;
   onToggleSelected?: (song: Song) => void;
@@ -2450,7 +2733,15 @@ function SongTable({
           <small>{song.artist}</small>
         )}
       </div>
-      <div>{song.album}</div>
+      <div>
+        {onOpenAlbum && song.album_id ? (
+          <button className="artist-link" onClick={() => onOpenAlbum(song)}>
+            {song.album}
+          </button>
+        ) : (
+          song.album
+        )}
+      </div>
       <div>{formatQuality(song)}</div>
       <div>{formatDuration(song.duration_seconds)}</div>
       <button onClick={() => onFavorite(song)} aria-label={t("favorites")}>

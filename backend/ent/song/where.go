@@ -105,6 +105,11 @@ func BitDepth(v int) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldBitDepth, v))
 }
 
+// Year applies equality check predicate on the "year" field. It's identical to YearEQ.
+func Year(v int) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldYear, v))
+}
+
 // LyricsEmbedded applies equality check predicate on the "lyrics_embedded" field. It's identical to LyricsEmbeddedEQ.
 func LyricsEmbedded(v string) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldLyricsEmbedded, v))
@@ -668,6 +673,46 @@ func BitDepthLT(v int) predicate.Song {
 // BitDepthLTE applies the LTE predicate on the "bit_depth" field.
 func BitDepthLTE(v int) predicate.Song {
 	return predicate.Song(sql.FieldLTE(FieldBitDepth, v))
+}
+
+// YearEQ applies the EQ predicate on the "year" field.
+func YearEQ(v int) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldYear, v))
+}
+
+// YearNEQ applies the NEQ predicate on the "year" field.
+func YearNEQ(v int) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldYear, v))
+}
+
+// YearIn applies the In predicate on the "year" field.
+func YearIn(vs ...int) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldYear, vs...))
+}
+
+// YearNotIn applies the NotIn predicate on the "year" field.
+func YearNotIn(vs ...int) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldYear, vs...))
+}
+
+// YearGT applies the GT predicate on the "year" field.
+func YearGT(v int) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldYear, v))
+}
+
+// YearGTE applies the GTE predicate on the "year" field.
+func YearGTE(v int) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldYear, v))
+}
+
+// YearLT applies the LT predicate on the "year" field.
+func YearLT(v int) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldYear, v))
+}
+
+// YearLTE applies the LTE predicate on the "year" field.
+func YearLTE(v int) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldYear, v))
 }
 
 // LyricsEmbeddedEQ applies the EQ predicate on the "lyrics_embedded" field.

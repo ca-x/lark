@@ -60,6 +60,26 @@ func PlayedAt(v time.Time) predicate.PlayHistory {
 	return predicate.PlayHistory(sql.FieldEQ(FieldPlayedAt, v))
 }
 
+// ProgressSeconds applies equality check predicate on the "progress_seconds" field. It's identical to ProgressSecondsEQ.
+func ProgressSeconds(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldProgressSeconds, v))
+}
+
+// DurationSeconds applies equality check predicate on the "duration_seconds" field. It's identical to DurationSecondsEQ.
+func DurationSeconds(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldDurationSeconds, v))
+}
+
+// Completed applies equality check predicate on the "completed" field. It's identical to CompletedEQ.
+func Completed(v bool) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldCompleted, v))
+}
+
+// UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
+func UpdatedAt(v time.Time) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
 // PlayedAtEQ applies the EQ predicate on the "played_at" field.
 func PlayedAtEQ(v time.Time) predicate.PlayHistory {
 	return predicate.PlayHistory(sql.FieldEQ(FieldPlayedAt, v))
@@ -98,6 +118,136 @@ func PlayedAtLT(v time.Time) predicate.PlayHistory {
 // PlayedAtLTE applies the LTE predicate on the "played_at" field.
 func PlayedAtLTE(v time.Time) predicate.PlayHistory {
 	return predicate.PlayHistory(sql.FieldLTE(FieldPlayedAt, v))
+}
+
+// ProgressSecondsEQ applies the EQ predicate on the "progress_seconds" field.
+func ProgressSecondsEQ(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldProgressSeconds, v))
+}
+
+// ProgressSecondsNEQ applies the NEQ predicate on the "progress_seconds" field.
+func ProgressSecondsNEQ(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNEQ(FieldProgressSeconds, v))
+}
+
+// ProgressSecondsIn applies the In predicate on the "progress_seconds" field.
+func ProgressSecondsIn(vs ...float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldIn(FieldProgressSeconds, vs...))
+}
+
+// ProgressSecondsNotIn applies the NotIn predicate on the "progress_seconds" field.
+func ProgressSecondsNotIn(vs ...float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNotIn(FieldProgressSeconds, vs...))
+}
+
+// ProgressSecondsGT applies the GT predicate on the "progress_seconds" field.
+func ProgressSecondsGT(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldGT(FieldProgressSeconds, v))
+}
+
+// ProgressSecondsGTE applies the GTE predicate on the "progress_seconds" field.
+func ProgressSecondsGTE(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldGTE(FieldProgressSeconds, v))
+}
+
+// ProgressSecondsLT applies the LT predicate on the "progress_seconds" field.
+func ProgressSecondsLT(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldLT(FieldProgressSeconds, v))
+}
+
+// ProgressSecondsLTE applies the LTE predicate on the "progress_seconds" field.
+func ProgressSecondsLTE(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldLTE(FieldProgressSeconds, v))
+}
+
+// DurationSecondsEQ applies the EQ predicate on the "duration_seconds" field.
+func DurationSecondsEQ(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldDurationSeconds, v))
+}
+
+// DurationSecondsNEQ applies the NEQ predicate on the "duration_seconds" field.
+func DurationSecondsNEQ(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNEQ(FieldDurationSeconds, v))
+}
+
+// DurationSecondsIn applies the In predicate on the "duration_seconds" field.
+func DurationSecondsIn(vs ...float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldIn(FieldDurationSeconds, vs...))
+}
+
+// DurationSecondsNotIn applies the NotIn predicate on the "duration_seconds" field.
+func DurationSecondsNotIn(vs ...float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNotIn(FieldDurationSeconds, vs...))
+}
+
+// DurationSecondsGT applies the GT predicate on the "duration_seconds" field.
+func DurationSecondsGT(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldGT(FieldDurationSeconds, v))
+}
+
+// DurationSecondsGTE applies the GTE predicate on the "duration_seconds" field.
+func DurationSecondsGTE(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldGTE(FieldDurationSeconds, v))
+}
+
+// DurationSecondsLT applies the LT predicate on the "duration_seconds" field.
+func DurationSecondsLT(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldLT(FieldDurationSeconds, v))
+}
+
+// DurationSecondsLTE applies the LTE predicate on the "duration_seconds" field.
+func DurationSecondsLTE(v float64) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldLTE(FieldDurationSeconds, v))
+}
+
+// CompletedEQ applies the EQ predicate on the "completed" field.
+func CompletedEQ(v bool) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldCompleted, v))
+}
+
+// CompletedNEQ applies the NEQ predicate on the "completed" field.
+func CompletedNEQ(v bool) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNEQ(FieldCompleted, v))
+}
+
+// UpdatedAtEQ applies the EQ predicate on the "updated_at" field.
+func UpdatedAtEQ(v time.Time) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldUpdatedAt, v))
+}
+
+// UpdatedAtNEQ applies the NEQ predicate on the "updated_at" field.
+func UpdatedAtNEQ(v time.Time) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNEQ(FieldUpdatedAt, v))
+}
+
+// UpdatedAtIn applies the In predicate on the "updated_at" field.
+func UpdatedAtIn(vs ...time.Time) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldIn(FieldUpdatedAt, vs...))
+}
+
+// UpdatedAtNotIn applies the NotIn predicate on the "updated_at" field.
+func UpdatedAtNotIn(vs ...time.Time) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNotIn(FieldUpdatedAt, vs...))
+}
+
+// UpdatedAtGT applies the GT predicate on the "updated_at" field.
+func UpdatedAtGT(v time.Time) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldGT(FieldUpdatedAt, v))
+}
+
+// UpdatedAtGTE applies the GTE predicate on the "updated_at" field.
+func UpdatedAtGTE(v time.Time) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldGTE(FieldUpdatedAt, v))
+}
+
+// UpdatedAtLT applies the LT predicate on the "updated_at" field.
+func UpdatedAtLT(v time.Time) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldLT(FieldUpdatedAt, v))
+}
+
+// UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
+func UpdatedAtLTE(v time.Time) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
 // HasUser applies the HasEdge predicate on the "user" edge.

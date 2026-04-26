@@ -91,6 +91,24 @@ func init() {
 	playhistoryDescPlayedAt := playhistoryFields[0].Descriptor()
 	// playhistory.DefaultPlayedAt holds the default value on creation for the played_at field.
 	playhistory.DefaultPlayedAt = playhistoryDescPlayedAt.Default.(func() time.Time)
+	// playhistoryDescProgressSeconds is the schema descriptor for progress_seconds field.
+	playhistoryDescProgressSeconds := playhistoryFields[1].Descriptor()
+	// playhistory.DefaultProgressSeconds holds the default value on creation for the progress_seconds field.
+	playhistory.DefaultProgressSeconds = playhistoryDescProgressSeconds.Default.(float64)
+	// playhistoryDescDurationSeconds is the schema descriptor for duration_seconds field.
+	playhistoryDescDurationSeconds := playhistoryFields[2].Descriptor()
+	// playhistory.DefaultDurationSeconds holds the default value on creation for the duration_seconds field.
+	playhistory.DefaultDurationSeconds = playhistoryDescDurationSeconds.Default.(float64)
+	// playhistoryDescCompleted is the schema descriptor for completed field.
+	playhistoryDescCompleted := playhistoryFields[3].Descriptor()
+	// playhistory.DefaultCompleted holds the default value on creation for the completed field.
+	playhistory.DefaultCompleted = playhistoryDescCompleted.Default.(bool)
+	// playhistoryDescUpdatedAt is the schema descriptor for updated_at field.
+	playhistoryDescUpdatedAt := playhistoryFields[4].Descriptor()
+	// playhistory.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	playhistory.DefaultUpdatedAt = playhistoryDescUpdatedAt.Default.(func() time.Time)
+	// playhistory.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	playhistory.UpdateDefaultUpdatedAt = playhistoryDescUpdatedAt.UpdateDefault.(func() time.Time)
 	playlistFields := schema.Playlist{}.Fields()
 	_ = playlistFields
 	// playlistDescName is the schema descriptor for name field.
@@ -171,32 +189,36 @@ func init() {
 	songDescBitDepth := songFields[9].Descriptor()
 	// song.DefaultBitDepth holds the default value on creation for the bit_depth field.
 	song.DefaultBitDepth = songDescBitDepth.Default.(int)
+	// songDescYear is the schema descriptor for year field.
+	songDescYear := songFields[10].Descriptor()
+	// song.DefaultYear holds the default value on creation for the year field.
+	song.DefaultYear = songDescYear.Default.(int)
 	// songDescLyricsEmbedded is the schema descriptor for lyrics_embedded field.
-	songDescLyricsEmbedded := songFields[10].Descriptor()
+	songDescLyricsEmbedded := songFields[11].Descriptor()
 	// song.DefaultLyricsEmbedded holds the default value on creation for the lyrics_embedded field.
 	song.DefaultLyricsEmbedded = songDescLyricsEmbedded.Default.(string)
 	// songDescLyricsSource is the schema descriptor for lyrics_source field.
-	songDescLyricsSource := songFields[11].Descriptor()
+	songDescLyricsSource := songFields[12].Descriptor()
 	// song.DefaultLyricsSource holds the default value on creation for the lyrics_source field.
 	song.DefaultLyricsSource = songDescLyricsSource.Default.(string)
 	// songDescNeteaseID is the schema descriptor for netease_id field.
-	songDescNeteaseID := songFields[12].Descriptor()
+	songDescNeteaseID := songFields[13].Descriptor()
 	// song.DefaultNeteaseID holds the default value on creation for the netease_id field.
 	song.DefaultNeteaseID = songDescNeteaseID.Default.(string)
 	// songDescFavorite is the schema descriptor for favorite field.
-	songDescFavorite := songFields[13].Descriptor()
+	songDescFavorite := songFields[14].Descriptor()
 	// song.DefaultFavorite holds the default value on creation for the favorite field.
 	song.DefaultFavorite = songDescFavorite.Default.(bool)
 	// songDescPlayCount is the schema descriptor for play_count field.
-	songDescPlayCount := songFields[14].Descriptor()
+	songDescPlayCount := songFields[15].Descriptor()
 	// song.DefaultPlayCount holds the default value on creation for the play_count field.
 	song.DefaultPlayCount = songDescPlayCount.Default.(int)
 	// songDescCreatedAt is the schema descriptor for created_at field.
-	songDescCreatedAt := songFields[16].Descriptor()
+	songDescCreatedAt := songFields[17].Descriptor()
 	// song.DefaultCreatedAt holds the default value on creation for the created_at field.
 	song.DefaultCreatedAt = songDescCreatedAt.Default.(func() time.Time)
 	// songDescUpdatedAt is the schema descriptor for updated_at field.
-	songDescUpdatedAt := songFields[17].Descriptor()
+	songDescUpdatedAt := songFields[18].Descriptor()
 	// song.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	song.DefaultUpdatedAt = songDescUpdatedAt.Default.(func() time.Time)
 	// song.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -64,6 +64,10 @@ var (
 	PlayHistoriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "played_at", Type: field.TypeTime},
+		{Name: "progress_seconds", Type: field.TypeFloat64, Default: 0},
+		{Name: "duration_seconds", Type: field.TypeFloat64, Default: 0},
+		{Name: "completed", Type: field.TypeBool, Default: false},
+		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "song_play_history", Type: field.TypeInt},
 		{Name: "user_play_history", Type: field.TypeInt},
 	}
@@ -75,13 +79,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "play_histories_songs_play_history",
-				Columns:    []*schema.Column{PlayHistoriesColumns[2]},
+				Columns:    []*schema.Column{PlayHistoriesColumns[6]},
 				RefColumns: []*schema.Column{SongsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "play_histories_users_play_history",
-				Columns:    []*schema.Column{PlayHistoriesColumns[3]},
+				Columns:    []*schema.Column{PlayHistoriesColumns[7]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -90,12 +94,12 @@ var (
 			{
 				Name:    "playhistory_user_play_history",
 				Unique:  false,
-				Columns: []*schema.Column{PlayHistoriesColumns[3]},
+				Columns: []*schema.Column{PlayHistoriesColumns[7]},
 			},
 			{
 				Name:    "playhistory_song_play_history",
 				Unique:  false,
-				Columns: []*schema.Column{PlayHistoriesColumns[2]},
+				Columns: []*schema.Column{PlayHistoriesColumns[6]},
 			},
 		},
 	}
@@ -159,6 +163,7 @@ var (
 		{Name: "sample_rate", Type: field.TypeInt, Default: 0},
 		{Name: "bit_rate", Type: field.TypeInt, Default: 0},
 		{Name: "bit_depth", Type: field.TypeInt, Default: 0},
+		{Name: "year", Type: field.TypeInt, Default: 0},
 		{Name: "lyrics_embedded", Type: field.TypeString, Default: ""},
 		{Name: "lyrics_source", Type: field.TypeString, Default: ""},
 		{Name: "netease_id", Type: field.TypeString, Default: ""},
@@ -178,13 +183,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "songs_albums_songs",
-				Columns:    []*schema.Column{SongsColumns[19]},
+				Columns:    []*schema.Column{SongsColumns[20]},
 				RefColumns: []*schema.Column{AlbumsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "songs_artists_songs",
-				Columns:    []*schema.Column{SongsColumns[20]},
+				Columns:    []*schema.Column{SongsColumns[21]},
 				RefColumns: []*schema.Column{ArtistsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -198,12 +203,12 @@ var (
 			{
 				Name:    "song_favorite",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[14]},
+				Columns: []*schema.Column{SongsColumns[15]},
 			},
 			{
 				Name:    "song_netease_id",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[13]},
+				Columns: []*schema.Column{SongsColumns[14]},
 			},
 		},
 	}

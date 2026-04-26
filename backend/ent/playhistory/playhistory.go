@@ -16,6 +16,14 @@ const (
 	FieldID = "id"
 	// FieldPlayedAt holds the string denoting the played_at field in the database.
 	FieldPlayedAt = "played_at"
+	// FieldProgressSeconds holds the string denoting the progress_seconds field in the database.
+	FieldProgressSeconds = "progress_seconds"
+	// FieldDurationSeconds holds the string denoting the duration_seconds field in the database.
+	FieldDurationSeconds = "duration_seconds"
+	// FieldCompleted holds the string denoting the completed field in the database.
+	FieldCompleted = "completed"
+	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
+	FieldUpdatedAt = "updated_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// EdgeSong holds the string denoting the song edge name in mutations.
@@ -42,6 +50,10 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldPlayedAt,
+	FieldProgressSeconds,
+	FieldDurationSeconds,
+	FieldCompleted,
+	FieldUpdatedAt,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "play_histories"
@@ -69,6 +81,16 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultPlayedAt holds the default value on creation for the "played_at" field.
 	DefaultPlayedAt func() time.Time
+	// DefaultProgressSeconds holds the default value on creation for the "progress_seconds" field.
+	DefaultProgressSeconds float64
+	// DefaultDurationSeconds holds the default value on creation for the "duration_seconds" field.
+	DefaultDurationSeconds float64
+	// DefaultCompleted holds the default value on creation for the "completed" field.
+	DefaultCompleted bool
+	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
+	DefaultUpdatedAt func() time.Time
+	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
+	UpdateDefaultUpdatedAt func() time.Time
 )
 
 // OrderOption defines the ordering options for the PlayHistory queries.
@@ -82,6 +104,26 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByPlayedAt orders the results by the played_at field.
 func ByPlayedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPlayedAt, opts...).ToFunc()
+}
+
+// ByProgressSeconds orders the results by the progress_seconds field.
+func ByProgressSeconds(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProgressSeconds, opts...).ToFunc()
+}
+
+// ByDurationSeconds orders the results by the duration_seconds field.
+func ByDurationSeconds(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDurationSeconds, opts...).ToFunc()
+}
+
+// ByCompleted orders the results by the completed field.
+func ByCompleted(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCompleted, opts...).ToFunc()
+}
+
+// ByUpdatedAt orders the results by the updated_at field.
+func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
 // ByUserField orders the results by user field.

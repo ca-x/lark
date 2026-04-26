@@ -141,6 +141,20 @@ func (_c *SongCreate) SetNillableBitDepth(v *int) *SongCreate {
 	return _c
 }
 
+// SetYear sets the "year" field.
+func (_c *SongCreate) SetYear(v int) *SongCreate {
+	_c.mutation.SetYear(v)
+	return _c
+}
+
+// SetNillableYear sets the "year" field if the given value is not nil.
+func (_c *SongCreate) SetNillableYear(v *int) *SongCreate {
+	if v != nil {
+		_c.SetYear(*v)
+	}
+	return _c
+}
+
 // SetLyricsEmbedded sets the "lyrics_embedded" field.
 func (_c *SongCreate) SetLyricsEmbedded(v string) *SongCreate {
 	_c.mutation.SetLyricsEmbedded(v)
@@ -399,6 +413,10 @@ func (_c *SongCreate) defaults() {
 		v := song.DefaultBitDepth
 		_c.mutation.SetBitDepth(v)
 	}
+	if _, ok := _c.mutation.Year(); !ok {
+		v := song.DefaultYear
+		_c.mutation.SetYear(v)
+	}
 	if _, ok := _c.mutation.LyricsEmbedded(); !ok {
 		v := song.DefaultLyricsEmbedded
 		_c.mutation.SetLyricsEmbedded(v)
@@ -475,6 +493,9 @@ func (_c *SongCreate) check() error {
 	}
 	if _, ok := _c.mutation.BitDepth(); !ok {
 		return &ValidationError{Name: "bit_depth", err: errors.New(`ent: missing required field "Song.bit_depth"`)}
+	}
+	if _, ok := _c.mutation.Year(); !ok {
+		return &ValidationError{Name: "year", err: errors.New(`ent: missing required field "Song.year"`)}
 	}
 	if _, ok := _c.mutation.LyricsEmbedded(); !ok {
 		return &ValidationError{Name: "lyrics_embedded", err: errors.New(`ent: missing required field "Song.lyrics_embedded"`)}
@@ -562,6 +583,10 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.BitDepth(); ok {
 		_spec.SetField(song.FieldBitDepth, field.TypeInt, value)
 		_node.BitDepth = value
+	}
+	if value, ok := _c.mutation.Year(); ok {
+		_spec.SetField(song.FieldYear, field.TypeInt, value)
+		_node.Year = value
 	}
 	if value, ok := _c.mutation.LyricsEmbedded(); ok {
 		_spec.SetField(song.FieldLyricsEmbedded, field.TypeString, value)

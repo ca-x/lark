@@ -34,6 +34,8 @@ const (
 	FieldBitRate = "bit_rate"
 	// FieldBitDepth holds the string denoting the bit_depth field in the database.
 	FieldBitDepth = "bit_depth"
+	// FieldYear holds the string denoting the year field in the database.
+	FieldYear = "year"
 	// FieldLyricsEmbedded holds the string denoting the lyrics_embedded field in the database.
 	FieldLyricsEmbedded = "lyrics_embedded"
 	// FieldLyricsSource holds the string denoting the lyrics_source field in the database.
@@ -110,6 +112,7 @@ var Columns = []string{
 	FieldSampleRate,
 	FieldBitRate,
 	FieldBitDepth,
+	FieldYear,
 	FieldLyricsEmbedded,
 	FieldLyricsSource,
 	FieldNeteaseID,
@@ -169,6 +172,8 @@ var (
 	DefaultBitRate int
 	// DefaultBitDepth holds the default value on creation for the "bit_depth" field.
 	DefaultBitDepth int
+	// DefaultYear holds the default value on creation for the "year" field.
+	DefaultYear int
 	// DefaultLyricsEmbedded holds the default value on creation for the "lyrics_embedded" field.
 	DefaultLyricsEmbedded string
 	// DefaultLyricsSource holds the default value on creation for the "lyrics_source" field.
@@ -243,6 +248,11 @@ func ByBitRate(opts ...sql.OrderTermOption) OrderOption {
 // ByBitDepth orders the results by the bit_depth field.
 func ByBitDepth(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBitDepth, opts...).ToFunc()
+}
+
+// ByYear orders the results by the year field.
+func ByYear(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldYear, opts...).ToFunc()
 }
 
 // ByLyricsEmbedded orders the results by the lyrics_embedded field.

@@ -14,6 +14,10 @@ type PlayHistory struct{ ent.Schema }
 func (PlayHistory) Fields() []ent.Field {
 	return []ent.Field{
 		field.Time("played_at").Default(time.Now),
+		field.Float("progress_seconds").Default(0),
+		field.Float("duration_seconds").Default(0),
+		field.Bool("completed").Default(false),
+		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}
 }
 

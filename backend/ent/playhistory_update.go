@@ -44,6 +44,68 @@ func (_u *PlayHistoryUpdate) SetNillablePlayedAt(v *time.Time) *PlayHistoryUpdat
 	return _u
 }
 
+// SetProgressSeconds sets the "progress_seconds" field.
+func (_u *PlayHistoryUpdate) SetProgressSeconds(v float64) *PlayHistoryUpdate {
+	_u.mutation.ResetProgressSeconds()
+	_u.mutation.SetProgressSeconds(v)
+	return _u
+}
+
+// SetNillableProgressSeconds sets the "progress_seconds" field if the given value is not nil.
+func (_u *PlayHistoryUpdate) SetNillableProgressSeconds(v *float64) *PlayHistoryUpdate {
+	if v != nil {
+		_u.SetProgressSeconds(*v)
+	}
+	return _u
+}
+
+// AddProgressSeconds adds value to the "progress_seconds" field.
+func (_u *PlayHistoryUpdate) AddProgressSeconds(v float64) *PlayHistoryUpdate {
+	_u.mutation.AddProgressSeconds(v)
+	return _u
+}
+
+// SetDurationSeconds sets the "duration_seconds" field.
+func (_u *PlayHistoryUpdate) SetDurationSeconds(v float64) *PlayHistoryUpdate {
+	_u.mutation.ResetDurationSeconds()
+	_u.mutation.SetDurationSeconds(v)
+	return _u
+}
+
+// SetNillableDurationSeconds sets the "duration_seconds" field if the given value is not nil.
+func (_u *PlayHistoryUpdate) SetNillableDurationSeconds(v *float64) *PlayHistoryUpdate {
+	if v != nil {
+		_u.SetDurationSeconds(*v)
+	}
+	return _u
+}
+
+// AddDurationSeconds adds value to the "duration_seconds" field.
+func (_u *PlayHistoryUpdate) AddDurationSeconds(v float64) *PlayHistoryUpdate {
+	_u.mutation.AddDurationSeconds(v)
+	return _u
+}
+
+// SetCompleted sets the "completed" field.
+func (_u *PlayHistoryUpdate) SetCompleted(v bool) *PlayHistoryUpdate {
+	_u.mutation.SetCompleted(v)
+	return _u
+}
+
+// SetNillableCompleted sets the "completed" field if the given value is not nil.
+func (_u *PlayHistoryUpdate) SetNillableCompleted(v *bool) *PlayHistoryUpdate {
+	if v != nil {
+		_u.SetCompleted(*v)
+	}
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *PlayHistoryUpdate) SetUpdatedAt(v time.Time) *PlayHistoryUpdate {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetUserID sets the "user" edge to the User entity by ID.
 func (_u *PlayHistoryUpdate) SetUserID(id int) *PlayHistoryUpdate {
 	_u.mutation.SetUserID(id)
@@ -85,6 +147,7 @@ func (_u *PlayHistoryUpdate) ClearSong() *PlayHistoryUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *PlayHistoryUpdate) Save(ctx context.Context) (int, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -107,6 +170,14 @@ func (_u *PlayHistoryUpdate) Exec(ctx context.Context) error {
 func (_u *PlayHistoryUpdate) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *PlayHistoryUpdate) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := playhistory.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -135,6 +206,24 @@ func (_u *PlayHistoryUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.PlayedAt(); ok {
 		_spec.SetField(playhistory.FieldPlayedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.ProgressSeconds(); ok {
+		_spec.SetField(playhistory.FieldProgressSeconds, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedProgressSeconds(); ok {
+		_spec.AddField(playhistory.FieldProgressSeconds, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DurationSeconds(); ok {
+		_spec.SetField(playhistory.FieldDurationSeconds, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDurationSeconds(); ok {
+		_spec.AddField(playhistory.FieldDurationSeconds, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Completed(); ok {
+		_spec.SetField(playhistory.FieldCompleted, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(playhistory.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -228,6 +317,68 @@ func (_u *PlayHistoryUpdateOne) SetNillablePlayedAt(v *time.Time) *PlayHistoryUp
 	return _u
 }
 
+// SetProgressSeconds sets the "progress_seconds" field.
+func (_u *PlayHistoryUpdateOne) SetProgressSeconds(v float64) *PlayHistoryUpdateOne {
+	_u.mutation.ResetProgressSeconds()
+	_u.mutation.SetProgressSeconds(v)
+	return _u
+}
+
+// SetNillableProgressSeconds sets the "progress_seconds" field if the given value is not nil.
+func (_u *PlayHistoryUpdateOne) SetNillableProgressSeconds(v *float64) *PlayHistoryUpdateOne {
+	if v != nil {
+		_u.SetProgressSeconds(*v)
+	}
+	return _u
+}
+
+// AddProgressSeconds adds value to the "progress_seconds" field.
+func (_u *PlayHistoryUpdateOne) AddProgressSeconds(v float64) *PlayHistoryUpdateOne {
+	_u.mutation.AddProgressSeconds(v)
+	return _u
+}
+
+// SetDurationSeconds sets the "duration_seconds" field.
+func (_u *PlayHistoryUpdateOne) SetDurationSeconds(v float64) *PlayHistoryUpdateOne {
+	_u.mutation.ResetDurationSeconds()
+	_u.mutation.SetDurationSeconds(v)
+	return _u
+}
+
+// SetNillableDurationSeconds sets the "duration_seconds" field if the given value is not nil.
+func (_u *PlayHistoryUpdateOne) SetNillableDurationSeconds(v *float64) *PlayHistoryUpdateOne {
+	if v != nil {
+		_u.SetDurationSeconds(*v)
+	}
+	return _u
+}
+
+// AddDurationSeconds adds value to the "duration_seconds" field.
+func (_u *PlayHistoryUpdateOne) AddDurationSeconds(v float64) *PlayHistoryUpdateOne {
+	_u.mutation.AddDurationSeconds(v)
+	return _u
+}
+
+// SetCompleted sets the "completed" field.
+func (_u *PlayHistoryUpdateOne) SetCompleted(v bool) *PlayHistoryUpdateOne {
+	_u.mutation.SetCompleted(v)
+	return _u
+}
+
+// SetNillableCompleted sets the "completed" field if the given value is not nil.
+func (_u *PlayHistoryUpdateOne) SetNillableCompleted(v *bool) *PlayHistoryUpdateOne {
+	if v != nil {
+		_u.SetCompleted(*v)
+	}
+	return _u
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_u *PlayHistoryUpdateOne) SetUpdatedAt(v time.Time) *PlayHistoryUpdateOne {
+	_u.mutation.SetUpdatedAt(v)
+	return _u
+}
+
 // SetUserID sets the "user" edge to the User entity by ID.
 func (_u *PlayHistoryUpdateOne) SetUserID(id int) *PlayHistoryUpdateOne {
 	_u.mutation.SetUserID(id)
@@ -282,6 +433,7 @@ func (_u *PlayHistoryUpdateOne) Select(field string, fields ...string) *PlayHist
 
 // Save executes the query and returns the updated PlayHistory entity.
 func (_u *PlayHistoryUpdateOne) Save(ctx context.Context) (*PlayHistory, error) {
+	_u.defaults()
 	return withHooks(ctx, _u.sqlSave, _u.mutation, _u.hooks)
 }
 
@@ -304,6 +456,14 @@ func (_u *PlayHistoryUpdateOne) Exec(ctx context.Context) error {
 func (_u *PlayHistoryUpdateOne) ExecX(ctx context.Context) {
 	if err := _u.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (_u *PlayHistoryUpdateOne) defaults() {
+	if _, ok := _u.mutation.UpdatedAt(); !ok {
+		v := playhistory.UpdateDefaultUpdatedAt()
+		_u.mutation.SetUpdatedAt(v)
 	}
 }
 
@@ -349,6 +509,24 @@ func (_u *PlayHistoryUpdateOne) sqlSave(ctx context.Context) (_node *PlayHistory
 	}
 	if value, ok := _u.mutation.PlayedAt(); ok {
 		_spec.SetField(playhistory.FieldPlayedAt, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.ProgressSeconds(); ok {
+		_spec.SetField(playhistory.FieldProgressSeconds, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedProgressSeconds(); ok {
+		_spec.AddField(playhistory.FieldProgressSeconds, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DurationSeconds(); ok {
+		_spec.SetField(playhistory.FieldDurationSeconds, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDurationSeconds(); ok {
+		_spec.AddField(playhistory.FieldDurationSeconds, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.Completed(); ok {
+		_spec.SetField(playhistory.FieldCompleted, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.UpdatedAt(); ok {
+		_spec.SetField(playhistory.FieldUpdatedAt, field.TypeTime, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{

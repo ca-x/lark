@@ -18,10 +18,12 @@ type Song struct {
 	SampleRate      int        `json:"sample_rate"`
 	BitRate         int        `json:"bit_rate"`
 	BitDepth        int        `json:"bit_depth"`
+	Year            int        `json:"year"`
 	NeteaseID       string     `json:"netease_id"`
 	Favorite        bool       `json:"favorite"`
 	PlayCount       int        `json:"play_count"`
 	LastPlayedAt    *time.Time `json:"last_played_at,omitempty"`
+	ResumePosition  float64    `json:"resume_position_seconds"`
 	HasLyrics       bool       `json:"has_lyrics"`
 	LyricsSource    string     `json:"lyrics_source"`
 	CreatedAt       time.Time  `json:"created_at"`

@@ -172,6 +172,18 @@ func (s *Service) UpdateProfile(ctx context.Context, userID int, nickname, avata
 	return mapUser(u), nil
 }
 
+func (s *Service) Users(ctx context.Context) ([]models.User, error) {
+	items, err := s.client.User.Query().Order(ent.Asc(user.FieldCreatedAt), ent.Asc(user.FieldID)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.User, 0, len(items))
+	for _, item := range items {
+		out = append(out, mapUser(item))
+	}
+	return out, nil
+}
+
 func (s *Service) createUserWithSession(ctx context.Context, username, password, role string) (models.User, string, error) {
 	u, err := s.createUser(ctx, username, password, role)
 	if err != nil {

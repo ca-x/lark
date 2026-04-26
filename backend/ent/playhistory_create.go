@@ -36,6 +36,62 @@ func (_c *PlayHistoryCreate) SetNillablePlayedAt(v *time.Time) *PlayHistoryCreat
 	return _c
 }
 
+// SetProgressSeconds sets the "progress_seconds" field.
+func (_c *PlayHistoryCreate) SetProgressSeconds(v float64) *PlayHistoryCreate {
+	_c.mutation.SetProgressSeconds(v)
+	return _c
+}
+
+// SetNillableProgressSeconds sets the "progress_seconds" field if the given value is not nil.
+func (_c *PlayHistoryCreate) SetNillableProgressSeconds(v *float64) *PlayHistoryCreate {
+	if v != nil {
+		_c.SetProgressSeconds(*v)
+	}
+	return _c
+}
+
+// SetDurationSeconds sets the "duration_seconds" field.
+func (_c *PlayHistoryCreate) SetDurationSeconds(v float64) *PlayHistoryCreate {
+	_c.mutation.SetDurationSeconds(v)
+	return _c
+}
+
+// SetNillableDurationSeconds sets the "duration_seconds" field if the given value is not nil.
+func (_c *PlayHistoryCreate) SetNillableDurationSeconds(v *float64) *PlayHistoryCreate {
+	if v != nil {
+		_c.SetDurationSeconds(*v)
+	}
+	return _c
+}
+
+// SetCompleted sets the "completed" field.
+func (_c *PlayHistoryCreate) SetCompleted(v bool) *PlayHistoryCreate {
+	_c.mutation.SetCompleted(v)
+	return _c
+}
+
+// SetNillableCompleted sets the "completed" field if the given value is not nil.
+func (_c *PlayHistoryCreate) SetNillableCompleted(v *bool) *PlayHistoryCreate {
+	if v != nil {
+		_c.SetCompleted(*v)
+	}
+	return _c
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (_c *PlayHistoryCreate) SetUpdatedAt(v time.Time) *PlayHistoryCreate {
+	_c.mutation.SetUpdatedAt(v)
+	return _c
+}
+
+// SetNillableUpdatedAt sets the "updated_at" field if the given value is not nil.
+func (_c *PlayHistoryCreate) SetNillableUpdatedAt(v *time.Time) *PlayHistoryCreate {
+	if v != nil {
+		_c.SetUpdatedAt(*v)
+	}
+	return _c
+}
+
 // SetUserID sets the "user" edge to the User entity by ID.
 func (_c *PlayHistoryCreate) SetUserID(id int) *PlayHistoryCreate {
 	_c.mutation.SetUserID(id)
@@ -97,12 +153,40 @@ func (_c *PlayHistoryCreate) defaults() {
 		v := playhistory.DefaultPlayedAt()
 		_c.mutation.SetPlayedAt(v)
 	}
+	if _, ok := _c.mutation.ProgressSeconds(); !ok {
+		v := playhistory.DefaultProgressSeconds
+		_c.mutation.SetProgressSeconds(v)
+	}
+	if _, ok := _c.mutation.DurationSeconds(); !ok {
+		v := playhistory.DefaultDurationSeconds
+		_c.mutation.SetDurationSeconds(v)
+	}
+	if _, ok := _c.mutation.Completed(); !ok {
+		v := playhistory.DefaultCompleted
+		_c.mutation.SetCompleted(v)
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		v := playhistory.DefaultUpdatedAt()
+		_c.mutation.SetUpdatedAt(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *PlayHistoryCreate) check() error {
 	if _, ok := _c.mutation.PlayedAt(); !ok {
 		return &ValidationError{Name: "played_at", err: errors.New(`ent: missing required field "PlayHistory.played_at"`)}
+	}
+	if _, ok := _c.mutation.ProgressSeconds(); !ok {
+		return &ValidationError{Name: "progress_seconds", err: errors.New(`ent: missing required field "PlayHistory.progress_seconds"`)}
+	}
+	if _, ok := _c.mutation.DurationSeconds(); !ok {
+		return &ValidationError{Name: "duration_seconds", err: errors.New(`ent: missing required field "PlayHistory.duration_seconds"`)}
+	}
+	if _, ok := _c.mutation.Completed(); !ok {
+		return &ValidationError{Name: "completed", err: errors.New(`ent: missing required field "PlayHistory.completed"`)}
+	}
+	if _, ok := _c.mutation.UpdatedAt(); !ok {
+		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "PlayHistory.updated_at"`)}
 	}
 	if len(_c.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "PlayHistory.user"`)}
@@ -139,6 +223,22 @@ func (_c *PlayHistoryCreate) createSpec() (*PlayHistory, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PlayedAt(); ok {
 		_spec.SetField(playhistory.FieldPlayedAt, field.TypeTime, value)
 		_node.PlayedAt = value
+	}
+	if value, ok := _c.mutation.ProgressSeconds(); ok {
+		_spec.SetField(playhistory.FieldProgressSeconds, field.TypeFloat64, value)
+		_node.ProgressSeconds = value
+	}
+	if value, ok := _c.mutation.DurationSeconds(); ok {
+		_spec.SetField(playhistory.FieldDurationSeconds, field.TypeFloat64, value)
+		_node.DurationSeconds = value
+	}
+	if value, ok := _c.mutation.Completed(); ok {
+		_spec.SetField(playhistory.FieldCompleted, field.TypeBool, value)
+		_node.Completed = value
+	}
+	if value, ok := _c.mutation.UpdatedAt(); ok {
+		_spec.SetField(playhistory.FieldUpdatedAt, field.TypeTime, value)
+		_node.UpdatedAt = value
 	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

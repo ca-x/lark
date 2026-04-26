@@ -48,6 +48,12 @@ type profileRequest struct {
 	AvatarDataURL string `json:"avatar_data_url"`
 }
 
+type playbackProgressRequest struct {
+	ProgressSeconds float64 `json:"progress_seconds"`
+	DurationSeconds float64 `json:"duration_seconds"`
+	Completed       bool    `json:"completed"`
+}
+
 type lyricSelectRequest struct {
 	Source string `json:"source"`
 	ID     string `json:"id"`
@@ -82,11 +88,13 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/auth/register", s.handleRegister)
 	e.POST("/api/auth/logout", s.handleLogout)
 	e.PUT("/api/me", s.handleUpdateProfile, auth)
+	e.GET("/api/users", s.handleUsers, admin)
 
 	e.GET("/api/songs", s.handleSongs, auth)
 	e.GET("/api/songs/:id", s.handleSong, auth)
 	e.POST("/api/songs/:id/favorite", s.handleToggleSongFavorite, auth)
 	e.POST("/api/songs/:id/played", s.handleMarkPlayed, auth)
+	e.PUT("/api/songs/:id/progress", s.handleSavePlaybackProgress, auth)
 	e.GET("/api/songs/:id/stream", s.handleStream, auth)
 	e.GET("/api/songs/:id/cover", s.handleCover, auth)
 	e.GET("/api/songs/:id/lyrics/candidates", s.handleLyricCandidates, auth)
@@ -212,6 +220,14 @@ func (s *Server) handleUpdateProfile(c *echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
+func (s *Server) handleUsers(c *echo.Context) error {
+	users, err := s.lib.Users(c.Request().Context())
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, users)
+}
+
 func (s *Server) requireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c *echo.Context) error {
 		u, err := s.lib.UserBySession(c.Request().Context(), s.sessionToken(c))
@@ -308,6 +324,21 @@ func (s *Server) handleMarkPlayed(c *echo.Context) error {
 		return err
 	}
 	if err := s.lib.MarkPlayed(c.Request().Context(), currentUserID(c), id); err != nil {
+		return mapError(err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) handleSavePlaybackProgress(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	var req playbackProgressRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if err := s.lib.SavePlaybackProgress(c.Request().Context(), currentUserID(c), id, req.ProgressSeconds, req.DurationSeconds, req.Completed); err != nil {
 		return mapError(err)
 	}
 	return c.NoContent(http.StatusNoContent)

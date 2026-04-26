@@ -39,6 +39,8 @@ type Song struct {
 	BitRate int `json:"bit_rate,omitempty"`
 	// BitDepth holds the value of the "bit_depth" field.
 	BitDepth int `json:"bit_depth,omitempty"`
+	// Year holds the value of the "year" field.
+	Year int `json:"year,omitempty"`
 	// LyricsEmbedded holds the value of the "lyrics_embedded" field.
 	LyricsEmbedded string `json:"lyrics_embedded,omitempty"`
 	// LyricsSource holds the value of the "lyrics_source" field.
@@ -138,7 +140,7 @@ func (*Song) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case song.FieldDurationSeconds:
 			values[i] = new(sql.NullFloat64)
-		case song.FieldID, song.FieldSizeBytes, song.FieldSampleRate, song.FieldBitRate, song.FieldBitDepth, song.FieldPlayCount:
+		case song.FieldID, song.FieldSizeBytes, song.FieldSampleRate, song.FieldBitRate, song.FieldBitDepth, song.FieldYear, song.FieldPlayCount:
 			values[i] = new(sql.NullInt64)
 		case song.FieldTitle, song.FieldPath, song.FieldFileName, song.FieldFormat, song.FieldMime, song.FieldLyricsEmbedded, song.FieldLyricsSource, song.FieldNeteaseID:
 			values[i] = new(sql.NullString)
@@ -228,6 +230,12 @@ func (_m *Song) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field bit_depth", values[i])
 			} else if value.Valid {
 				_m.BitDepth = int(value.Int64)
+			}
+		case song.FieldYear:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field year", values[i])
+			} else if value.Valid {
+				_m.Year = int(value.Int64)
 			}
 		case song.FieldLyricsEmbedded:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -382,6 +390,9 @@ func (_m *Song) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("bit_depth=")
 	builder.WriteString(fmt.Sprintf("%v", _m.BitDepth))
+	builder.WriteString(", ")
+	builder.WriteString("year=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Year))
 	builder.WriteString(", ")
 	builder.WriteString("lyrics_embedded=")
 	builder.WriteString(_m.LyricsEmbedded)

@@ -21,6 +21,14 @@ type PlayHistory struct {
 	ID int `json:"id,omitempty"`
 	// PlayedAt holds the value of the "played_at" field.
 	PlayedAt time.Time `json:"played_at,omitempty"`
+	// ProgressSeconds holds the value of the "progress_seconds" field.
+	ProgressSeconds float64 `json:"progress_seconds,omitempty"`
+	// DurationSeconds holds the value of the "duration_seconds" field.
+	DurationSeconds float64 `json:"duration_seconds,omitempty"`
+	// Completed holds the value of the "completed" field.
+	Completed bool `json:"completed,omitempty"`
+	// UpdatedAt holds the value of the "updated_at" field.
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PlayHistoryQuery when eager-loading is set.
 	Edges             PlayHistoryEdges `json:"edges"`
@@ -67,9 +75,13 @@ func (*PlayHistory) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case playhistory.FieldCompleted:
+			values[i] = new(sql.NullBool)
+		case playhistory.FieldProgressSeconds, playhistory.FieldDurationSeconds:
+			values[i] = new(sql.NullFloat64)
 		case playhistory.FieldID:
 			values[i] = new(sql.NullInt64)
-		case playhistory.FieldPlayedAt:
+		case playhistory.FieldPlayedAt, playhistory.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case playhistory.ForeignKeys[0]: // song_play_history
 			values[i] = new(sql.NullInt64)
@@ -101,6 +113,30 @@ func (_m *PlayHistory) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field played_at", values[i])
 			} else if value.Valid {
 				_m.PlayedAt = value.Time
+			}
+		case playhistory.FieldProgressSeconds:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field progress_seconds", values[i])
+			} else if value.Valid {
+				_m.ProgressSeconds = value.Float64
+			}
+		case playhistory.FieldDurationSeconds:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field duration_seconds", values[i])
+			} else if value.Valid {
+				_m.DurationSeconds = value.Float64
+			}
+		case playhistory.FieldCompleted:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field completed", values[i])
+			} else if value.Valid {
+				_m.Completed = value.Bool
+			}
+		case playhistory.FieldUpdatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
+			} else if value.Valid {
+				_m.UpdatedAt = value.Time
 			}
 		case playhistory.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -164,6 +200,18 @@ func (_m *PlayHistory) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("played_at=")
 	builder.WriteString(_m.PlayedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("progress_seconds=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProgressSeconds))
+	builder.WriteString(", ")
+	builder.WriteString("duration_seconds=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DurationSeconds))
+	builder.WriteString(", ")
+	builder.WriteString("completed=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Completed))
+	builder.WriteString(", ")
+	builder.WriteString("updated_at=")
+	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -71,6 +71,7 @@ type fileMetadata struct {
 	SampleRate  int
 	BitRate     int
 	BitDepth    int
+	Year        int
 	Lyrics      string
 }
 
@@ -237,6 +238,7 @@ func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
 			SetSampleRate(meta.SampleRate).
 			SetBitRate(meta.BitRate).
 			SetBitDepth(meta.BitDepth).
+			SetYear(meta.Year).
 			SetLyricsEmbedded(meta.Lyrics).
 			SetLyricsSource(sourceIf(meta.Lyrics != "", "embedded", "")).
 			SetArtist(artistEntity).
@@ -254,6 +256,7 @@ func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
 		SetSampleRate(meta.SampleRate).
 		SetBitRate(meta.BitRate).
 		SetBitDepth(meta.BitDepth).
+		SetYear(meta.Year).
 		SetLyricsEmbedded(meta.Lyrics).
 		SetLyricsSource(sourceIf(meta.Lyrics != "", "embedded", existing.LyricsSource)).
 		SetArtist(artistEntity).
@@ -393,13 +396,62 @@ func (s *Service) ToggleSongFavorite(ctx context.Context, userID, id int) (model
 }
 
 func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
-	if _, err := s.client.Song.Get(ctx, id); err != nil {
+	item, err := s.client.Song.Get(ctx, id)
+	if err != nil {
 		return err
 	}
-	if _, err := s.client.PlayHistory.Create().SetUserID(userID).SetSongID(id).Save(ctx); err != nil {
+	if _, err := s.client.PlayHistory.Create().
+		SetUserID(userID).
+		SetSongID(id).
+		SetDurationSeconds(item.DurationSeconds).
+		Save(ctx); err != nil {
 		return err
 	}
 	return s.client.Song.UpdateOneID(id).AddPlayCount(1).SetLastPlayedAt(time.Now()).Exec(ctx)
+}
+
+func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, progressSeconds, durationSeconds float64, completed bool) error {
+	item, err := s.client.Song.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if durationSeconds <= 0 {
+		durationSeconds = item.DurationSeconds
+	}
+	if progressSeconds < 0 {
+		progressSeconds = 0
+	}
+	if durationSeconds > 0 && progressSeconds > durationSeconds {
+		progressSeconds = durationSeconds
+	}
+	if durationSeconds > 0 && durationSeconds-progressSeconds <= 3 {
+		completed = true
+	}
+	now := time.Now()
+	history, err := s.client.PlayHistory.Query().
+		Where(playhistory.HasUserWith(user.ID(userID)), playhistory.HasSongWith(song.ID(id))).
+		Order(ent.Desc(playhistory.FieldUpdatedAt), ent.Desc(playhistory.FieldPlayedAt)).
+		First(ctx)
+	if ent.IsNotFound(err) {
+		_, err = s.client.PlayHistory.Create().
+			SetUserID(userID).
+			SetSongID(id).
+			SetPlayedAt(now).
+			SetProgressSeconds(progressSeconds).
+			SetDurationSeconds(durationSeconds).
+			SetCompleted(completed).
+			Save(ctx)
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	return s.client.PlayHistory.UpdateOneID(history.ID).
+		SetProgressSeconds(progressSeconds).
+		SetDurationSeconds(durationSeconds).
+		SetCompleted(completed).
+		SetUpdatedAt(now).
+		Exec(ctx)
 }
 
 func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.Lyrics, error) {
@@ -791,6 +843,9 @@ func (s *Service) probe(path string) fileMetadata {
 	if meta.Lyrics == "" {
 		meta.Lyrics = first(tags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
 	}
+	if meta.Year == 0 {
+		meta.Year = parseYear(first(tags, "date", "year", "originaldate", "originalyear", "releasedate"))
+	}
 	meta.Duration, _ = strconv.ParseFloat(probed.Format.Duration, 64)
 	bitrate, _ := strconv.Atoi(probed.Format.BitRate)
 	meta.BitRate = bitrate
@@ -803,6 +858,9 @@ func (s *Service) probe(path string) fileMetadata {
 		streamTags := normalizeTags(stream.Tags)
 		if meta.Lyrics == "" {
 			meta.Lyrics = first(streamTags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
+		}
+		if meta.Year == 0 {
+			meta.Year = parseYear(first(streamTags, "date", "year", "originaldate", "originalyear", "releasedate"))
 		}
 		break
 	}
@@ -824,6 +882,7 @@ func (s *Service) probeTags(path string) fileMetadata {
 		Artist:      strings.TrimSpace(m.Artist()),
 		Album:       strings.TrimSpace(m.Album()),
 		AlbumArtist: strings.TrimSpace(m.AlbumArtist()),
+		Year:        m.Year(),
 		Lyrics:      strings.TrimSpace(m.Lyrics()),
 	}
 	if meta.Artist == "" {
@@ -847,6 +906,17 @@ func first(tags map[string]string, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func parseYear(value string) int {
+	value = strings.TrimSpace(value)
+	for i := 0; i+4 <= len(value); i++ {
+		year, err := strconv.Atoi(value[i : i+4])
+		if err == nil && year >= 1000 && year <= 3000 {
+			return year
+		}
+	}
+	return 0
 }
 
 func audioMime(format string) string {
@@ -901,13 +971,14 @@ func (s *Service) applySongUserState(ctx context.Context, userID int, items []mo
 	histories, err := s.client.PlayHistory.Query().
 		Where(playhistory.HasUserWith(user.ID(userID)), playhistory.HasSongWith(song.IDIn(ids...))).
 		WithSong().
-		Order(ent.Desc(playhistory.FieldPlayedAt)).
+		Order(ent.Desc(playhistory.FieldUpdatedAt), ent.Desc(playhistory.FieldPlayedAt)).
 		All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	playCounts := map[int]int{}
 	lastPlayed := map[int]time.Time{}
+	resumePositions := map[int]float64{}
 	for _, history := range histories {
 		if history.Edges.Song == nil {
 			continue
@@ -917,10 +988,20 @@ func (s *Service) applySongUserState(ctx context.Context, userID int, items []mo
 		if lastPlayed[songID].IsZero() || history.PlayedAt.After(lastPlayed[songID]) {
 			lastPlayed[songID] = history.PlayedAt
 		}
+		if _, ok := resumePositions[songID]; !ok && !history.Completed && history.ProgressSeconds >= 5 {
+			duration := history.DurationSeconds
+			if duration <= 0 {
+				duration = history.Edges.Song.DurationSeconds
+			}
+			if duration <= 0 || history.ProgressSeconds < duration-5 {
+				resumePositions[songID] = history.ProgressSeconds
+			}
+		}
 	}
 	for i := range items {
 		items[i].Favorite = favoriteIDs[items[i].ID]
 		items[i].PlayCount = playCounts[items[i].ID]
+		items[i].ResumePosition = resumePositions[items[i].ID]
 		if playedAt, ok := lastPlayed[items[i].ID]; ok {
 			items[i].LastPlayedAt = &playedAt
 		} else {
@@ -976,7 +1057,7 @@ func mapSong(item *ent.Song) models.Song {
 		albumID = item.Edges.Album.ID
 		albumTitle = item.Edges.Album.Title
 	}
-	return models.Song{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumID: albumID, Album: albumTitle, Path: item.Path, FileName: item.FileName, Format: item.Format, Mime: item.Mime, SizeBytes: item.SizeBytes, DurationSeconds: item.DurationSeconds, SampleRate: item.SampleRate, BitRate: item.BitRate, BitDepth: item.BitDepth, NeteaseID: item.NeteaseID, Favorite: item.Favorite, PlayCount: item.PlayCount, LastPlayedAt: item.LastPlayedAt, HasLyrics: strings.TrimSpace(item.LyricsEmbedded) != "", LyricsSource: item.LyricsSource, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return models.Song{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumID: albumID, Album: albumTitle, Path: item.Path, FileName: item.FileName, Format: item.Format, Mime: item.Mime, SizeBytes: item.SizeBytes, DurationSeconds: item.DurationSeconds, SampleRate: item.SampleRate, BitRate: item.BitRate, BitDepth: item.BitDepth, Year: item.Year, NeteaseID: item.NeteaseID, Favorite: item.Favorite, PlayCount: item.PlayCount, LastPlayedAt: item.LastPlayedAt, HasLyrics: strings.TrimSpace(item.LyricsEmbedded) != "", LyricsSource: item.LyricsSource, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func mapAlbum(item *ent.Album) models.Album {

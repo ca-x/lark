@@ -1977,18 +1977,24 @@ func (m *ArtistMutation) ResetEdge(name string) error {
 // PlayHistoryMutation represents an operation that mutates the PlayHistory nodes in the graph.
 type PlayHistoryMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	played_at     *time.Time
-	clearedFields map[string]struct{}
-	user          *int
-	cleareduser   bool
-	song          *int
-	clearedsong   bool
-	done          bool
-	oldValue      func(context.Context) (*PlayHistory, error)
-	predicates    []predicate.PlayHistory
+	op                  Op
+	typ                 string
+	id                  *int
+	played_at           *time.Time
+	progress_seconds    *float64
+	addprogress_seconds *float64
+	duration_seconds    *float64
+	addduration_seconds *float64
+	completed           *bool
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	user                *int
+	cleareduser         bool
+	song                *int
+	clearedsong         bool
+	done                bool
+	oldValue            func(context.Context) (*PlayHistory, error)
+	predicates          []predicate.PlayHistory
 }
 
 var _ ent.Mutation = (*PlayHistoryMutation)(nil)
@@ -2125,6 +2131,190 @@ func (m *PlayHistoryMutation) ResetPlayedAt() {
 	m.played_at = nil
 }
 
+// SetProgressSeconds sets the "progress_seconds" field.
+func (m *PlayHistoryMutation) SetProgressSeconds(f float64) {
+	m.progress_seconds = &f
+	m.addprogress_seconds = nil
+}
+
+// ProgressSeconds returns the value of the "progress_seconds" field in the mutation.
+func (m *PlayHistoryMutation) ProgressSeconds() (r float64, exists bool) {
+	v := m.progress_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProgressSeconds returns the old "progress_seconds" field's value of the PlayHistory entity.
+// If the PlayHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayHistoryMutation) OldProgressSeconds(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProgressSeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProgressSeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProgressSeconds: %w", err)
+	}
+	return oldValue.ProgressSeconds, nil
+}
+
+// AddProgressSeconds adds f to the "progress_seconds" field.
+func (m *PlayHistoryMutation) AddProgressSeconds(f float64) {
+	if m.addprogress_seconds != nil {
+		*m.addprogress_seconds += f
+	} else {
+		m.addprogress_seconds = &f
+	}
+}
+
+// AddedProgressSeconds returns the value that was added to the "progress_seconds" field in this mutation.
+func (m *PlayHistoryMutation) AddedProgressSeconds() (r float64, exists bool) {
+	v := m.addprogress_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProgressSeconds resets all changes to the "progress_seconds" field.
+func (m *PlayHistoryMutation) ResetProgressSeconds() {
+	m.progress_seconds = nil
+	m.addprogress_seconds = nil
+}
+
+// SetDurationSeconds sets the "duration_seconds" field.
+func (m *PlayHistoryMutation) SetDurationSeconds(f float64) {
+	m.duration_seconds = &f
+	m.addduration_seconds = nil
+}
+
+// DurationSeconds returns the value of the "duration_seconds" field in the mutation.
+func (m *PlayHistoryMutation) DurationSeconds() (r float64, exists bool) {
+	v := m.duration_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDurationSeconds returns the old "duration_seconds" field's value of the PlayHistory entity.
+// If the PlayHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayHistoryMutation) OldDurationSeconds(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDurationSeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDurationSeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDurationSeconds: %w", err)
+	}
+	return oldValue.DurationSeconds, nil
+}
+
+// AddDurationSeconds adds f to the "duration_seconds" field.
+func (m *PlayHistoryMutation) AddDurationSeconds(f float64) {
+	if m.addduration_seconds != nil {
+		*m.addduration_seconds += f
+	} else {
+		m.addduration_seconds = &f
+	}
+}
+
+// AddedDurationSeconds returns the value that was added to the "duration_seconds" field in this mutation.
+func (m *PlayHistoryMutation) AddedDurationSeconds() (r float64, exists bool) {
+	v := m.addduration_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetDurationSeconds resets all changes to the "duration_seconds" field.
+func (m *PlayHistoryMutation) ResetDurationSeconds() {
+	m.duration_seconds = nil
+	m.addduration_seconds = nil
+}
+
+// SetCompleted sets the "completed" field.
+func (m *PlayHistoryMutation) SetCompleted(b bool) {
+	m.completed = &b
+}
+
+// Completed returns the value of the "completed" field in the mutation.
+func (m *PlayHistoryMutation) Completed() (r bool, exists bool) {
+	v := m.completed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompleted returns the old "completed" field's value of the PlayHistory entity.
+// If the PlayHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayHistoryMutation) OldCompleted(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompleted is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompleted requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompleted: %w", err)
+	}
+	return oldValue.Completed, nil
+}
+
+// ResetCompleted resets all changes to the "completed" field.
+func (m *PlayHistoryMutation) ResetCompleted() {
+	m.completed = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *PlayHistoryMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *PlayHistoryMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the PlayHistory entity.
+// If the PlayHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayHistoryMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *PlayHistoryMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
 // SetUserID sets the "user" edge to the User entity by id.
 func (m *PlayHistoryMutation) SetUserID(id int) {
 	m.user = &id
@@ -2237,9 +2427,21 @@ func (m *PlayHistoryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlayHistoryMutation) Fields() []string {
-	fields := make([]string, 0, 1)
+	fields := make([]string, 0, 5)
 	if m.played_at != nil {
 		fields = append(fields, playhistory.FieldPlayedAt)
+	}
+	if m.progress_seconds != nil {
+		fields = append(fields, playhistory.FieldProgressSeconds)
+	}
+	if m.duration_seconds != nil {
+		fields = append(fields, playhistory.FieldDurationSeconds)
+	}
+	if m.completed != nil {
+		fields = append(fields, playhistory.FieldCompleted)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, playhistory.FieldUpdatedAt)
 	}
 	return fields
 }
@@ -2251,6 +2453,14 @@ func (m *PlayHistoryMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case playhistory.FieldPlayedAt:
 		return m.PlayedAt()
+	case playhistory.FieldProgressSeconds:
+		return m.ProgressSeconds()
+	case playhistory.FieldDurationSeconds:
+		return m.DurationSeconds()
+	case playhistory.FieldCompleted:
+		return m.Completed()
+	case playhistory.FieldUpdatedAt:
+		return m.UpdatedAt()
 	}
 	return nil, false
 }
@@ -2262,6 +2472,14 @@ func (m *PlayHistoryMutation) OldField(ctx context.Context, name string) (ent.Va
 	switch name {
 	case playhistory.FieldPlayedAt:
 		return m.OldPlayedAt(ctx)
+	case playhistory.FieldProgressSeconds:
+		return m.OldProgressSeconds(ctx)
+	case playhistory.FieldDurationSeconds:
+		return m.OldDurationSeconds(ctx)
+	case playhistory.FieldCompleted:
+		return m.OldCompleted(ctx)
+	case playhistory.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown PlayHistory field %s", name)
 }
@@ -2278,6 +2496,34 @@ func (m *PlayHistoryMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetPlayedAt(v)
 		return nil
+	case playhistory.FieldProgressSeconds:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProgressSeconds(v)
+		return nil
+	case playhistory.FieldDurationSeconds:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDurationSeconds(v)
+		return nil
+	case playhistory.FieldCompleted:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompleted(v)
+		return nil
+	case playhistory.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown PlayHistory field %s", name)
 }
@@ -2285,13 +2531,26 @@ func (m *PlayHistoryMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *PlayHistoryMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addprogress_seconds != nil {
+		fields = append(fields, playhistory.FieldProgressSeconds)
+	}
+	if m.addduration_seconds != nil {
+		fields = append(fields, playhistory.FieldDurationSeconds)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *PlayHistoryMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case playhistory.FieldProgressSeconds:
+		return m.AddedProgressSeconds()
+	case playhistory.FieldDurationSeconds:
+		return m.AddedDurationSeconds()
+	}
 	return nil, false
 }
 
@@ -2300,6 +2559,20 @@ func (m *PlayHistoryMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *PlayHistoryMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case playhistory.FieldProgressSeconds:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProgressSeconds(v)
+		return nil
+	case playhistory.FieldDurationSeconds:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddDurationSeconds(v)
+		return nil
 	}
 	return fmt.Errorf("unknown PlayHistory numeric field %s", name)
 }
@@ -2329,6 +2602,18 @@ func (m *PlayHistoryMutation) ResetField(name string) error {
 	switch name {
 	case playhistory.FieldPlayedAt:
 		m.ResetPlayedAt()
+		return nil
+	case playhistory.FieldProgressSeconds:
+		m.ResetProgressSeconds()
+		return nil
+	case playhistory.FieldDurationSeconds:
+		m.ResetDurationSeconds()
+		return nil
+	case playhistory.FieldCompleted:
+		m.ResetCompleted()
+		return nil
+	case playhistory.FieldUpdatedAt:
+		m.ResetUpdatedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown PlayHistory field %s", name)
@@ -3696,6 +3981,8 @@ type SongMutation struct {
 	addbit_rate           *int
 	bit_depth             *int
 	addbit_depth          *int
+	year                  *int
+	addyear               *int
 	lyrics_embedded       *string
 	lyrics_source         *string
 	netease_id            *string
@@ -4280,6 +4567,62 @@ func (m *SongMutation) AddedBitDepth() (r int, exists bool) {
 func (m *SongMutation) ResetBitDepth() {
 	m.bit_depth = nil
 	m.addbit_depth = nil
+}
+
+// SetYear sets the "year" field.
+func (m *SongMutation) SetYear(i int) {
+	m.year = &i
+	m.addyear = nil
+}
+
+// Year returns the value of the "year" field in the mutation.
+func (m *SongMutation) Year() (r int, exists bool) {
+	v := m.year
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldYear returns the old "year" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldYear(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldYear is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldYear requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldYear: %w", err)
+	}
+	return oldValue.Year, nil
+}
+
+// AddYear adds i to the "year" field.
+func (m *SongMutation) AddYear(i int) {
+	if m.addyear != nil {
+		*m.addyear += i
+	} else {
+		m.addyear = &i
+	}
+}
+
+// AddedYear returns the value that was added to the "year" field in this mutation.
+func (m *SongMutation) AddedYear() (r int, exists bool) {
+	v := m.addyear
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetYear resets all changes to the "year" field.
+func (m *SongMutation) ResetYear() {
+	m.year = nil
+	m.addyear = nil
 }
 
 // SetLyricsEmbedded sets the "lyrics_embedded" field.
@@ -4877,7 +5220,7 @@ func (m *SongMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SongMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 19)
 	if m.title != nil {
 		fields = append(fields, song.FieldTitle)
 	}
@@ -4907,6 +5250,9 @@ func (m *SongMutation) Fields() []string {
 	}
 	if m.bit_depth != nil {
 		fields = append(fields, song.FieldBitDepth)
+	}
+	if m.year != nil {
+		fields = append(fields, song.FieldYear)
 	}
 	if m.lyrics_embedded != nil {
 		fields = append(fields, song.FieldLyricsEmbedded)
@@ -4960,6 +5306,8 @@ func (m *SongMutation) Field(name string) (ent.Value, bool) {
 		return m.BitRate()
 	case song.FieldBitDepth:
 		return m.BitDepth()
+	case song.FieldYear:
+		return m.Year()
 	case song.FieldLyricsEmbedded:
 		return m.LyricsEmbedded()
 	case song.FieldLyricsSource:
@@ -5005,6 +5353,8 @@ func (m *SongMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldBitRate(ctx)
 	case song.FieldBitDepth:
 		return m.OldBitDepth(ctx)
+	case song.FieldYear:
+		return m.OldYear(ctx)
 	case song.FieldLyricsEmbedded:
 		return m.OldLyricsEmbedded(ctx)
 	case song.FieldLyricsSource:
@@ -5100,6 +5450,13 @@ func (m *SongMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetBitDepth(v)
 		return nil
+	case song.FieldYear:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetYear(v)
+		return nil
 	case song.FieldLyricsEmbedded:
 		v, ok := value.(string)
 		if !ok {
@@ -5179,6 +5536,9 @@ func (m *SongMutation) AddedFields() []string {
 	if m.addbit_depth != nil {
 		fields = append(fields, song.FieldBitDepth)
 	}
+	if m.addyear != nil {
+		fields = append(fields, song.FieldYear)
+	}
 	if m.addplay_count != nil {
 		fields = append(fields, song.FieldPlayCount)
 	}
@@ -5200,6 +5560,8 @@ func (m *SongMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedBitRate()
 	case song.FieldBitDepth:
 		return m.AddedBitDepth()
+	case song.FieldYear:
+		return m.AddedYear()
 	case song.FieldPlayCount:
 		return m.AddedPlayCount()
 	}
@@ -5245,6 +5607,13 @@ func (m *SongMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddBitDepth(v)
+		return nil
+	case song.FieldYear:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddYear(v)
 		return nil
 	case song.FieldPlayCount:
 		v, ok := value.(int)
@@ -5318,6 +5687,9 @@ func (m *SongMutation) ResetField(name string) error {
 		return nil
 	case song.FieldBitDepth:
 		m.ResetBitDepth()
+		return nil
+	case song.FieldYear:
+		m.ResetYear()
 		return nil
 	case song.FieldLyricsEmbedded:
 		m.ResetLyricsEmbedded()

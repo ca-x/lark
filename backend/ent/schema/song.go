@@ -23,6 +23,7 @@ func (Song) Fields() []ent.Field {
 		field.Int("sample_rate").Default(0),
 		field.Int("bit_rate").Default(0),
 		field.Int("bit_depth").Default(0),
+		field.Int("year").Default(0),
 		field.String("lyrics_embedded").Default(""),
 		field.String("lyrics_source").Default(""),
 		field.String("netease_id").Default(""),
