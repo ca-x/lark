@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -36,6 +37,9 @@ func main() {
 		log.Fatal(err)
 	}
 	lib := library.New(client, cfg.LibraryDir, cfg.FFprobeBin, cfg.FFmpegBin, netease.New(), qqmusic.New())
+	if err := ensureInitialAdminFromEnv(context.Background(), lib, cfg); err != nil {
+		log.Fatal(err)
+	}
 	server := api.New(client, lib, cfg.FrontendOrigin)
 	go func() {
 		if err := server.Start(":" + cfg.Port); err != nil {
@@ -50,4 +54,21 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		log.Printf("shutdown error: %v", err)
 	}
+}
+
+func ensureInitialAdminFromEnv(ctx context.Context, lib *library.Service, cfg config.Config) error {
+	if cfg.AdminUsername == "" && cfg.AdminPassword == "" {
+		return nil
+	}
+	if cfg.AdminUsername == "" || cfg.AdminPassword == "" {
+		return errors.New("LARK_ADMIN_USERNAME and LARK_ADMIN_PASSWORD must be set together")
+	}
+	user, created, err := lib.EnsureInitialAdmin(ctx, cfg.AdminUsername, cfg.AdminPassword, cfg.AdminNickname)
+	if err != nil {
+		return err
+	}
+	if created {
+		log.Printf("created initial admin from environment: %s", user.Username)
+	}
+	return nil
 }

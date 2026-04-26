@@ -96,8 +96,13 @@ Default server settings:
 | `LARK_LIBRARY_DIR` | `./data/music` | Music library scan/upload directory |
 | `LARK_DB_PATH` | `./data/lark.db` | SQLite database path |
 | `LARK_FRONTEND_ORIGIN` | `*` | CORS origin |
+| `LARK_ADMIN_USERNAME` | empty | Create the first admin automatically when the database has no users |
+| `LARK_ADMIN_PASSWORD` | empty | Password for `LARK_ADMIN_USERNAME`; must be set together with username |
+| `LARK_ADMIN_NICKNAME` | empty | Optional nickname for the auto-created admin |
 | `FFMPEG_BIN` | `ffmpeg` | Optional transcoder binary |
 | `FFPROBE_BIN` | `ffprobe` | Optional metadata probe binary |
+
+Release builds inject `lark/backend/pkg/version` values with Go `-ldflags`; the Web settings page displays the running version, commit, and build time from `/api/health`.
 
 ### Frontend
 

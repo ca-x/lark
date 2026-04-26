@@ -64,6 +64,29 @@ func (s *Service) SetupAdmin(ctx context.Context, username, password string) (mo
 	return s.createUserWithSession(ctx, username, password, "admin")
 }
 
+func (s *Service) EnsureInitialAdmin(ctx context.Context, username, password, nickname string) (models.User, bool, error) {
+	count, err := s.client.User.Query().Count(ctx)
+	if err != nil {
+		return models.User{}, false, err
+	}
+	if count > 0 {
+		return models.User{}, false, nil
+	}
+	u, err := s.createUser(ctx, username, password, "admin")
+	if err != nil {
+		return models.User{}, false, err
+	}
+	nickname = strings.TrimSpace(nickname)
+	if nickname != "" {
+		updated, err := s.client.User.UpdateOneID(u.ID).SetNickname(nickname).Save(ctx)
+		if err != nil {
+			return models.User{}, false, err
+		}
+		u = updated
+	}
+	return mapUser(u), true, nil
+}
+
 func (s *Service) Register(ctx context.Context, username, password string) (models.User, string, error) {
 	count, err := s.client.User.Query().Count(ctx)
 	if err != nil {
@@ -150,18 +173,7 @@ func (s *Service) UpdateProfile(ctx context.Context, userID int, nickname, avata
 }
 
 func (s *Service) createUserWithSession(ctx context.Context, username, password, role string) (models.User, string, error) {
-	username = strings.TrimSpace(username)
-	if len(username) < 2 {
-		return models.User{}, "", fmt.Errorf("username must be at least 2 characters")
-	}
-	if len(password) < 6 {
-		return models.User{}, "", fmt.Errorf("password must be at least 6 characters")
-	}
-	hash, err := hashPassword(password)
-	if err != nil {
-		return models.User{}, "", err
-	}
-	u, err := s.client.User.Create().SetUsername(username).SetPasswordHash(hash).SetRole(role).Save(ctx)
+	u, err := s.createUser(ctx, username, password, role)
 	if err != nil {
 		return models.User{}, "", err
 	}
@@ -170,6 +182,25 @@ func (s *Service) createUserWithSession(ctx context.Context, username, password,
 		return models.User{}, "", err
 	}
 	return mapUser(u), token, nil
+}
+
+func (s *Service) createUser(ctx context.Context, username, password, role string) (*ent.User, error) {
+	username = strings.TrimSpace(username)
+	if len(username) < 2 {
+		return nil, fmt.Errorf("username must be at least 2 characters")
+	}
+	if len(password) < 6 {
+		return nil, fmt.Errorf("password must be at least 6 characters")
+	}
+	hash, err := hashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+	u, err := s.client.User.Create().SetUsername(username).SetPasswordHash(hash).SetRole(role).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 func (s *Service) createSession(ctx context.Context, userID int) (string, error) {

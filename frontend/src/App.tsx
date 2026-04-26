@@ -33,6 +33,7 @@ import type {
   Album,
   Artist,
   AuthStatus,
+  HealthInfo,
   Language,
   LyricCandidate,
   Lyrics,
@@ -253,6 +254,7 @@ function parseLyricLines(lyrics?: string): LyricLine[] {
 export default function App() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [auth, setAuth] = useState<AuthStatus | null>(null);
+  const [health, setHealth] = useState<HealthInfo | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const [songs, setSongs] = useState<Song[]>([]);
@@ -392,6 +394,7 @@ export default function App() {
     try {
       const status = await api.authStatus();
       setAuth(status);
+      void api.health().then(setHealth).catch(() => undefined);
       if (status.initialized && status.user) {
         await loadAppData();
       }
@@ -999,6 +1002,7 @@ export default function App() {
                 settings={settings}
                 setSettings={(s) => void saveSettings(s)}
                 user={auth.user}
+                health={health}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
                 onLogout={() => void logout()}
                 t={t}
@@ -2152,6 +2156,7 @@ function SettingsPanel({
   settings,
   setSettings,
   user,
+  health,
   onUpdateProfile,
   onLogout,
   t,
@@ -2159,6 +2164,7 @@ function SettingsPanel({
   settings: Settings;
   setSettings: (settings: Settings) => void;
   user: User;
+  health: HealthInfo | null;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
   onLogout: () => void;
   t: ReturnType<typeof createT>;
@@ -2240,6 +2246,17 @@ function SettingsPanel({
         {t("libraryPath")}
         <input readOnly value={settings.library_path} />
       </label>
+      <div className="version-card">
+        <strong>{t("about")}</strong>
+        <span>{health?.full_version || "lark/dev"}</span>
+        <small>
+          {health?.commit && health.commit !== "unknown"
+            ? health.commit.slice(0, 12)
+            : "unknown"}
+          {" · "}
+          {health?.build_time || "unknown"}
+        </small>
+      </div>
       {user.role === "admin" ? (
         <label className="switch-row">
           <span>{settings.language === "zh-CN" ? "允许新用户注册" : "Allow registration"}</span>

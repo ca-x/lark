@@ -96,8 +96,13 @@ go run ./cmd/server
 | `LARK_LIBRARY_DIR` | `./data/music` | 曲库扫描/上传目录 |
 | `LARK_DB_PATH` | `./data/lark.db` | SQLite 数据库路径 |
 | `LARK_FRONTEND_ORIGIN` | `*` | CORS 来源 |
+| `LARK_ADMIN_USERNAME` | 空 | 数据库暂无用户时，自动创建首个管理员 |
+| `LARK_ADMIN_PASSWORD` | 空 | 首个管理员密码；必须和用户名一起设置 |
+| `LARK_ADMIN_NICKNAME` | 空 | 自动创建管理员的可选昵称 |
 | `FFMPEG_BIN` | `ffmpeg` | 可选转码工具 |
 | `FFPROBE_BIN` | `ffprobe` | 可选元数据探测工具 |
+
+发布构建会通过 Go `-ldflags` 注入 `lark/backend/pkg/version` 的版本、提交和构建时间；Web 设置页会从 `/api/health` 显示当前运行版本。
 
 ### 前端
 

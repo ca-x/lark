@@ -18,6 +18,9 @@ type Config struct {
 	FrontendOrigin string
 	FFmpegBin      string
 	FFprobeBin     string
+	AdminUsername  string
+	AdminPassword  string
+	AdminNickname  string
 }
 
 func Load() (Config, error) {
@@ -34,6 +37,9 @@ func Load() (Config, error) {
 		FrontendOrigin: getEnv("LARK_FRONTEND_ORIGIN", "*"),
 		FFmpegBin:      strings.TrimSpace(getEnv("FFMPEG_BIN", "ffmpeg")),
 		FFprobeBin:     strings.TrimSpace(getEnv("FFPROBE_BIN", "ffprobe")),
+		AdminUsername:  strings.TrimSpace(os.Getenv("LARK_ADMIN_USERNAME")),
+		AdminPassword:  os.Getenv("LARK_ADMIN_PASSWORD"),
+		AdminNickname:  strings.TrimSpace(os.Getenv("LARK_ADMIN_NICKNAME")),
 	}
 	return cfg, nil
 }

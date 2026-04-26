@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song } from '../types'
+import type { Album, Artist, AuthStatus, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -8,6 +8,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  health: () => request<HealthInfo>('/api/health'),
   authStatus: () => request<AuthStatus>('/api/auth/status'),
   setup: (username: string, password: string) => request<{ user: AuthStatus['user'] }>('/api/auth/setup', { method: 'POST', body: JSON.stringify({ username, password }) }),
   login: (username: string, password: string) => request<{ user: AuthStatus['user'] }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),

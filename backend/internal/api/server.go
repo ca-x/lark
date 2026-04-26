@@ -134,6 +134,7 @@ func (s *Server) handleHealth(c *echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{
 		"status":            "ok",
 		"version":           version.GetVersion(),
+		"full_version":      version.GetFullVersion(),
 		"commit":            version.GitCommit,
 		"build_time":        version.BuildTime,
 		"go_version":        runtime.Version(),

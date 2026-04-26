@@ -536,3 +536,7 @@ body, button, input, select { font-family: Inter, ui-sans-serif, system-ui, -app
 .profile-settings-card button { width:max-content; min-height:40px; padding:9px 14px; border-radius:999px; background:var(--accent); color:var(--bg); font-weight:850; }
 .avatar-upload { width:max-content; }
 .account-card { grid-column:1 / -1; }
+.version-card { display:grid; gap:6px; padding:14px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); color:var(--muted); }
+.version-card strong { color:var(--text); }
+.version-card span, .version-card small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.version-card small { font-size:12px; }
