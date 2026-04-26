@@ -9,7 +9,11 @@ services:
       LARK_DATA_DIR: /app/data
       LARK_LIBRARY_DIR: /app/data/music
       LARK_DB_PATH: /app/data/lark.db
-      LARK_FRONTEND_ORIGIN: '*'
+      LARK_FRONTEND_ORIGIN: ${LARK_FRONTEND_ORIGIN:-*}
+      # Optional first-run bootstrap. These are only used when the database has no users.
+      LARK_ADMIN_USERNAME: ${LARK_ADMIN_USERNAME:-}
+      LARK_ADMIN_PASSWORD: ${LARK_ADMIN_PASSWORD:-}
+      LARK_ADMIN_NICKNAME: ${LARK_ADMIN_NICKNAME:-}
     ports:
       - '${LARK_PORT:-8080}:8080'
     volumes:

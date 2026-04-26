@@ -129,7 +129,17 @@ go run ./cmd/server
 docker compose up -d
 ```
 
+如果要首次运行时无人值守创建管理员，可以在第一次启动前传入：
+
+```bash
+LARK_ADMIN_USERNAME=admin \
+LARK_ADMIN_PASSWORD='change-me-now' \
+LARK_ADMIN_NICKNAME='百灵管理员' \
+docker compose up -d
+```
+
 默认 compose 会把数据保存在 `lark_data` volume 中。如果要挂载已有音乐目录，可以把它映射到 `/app/data/music`：
+发布的 Docker 镜像已经内置 `ffmpeg`/`ffprobe`，默认转码和元数据探测不需要在 compose 里额外配置路径。
 
 ```yaml
 services:
