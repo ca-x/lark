@@ -1,0 +1,21 @@
+services:
+  lark:
+    image: czyt/lark:latest
+    container_name: lark
+    restart: unless-stopped
+    pull_policy: always
+    environment:
+      LARK_PORT: ${LARK_PORT:-8080}
+      LARK_DATA_DIR: /app/data
+      LARK_LIBRARY_DIR: /app/data/music
+      LARK_DB_PATH: /app/data/lark.db
+      LARK_FRONTEND_ORIGIN: '*'
+    ports:
+      - '${LARK_PORT:-8080}:8080'
+    volumes:
+      - lark_data:/app/data
+      # Optional: mount an existing music folder instead of uploading files
+      # - /path/to/music:/app/data/music:ro
+
+volumes:
+  lark_data:

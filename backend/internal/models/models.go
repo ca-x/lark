@@ -1,0 +1,72 @@
+package models
+
+import "time"
+
+type Song struct {
+	ID              int        `json:"id"`
+	Title           string     `json:"title"`
+	Artist          string     `json:"artist"`
+	Album           string     `json:"album"`
+	Path            string     `json:"path"`
+	FileName        string     `json:"file_name"`
+	Format          string     `json:"format"`
+	Mime            string     `json:"mime"`
+	SizeBytes       int64      `json:"size_bytes"`
+	DurationSeconds float64    `json:"duration_seconds"`
+	SampleRate      int        `json:"sample_rate"`
+	BitRate         int        `json:"bit_rate"`
+	BitDepth        int        `json:"bit_depth"`
+	NeteaseID       string     `json:"netease_id"`
+	Favorite        bool       `json:"favorite"`
+	PlayCount       int        `json:"play_count"`
+	LastPlayedAt    *time.Time `json:"last_played_at,omitempty"`
+	HasLyrics       bool       `json:"has_lyrics"`
+	LyricsSource    string     `json:"lyrics_source"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}
+
+type Album struct {
+	ID          int       `json:"id"`
+	Title       string    `json:"title"`
+	Artist      string    `json:"artist"`
+	AlbumArtist string    `json:"album_artist"`
+	Favorite    bool      `json:"favorite"`
+	SongCount   int       `json:"song_count"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type Playlist struct {
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CoverTheme  string    `json:"cover_theme"`
+	Favorite    bool      `json:"favorite"`
+	SongCount   int       `json:"song_count"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type Lyrics struct {
+	SongID  int    `json:"song_id"`
+	Source  string `json:"source"`
+	Lyrics  string `json:"lyrics"`
+	Fetched bool   `json:"fetched"`
+}
+
+type Settings struct {
+	Language        string `json:"language"`
+	Theme           string `json:"theme"`
+	SleepTimerMins  int    `json:"sleep_timer_mins"`
+	LibraryPath     string `json:"library_path"`
+	NeteaseFallback bool   `json:"netease_fallback"`
+}
+
+type ScanResult struct {
+	Scanned int      `json:"scanned"`
+	Added   int      `json:"added"`
+	Updated int      `json:"updated"`
+	Skipped int      `json:"skipped"`
+	Errors  []string `json:"errors"`
+}

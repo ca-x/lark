@@ -1,0 +1,145 @@
+name: Release Binaries
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-binaries-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  create-release:
+    name: Create release draft
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+
+  build-backend:
+    name: Build ${{ matrix.platform }}
+    needs: create-release
+    if: ${{ always() && (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-amd64
+            goos: linux
+            goarch: amd64
+            archive: tar.gz
+            binary: lark-server
+          - os: ubuntu-latest
+            platform: linux-arm64
+            goos: linux
+            goarch: arm64
+            archive: tar.gz
+            binary: lark-server
+          - os: ubuntu-latest
+            platform: windows-amd64
+            goos: windows
+            goarch: amd64
+            archive: zip
+            binary: lark-server.exe
+          - os: macos-latest
+            platform: darwin-amd64
+            goos: darwin
+            goarch: amd64
+            archive: tar.gz
+            binary: lark-server
+          - os: macos-latest
+            platform: darwin-arm64
+            goos: darwin
+            goarch: arm64
+            archive: tar.gz
+            binary: lark-server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Build frontend assets
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          check-latest: true
+          cache-dependency-path: backend/go.sum
+
+      - name: Test backend
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        working-directory: backend
+        env:
+          GOPROXY: https://goproxy.cn,direct
+          GOSUMDB: off
+        run: go test ./...
+
+      - name: Build embedded backend binary
+        shell: bash
+        working-directory: backend
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+          GOPROXY: https://goproxy.cn,direct
+          GOSUMDB: off
+        run: |
+          mkdir -p ../dist
+          go build -trimpath \
+            -ldflags="-s -w -X 'lark/backend/pkg/version.Version=${{ github.ref_name }}' -X 'lark/backend/pkg/version.BuildTime=$(date -u '+%Y-%m-%dT%H:%M:%SZ')' -X 'lark/backend/pkg/version.GitCommit=${{ github.sha }}'" \
+            -o "../dist/${{ matrix.binary }}" ./cmd/server
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          cd dist
+          if [ '${{ matrix.archive }}' = 'zip' ]; then
+            zip "lark-${{ matrix.platform }}.zip" "${{ matrix.binary }}"
+          else
+            tar czf "lark-${{ matrix.platform }}.tar.gz" "${{ matrix.binary }}"
+          fi
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lark-${{ matrix.platform }}
+          path: dist/lark-${{ matrix.platform }}.*
+          retention-days: 7
+
+      - name: Upload release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: dist/lark-${{ matrix.platform }}.*

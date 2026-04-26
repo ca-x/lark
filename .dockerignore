@@ -1,0 +1,10 @@
+.git
+.github
+.omx
+**/node_modules
+frontend/dist
+backend/data
+data
+dist
+*.db
+*.log

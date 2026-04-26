@@ -30,3 +30,20 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Runtime data
+.omx/
+data/
+backend/data/
+
+# Frontend dependencies/build cache
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/node_modules/.tmp/
+
+# Release artifacts
+/dist/
+
+# Uploaded design source archives
+favicon_io.zip
