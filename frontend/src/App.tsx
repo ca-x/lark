@@ -618,28 +618,24 @@ export default function App() {
             {message && <div className="message">{message}</div>}
 
             {view === "home" && (
-              <section className="hero">
-                <Turntable
-                  song={heroSong}
-                  playing={playing && current?.id === heroSong?.id}
-                />
-                <div>
-                  <p>{t("playingFrom")}</p>
-                  <h1>{heroSong?.title ?? `${t("brand")} Music`}</h1>
-                  <h2>
-                    {heroSong
-                      ? `${heroSong.artist} · ${heroSong.album}`
-                      : t("noSongs")}
-                  </h2>
-                  <button
-                    className="primary"
-                    disabled={!heroSong}
-                    onClick={() => heroSong && void playSong(heroSong)}
-                  >
-                    <Play weight="fill" /> {t("play")}
-                  </button>
-                </div>
-              </section>
+              <HomeView
+                songs={songs}
+                albums={albums}
+                artists={artists}
+                playlists={playlists}
+                heroSong={heroSong}
+                current={current}
+                playing={playing}
+                t={t}
+                onPlay={playSong}
+                onPlayAlbum={playAlbum}
+                onOpenAlbum={openAlbum}
+                onPlayArtist={playArtist}
+                onOpenArtist={openArtistById}
+                onPlayPlaylist={playPlaylist}
+                onOpenPlaylist={openPlaylist}
+                onCreatePlaylist={createPlaylist}
+              />
             )}
 
             {view === "library" && (
@@ -696,6 +692,7 @@ export default function App() {
             )}
             {view === "playlists" && (
               <CardGrid
+                t={t}
                 title={t("playlists")}
                 action={
                   <button onClick={() => void createPlaylist()}>
@@ -714,6 +711,7 @@ export default function App() {
             )}
             {view === "albums" && (
               <CardGrid
+                t={t}
                 title={t("albums")}
                 items={albums.map((a) => ({
                   id: a.id,
@@ -731,6 +729,7 @@ export default function App() {
             )}
             {view === "artists" && (
               <CardGrid
+                t={t}
                 title={t("artists")}
                 items={artists.map((a) => ({
                   id: a.id,
@@ -905,6 +904,262 @@ export default function App() {
         />
       </footer>
     </div>
+  );
+}
+
+function HomeView({
+  songs,
+  albums,
+  artists,
+  playlists,
+  heroSong,
+  current,
+  playing,
+  t,
+  onPlay,
+  onPlayAlbum,
+  onOpenAlbum,
+  onPlayArtist,
+  onOpenArtist,
+  onPlayPlaylist,
+  onOpenPlaylist,
+  onCreatePlaylist,
+}: {
+  songs: Song[];
+  albums: Album[];
+  artists: Artist[];
+  playlists: Playlist[];
+  heroSong?: Song | null;
+  current: Song | null;
+  playing: boolean;
+  t: ReturnType<typeof createT>;
+  onPlay: (song: Song, list?: Song[]) => void;
+  onPlayAlbum: (album: Album) => void;
+  onOpenAlbum: (album: Album) => void;
+  onPlayArtist: (artist: Artist) => void;
+  onOpenArtist: (id: number, fallbackName?: string) => void;
+  onPlayPlaylist: (playlist: Playlist) => void;
+  onOpenPlaylist: (playlist: Playlist) => void;
+  onCreatePlaylist: () => void;
+}) {
+  const latestSongs = songs.slice(0, 5);
+  const featuredAlbums = albums.slice(0, 4);
+  const featuredArtists = artists.slice(0, 4);
+  const featuredPlaylists = playlists.slice(0, 3);
+  return (
+    <section className="home-view">
+      <section className="hero">
+        <Turntable
+          song={heroSong}
+          playing={playing && current?.id === heroSong?.id}
+        />
+        <div>
+          <p>{t("jumpBackIn")}</p>
+          <h1>{heroSong?.title ?? `${t("brand")} Music`}</h1>
+          <h2>
+            {heroSong ? `${heroSong.artist} · ${heroSong.album}` : t("noSongs")}
+          </h2>
+          <div className="hero-actions">
+            <button
+              className="primary"
+              disabled={!heroSong}
+              onClick={() => heroSong && onPlay(heroSong)}
+            >
+              <Play weight="fill" /> {t("play")}
+            </button>
+            {heroSong?.artist_id ? (
+              <button
+                onClick={() =>
+                  onOpenArtist(heroSong.artist_id, heroSong.artist)
+                }
+              >
+                <Record /> {t("artist")}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <div className="home-dashboard">
+        <section className="summary-panel">
+          <div className="section-head compact">
+            <h2>{t("librarySummary")}</h2>
+          </div>
+          <div className="summary-stats">
+            <button
+              onClick={() => latestSongs[0] && onPlay(latestSongs[0], songs)}
+            >
+              <strong>{songs.length}</strong>
+              <span>{t("count")}</span>
+            </button>
+            <button
+              onClick={() =>
+                featuredAlbums[0] && onOpenAlbum(featuredAlbums[0])
+              }
+            >
+              <strong>{albums.length}</strong>
+              <span>{t("albums")}</span>
+            </button>
+            <button
+              onClick={() =>
+                featuredArtists[0] &&
+                onOpenArtist(featuredArtists[0].id, featuredArtists[0].name)
+              }
+            >
+              <strong>{artists.length}</strong>
+              <span>{t("artists")}</span>
+            </button>
+            <button
+              onClick={() =>
+                featuredPlaylists[0]
+                  ? onOpenPlaylist(featuredPlaylists[0])
+                  : onCreatePlaylist()
+              }
+            >
+              <strong>{playlists.length}</strong>
+              <span>{t("playlists")}</span>
+            </button>
+          </div>
+          <p>{t("manageHint")}</p>
+        </section>
+
+        <section className="quick-panel">
+          <div className="section-head compact">
+            <h2>{t("latestSongs")}</h2>
+            {latestSongs[0] ? (
+              <button onClick={() => onPlay(latestSongs[0], songs)}>
+                <Play weight="fill" /> {t("playAll")}
+              </button>
+            ) : null}
+          </div>
+          <div className="quick-song-list">
+            {latestSongs.length ? (
+              latestSongs.map((song) => (
+                <button
+                  key={song.id}
+                  className={song.id === current?.id ? "active" : ""}
+                  onClick={() => onPlay(song, songs)}
+                >
+                  <MiniCover
+                    song={song}
+                    playing={playing && song.id === current?.id}
+                  />
+                  <span>
+                    <strong>{song.title}</strong>
+                    <small>
+                      {song.artist} · {formatDuration(song.duration_seconds)}
+                    </small>
+                  </span>
+                  <Play weight="fill" />
+                </button>
+              ))
+            ) : (
+              <div className="empty mini-empty">{t("noSongs")}</div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {featuredAlbums.length ||
+      featuredArtists.length ||
+      featuredPlaylists.length ? (
+        <section className="quick-shelves">
+          {featuredAlbums.length ? (
+            <div>
+              <div className="section-head compact">
+                <h2>{t("albums")}</h2>
+              </div>
+              <div className="mini-cards">
+                {featuredAlbums.map((album) => (
+                  <article key={album.id} className="mini-card">
+                    <button
+                      className="mini-card-cover"
+                      onClick={() => onOpenAlbum(album)}
+                    >
+                      <Record weight="fill" />
+                    </button>
+                    <strong>{album.title}</strong>
+                    <button
+                      className="artist-link"
+                      onClick={() =>
+                        album.artist_id &&
+                        onOpenArtist(album.artist_id, album.artist)
+                      }
+                    >
+                      {album.artist}
+                    </button>
+                    <button
+                      className="mini-play"
+                      onClick={() => onPlayAlbum(album)}
+                    >
+                      <Play weight="fill" />
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {featuredArtists.length ? (
+            <div>
+              <div className="section-head compact">
+                <h2>{t("artists")}</h2>
+              </div>
+              <div className="mini-cards">
+                {featuredArtists.map((artist) => (
+                  <article key={artist.id} className="mini-card artist-mini">
+                    <button
+                      className="mini-card-cover"
+                      onClick={() => onOpenArtist(artist.id, artist.name)}
+                    >
+                      <Record weight="fill" />
+                    </button>
+                    <strong>{artist.name}</strong>
+                    <span>
+                      {artist.song_count} {t("count")}
+                    </span>
+                    <button
+                      className="mini-play"
+                      onClick={() => onPlayArtist(artist)}
+                    >
+                      <Play weight="fill" />
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {featuredPlaylists.length ? (
+            <div>
+              <div className="section-head compact">
+                <h2>{t("playlists")}</h2>
+              </div>
+              <div className="mini-cards">
+                {featuredPlaylists.map((playlist) => (
+                  <article key={playlist.id} className="mini-card">
+                    <button
+                      className="mini-card-cover"
+                      onClick={() => onOpenPlaylist(playlist)}
+                    >
+                      <Record weight="fill" />
+                    </button>
+                    <strong>{playlist.name}</strong>
+                    <span>
+                      {playlist.song_count} {t("count")}
+                    </span>
+                    <button
+                      className="mini-play"
+                      onClick={() => onPlayPlaylist(playlist)}
+                    >
+                      <Play weight="fill" />
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+    </section>
   );
 }
 
@@ -1350,6 +1605,8 @@ function SettingsPanel({
   setSettings: (settings: Settings) => void;
   t: ReturnType<typeof createT>;
 }) {
+  const darkThemes = themes.slice(0, 5);
+  const lightThemes = themes.slice(5);
   return (
     <section className="settings-grid">
       <label>
@@ -1372,11 +1629,20 @@ function SettingsPanel({
             setSettings({ ...settings, theme: normalizeTheme(e.target.value) })
           }
         >
-          {themes.map((theme) => (
-            <option key={theme.id} value={theme.id}>
-              {t(theme.label)}
-            </option>
-          ))}
+          <optgroup label={t("darkThemes")}>
+            {darkThemes.map((theme) => (
+              <option key={theme.id} value={theme.id}>
+                {t(theme.label)}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label={t("lightThemes")}>
+            {lightThemes.map((theme) => (
+              <option key={theme.id} value={theme.id}>
+                {t(theme.label)}
+              </option>
+            ))}
+          </optgroup>
         </select>
       </label>
       <label>
@@ -1432,7 +1698,7 @@ function SongTable({
           ) : (
             <span>{index + 1}</span>
           )}
-          <button onClick={() => onPlay(song, songs)} aria-label="Play">
+          <button onClick={() => onPlay(song, songs)} aria-label={t("play")}>
             <Play weight="fill" />
           </button>
           <div>
@@ -1471,10 +1737,12 @@ function SongTable({
 }
 
 function CardGrid({
+  t,
   title,
   items,
   action,
 }: {
+  t: ReturnType<typeof createT>;
   title: string;
   items: {
     id: number;
@@ -1494,65 +1762,69 @@ function CardGrid({
         <h2>{title}</h2>
         {action}
       </div>
-      <div className="cards">
-        {items.map((item) => (
-          <button
-            className={`media-card ${item.theme}`}
-            key={item.id}
-            onClick={item.onClick}
-          >
-            <div className="cover">
-              <Record weight="fill" />
-              {item.onPlay ? (
-                <span
-                  className="card-play"
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Play"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    item.onPlay?.();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
+      {items.length ? (
+        <div className="cards">
+          {items.map((item) => (
+            <button
+              className={`media-card ${item.theme}`}
+              key={item.id}
+              onClick={item.onClick}
+            >
+              <div className="cover">
+                <Record weight="fill" />
+                {item.onPlay ? (
+                  <span
+                    className="card-play"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={t("play")}
+                    onClick={(event) => {
                       event.stopPropagation();
                       item.onPlay?.();
-                    }
-                  }}
-                >
-                  <Play weight="fill" />
-                </span>
-              ) : null}
-            </div>
-            <strong>{item.title}</strong>
-            {item.meta ? (
-              <span className="card-meta">
-                <em
-                  role="button"
-                  tabIndex={0}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    item.onMetaClick?.();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        item.onPlay?.();
+                      }
+                    }}
+                  >
+                    <Play weight="fill" />
+                  </span>
+                ) : null}
+              </div>
+              <strong>{item.title}</strong>
+              {item.meta ? (
+                <span className="card-meta">
+                  <em
+                    role="button"
+                    tabIndex={0}
+                    onClick={(event) => {
                       event.stopPropagation();
                       item.onMetaClick?.();
-                    }
-                  }}
-                >
-                  {item.meta}
-                </em>
-                <small>{item.subtitle}</small>
-              </span>
-            ) : (
-              <span>{item.subtitle}</span>
-            )}
-          </button>
-        ))}
-      </div>
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        item.onMetaClick?.();
+                      }
+                    }}
+                  >
+                    {item.meta}
+                  </em>
+                  <small>{item.subtitle}</small>
+                </span>
+              ) : (
+                <span>{item.subtitle}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="empty">{t("emptyCollection")}</div>
+      )}
     </section>
   );
 }

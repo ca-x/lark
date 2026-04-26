@@ -417,3 +417,60 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   .card-play { opacity:1; transform:none; width:40px; height:40px; right:8px; bottom:8px; }
   .queue-scrim { background:rgba(0,0,0,.34); }
 }
+
+/* Huashu pass v2: home view and faster management surfaces */
+.home-view { display:grid; gap:18px; }
+.hero-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:16px; position:relative; z-index:1; }
+.hero-actions .primary { margin-top:0; }
+.hero-actions button:not(.primary) { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:12px 16px; border-radius:999px; background:color-mix(in srgb, var(--panel2) 84%, transparent); border:1px solid var(--line); color:var(--text); }
+.home-dashboard { display:grid; grid-template-columns:minmax(260px,.82fr) minmax(320px,1.18fr); gap:16px; }
+.summary-panel, .quick-panel { border:1px solid var(--line); border-radius:26px; background:color-mix(in srgb, var(--panel) 78%, transparent); padding:18px; box-shadow:0 18px 50px color-mix(in srgb, #000 16%, transparent); }
+.section-head.compact { margin:0 0 12px; }
+.section-head.compact h2 { font-size:clamp(20px,2vw,28px); }
+.section-head.compact button { min-height:38px; padding:8px 12px; }
+.summary-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.summary-stats button { min-height:82px; padding:12px; border-radius:18px; background:var(--panel2); border:1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); display:grid; align-content:center; gap:4px; text-align:left; transition:transform .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease); }
+.summary-stats button:hover { transform:translateY(-2px); border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
+.summary-stats strong { font-size:clamp(24px,3vw,38px); line-height:1; letter-spacing:-.06em; }
+.summary-stats span { color:var(--muted); font-size:12px; }
+.summary-panel p { margin:12px 0 0; color:var(--muted); line-height:1.5; }
+.quick-song-list { display:grid; gap:8px; }
+.quick-song-list > button { min-height:64px; display:grid; grid-template-columns:52px minmax(0,1fr) 40px; gap:12px; align-items:center; padding:8px 10px; border-radius:18px; text-align:left; background:transparent; color:var(--muted); transition:background .18s var(--ease), transform .18s var(--ease); }
+.quick-song-list > button:hover, .quick-song-list > button.active { background:var(--panel2); transform:translateX(2px); color:var(--text); }
+.quick-song-list .mini-art { width:52px; height:52px; min-width:52px; min-height:52px; border-radius:14px; }
+.quick-song-list strong, .quick-song-list small { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.quick-song-list small { color:var(--muted); }
+.quick-shelves { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.mini-cards { display:grid; gap:8px; }
+.mini-card { position:relative; display:grid; grid-template-columns:48px minmax(0,1fr) 40px; grid-template-rows:auto auto; column-gap:10px; align-items:center; min-height:64px; padding:8px; border-radius:18px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 72%, transparent); }
+.mini-card-cover { grid-row:1 / span 2; width:48px; height:48px; min-width:48px; min-height:48px; border-radius:14px; display:grid; place-items:center; color:var(--bg); background:var(--cover); overflow:hidden; }
+.mini-card strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mini-card > span, .mini-card > .artist-link { grid-column:2; color:var(--muted) !important; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mini-play { grid-column:3; grid-row:1 / span 2; width:40px; height:40px; min-width:40px; min-height:40px; border-radius:999px; display:grid; place-items:center; color:var(--bg); background:var(--accent); box-shadow:0 10px 22px color-mix(in srgb, var(--accent) 22%, transparent); }
+.mini-empty { padding:24px 14px; }
+.player { transition:grid-template-columns .24s var(--ease), border-color .18s var(--ease), background .18s var(--ease); }
+.queue-toggle.active::after, .sleep-control.active::after, .mode-button.active::after { content:''; position:absolute; width:5px; height:5px; border-radius:50%; background:var(--accent); right:8px; top:8px; box-shadow:0 0 8px var(--accent); }
+.mode-button, .queue-toggle, .sleep-control { position:relative; }
+@media (max-width:1180px) {
+  .home-dashboard, .quick-shelves { grid-template-columns:1fr; }
+}
+@media (max-width:720px) {
+  .home-view { gap:12px; }
+  .home-dashboard { gap:10px; }
+  .summary-panel, .quick-panel { padding:12px; border-radius:20px; }
+  .summary-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .quick-song-list > button { grid-template-columns:46px minmax(0,1fr) 36px; min-height:58px; }
+  .quick-song-list .mini-art { width:46px; height:46px; min-width:46px; min-height:46px; }
+  .quick-shelves { gap:10px; }
+  .mini-card { grid-template-columns:44px minmax(0,1fr) 38px; min-height:58px; }
+  .mini-card-cover { width:44px; height:44px; min-width:44px; min-height:44px; }
+  .mini-play { width:38px; height:38px; min-width:38px; min-height:38px; }
+}
+
+/* CJK-safe font stacks so Chinese labels never fall back to tofu in theme-specific display faces. */
+:root { --font-cjk: 'Noto Sans CJK SC','Noto Sans SC','Source Han Sans SC','Microsoft YaHei','PingFang SC','Hiragino Sans GB','WenQuanYi Micro Hei',sans-serif; }
+body, button, input, select { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', var(--font-cjk); }
+[data-theme='amber-film'], [data-theme='oat-latte'] { font-family: Georgia, 'Times New Roman', var(--font-cjk); }
+[data-theme='carbon-volt'] { font-family:'JetBrains Mono','Fira Code','SFMono-Regular',Consolas,'Noto Sans Mono CJK SC','Microsoft YaHei Mono',var(--font-cjk); }
+[data-theme='sakura-washi'] { font-family:'Noto Serif JP','Source Han Serif SC','Songti SC','SimSun',var(--font-cjk); }
+[data-theme='dusk-amber'] { font-family:'Playfair Display','EB Garamond',Georgia,'Songti SC',var(--font-cjk); }
