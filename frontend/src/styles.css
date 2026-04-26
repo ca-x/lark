@@ -64,11 +64,14 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .section-head h2 { margin:0; font-size:clamp(24px, 3vw, 34px); letter-spacing:-.04em; }
 .filter-pill { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:6px 8px 6px 14px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); color:var(--muted); }
 .filter-pill select { min-height:32px; max-width:min(260px, 54vw); border:0; border-radius:999px; padding:6px 10px; color:var(--text); background:var(--panel); }
-.cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(172px,1fr)); gap:16px; }
-.media-card { min-height:0; text-align:left; padding:14px; border-radius:22px; background:var(--panel2); border:1px solid var(--line); display:grid; gap:10px; content-visibility:auto; contain-intrinsic-size:230px 270px; transition:transform .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease); }
-.media-card:hover { transform:translateY(-3px); border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); }
+.cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(172px,1fr)); gap:16px; align-items:start; }
+.media-card { min-height:0; text-align:left; padding:14px; border-radius:22px; background:var(--panel2); border:1px solid var(--line); display:grid; gap:10px; contain:layout paint; transition:border-color .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease); }
+.media-card:hover { border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); box-shadow:0 12px 34px color-mix(in srgb, var(--accent) 10%, transparent); }
 .cover { aspect-ratio:1/1; min-height:128px; border-radius:18px; display:grid; place-items:center; background:var(--cover-url), var(--cover); background-size:cover; background-position:center; color:var(--bg); overflow:hidden; }
 .cover svg { width:62%; height:62%; opacity:.82; }
+.cover-image { position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover; display:block; background:var(--panel2); transform:translateZ(0); pointer-events:none; }
+.cover-image[hidden] { display:none; }
+.cover-image[data-loaded='true'] ~ svg { opacity:0 !important; }
 .media-card strong, .media-card span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .media-card span { color:var(--muted); }
 
@@ -207,9 +210,13 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .collection-tabs button { flex:0 0 auto; min-height:38px; padding:8px 16px; border-radius:999px; color:var(--muted); }
 .collection-tabs button.active, .collection-tabs button:hover { background:var(--accent); color:var(--bg); }
 .artist-album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(172px,1fr)); gap:16px; }
-.artist-album-card { min-width:0; display:grid; gap:10px; padding:14px; border-radius:22px; background:var(--panel2); border:1px solid var(--line); }
+.artist-album-card { min-width:0; display:grid; gap:10px; padding:14px; border-radius:22px; background:var(--panel2); border:1px solid var(--line); contain:layout paint; transition:border-color .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease); }
+.artist-album-card:hover { border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); box-shadow:0 12px 34px color-mix(in srgb, var(--accent) 10%, transparent); }
 .artist-album-card strong, .artist-album-card span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .artist-album-card span { color:var(--muted); }
+.card-sentinel { grid-column:1 / -1; display:grid; place-items:center; padding:10px 0 2px; }
+.card-sentinel button { min-height:42px; padding:10px 16px; border-radius:999px; color:var(--text); background:var(--panel2); border:1px solid var(--line); }
+.card-sentinel button:hover { border-color:color-mix(in srgb, var(--accent) 42%, var(--line)); background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
 
 .app-shell.lyrics-mode { grid-template-columns:1fr; }
 .app-shell.lyrics-mode .sidebar { display:none; }
@@ -458,9 +465,12 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 
 /* Huashu pass: quick play affordances and queue drawer */
 .cover { position:relative; }
-.card-play { position:absolute; right:10px; bottom:10px; width:44px; height:44px; display:grid; place-items:center; border-radius:999px; background:color-mix(in srgb, var(--panel) 82%, #000); color:var(--text); border:1px solid color-mix(in srgb, var(--text) 18%, transparent); box-shadow:0 12px 26px rgba(0,0,0,.28), 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); backdrop-filter:blur(14px); opacity:0; transform:translateY(8px) scale(.92); transition:opacity .18s var(--ease), transform .18s var(--ease), background .18s var(--ease), color .18s var(--ease); }
+.card-play { position:absolute; z-index:2; right:10px; bottom:10px; width:44px; height:44px; display:grid; place-items:center; border-radius:999px; background:color-mix(in srgb, var(--panel) 82%, #000); color:var(--text); border:1px solid color-mix(in srgb, var(--text) 18%, transparent); box-shadow:0 12px 26px rgba(0,0,0,.28), 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); backdrop-filter:blur(14px); opacity:0; transform:translateY(8px) scale(.92); transition:opacity .18s var(--ease), transform .18s var(--ease), background .18s var(--ease), color .18s var(--ease); }
 .media-card:hover .card-play, .media-card:focus-visible .card-play { opacity:1; transform:translateY(0) scale(1); }
 .card-play:hover { background:var(--accent); color:var(--bg); }
+.card-album .plain-cover, .card-artist .plain-cover, .artist-album-card .plain-cover { contain:paint; transform:none !important; transition:none !important; }
+.card-album .card-play, .card-artist .card-play, .artist-album-card .card-play { background:color-mix(in srgb, var(--panel) 94%, #000); backdrop-filter:none; will-change:opacity, transform; }
+.artist-album-card:hover .card-play, .artist-album-card:focus-within .card-play { opacity:1; transform:translateY(0) scale(1); }
 .queue-layer { position:fixed; inset:0; z-index:999; pointer-events:none; }
 .queue-scrim { position:absolute; inset:0; min-width:0; min-height:0; background:rgba(0,0,0,.28); backdrop-filter:blur(2px); pointer-events:auto; }
 .queue-layer .queue-panel { pointer-events:auto; animation:queue-in .22s var(--ease); }

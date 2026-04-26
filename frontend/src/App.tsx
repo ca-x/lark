@@ -1,11 +1,5 @@
-import {
-  ChangeEvent,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import type { ChangeEvent, UIEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Disc,
   GearSix,
@@ -117,6 +111,7 @@ const themeAliases: Record<string, Theme> = {
 const SONG_ROW_HEIGHT = 64;
 const VIRTUAL_TABLE_THRESHOLD = 220;
 const VIRTUAL_OVERSCAN = 8;
+const CARD_GRID_BATCH = 120;
 
 function normalizeTheme(theme: string): Theme {
   return themes.some((item) => item.id === theme)
@@ -1922,13 +1917,9 @@ function CollectionView({
             <article key={album.id} className="artist-album-card">
               <button
                 className="cover plain-cover"
-                style={
-                  {
-                    "--cover-url": `url(${albumCoverUrl(album)})`,
-                  } as React.CSSProperties
-                }
                 onClick={() => onOpenAlbumCard?.(album)}
               >
+                <LazyCoverImage src={albumCoverUrl(album)} />
                 <Record weight="fill" />
                 <span
                   className="card-play"
@@ -2668,6 +2659,8 @@ function SongTable({
   onToggleSelected?: (song: Song) => void;
 }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const scrollFrameRef = useRef<number | null>(null);
+  const pendingScrollTopRef = useRef(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(520);
   const virtual = songs.length > VIRTUAL_TABLE_THRESHOLD;
@@ -2680,6 +2673,20 @@ function SongTable({
     resizeObserver.observe(node);
     return () => resizeObserver.disconnect();
   }, [virtual]);
+  useEffect(() => {
+    return () => {
+      if (scrollFrameRef.current != null)
+        window.cancelAnimationFrame(scrollFrameRef.current);
+    };
+  }, []);
+  const handleVirtualScroll = (event: UIEvent<HTMLDivElement>) => {
+    pendingScrollTopRef.current = event.currentTarget.scrollTop;
+    if (scrollFrameRef.current != null) return;
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      setScrollTop(pendingScrollTopRef.current);
+    });
+  };
   const windowed = useMemo(() => {
     if (!virtual) return { start: 0, items: songs };
     const start = Math.max(
@@ -2765,7 +2772,7 @@ function SongTable({
       <section
         className="song-table virtual"
         ref={scrollerRef}
-        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        onScroll={handleVirtualScroll}
       >
         <div
           className="song-table-spacer"
@@ -2782,6 +2789,53 @@ function SongTable({
     <section className="song-table">
       {songs.map((song, index) => renderRow(song, index))}
     </section>
+  );
+}
+
+function LazyCoverImage({ src }: { src?: string }) {
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setShouldLoad(false);
+    setLoaded(false);
+    setFailed(false);
+  }, [src]);
+
+  useEffect(() => {
+    const node = imgRef.current;
+    if (!node || !src || failed) return;
+    if (!("IntersectionObserver" in window)) {
+      setShouldLoad(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setShouldLoad(true);
+        observer.disconnect();
+      },
+      { rootMargin: "220px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [failed, src]);
+
+  if (!src || failed) return null;
+  return (
+    <img
+      ref={imgRef}
+      className="cover-image"
+      src={shouldLoad ? src : undefined}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      data-loaded={loaded ? "true" : undefined}
+      onLoad={() => setLoaded(true)}
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -2808,6 +2862,32 @@ function CardGrid({
   }[];
   action?: React.ReactNode;
 }) {
+  const [visibleCount, setVisibleCount] = useState(CARD_GRID_BATCH);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const visibleItems = items.slice(0, Math.min(visibleCount, items.length));
+  const hasMore = visibleCount < items.length;
+
+  useEffect(() => {
+    setVisibleCount(CARD_GRID_BATCH);
+  }, [items.length, title, variant]);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasMore) return;
+    if (!("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setVisibleCount((count) =>
+          Math.min(items.length, count + CARD_GRID_BATCH),
+        );
+      },
+      { rootMargin: "720px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasMore, items.length, visibleCount]);
+
   return (
     <section>
       <div className="section-head">
@@ -2816,72 +2896,94 @@ function CardGrid({
       </div>
       {items.length ? (
         <div className="cards">
-          {items.map((item) => (
-            <button
-              className={`media-card ${item.theme} card-${variant}`}
-              key={item.id}
-              onClick={item.onClick}
-            >
-              <div
-                className={variant === "playlist" ? "cover" : "cover plain-cover"}
-                style={
-                  item.coverUrl
-                    ? ({
-                        "--cover-url": `url(${item.coverUrl})`,
-                      } as React.CSSProperties)
-                    : undefined
-                }
+          {visibleItems.map((item) => {
+            const useLazyCoverImage = variant !== "playlist" && item.coverUrl;
+            return (
+              <button
+                className={`media-card ${item.theme} card-${variant}`}
+                key={item.id}
+                onClick={item.onClick}
               >
-                <Record weight="fill" />
-                {item.onPlay ? (
-                  <span
-                    className="card-play"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={t("play")}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      item.onPlay?.();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
+                <div
+                  className={
+                    variant === "playlist" ? "cover" : "cover plain-cover"
+                  }
+                  style={
+                    variant === "playlist" && item.coverUrl
+                      ? ({
+                          "--cover-url": `url(${item.coverUrl})`,
+                        } as React.CSSProperties)
+                      : undefined
+                  }
+                >
+                  {useLazyCoverImage ? (
+                    <LazyCoverImage src={item.coverUrl} />
+                  ) : null}
+                  <Record weight="fill" />
+                  {item.onPlay ? (
+                    <span
+                      className="card-play"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={t("play")}
+                      onClick={(event) => {
                         event.stopPropagation();
                         item.onPlay?.();
-                      }
-                    }}
-                  >
-                    <Play weight="fill" />
-                  </span>
-                ) : null}
-              </div>
-              <strong>{item.title}</strong>
-              {item.meta ? (
-                <span className="card-meta">
-                  <em
-                    role="button"
-                    tabIndex={0}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      item.onMetaClick?.();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          item.onPlay?.();
+                        }
+                      }}
+                    >
+                      <Play weight="fill" />
+                    </span>
+                  ) : null}
+                </div>
+                <strong>{item.title}</strong>
+                {item.meta ? (
+                  <span className="card-meta">
+                    <em
+                      role="button"
+                      tabIndex={0}
+                      onClick={(event) => {
                         event.stopPropagation();
                         item.onMetaClick?.();
-                      }
-                    }}
-                  >
-                    {item.meta}
-                  </em>
-                  <small>{item.subtitle}</small>
-                </span>
-              ) : (
-                <span>{item.subtitle}</span>
-              )}
-            </button>
-          ))}
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          item.onMetaClick?.();
+                        }
+                      }}
+                    >
+                      {item.meta}
+                    </em>
+                    <small>{item.subtitle}</small>
+                  </span>
+                ) : (
+                  <span>{item.subtitle}</span>
+                )}
+              </button>
+            );
+          })}
+          {hasMore ? (
+            <div className="card-sentinel" ref={sentinelRef}>
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibleCount((count) =>
+                    Math.min(items.length, count + CARD_GRID_BATCH),
+                  )
+                }
+              >
+                {t("loadMore")} · {visibleCount}/{items.length}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="empty">{t("emptyCollection")}</div>
