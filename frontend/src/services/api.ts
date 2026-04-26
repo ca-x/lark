@@ -1,4 +1,4 @@
-import type { Album, Lyrics, Playlist, ScanResult, Settings, Song } from '../types'
+import type { Album, Artist, Lyrics, Playlist, ScanResult, Settings, Song } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -23,9 +23,11 @@ export const api = {
   },
   albums: () => request<Album[]>('/api/albums'),
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),
+  artists: () => request<Artist[]>('/api/artists'),
+  artistSongs: (id: number) => request<Song[]>(`/api/artists/${id}/songs`),
   favoriteAlbum: (id: number) => request<Album>(`/api/albums/${id}/favorite`, { method: 'POST' }),
   playlists: () => request<Playlist[]>('/api/playlists'),
-  createPlaylist: (name: string, description = '', cover_theme = 'spotify') => request<Playlist>('/api/playlists', { method: 'POST', body: JSON.stringify({ name, description, cover_theme }) }),
+  createPlaylist: (name: string, description = '', cover_theme = 'deep-space') => request<Playlist>('/api/playlists', { method: 'POST', body: JSON.stringify({ name, description, cover_theme }) }),
   playlistSongs: (id: number) => request<Song[]>(`/api/playlists/${id}/songs`),
   addToPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'POST' }),
   removeFromPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'DELETE' }),

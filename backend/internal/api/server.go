@@ -73,6 +73,10 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 
 	e.GET("/api/albums/:id/songs", s.handleAlbumSongs)
 
+	e.GET("/api/artists", s.handleArtists)
+
+	e.GET("/api/artists/:id/songs", s.handleArtistSongs)
+
 	e.POST("/api/albums/:id/favorite", s.handleToggleAlbumFavorite)
 
 	e.GET("/api/playlists", s.handlePlaylists)
@@ -340,6 +344,27 @@ func (s *Server) handleToggleAlbumFavorite(c *echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, item)
 }
+
+func (s *Server) handleArtists(c *echo.Context) error {
+	items, err := s.lib.Artists(c.Request().Context())
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleArtistSongs(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	items, err := s.lib.ArtistSongs(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
 func (s *Server) handlePlaylists(c *echo.Context) error {
 	items, err := s.lib.Playlists(c.Request().Context())
 	if err != nil {

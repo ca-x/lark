@@ -19,12 +19,14 @@ Lark is a self-hosted web music player for personal high-resolution music librar
 
 ### Manage albums, playlists, and queue
 
-- Browse all songs, albums, and playlists.
-- Open an album or playlist as its own detail page instead of being sent back to the full library.
-- Start an album or playlist with one click from the detail page.
+- Browse all songs, artists, albums, and playlists.
+- Open an artist, album, or playlist as its own detail page instead of being sent back to the full library.
+- Click a song artist or album artist to open the artist page with every matching library track.
+- Start an artist, album, or playlist with one click from the detail page.
 - Favorite songs and albums.
 - Create playlists and add songs to them.
 - Open the current playback queue from the bottom player controls.
+- Insert one selected song as the next track, or select multiple library songs and insert them as the next batch.
 - Switch play mode from the player controls: sequence, shuffle, and repeat-one.
 
 ### Lyrics and playback experience
@@ -38,10 +40,10 @@ Lark is a self-hosted web music player for personal high-resolution music librar
 ### Personalize the interface
 
 - Language: Simplified Chinese and English. The app name is shown as **百灵** in Chinese and **Lark** in English.
-- Themes: Spotify style, Apple player style, and vintage vinyl style.
+- Themes follow the supplied player schemes: five dark themes (Deep Space Noir, Amber Film, Neon Coral, Arctic Aurora, Carbon Volt) plus five light themes (Milk Porcelain, Oat Latte, Mint Soda, Sakura Washi, Dusk Amber).
 - Theme selection lives in Settings to keep the main player clean.
-- Vinyl theme renders the cover as the record center label with a rotating disc and tonearm state.
-- Responsive layout supports desktop and mobile use.
+- Each theme remaps the player colors, cover treatment, progress/volume styling, and motion language to match its scheme.
+- Adaptive layout supports desktop, tablet, and mobile use, with a desktop sidebar, tablet icon rail, and mobile bottom navigation.
 
 ---
 

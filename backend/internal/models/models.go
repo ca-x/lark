@@ -5,7 +5,9 @@ import "time"
 type Song struct {
 	ID              int        `json:"id"`
 	Title           string     `json:"title"`
+	ArtistID        int        `json:"artist_id"`
 	Artist          string     `json:"artist"`
+	AlbumID         int        `json:"album_id"`
 	Album           string     `json:"album"`
 	Path            string     `json:"path"`
 	FileName        string     `json:"file_name"`
@@ -29,12 +31,22 @@ type Song struct {
 type Album struct {
 	ID          int       `json:"id"`
 	Title       string    `json:"title"`
+	ArtistID    int       `json:"artist_id"`
 	Artist      string    `json:"artist"`
 	AlbumArtist string    `json:"album_artist"`
 	Favorite    bool      `json:"favorite"`
 	SongCount   int       `json:"song_count"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type Artist struct {
+	ID         int       `json:"id"`
+	Name       string    `json:"name"`
+	SongCount  int       `json:"song_count"`
+	AlbumCount int       `json:"album_count"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type Playlist struct {

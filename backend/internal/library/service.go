@@ -354,7 +354,7 @@ func (s *Service) CreatePlaylist(ctx context.Context, name, description, theme s
 		return models.Playlist{}, fmt.Errorf("playlist name is required")
 	}
 	if theme == "" {
-		theme = "spotify"
+		theme = "deep-space"
 	}
 	p, err := s.client.Playlist.Create().SetName(name).SetDescription(description).SetCoverTheme(theme).Save(ctx)
 	if err != nil {
@@ -399,6 +399,26 @@ func (s *Service) AlbumSongs(ctx context.Context, id int) ([]models.Song, error)
 	return mapSongs(a.Edges.Songs), nil
 }
 
+func (s *Service) Artists(ctx context.Context) ([]models.Artist, error) {
+	items, err := s.client.Artist.Query().WithSongs().WithAlbums().Order(ent.Asc(artist.FieldName)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.Artist, 0, len(items))
+	for _, a := range items {
+		out = append(out, mapArtist(a))
+	}
+	return out, nil
+}
+
+func (s *Service) ArtistSongs(ctx context.Context, id int) ([]models.Song, error) {
+	a, err := s.client.Artist.Query().Where(artist.ID(id)).WithSongs(func(q *ent.SongQuery) { q.WithArtist().WithAlbum().Order(ent.Asc(song.FieldTitle)) }).Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return mapSongs(a.Edges.Songs), nil
+}
+
 func (s *Service) ToggleAlbumFavorite(ctx context.Context, id int) (models.Album, error) {
 	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs().Only(ctx)
 	if err != nil {
@@ -413,7 +433,7 @@ func (s *Service) ToggleAlbumFavorite(ctx context.Context, id int) (models.Album
 }
 
 func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
-	settings := models.Settings{Language: "zh-CN", Theme: "spotify", SleepTimerMins: 0, LibraryPath: s.libraryDir, NeteaseFallback: true}
+	settings := models.Settings{Language: "zh-CN", Theme: "deep-space", SleepTimerMins: 0, LibraryPath: s.libraryDir, NeteaseFallback: true}
 	items, err := s.client.AppSetting.Query().All(ctx)
 	if err != nil {
 		return settings, err
@@ -438,7 +458,7 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 		settings.Language = "zh-CN"
 	}
 	if settings.Theme == "" {
-		settings.Theme = "spotify"
+		settings.Theme = "deep-space"
 	}
 	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback)}
 	for key, value := range pairs {
@@ -618,22 +638,31 @@ func mapSongs(items []*ent.Song) []models.Song {
 }
 
 func mapSong(item *ent.Song) models.Song {
+	artistID, albumID := 0, 0
 	artistName, albumTitle := "", ""
 	if item.Edges.Artist != nil {
+		artistID = item.Edges.Artist.ID
 		artistName = item.Edges.Artist.Name
 	}
 	if item.Edges.Album != nil {
+		albumID = item.Edges.Album.ID
 		albumTitle = item.Edges.Album.Title
 	}
-	return models.Song{ID: item.ID, Title: item.Title, Artist: artistName, Album: albumTitle, Path: item.Path, FileName: item.FileName, Format: item.Format, Mime: item.Mime, SizeBytes: item.SizeBytes, DurationSeconds: item.DurationSeconds, SampleRate: item.SampleRate, BitRate: item.BitRate, BitDepth: item.BitDepth, NeteaseID: item.NeteaseID, Favorite: item.Favorite, PlayCount: item.PlayCount, LastPlayedAt: item.LastPlayedAt, HasLyrics: strings.TrimSpace(item.LyricsEmbedded) != "", LyricsSource: item.LyricsSource, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return models.Song{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumID: albumID, Album: albumTitle, Path: item.Path, FileName: item.FileName, Format: item.Format, Mime: item.Mime, SizeBytes: item.SizeBytes, DurationSeconds: item.DurationSeconds, SampleRate: item.SampleRate, BitRate: item.BitRate, BitDepth: item.BitDepth, NeteaseID: item.NeteaseID, Favorite: item.Favorite, PlayCount: item.PlayCount, LastPlayedAt: item.LastPlayedAt, HasLyrics: strings.TrimSpace(item.LyricsEmbedded) != "", LyricsSource: item.LyricsSource, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func mapAlbum(item *ent.Album) models.Album {
+	artistID := 0
 	artistName := ""
 	if item.Edges.Artist != nil {
+		artistID = item.Edges.Artist.ID
 		artistName = item.Edges.Artist.Name
 	}
-	return models.Album{ID: item.ID, Title: item.Title, Artist: artistName, AlbumArtist: item.AlbumArtist, Favorite: item.Favorite, SongCount: len(item.Edges.Songs), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return models.Album{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumArtist: item.AlbumArtist, Favorite: item.Favorite, SongCount: len(item.Edges.Songs), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+}
+
+func mapArtist(item *ent.Artist) models.Artist {
+	return models.Artist{ID: item.ID, Name: item.Name, SongCount: len(item.Edges.Songs), AlbumCount: len(item.Edges.Albums), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func mapPlaylist(item *ent.Playlist) models.Playlist {
