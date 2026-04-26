@@ -579,7 +579,6 @@ body, button, input, select { font-family: var(--app-font); }
 .scan-progress small { color:color-mix(in srgb, #ff8a8a 78%, var(--text)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .full-lyrics-cover-button { min-width:60px; min-height:60px; padding:0; border-radius:16px; line-height:0; }
 .full-lyrics-cover-button:hover .mini-art { transform:scale(1.04); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
-.home-user-card { width:max-content; max-width:100%; display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:999px; background:color-mix(in srgb, var(--panel) 62%, transparent); border:1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); color:var(--text); font-weight:850; }
 .user-avatar { width:42px; height:42px; flex:0 0 42px; display:grid; place-items:center; border-radius:50%; object-fit:cover; background:var(--accent); color:var(--bg); font-weight:950; box-shadow:0 8px 24px color-mix(in srgb, var(--accent) 20%, transparent); }
 .user-avatar-fallback { position:relative; overflow:hidden; isolation:isolate; background:color-mix(in srgb, var(--accent) 82%, var(--panel)); color:var(--bg); }
 .user-avatar-fallback::before { content:''; position:absolute; inset:0; z-index:-1; background:radial-gradient(circle at 28% 22%, color-mix(in srgb, var(--highlight) 58%, transparent), transparent 42%), linear-gradient(135deg, var(--accent), var(--accent2)); }
@@ -789,7 +788,19 @@ body, button, input, select { font-family: var(--app-font); }
 .font-settings-card { display:grid; gap:12px; padding:16px; border-radius:20px; background:var(--panel2); border:1px solid var(--line); }
 .font-settings-card > div:first-child strong, .font-settings-card > div:first-child span { display:block; }
 .font-settings-card > div:first-child span { margin-top:4px; color:var(--muted); line-height:1.45; }
-.font-upload-control { width:max-content; max-width:100%; }
+.settings-grid .font-upload-control,
+.font-upload-control {
+  width:max-content;
+  max-width:100%;
+  display:inline-flex;
+  grid-template-columns:none;
+  align-items:center;
+  justify-content:center;
+  justify-self:start;
+  white-space:nowrap;
+  line-height:1;
+}
+.font-upload-control svg { width:18px; height:18px; flex:0 0 auto; }
 .font-current-row { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; padding:10px 12px; border-radius:14px; background:color-mix(in srgb, var(--panel) 62%, transparent); border:1px solid var(--line); }
 .font-current-row span, .font-current-row strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .font-current-row span { color:var(--muted); }
@@ -807,7 +818,7 @@ body, button, input, select { font-family: var(--app-font); }
   .user-menu-popover { left:0; right:auto; width:100%; }
   .font-current-row { grid-template-columns:1fr; }
   .font-actions { display:grid; grid-template-columns:1fr; }
-  .font-upload-control { width:100%; justify-content:center; }
+  .font-upload-control { width:100%; justify-self:stretch; justify-content:center; }
 }
 .font-library { display:grid; gap:10px; }
 .font-library-head { display:flex; align-items:center; justify-content:space-between; gap:10px; color:var(--muted); }

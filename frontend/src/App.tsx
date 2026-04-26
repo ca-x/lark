@@ -1202,16 +1202,18 @@ export default function App() {
                   }}
                 />
               </label>
-              <UserMenu
-                user={auth.user}
-                t={t}
-                onOpenProfile={() => {
-                  setLyricsFullScreen(false);
-                  setSettingsTab("profile");
-                  setView("settings");
-                }}
-                onLogout={() => void logout()}
-              />
+              {view !== "settings" ? (
+                <UserMenu
+                  user={auth.user}
+                  t={t}
+                  onOpenProfile={() => {
+                    setLyricsFullScreen(false);
+                    setSettingsTab("profile");
+                    setView("settings");
+                  }}
+                  onLogout={() => void logout()}
+                />
+              ) : null}
             </header>
             {message && <div className="message">{message}</div>}
 
@@ -1224,7 +1226,6 @@ export default function App() {
                 heroSong={heroSong}
                 current={current}
                 playing={playing}
-                user={auth.user}
                 t={t}
                 onPlay={playSong}
                 onPlayAlbum={playAlbum}
@@ -1902,7 +1903,6 @@ function HomeView({
   heroSong,
   current,
   playing,
-  user,
   t,
   onPlay,
   onPlayAlbum,
@@ -1920,7 +1920,6 @@ function HomeView({
   heroSong?: Song | null;
   current: Song | null;
   playing: boolean;
-  user: User;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
   onPlayAlbum: (album: Album) => void;
@@ -1944,10 +1943,6 @@ function HomeView({
           playing={heroPlaying}
         />
         <div>
-          <div className="home-user-card">
-            <UserAvatar user={user} />
-            <span>{user.nickname || user.username}</span>
-          </div>
           <p>{heroPlaying ? t("nowPlaying") : t("jumpBackIn")}</p>
           <h1>{heroSong?.title ?? `${t("brand")} Music`}</h1>
           <h2>
