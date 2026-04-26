@@ -24,6 +24,10 @@ const (
 	FieldNickname = "nickname"
 	// FieldAvatarDataURL holds the string denoting the avatar_data_url field in the database.
 	FieldAvatarDataURL = "avatar_data_url"
+	// FieldMcpTokenHash holds the string denoting the mcp_token_hash field in the database.
+	FieldMcpTokenHash = "mcp_token_hash"
+	// FieldMcpTokenHint holds the string denoting the mcp_token_hint field in the database.
+	FieldMcpTokenHint = "mcp_token_hint"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -36,6 +40,8 @@ const (
 	EdgeSongFavorites = "song_favorites"
 	// EdgeAlbumFavorites holds the string denoting the album_favorites edge name in mutations.
 	EdgeAlbumFavorites = "album_favorites"
+	// EdgeArtistFavorites holds the string denoting the artist_favorites edge name in mutations.
+	EdgeArtistFavorites = "artist_favorites"
 	// EdgePlayHistory holds the string denoting the play_history edge name in mutations.
 	EdgePlayHistory = "play_history"
 	// Table holds the table name of the user in the database.
@@ -68,6 +74,13 @@ const (
 	AlbumFavoritesInverseTable = "user_album_favorites"
 	// AlbumFavoritesColumn is the table column denoting the album_favorites relation/edge.
 	AlbumFavoritesColumn = "user_album_favorites"
+	// ArtistFavoritesTable is the table that holds the artist_favorites relation/edge.
+	ArtistFavoritesTable = "user_artist_favorites"
+	// ArtistFavoritesInverseTable is the table name for the UserArtistFavorite entity.
+	// It exists in this package in order to avoid circular dependency with the "userartistfavorite" package.
+	ArtistFavoritesInverseTable = "user_artist_favorites"
+	// ArtistFavoritesColumn is the table column denoting the artist_favorites relation/edge.
+	ArtistFavoritesColumn = "user_artist_favorites"
 	// PlayHistoryTable is the table that holds the play_history relation/edge.
 	PlayHistoryTable = "play_histories"
 	// PlayHistoryInverseTable is the table name for the PlayHistory entity.
@@ -85,6 +98,8 @@ var Columns = []string{
 	FieldRole,
 	FieldNickname,
 	FieldAvatarDataURL,
+	FieldMcpTokenHash,
+	FieldMcpTokenHint,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -110,6 +125,10 @@ var (
 	DefaultNickname string
 	// DefaultAvatarDataURL holds the default value on creation for the "avatar_data_url" field.
 	DefaultAvatarDataURL string
+	// DefaultMcpTokenHash holds the default value on creation for the "mcp_token_hash" field.
+	DefaultMcpTokenHash string
+	// DefaultMcpTokenHint holds the default value on creation for the "mcp_token_hint" field.
+	DefaultMcpTokenHint string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -149,6 +168,16 @@ func ByNickname(opts ...sql.OrderTermOption) OrderOption {
 // ByAvatarDataURL orders the results by the avatar_data_url field.
 func ByAvatarDataURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAvatarDataURL, opts...).ToFunc()
+}
+
+// ByMcpTokenHash orders the results by the mcp_token_hash field.
+func ByMcpTokenHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMcpTokenHash, opts...).ToFunc()
+}
+
+// ByMcpTokenHint orders the results by the mcp_token_hint field.
+func ByMcpTokenHint(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMcpTokenHint, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.
@@ -217,6 +246,20 @@ func ByAlbumFavorites(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByArtistFavoritesCount orders the results by artist_favorites count.
+func ByArtistFavoritesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newArtistFavoritesStep(), opts...)
+	}
+}
+
+// ByArtistFavorites orders the results by artist_favorites terms.
+func ByArtistFavorites(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newArtistFavoritesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByPlayHistoryCount orders the results by play_history count.
 func ByPlayHistoryCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -256,6 +299,13 @@ func newAlbumFavoritesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AlbumFavoritesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AlbumFavoritesTable, AlbumFavoritesColumn),
+	)
+}
+func newArtistFavoritesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ArtistFavoritesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ArtistFavoritesTable, ArtistFavoritesColumn),
 	)
 }
 func newPlayHistoryStep() *sqlgraph.Step {

@@ -22,5 +22,6 @@ func (Artist) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("songs", Song.Type),
 		edge.To("albums", Album.Type),
+		edge.To("user_favorites", UserArtistFavorite.Type),
 	}
 }

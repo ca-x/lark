@@ -12,6 +12,7 @@ import (
 	"lark/backend/ent/session"
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/userartistfavorite"
 	"lark/backend/ent/usersongfavorite"
 	"math"
 
@@ -24,15 +25,16 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx                *QueryContext
-	order              []user.OrderOption
-	inters             []Interceptor
-	predicates         []predicate.User
-	withSessions       *SessionQuery
-	withPlaylists      *PlaylistQuery
-	withSongFavorites  *UserSongFavoriteQuery
-	withAlbumFavorites *UserAlbumFavoriteQuery
-	withPlayHistory    *PlayHistoryQuery
+	ctx                 *QueryContext
+	order               []user.OrderOption
+	inters              []Interceptor
+	predicates          []predicate.User
+	withSessions        *SessionQuery
+	withPlaylists       *PlaylistQuery
+	withSongFavorites   *UserSongFavoriteQuery
+	withAlbumFavorites  *UserAlbumFavoriteQuery
+	withArtistFavorites *UserArtistFavoriteQuery
+	withPlayHistory     *PlayHistoryQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -150,6 +152,28 @@ func (_q *UserQuery) QueryAlbumFavorites() *UserAlbumFavoriteQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(useralbumfavorite.Table, useralbumfavorite.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.AlbumFavoritesTable, user.AlbumFavoritesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryArtistFavorites chains the current query on the "artist_favorites" edge.
+func (_q *UserQuery) QueryArtistFavorites() *UserArtistFavoriteQuery {
+	query := (&UserArtistFavoriteClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(userartistfavorite.Table, userartistfavorite.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ArtistFavoritesTable, user.ArtistFavoritesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -366,16 +390,17 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:             _q.config,
-		ctx:                _q.ctx.Clone(),
-		order:              append([]user.OrderOption{}, _q.order...),
-		inters:             append([]Interceptor{}, _q.inters...),
-		predicates:         append([]predicate.User{}, _q.predicates...),
-		withSessions:       _q.withSessions.Clone(),
-		withPlaylists:      _q.withPlaylists.Clone(),
-		withSongFavorites:  _q.withSongFavorites.Clone(),
-		withAlbumFavorites: _q.withAlbumFavorites.Clone(),
-		withPlayHistory:    _q.withPlayHistory.Clone(),
+		config:              _q.config,
+		ctx:                 _q.ctx.Clone(),
+		order:               append([]user.OrderOption{}, _q.order...),
+		inters:              append([]Interceptor{}, _q.inters...),
+		predicates:          append([]predicate.User{}, _q.predicates...),
+		withSessions:        _q.withSessions.Clone(),
+		withPlaylists:       _q.withPlaylists.Clone(),
+		withSongFavorites:   _q.withSongFavorites.Clone(),
+		withAlbumFavorites:  _q.withAlbumFavorites.Clone(),
+		withArtistFavorites: _q.withArtistFavorites.Clone(),
+		withPlayHistory:     _q.withPlayHistory.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -423,6 +448,17 @@ func (_q *UserQuery) WithAlbumFavorites(opts ...func(*UserAlbumFavoriteQuery)) *
 		opt(query)
 	}
 	_q.withAlbumFavorites = query
+	return _q
+}
+
+// WithArtistFavorites tells the query-builder to eager-load the nodes that are connected to
+// the "artist_favorites" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithArtistFavorites(opts ...func(*UserArtistFavoriteQuery)) *UserQuery {
+	query := (&UserArtistFavoriteClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withArtistFavorites = query
 	return _q
 }
 
@@ -515,11 +551,12 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [5]bool{
+		loadedTypes = [6]bool{
 			_q.withSessions != nil,
 			_q.withPlaylists != nil,
 			_q.withSongFavorites != nil,
 			_q.withAlbumFavorites != nil,
+			_q.withArtistFavorites != nil,
 			_q.withPlayHistory != nil,
 		}
 	)
@@ -566,6 +603,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadAlbumFavorites(ctx, query, nodes,
 			func(n *User) { n.Edges.AlbumFavorites = []*UserAlbumFavorite{} },
 			func(n *User, e *UserAlbumFavorite) { n.Edges.AlbumFavorites = append(n.Edges.AlbumFavorites, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withArtistFavorites; query != nil {
+		if err := _q.loadArtistFavorites(ctx, query, nodes,
+			func(n *User) { n.Edges.ArtistFavorites = []*UserArtistFavorite{} },
+			func(n *User, e *UserArtistFavorite) { n.Edges.ArtistFavorites = append(n.Edges.ArtistFavorites, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -698,6 +742,37 @@ func (_q *UserQuery) loadAlbumFavorites(ctx context.Context, query *UserAlbumFav
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_album_favorites" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadArtistFavorites(ctx context.Context, query *UserArtistFavoriteQuery, nodes []*User, init func(*User), assign func(*User, *UserArtistFavorite)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.UserArtistFavorite(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.ArtistFavoritesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.user_artist_favorites
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_artist_favorites" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_artist_favorites" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

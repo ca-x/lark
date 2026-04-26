@@ -80,6 +80,16 @@ func AvatarDataURL(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldAvatarDataURL, v))
 }
 
+// McpTokenHash applies equality check predicate on the "mcp_token_hash" field. It's identical to McpTokenHashEQ.
+func McpTokenHash(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldMcpTokenHash, v))
+}
+
+// McpTokenHint applies equality check predicate on the "mcp_token_hint" field. It's identical to McpTokenHintEQ.
+func McpTokenHint(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldMcpTokenHint, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))
@@ -415,6 +425,136 @@ func AvatarDataURLContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldAvatarDataURL, v))
 }
 
+// McpTokenHashEQ applies the EQ predicate on the "mcp_token_hash" field.
+func McpTokenHashEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashNEQ applies the NEQ predicate on the "mcp_token_hash" field.
+func McpTokenHashNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashIn applies the In predicate on the "mcp_token_hash" field.
+func McpTokenHashIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldMcpTokenHash, vs...))
+}
+
+// McpTokenHashNotIn applies the NotIn predicate on the "mcp_token_hash" field.
+func McpTokenHashNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldMcpTokenHash, vs...))
+}
+
+// McpTokenHashGT applies the GT predicate on the "mcp_token_hash" field.
+func McpTokenHashGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashGTE applies the GTE predicate on the "mcp_token_hash" field.
+func McpTokenHashGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashLT applies the LT predicate on the "mcp_token_hash" field.
+func McpTokenHashLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashLTE applies the LTE predicate on the "mcp_token_hash" field.
+func McpTokenHashLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashContains applies the Contains predicate on the "mcp_token_hash" field.
+func McpTokenHashContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashHasPrefix applies the HasPrefix predicate on the "mcp_token_hash" field.
+func McpTokenHashHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashHasSuffix applies the HasSuffix predicate on the "mcp_token_hash" field.
+func McpTokenHashHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashEqualFold applies the EqualFold predicate on the "mcp_token_hash" field.
+func McpTokenHashEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldMcpTokenHash, v))
+}
+
+// McpTokenHashContainsFold applies the ContainsFold predicate on the "mcp_token_hash" field.
+func McpTokenHashContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldMcpTokenHash, v))
+}
+
+// McpTokenHintEQ applies the EQ predicate on the "mcp_token_hint" field.
+func McpTokenHintEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintNEQ applies the NEQ predicate on the "mcp_token_hint" field.
+func McpTokenHintNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintIn applies the In predicate on the "mcp_token_hint" field.
+func McpTokenHintIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldMcpTokenHint, vs...))
+}
+
+// McpTokenHintNotIn applies the NotIn predicate on the "mcp_token_hint" field.
+func McpTokenHintNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldMcpTokenHint, vs...))
+}
+
+// McpTokenHintGT applies the GT predicate on the "mcp_token_hint" field.
+func McpTokenHintGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintGTE applies the GTE predicate on the "mcp_token_hint" field.
+func McpTokenHintGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintLT applies the LT predicate on the "mcp_token_hint" field.
+func McpTokenHintLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintLTE applies the LTE predicate on the "mcp_token_hint" field.
+func McpTokenHintLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintContains applies the Contains predicate on the "mcp_token_hint" field.
+func McpTokenHintContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintHasPrefix applies the HasPrefix predicate on the "mcp_token_hint" field.
+func McpTokenHintHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintHasSuffix applies the HasSuffix predicate on the "mcp_token_hint" field.
+func McpTokenHintHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintEqualFold applies the EqualFold predicate on the "mcp_token_hint" field.
+func McpTokenHintEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldMcpTokenHint, v))
+}
+
+// McpTokenHintContainsFold applies the ContainsFold predicate on the "mcp_token_hint" field.
+func McpTokenHintContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldMcpTokenHint, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))
@@ -579,6 +719,29 @@ func HasAlbumFavorites() predicate.User {
 func HasAlbumFavoritesWith(preds ...predicate.UserAlbumFavorite) predicate.User {
 	return predicate.User(func(s *sql.Selector) {
 		step := newAlbumFavoritesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasArtistFavorites applies the HasEdge predicate on the "artist_favorites" edge.
+func HasArtistFavorites() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ArtistFavoritesTable, ArtistFavoritesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasArtistFavoritesWith applies the HasEdge predicate on the "artist_favorites" edge with a given conditions (other predicates).
+func HasArtistFavoritesWith(preds ...predicate.UserArtistFavorite) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newArtistFavoritesStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

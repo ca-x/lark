@@ -17,6 +17,8 @@ func (User) Fields() []ent.Field {
 		field.String("role").Default("user"),
 		field.String("nickname").Default(""),
 		field.Text("avatar_data_url").Default(""),
+		field.String("mcp_token_hash").Default("").Sensitive(),
+		field.String("mcp_token_hint").Default(""),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}
@@ -28,6 +30,7 @@ func (User) Edges() []ent.Edge {
 		edge.To("playlists", Playlist.Type),
 		edge.To("song_favorites", UserSongFavorite.Type),
 		edge.To("album_favorites", UserAlbumFavorite.Type),
+		edge.To("artist_favorites", UserArtistFavorite.Type),
 		edge.To("play_history", PlayHistory.Type),
 	}
 }

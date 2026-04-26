@@ -30,6 +30,8 @@ type Tx struct {
 	User *UserClient
 	// UserAlbumFavorite is the client for interacting with the UserAlbumFavorite builders.
 	UserAlbumFavorite *UserAlbumFavoriteClient
+	// UserArtistFavorite is the client for interacting with the UserArtistFavorite builders.
+	UserArtistFavorite *UserArtistFavoriteClient
 	// UserSongFavorite is the client for interacting with the UserSongFavorite builders.
 	UserSongFavorite *UserSongFavoriteClient
 
@@ -172,6 +174,7 @@ func (tx *Tx) init() {
 	tx.Song = NewSongClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserAlbumFavorite = NewUserAlbumFavoriteClient(tx.config)
+	tx.UserArtistFavorite = NewUserArtistFavoriteClient(tx.config)
 	tx.UserSongFavorite = NewUserSongFavoriteClient(tx.config)
 }
 

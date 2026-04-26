@@ -15,6 +15,7 @@ import (
 	"lark/backend/ent/song"
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/userartistfavorite"
 	"lark/backend/ent/usersongfavorite"
 	"reflect"
 	"sync"
@@ -82,16 +83,17 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			album.Table:             album.ValidColumn,
-			appsetting.Table:        appsetting.ValidColumn,
-			artist.Table:            artist.ValidColumn,
-			playhistory.Table:       playhistory.ValidColumn,
-			playlist.Table:          playlist.ValidColumn,
-			session.Table:           session.ValidColumn,
-			song.Table:              song.ValidColumn,
-			user.Table:              user.ValidColumn,
-			useralbumfavorite.Table: useralbumfavorite.ValidColumn,
-			usersongfavorite.Table:  usersongfavorite.ValidColumn,
+			album.Table:              album.ValidColumn,
+			appsetting.Table:         appsetting.ValidColumn,
+			artist.Table:             artist.ValidColumn,
+			playhistory.Table:        playhistory.ValidColumn,
+			playlist.Table:           playlist.ValidColumn,
+			session.Table:            session.ValidColumn,
+			song.Table:               song.ValidColumn,
+			user.Table:               user.ValidColumn,
+			useralbumfavorite.Table:  useralbumfavorite.ValidColumn,
+			userartistfavorite.Table: userartistfavorite.ValidColumn,
+			usersongfavorite.Table:   usersongfavorite.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

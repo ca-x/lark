@@ -27,6 +27,10 @@ type User struct {
 	Nickname string `json:"nickname,omitempty"`
 	// AvatarDataURL holds the value of the "avatar_data_url" field.
 	AvatarDataURL string `json:"avatar_data_url,omitempty"`
+	// McpTokenHash holds the value of the "mcp_token_hash" field.
+	McpTokenHash string `json:"-"`
+	// McpTokenHint holds the value of the "mcp_token_hint" field.
+	McpTokenHint string `json:"mcp_token_hint,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -47,11 +51,13 @@ type UserEdges struct {
 	SongFavorites []*UserSongFavorite `json:"song_favorites,omitempty"`
 	// AlbumFavorites holds the value of the album_favorites edge.
 	AlbumFavorites []*UserAlbumFavorite `json:"album_favorites,omitempty"`
+	// ArtistFavorites holds the value of the artist_favorites edge.
+	ArtistFavorites []*UserArtistFavorite `json:"artist_favorites,omitempty"`
 	// PlayHistory holds the value of the play_history edge.
 	PlayHistory []*PlayHistory `json:"play_history,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // SessionsOrErr returns the Sessions value or an error if the edge
@@ -90,10 +96,19 @@ func (e UserEdges) AlbumFavoritesOrErr() ([]*UserAlbumFavorite, error) {
 	return nil, &NotLoadedError{edge: "album_favorites"}
 }
 
+// ArtistFavoritesOrErr returns the ArtistFavorites value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ArtistFavoritesOrErr() ([]*UserArtistFavorite, error) {
+	if e.loadedTypes[4] {
+		return e.ArtistFavorites, nil
+	}
+	return nil, &NotLoadedError{edge: "artist_favorites"}
+}
+
 // PlayHistoryOrErr returns the PlayHistory value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PlayHistoryOrErr() ([]*PlayHistory, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.PlayHistory, nil
 	}
 	return nil, &NotLoadedError{edge: "play_history"}
@@ -106,7 +121,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldID:
 			values[i] = new(sql.NullInt64)
-		case user.FieldUsername, user.FieldPasswordHash, user.FieldRole, user.FieldNickname, user.FieldAvatarDataURL:
+		case user.FieldUsername, user.FieldPasswordHash, user.FieldRole, user.FieldNickname, user.FieldAvatarDataURL, user.FieldMcpTokenHash, user.FieldMcpTokenHint:
 			values[i] = new(sql.NullString)
 		case user.FieldCreatedAt, user.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -161,6 +176,18 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AvatarDataURL = value.String
 			}
+		case user.FieldMcpTokenHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mcp_token_hash", values[i])
+			} else if value.Valid {
+				_m.McpTokenHash = value.String
+			}
+		case user.FieldMcpTokenHint:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field mcp_token_hint", values[i])
+			} else if value.Valid {
+				_m.McpTokenHint = value.String
+			}
 		case user.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -206,6 +233,11 @@ func (_m *User) QueryAlbumFavorites() *UserAlbumFavoriteQuery {
 	return NewUserClient(_m.config).QueryAlbumFavorites(_m)
 }
 
+// QueryArtistFavorites queries the "artist_favorites" edge of the User entity.
+func (_m *User) QueryArtistFavorites() *UserArtistFavoriteQuery {
+	return NewUserClient(_m.config).QueryArtistFavorites(_m)
+}
+
 // QueryPlayHistory queries the "play_history" edge of the User entity.
 func (_m *User) QueryPlayHistory() *PlayHistoryQuery {
 	return NewUserClient(_m.config).QueryPlayHistory(_m)
@@ -248,6 +280,11 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("avatar_data_url=")
 	builder.WriteString(_m.AvatarDataURL)
+	builder.WriteString(", ")
+	builder.WriteString("mcp_token_hash=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("mcp_token_hint=")
+	builder.WriteString(_m.McpTokenHint)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

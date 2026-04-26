@@ -13,6 +13,7 @@ import (
 	"lark/backend/ent/song"
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/userartistfavorite"
 	"lark/backend/ent/usersongfavorite"
 	"time"
 )
@@ -245,12 +246,20 @@ func init() {
 	userDescAvatarDataURL := userFields[4].Descriptor()
 	// user.DefaultAvatarDataURL holds the default value on creation for the avatar_data_url field.
 	user.DefaultAvatarDataURL = userDescAvatarDataURL.Default.(string)
+	// userDescMcpTokenHash is the schema descriptor for mcp_token_hash field.
+	userDescMcpTokenHash := userFields[5].Descriptor()
+	// user.DefaultMcpTokenHash holds the default value on creation for the mcp_token_hash field.
+	user.DefaultMcpTokenHash = userDescMcpTokenHash.Default.(string)
+	// userDescMcpTokenHint is the schema descriptor for mcp_token_hint field.
+	userDescMcpTokenHint := userFields[6].Descriptor()
+	// user.DefaultMcpTokenHint holds the default value on creation for the mcp_token_hint field.
+	user.DefaultMcpTokenHint = userDescMcpTokenHint.Default.(string)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[5].Descriptor()
+	userDescCreatedAt := userFields[7].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[6].Descriptor()
+	userDescUpdatedAt := userFields[8].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -261,6 +270,12 @@ func init() {
 	useralbumfavoriteDescCreatedAt := useralbumfavoriteFields[0].Descriptor()
 	// useralbumfavorite.DefaultCreatedAt holds the default value on creation for the created_at field.
 	useralbumfavorite.DefaultCreatedAt = useralbumfavoriteDescCreatedAt.Default.(func() time.Time)
+	userartistfavoriteFields := schema.UserArtistFavorite{}.Fields()
+	_ = userartistfavoriteFields
+	// userartistfavoriteDescCreatedAt is the schema descriptor for created_at field.
+	userartistfavoriteDescCreatedAt := userartistfavoriteFields[0].Descriptor()
+	// userartistfavorite.DefaultCreatedAt holds the default value on creation for the created_at field.
+	userartistfavorite.DefaultCreatedAt = userartistfavoriteDescCreatedAt.Default.(func() time.Time)
 	usersongfavoriteFields := schema.UserSongFavorite{}.Fields()
 	_ = usersongfavoriteFields
 	// usersongfavoriteDescCreatedAt is the schema descriptor for created_at field.

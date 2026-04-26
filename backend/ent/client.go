@@ -20,6 +20,7 @@ import (
 	"lark/backend/ent/song"
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/userartistfavorite"
 	"lark/backend/ent/usersongfavorite"
 
 	"entgo.io/ent"
@@ -51,6 +52,8 @@ type Client struct {
 	User *UserClient
 	// UserAlbumFavorite is the client for interacting with the UserAlbumFavorite builders.
 	UserAlbumFavorite *UserAlbumFavoriteClient
+	// UserArtistFavorite is the client for interacting with the UserArtistFavorite builders.
+	UserArtistFavorite *UserArtistFavoriteClient
 	// UserSongFavorite is the client for interacting with the UserSongFavorite builders.
 	UserSongFavorite *UserSongFavoriteClient
 }
@@ -73,6 +76,7 @@ func (c *Client) init() {
 	c.Song = NewSongClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserAlbumFavorite = NewUserAlbumFavoriteClient(c.config)
+	c.UserArtistFavorite = NewUserArtistFavoriteClient(c.config)
 	c.UserSongFavorite = NewUserSongFavoriteClient(c.config)
 }
 
@@ -164,18 +168,19 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:               ctx,
-		config:            cfg,
-		Album:             NewAlbumClient(cfg),
-		AppSetting:        NewAppSettingClient(cfg),
-		Artist:            NewArtistClient(cfg),
-		PlayHistory:       NewPlayHistoryClient(cfg),
-		Playlist:          NewPlaylistClient(cfg),
-		Session:           NewSessionClient(cfg),
-		Song:              NewSongClient(cfg),
-		User:              NewUserClient(cfg),
-		UserAlbumFavorite: NewUserAlbumFavoriteClient(cfg),
-		UserSongFavorite:  NewUserSongFavoriteClient(cfg),
+		ctx:                ctx,
+		config:             cfg,
+		Album:              NewAlbumClient(cfg),
+		AppSetting:         NewAppSettingClient(cfg),
+		Artist:             NewArtistClient(cfg),
+		PlayHistory:        NewPlayHistoryClient(cfg),
+		Playlist:           NewPlaylistClient(cfg),
+		Session:            NewSessionClient(cfg),
+		Song:               NewSongClient(cfg),
+		User:               NewUserClient(cfg),
+		UserAlbumFavorite:  NewUserAlbumFavoriteClient(cfg),
+		UserArtistFavorite: NewUserArtistFavoriteClient(cfg),
+		UserSongFavorite:   NewUserSongFavoriteClient(cfg),
 	}, nil
 }
 
@@ -193,18 +198,19 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:               ctx,
-		config:            cfg,
-		Album:             NewAlbumClient(cfg),
-		AppSetting:        NewAppSettingClient(cfg),
-		Artist:            NewArtistClient(cfg),
-		PlayHistory:       NewPlayHistoryClient(cfg),
-		Playlist:          NewPlaylistClient(cfg),
-		Session:           NewSessionClient(cfg),
-		Song:              NewSongClient(cfg),
-		User:              NewUserClient(cfg),
-		UserAlbumFavorite: NewUserAlbumFavoriteClient(cfg),
-		UserSongFavorite:  NewUserSongFavoriteClient(cfg),
+		ctx:                ctx,
+		config:             cfg,
+		Album:              NewAlbumClient(cfg),
+		AppSetting:         NewAppSettingClient(cfg),
+		Artist:             NewArtistClient(cfg),
+		PlayHistory:        NewPlayHistoryClient(cfg),
+		Playlist:           NewPlaylistClient(cfg),
+		Session:            NewSessionClient(cfg),
+		Song:               NewSongClient(cfg),
+		User:               NewUserClient(cfg),
+		UserAlbumFavorite:  NewUserAlbumFavoriteClient(cfg),
+		UserArtistFavorite: NewUserArtistFavoriteClient(cfg),
+		UserSongFavorite:   NewUserSongFavoriteClient(cfg),
 	}, nil
 }
 
@@ -235,7 +241,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Album, c.AppSetting, c.Artist, c.PlayHistory, c.Playlist, c.Session, c.Song,
-		c.User, c.UserAlbumFavorite, c.UserSongFavorite,
+		c.User, c.UserAlbumFavorite, c.UserArtistFavorite, c.UserSongFavorite,
 	} {
 		n.Use(hooks...)
 	}
@@ -246,7 +252,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Album, c.AppSetting, c.Artist, c.PlayHistory, c.Playlist, c.Session, c.Song,
-		c.User, c.UserAlbumFavorite, c.UserSongFavorite,
+		c.User, c.UserAlbumFavorite, c.UserArtistFavorite, c.UserSongFavorite,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -273,6 +279,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.User.mutate(ctx, m)
 	case *UserAlbumFavoriteMutation:
 		return c.UserAlbumFavorite.mutate(ctx, m)
+	case *UserArtistFavoriteMutation:
+		return c.UserArtistFavorite.mutate(ctx, m)
 	case *UserSongFavoriteMutation:
 		return c.UserSongFavorite.mutate(ctx, m)
 	default:
@@ -727,6 +735,22 @@ func (c *ArtistClient) QueryAlbums(_m *Artist) *AlbumQuery {
 			sqlgraph.From(artist.Table, artist.FieldID, id),
 			sqlgraph.To(album.Table, album.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, artist.AlbumsTable, artist.AlbumsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUserFavorites queries the user_favorites edge of a Artist.
+func (c *ArtistClient) QueryUserFavorites(_m *Artist) *UserArtistFavoriteQuery {
+	query := (&UserArtistFavoriteClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(artist.Table, artist.FieldID, id),
+			sqlgraph.To(userartistfavorite.Table, userartistfavorite.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, artist.UserFavoritesTable, artist.UserFavoritesColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -1623,6 +1647,22 @@ func (c *UserClient) QueryAlbumFavorites(_m *User) *UserAlbumFavoriteQuery {
 	return query
 }
 
+// QueryArtistFavorites queries the artist_favorites edge of a User.
+func (c *UserClient) QueryArtistFavorites(_m *User) *UserArtistFavoriteQuery {
+	query := (&UserArtistFavoriteClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(userartistfavorite.Table, userartistfavorite.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ArtistFavoritesTable, user.ArtistFavoritesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryPlayHistory queries the play_history edge of a User.
 func (c *UserClient) QueryPlayHistory(_m *User) *PlayHistoryQuery {
 	query := (&PlayHistoryClient{config: c.config}).Query()
@@ -1829,6 +1869,171 @@ func (c *UserAlbumFavoriteClient) mutate(ctx context.Context, m *UserAlbumFavori
 	}
 }
 
+// UserArtistFavoriteClient is a client for the UserArtistFavorite schema.
+type UserArtistFavoriteClient struct {
+	config
+}
+
+// NewUserArtistFavoriteClient returns a client for the UserArtistFavorite from the given config.
+func NewUserArtistFavoriteClient(c config) *UserArtistFavoriteClient {
+	return &UserArtistFavoriteClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `userartistfavorite.Hooks(f(g(h())))`.
+func (c *UserArtistFavoriteClient) Use(hooks ...Hook) {
+	c.hooks.UserArtistFavorite = append(c.hooks.UserArtistFavorite, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `userartistfavorite.Intercept(f(g(h())))`.
+func (c *UserArtistFavoriteClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserArtistFavorite = append(c.inters.UserArtistFavorite, interceptors...)
+}
+
+// Create returns a builder for creating a UserArtistFavorite entity.
+func (c *UserArtistFavoriteClient) Create() *UserArtistFavoriteCreate {
+	mutation := newUserArtistFavoriteMutation(c.config, OpCreate)
+	return &UserArtistFavoriteCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserArtistFavorite entities.
+func (c *UserArtistFavoriteClient) CreateBulk(builders ...*UserArtistFavoriteCreate) *UserArtistFavoriteCreateBulk {
+	return &UserArtistFavoriteCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserArtistFavoriteClient) MapCreateBulk(slice any, setFunc func(*UserArtistFavoriteCreate, int)) *UserArtistFavoriteCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserArtistFavoriteCreateBulk{err: fmt.Errorf("calling to UserArtistFavoriteClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserArtistFavoriteCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserArtistFavoriteCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserArtistFavorite.
+func (c *UserArtistFavoriteClient) Update() *UserArtistFavoriteUpdate {
+	mutation := newUserArtistFavoriteMutation(c.config, OpUpdate)
+	return &UserArtistFavoriteUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserArtistFavoriteClient) UpdateOne(_m *UserArtistFavorite) *UserArtistFavoriteUpdateOne {
+	mutation := newUserArtistFavoriteMutation(c.config, OpUpdateOne, withUserArtistFavorite(_m))
+	return &UserArtistFavoriteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserArtistFavoriteClient) UpdateOneID(id int) *UserArtistFavoriteUpdateOne {
+	mutation := newUserArtistFavoriteMutation(c.config, OpUpdateOne, withUserArtistFavoriteID(id))
+	return &UserArtistFavoriteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserArtistFavorite.
+func (c *UserArtistFavoriteClient) Delete() *UserArtistFavoriteDelete {
+	mutation := newUserArtistFavoriteMutation(c.config, OpDelete)
+	return &UserArtistFavoriteDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserArtistFavoriteClient) DeleteOne(_m *UserArtistFavorite) *UserArtistFavoriteDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserArtistFavoriteClient) DeleteOneID(id int) *UserArtistFavoriteDeleteOne {
+	builder := c.Delete().Where(userartistfavorite.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserArtistFavoriteDeleteOne{builder}
+}
+
+// Query returns a query builder for UserArtistFavorite.
+func (c *UserArtistFavoriteClient) Query() *UserArtistFavoriteQuery {
+	return &UserArtistFavoriteQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserArtistFavorite},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserArtistFavorite entity by its id.
+func (c *UserArtistFavoriteClient) Get(ctx context.Context, id int) (*UserArtistFavorite, error) {
+	return c.Query().Where(userartistfavorite.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserArtistFavoriteClient) GetX(ctx context.Context, id int) *UserArtistFavorite {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a UserArtistFavorite.
+func (c *UserArtistFavoriteClient) QueryUser(_m *UserArtistFavorite) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userartistfavorite.Table, userartistfavorite.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, userartistfavorite.UserTable, userartistfavorite.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryArtist queries the artist edge of a UserArtistFavorite.
+func (c *UserArtistFavoriteClient) QueryArtist(_m *UserArtistFavorite) *ArtistQuery {
+	query := (&ArtistClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userartistfavorite.Table, userartistfavorite.FieldID, id),
+			sqlgraph.To(artist.Table, artist.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, userartistfavorite.ArtistTable, userartistfavorite.ArtistColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserArtistFavoriteClient) Hooks() []Hook {
+	return c.hooks.UserArtistFavorite
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserArtistFavoriteClient) Interceptors() []Interceptor {
+	return c.inters.UserArtistFavorite
+}
+
+func (c *UserArtistFavoriteClient) mutate(ctx context.Context, m *UserArtistFavoriteMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserArtistFavoriteCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserArtistFavoriteUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserArtistFavoriteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserArtistFavoriteDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserArtistFavorite mutation op: %q", m.Op())
+	}
+}
+
 // UserSongFavoriteClient is a client for the UserSongFavorite schema.
 type UserSongFavoriteClient struct {
 	config
@@ -1998,10 +2203,10 @@ func (c *UserSongFavoriteClient) mutate(ctx context.Context, m *UserSongFavorite
 type (
 	hooks struct {
 		Album, AppSetting, Artist, PlayHistory, Playlist, Session, Song, User,
-		UserAlbumFavorite, UserSongFavorite []ent.Hook
+		UserAlbumFavorite, UserArtistFavorite, UserSongFavorite []ent.Hook
 	}
 	inters struct {
 		Album, AppSetting, Artist, PlayHistory, Playlist, Session, Song, User,
-		UserAlbumFavorite, UserSongFavorite []ent.Interceptor
+		UserAlbumFavorite, UserArtistFavorite, UserSongFavorite []ent.Interceptor
 	}
 )

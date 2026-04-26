@@ -27,6 +27,7 @@ type Server struct {
 	echo   *echo.Echo
 	client *ent.Client
 	lib    *library.Service
+	mcp    http.Handler
 	cancel context.CancelFunc
 }
 
@@ -71,12 +72,13 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e := echo.New()
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
-	cors := middleware.CORSConfig{AllowOrigins: []string{frontendOrigin}, AllowHeaders: []string{"Content-Type", "Range"}, AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions}}
+	cors := middleware.CORSConfig{AllowOrigins: []string{frontendOrigin}, AllowHeaders: []string{"Content-Type", "Range", "Authorization"}, AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions}}
 	if frontendOrigin != "*" {
 		cors.AllowCredentials = true
 	}
 	e.Use(middleware.CORSWithConfig(cors))
 	s := &Server{echo: e, client: client, lib: lib}
+	s.mcp = s.newMCPHandler()
 
 	auth := s.requireAuth
 	admin := s.requireAdmin
@@ -89,6 +91,12 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/auth/logout", s.handleLogout)
 	e.PUT("/api/me", s.handleUpdateProfile, auth)
 	e.GET("/api/users", s.handleUsers, admin)
+	e.GET("/api/mcp/token", s.handleGetMCPToken, auth)
+	e.PUT("/api/mcp/token", s.handleSetMCPToken, auth)
+	e.POST("/api/mcp/token/generate", s.handleGenerateMCPToken, auth)
+	e.DELETE("/api/mcp/token", s.handleDeleteMCPToken, auth)
+	e.GET("/api/mcp/sse", s.handleMCP)
+	e.POST("/api/mcp/sse", s.handleMCP)
 
 	e.GET("/api/songs", s.handleSongs, auth)
 	e.GET("/api/songs/:id", s.handleSong, auth)
@@ -112,6 +120,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.GET("/api/artists/:id/cover", s.handleArtistCover, auth)
 	e.GET("/api/artists/:id/songs", s.handleArtistSongs, auth)
 	e.POST("/api/albums/:id/favorite", s.handleToggleAlbumFavorite, auth)
+	e.POST("/api/artists/:id/favorite", s.handleToggleArtistFavorite, auth)
 
 	e.GET("/api/playlists", s.handlePlaylists, auth)
 	e.POST("/api/playlists", s.handleCreatePlaylist, auth)
@@ -587,11 +596,23 @@ func (s *Server) handleToggleAlbumFavorite(c *echo.Context) error {
 }
 
 func (s *Server) handleArtists(c *echo.Context) error {
-	items, err := s.lib.Artists(c.Request().Context())
+	items, err := s.lib.Artists(c.Request().Context(), currentUserID(c))
 	if err != nil {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleToggleArtistFavorite(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	item, err := s.lib.ToggleArtistFavorite(c.Request().Context(), currentUserID(c), id)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, item)
 }
 
 func (s *Server) handleArtistSongs(c *echo.Context) error {

@@ -12,6 +12,7 @@ import (
 	"lark/backend/ent/session"
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/userartistfavorite"
 	"lark/backend/ent/usersongfavorite"
 	"time"
 
@@ -103,6 +104,34 @@ func (_u *UserUpdate) SetNillableAvatarDataURL(v *string) *UserUpdate {
 	return _u
 }
 
+// SetMcpTokenHash sets the "mcp_token_hash" field.
+func (_u *UserUpdate) SetMcpTokenHash(v string) *UserUpdate {
+	_u.mutation.SetMcpTokenHash(v)
+	return _u
+}
+
+// SetNillableMcpTokenHash sets the "mcp_token_hash" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableMcpTokenHash(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetMcpTokenHash(*v)
+	}
+	return _u
+}
+
+// SetMcpTokenHint sets the "mcp_token_hint" field.
+func (_u *UserUpdate) SetMcpTokenHint(v string) *UserUpdate {
+	_u.mutation.SetMcpTokenHint(v)
+	return _u
+}
+
+// SetNillableMcpTokenHint sets the "mcp_token_hint" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableMcpTokenHint(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetMcpTokenHint(*v)
+	}
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *UserUpdate) SetCreatedAt(v time.Time) *UserUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -181,6 +210,21 @@ func (_u *UserUpdate) AddAlbumFavorites(v ...*UserAlbumFavorite) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddAlbumFavoriteIDs(ids...)
+}
+
+// AddArtistFavoriteIDs adds the "artist_favorites" edge to the UserArtistFavorite entity by IDs.
+func (_u *UserUpdate) AddArtistFavoriteIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddArtistFavoriteIDs(ids...)
+	return _u
+}
+
+// AddArtistFavorites adds the "artist_favorites" edges to the UserArtistFavorite entity.
+func (_u *UserUpdate) AddArtistFavorites(v ...*UserArtistFavorite) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddArtistFavoriteIDs(ids...)
 }
 
 // AddPlayHistoryIDs adds the "play_history" edge to the PlayHistory entity by IDs.
@@ -287,6 +331,27 @@ func (_u *UserUpdate) RemoveAlbumFavorites(v ...*UserAlbumFavorite) *UserUpdate 
 	return _u.RemoveAlbumFavoriteIDs(ids...)
 }
 
+// ClearArtistFavorites clears all "artist_favorites" edges to the UserArtistFavorite entity.
+func (_u *UserUpdate) ClearArtistFavorites() *UserUpdate {
+	_u.mutation.ClearArtistFavorites()
+	return _u
+}
+
+// RemoveArtistFavoriteIDs removes the "artist_favorites" edge to UserArtistFavorite entities by IDs.
+func (_u *UserUpdate) RemoveArtistFavoriteIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemoveArtistFavoriteIDs(ids...)
+	return _u
+}
+
+// RemoveArtistFavorites removes "artist_favorites" edges to UserArtistFavorite entities.
+func (_u *UserUpdate) RemoveArtistFavorites(v ...*UserArtistFavorite) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveArtistFavoriteIDs(ids...)
+}
+
 // ClearPlayHistory clears all "play_history" edges to the PlayHistory entity.
 func (_u *UserUpdate) ClearPlayHistory() *UserUpdate {
 	_u.mutation.ClearPlayHistory()
@@ -385,6 +450,12 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AvatarDataURL(); ok {
 		_spec.SetField(user.FieldAvatarDataURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpTokenHash(); ok {
+		_spec.SetField(user.FieldMcpTokenHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpTokenHint(); ok {
+		_spec.SetField(user.FieldMcpTokenHint, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
@@ -565,6 +636,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(useralbumfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ArtistFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ArtistFavoritesTable,
+			Columns: []string{user.ArtistFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedArtistFavoritesIDs(); len(nodes) > 0 && !_u.mutation.ArtistFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ArtistFavoritesTable,
+			Columns: []string{user.ArtistFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ArtistFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ArtistFavoritesTable,
+			Columns: []string{user.ArtistFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -707,6 +823,34 @@ func (_u *UserUpdateOne) SetNillableAvatarDataURL(v *string) *UserUpdateOne {
 	return _u
 }
 
+// SetMcpTokenHash sets the "mcp_token_hash" field.
+func (_u *UserUpdateOne) SetMcpTokenHash(v string) *UserUpdateOne {
+	_u.mutation.SetMcpTokenHash(v)
+	return _u
+}
+
+// SetNillableMcpTokenHash sets the "mcp_token_hash" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableMcpTokenHash(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetMcpTokenHash(*v)
+	}
+	return _u
+}
+
+// SetMcpTokenHint sets the "mcp_token_hint" field.
+func (_u *UserUpdateOne) SetMcpTokenHint(v string) *UserUpdateOne {
+	_u.mutation.SetMcpTokenHint(v)
+	return _u
+}
+
+// SetNillableMcpTokenHint sets the "mcp_token_hint" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableMcpTokenHint(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetMcpTokenHint(*v)
+	}
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *UserUpdateOne) SetCreatedAt(v time.Time) *UserUpdateOne {
 	_u.mutation.SetCreatedAt(v)
@@ -785,6 +929,21 @@ func (_u *UserUpdateOne) AddAlbumFavorites(v ...*UserAlbumFavorite) *UserUpdateO
 		ids[i] = v[i].ID
 	}
 	return _u.AddAlbumFavoriteIDs(ids...)
+}
+
+// AddArtistFavoriteIDs adds the "artist_favorites" edge to the UserArtistFavorite entity by IDs.
+func (_u *UserUpdateOne) AddArtistFavoriteIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddArtistFavoriteIDs(ids...)
+	return _u
+}
+
+// AddArtistFavorites adds the "artist_favorites" edges to the UserArtistFavorite entity.
+func (_u *UserUpdateOne) AddArtistFavorites(v ...*UserArtistFavorite) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddArtistFavoriteIDs(ids...)
 }
 
 // AddPlayHistoryIDs adds the "play_history" edge to the PlayHistory entity by IDs.
@@ -889,6 +1048,27 @@ func (_u *UserUpdateOne) RemoveAlbumFavorites(v ...*UserAlbumFavorite) *UserUpda
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveAlbumFavoriteIDs(ids...)
+}
+
+// ClearArtistFavorites clears all "artist_favorites" edges to the UserArtistFavorite entity.
+func (_u *UserUpdateOne) ClearArtistFavorites() *UserUpdateOne {
+	_u.mutation.ClearArtistFavorites()
+	return _u
+}
+
+// RemoveArtistFavoriteIDs removes the "artist_favorites" edge to UserArtistFavorite entities by IDs.
+func (_u *UserUpdateOne) RemoveArtistFavoriteIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemoveArtistFavoriteIDs(ids...)
+	return _u
+}
+
+// RemoveArtistFavorites removes "artist_favorites" edges to UserArtistFavorite entities.
+func (_u *UserUpdateOne) RemoveArtistFavorites(v ...*UserArtistFavorite) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveArtistFavoriteIDs(ids...)
 }
 
 // ClearPlayHistory clears all "play_history" edges to the PlayHistory entity.
@@ -1019,6 +1199,12 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.AvatarDataURL(); ok {
 		_spec.SetField(user.FieldAvatarDataURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpTokenHash(); ok {
+		_spec.SetField(user.FieldMcpTokenHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.McpTokenHint(); ok {
+		_spec.SetField(user.FieldMcpTokenHint, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
@@ -1199,6 +1385,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(useralbumfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ArtistFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ArtistFavoritesTable,
+			Columns: []string{user.ArtistFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedArtistFavoritesIDs(); len(nodes) > 0 && !_u.mutation.ArtistFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ArtistFavoritesTable,
+			Columns: []string{user.ArtistFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ArtistFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ArtistFavoritesTable,
+			Columns: []string{user.ArtistFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

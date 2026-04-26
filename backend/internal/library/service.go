@@ -25,6 +25,7 @@ import (
 	"lark/backend/ent/song"
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/userartistfavorite"
 	"lark/backend/ent/usersongfavorite"
 	"lark/backend/internal/models"
 	"lark/backend/internal/netease"
@@ -97,6 +98,7 @@ func (s *Service) Scan(ctx context.Context) (models.ScanResult, error) {
 		*status = models.ScanStatus{Running: true, CurrentDir: s.libraryDir, Errors: []string{}, StartedAt: &started}
 	})
 	result := models.ScanResult{Errors: []string{}}
+	seen := map[string]bool{}
 	defer func() {
 		finished := time.Now()
 		s.setScanStatus(func(status *models.ScanStatus) {
@@ -127,6 +129,9 @@ func (s *Service) Scan(ctx context.Context) (models.ScanResult, error) {
 			s.updateScanProgress(path, result.CurrentDir, &result)
 			return nil
 		}
+		if abs, err := filepath.Abs(path); err == nil {
+			seen[abs] = true
+		}
 		result.Scanned++
 		added, err := s.ImportFile(ctx, path)
 		if err != nil {
@@ -145,7 +150,88 @@ func (s *Service) Scan(ctx context.Context) (models.ScanResult, error) {
 	if err != nil {
 		return result, err
 	}
+	if err := s.cleanupMissingLibraryEntries(ctx, seen); err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("cleanup missing library entries: %v", err))
+	}
 	return result, nil
+}
+
+func (s *Service) cleanupMissingLibraryEntries(ctx context.Context, seen map[string]bool) error {
+	if s.client == nil {
+		return nil
+	}
+	libraryRoot, err := filepath.Abs(s.libraryDir)
+	if err != nil {
+		return err
+	}
+	prefix := libraryRoot + string(os.PathSeparator)
+	items, err := s.client.Song.Query().Where(song.PathHasPrefix(prefix)).All(ctx)
+	if err != nil {
+		return err
+	}
+	missingIDs := make([]int, 0)
+	for _, item := range items {
+		if seen[item.Path] {
+			continue
+		}
+		if _, err := os.Stat(item.Path); err == nil {
+			continue
+		}
+		missingIDs = append(missingIDs, item.ID)
+	}
+	if len(missingIDs) == 0 {
+		return nil
+	}
+	if _, err := s.client.UserSongFavorite.Delete().
+		Where(usersongfavorite.HasSongWith(song.IDIn(missingIDs...))).
+		Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := s.client.PlayHistory.Delete().
+		Where(playhistory.HasSongWith(song.IDIn(missingIDs...))).
+		Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := s.client.Song.Delete().Where(song.IDIn(missingIDs...)).Exec(ctx); err != nil {
+		return err
+	}
+	emptyAlbums, err := s.client.Album.Query().Where(album.Not(album.HasSongs())).All(ctx)
+	if err != nil {
+		return err
+	}
+	if len(emptyAlbums) > 0 {
+		ids := make([]int, 0, len(emptyAlbums))
+		for _, item := range emptyAlbums {
+			ids = append(ids, item.ID)
+		}
+		if _, err := s.client.UserAlbumFavorite.Delete().
+			Where(useralbumfavorite.HasAlbumWith(album.IDIn(ids...))).
+			Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := s.client.Album.Delete().Where(album.IDIn(ids...)).Exec(ctx); err != nil {
+			return err
+		}
+	}
+	emptyArtists, err := s.client.Artist.Query().Where(artist.Not(artist.HasSongs()), artist.Not(artist.HasAlbums())).All(ctx)
+	if err != nil {
+		return err
+	}
+	if len(emptyArtists) > 0 {
+		ids := make([]int, 0, len(emptyArtists))
+		for _, item := range emptyArtists {
+			ids = append(ids, item.ID)
+		}
+		if _, err := s.client.UserArtistFavorite.Delete().
+			Where(userartistfavorite.HasArtistWith(artist.IDIn(ids...))).
+			Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := s.client.Artist.Delete().Where(artist.IDIn(ids...)).Exec(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func shouldSkipScanDir(root, path, name string) bool {
@@ -680,7 +766,7 @@ func (s *Service) AlbumSongs(ctx context.Context, userID, id int) ([]models.Song
 	return s.applySongUserState(ctx, userID, out)
 }
 
-func (s *Service) Artists(ctx context.Context) ([]models.Artist, error) {
+func (s *Service) Artists(ctx context.Context, userID int) ([]models.Artist, error) {
 	items, err := s.client.Artist.Query().WithSongs().WithAlbums().Order(ent.Asc(artist.FieldName)).All(ctx)
 	if err != nil {
 		return nil, err
@@ -689,7 +775,7 @@ func (s *Service) Artists(ctx context.Context) ([]models.Artist, error) {
 	for _, a := range items {
 		out = append(out, mapArtist(a))
 	}
-	return out, nil
+	return s.applyArtistUserState(ctx, userID, out)
 }
 
 func (s *Service) ArtistSongs(ctx context.Context, userID, id int) ([]models.Song, error) {
@@ -726,6 +812,35 @@ func (s *Service) ToggleAlbumFavorite(ctx context.Context, userID, id int) (mode
 	items, err := s.applyAlbumUserState(ctx, userID, []models.Album{mapAlbum(a)})
 	if err != nil {
 		return models.Album{}, err
+	}
+	return items[0], nil
+}
+
+func (s *Service) ToggleArtistFavorite(ctx context.Context, userID, id int) (models.Artist, error) {
+	if _, err := s.client.Artist.Get(ctx, id); err != nil {
+		return models.Artist{}, err
+	}
+	existing, err := s.client.UserArtistFavorite.Query().
+		Where(userartistfavorite.HasUserWith(user.ID(userID)), userartistfavorite.HasArtistWith(artist.ID(id))).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return models.Artist{}, err
+	}
+	if ent.IsNotFound(err) {
+		_, err = s.client.UserArtistFavorite.Create().SetUserID(userID).SetArtistID(id).Save(ctx)
+	} else {
+		err = s.client.UserArtistFavorite.DeleteOneID(existing.ID).Exec(ctx)
+	}
+	if err != nil {
+		return models.Artist{}, err
+	}
+	a, err := s.client.Artist.Query().Where(artist.ID(id)).WithSongs().WithAlbums().Only(ctx)
+	if err != nil {
+		return models.Artist{}, err
+	}
+	items, err := s.applyArtistUserState(ctx, userID, []models.Artist{mapArtist(a)})
+	if err != nil {
+		return models.Artist{}, err
 	}
 	return items[0], nil
 }
@@ -1030,6 +1145,33 @@ func (s *Service) applyAlbumUserState(ctx context.Context, userID int, items []m
 	for _, favorite := range favorites {
 		if favorite.Edges.Album != nil {
 			favoriteIDs[favorite.Edges.Album.ID] = true
+		}
+	}
+	for i := range items {
+		items[i].Favorite = favoriteIDs[items[i].ID]
+	}
+	return items, nil
+}
+
+func (s *Service) applyArtistUserState(ctx context.Context, userID int, items []models.Artist) ([]models.Artist, error) {
+	if len(items) == 0 {
+		return items, nil
+	}
+	ids := make([]int, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	favorites, err := s.client.UserArtistFavorite.Query().
+		Where(userartistfavorite.HasUserWith(user.ID(userID)), userartistfavorite.HasArtistWith(artist.IDIn(ids...))).
+		WithArtist().
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	favoriteIDs := map[int]bool{}
+	for _, favorite := range favorites {
+		if favorite.Edges.Artist != nil {
+			favoriteIDs[favorite.Edges.Artist.ID] = true
 		}
 	}
 	for i := range items {

@@ -390,9 +390,9 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   .main { grid-column:1; grid-row:1; padding:14px; border-radius:20px; min-height:0; scroll-padding-bottom:18px; }
   .sidebar { grid-column:1; grid-row:3; padding:6px 8px calc(6px + var(--safe-bottom)); border-radius:20px 20px 0 0; flex-direction:row; align-items:center; justify-content:center; box-shadow:0 -12px 40px rgba(0,0,0,.28); }
   .brand { display:none; }
-  .sidebar nav { width:100%; display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:3px; }
-  .sidebar nav button { min-height:56px; padding:6px 1px; border-radius:16px; display:grid; justify-items:center; gap:2px; text-align:center; font-size:10px; }
-  .sidebar nav button svg { width:22px; height:22px; }
+  .sidebar nav { width:100%; display:grid; grid-template-columns:repeat(8, minmax(0,1fr)); gap:2px; }
+  .sidebar nav button { min-height:56px; padding:6px 1px; border-radius:15px; display:grid; justify-items:center; gap:2px; text-align:center; font-size:9px; }
+  .sidebar nav button svg { width:21px; height:21px; }
   .topbar { position:relative; top:auto; grid-template-columns:1fr; gap:12px; padding-bottom:12px; background:transparent; }
   .top-title h1 { font-size:30px; }
   .search { padding:0 14px; }
@@ -611,3 +611,64 @@ body, button, input, select { font-family: Inter, ui-sans-serif, system-ui, -app
   .about-hero img { width:66px; height:66px; }
   .about-grid { grid-template-columns:1fr; }
 }
+
+/* v0.2.0 dialogs, favorites, and MCP access */
+.section-subtitle { margin:4px 0 0; color:var(--muted); line-height:1.55; }
+.modal-layer { position:fixed; inset:0; z-index:1300; display:grid; place-items:center; padding:18px; }
+.modal-scrim { position:absolute; inset:0; width:100%; height:100%; min-height:0; border-radius:0; background:rgba(0,0,0,.52); backdrop-filter:blur(8px); }
+.modal-card { position:relative; z-index:1; width:min(520px, 100%); max-height:min(86dvh, 720px); overflow:auto; display:grid; gap:16px; padding:22px; border-radius:24px; background:color-mix(in srgb, var(--panel) 96%, transparent); border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); box-shadow:var(--shadow); }
+.modal-card h2, .modal-card p { margin:0; }
+.modal-card p { color:var(--muted); font-size:12px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+.modal-card label { display:grid; gap:8px; color:var(--muted); }
+.modal-card input { width:100%; border:1px solid var(--line); border-radius:14px; padding:12px 14px; color:var(--text); background:var(--panel2); }
+.modal-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.modal-card-head button, .modal-actions button, .mcp-actions button, .mcp-card-head button, .mcp-token-once button { min-height:40px; padding:9px 13px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); color:var(--text); }
+.modal-actions { display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+.modal-actions .primary, .mcp-actions .primary { margin-top:0; background:var(--accent); color:var(--bg); border-color:transparent; }
+.card-favorite { position:absolute; z-index:3; top:10px; right:10px; width:44px; height:44px; display:grid; place-items:center; border-radius:999px; background:color-mix(in srgb, var(--panel) 94%, #000); color:var(--text); border:1px solid color-mix(in srgb, var(--text) 16%, transparent); box-shadow:0 12px 26px rgba(0,0,0,.22); backdrop-filter:blur(14px); opacity:0; transform:translateY(-6px) scale(.94); transition:opacity .18s var(--ease), transform .18s var(--ease), background .18s var(--ease), color .18s var(--ease); }
+.media-card:hover .card-favorite, .media-card:focus-visible .card-favorite, .card-favorite.active { opacity:1; transform:translateY(0) scale(1); }
+.card-favorite:hover, .card-favorite.active { background:var(--accent); color:var(--bg); }
+.favorites-view { display:grid; gap:16px; }
+.lyrics-meta-links { display:flex; align-items:center; gap:8px; min-width:0; color:var(--muted); }
+.lyrics-meta-links button { min-height:32px; padding:4px 0; color:var(--muted); text-align:left; }
+.lyrics-meta-links button:hover { color:var(--accent); text-decoration:underline; }
+.lyrics-actions { margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+.lyrics-actions .lyrics-pick { margin-left:0; display:inline-flex; align-items:center; gap:8px; }
+.lyrics-actions .lyrics-pick.active { border-color:var(--accent); color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
+.mcp-card { display:grid; gap:14px; padding:16px; border:1px solid var(--line); border-radius:20px; background:var(--panel2); }
+.mcp-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.mcp-card-head strong, .mcp-card-head span { display:block; }
+.mcp-card-head span { margin-top:4px; color:var(--muted); line-height:1.45; }
+.mcp-status-row { min-width:0; display:grid; grid-template-columns:auto minmax(0,1fr); gap:10px; align-items:center; }
+.status-pill { width:max-content; max-width:100%; min-height:30px; display:inline-flex; align-items:center; padding:5px 10px; border-radius:999px; color:var(--muted); border:1px solid var(--line); background:var(--panel); font-size:12px; font-weight:850; }
+.status-pill.active { color:var(--bg); border-color:transparent; background:var(--accent); }
+.mcp-status-row code, .mcp-token-once code, .mcp-help-content code { min-width:0; overflow:auto; padding:8px 10px; border-radius:12px; color:var(--text); background:color-mix(in srgb, var(--panel) 82%, #000); border:1px solid var(--line); font:12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.mcp-token-once { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; padding:12px; border-radius:16px; border:1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); background:color-mix(in srgb, var(--accent) 10%, var(--panel)); }
+.mcp-token-once span { grid-column:1 / -1; color:var(--muted); font-size:13px; }
+.mcp-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.mcp-help-dialog { width:min(680px, 100%); }
+.mcp-help-content { display:grid; gap:12px; }
+.mcp-help-content section { display:grid; gap:8px; padding:12px; border-radius:16px; border:1px solid var(--line); background:var(--panel2); }
+.mcp-help-content strong { color:var(--text); }
+.mcp-help-content span, .mcp-help-content li { color:var(--muted); line-height:1.55; }
+.mcp-help-content ul { margin:0; padding-left:20px; }
+.mcp-token-warning { margin:0; padding:12px; border-radius:16px; color:var(--text) !important; background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); border:1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); font-size:13px !important; letter-spacing:normal !important; text-transform:none !important; }
+@media (max-width:720px) {
+  .modal-layer { padding:10px; align-items:end; }
+  .modal-card { width:100%; max-height:88dvh; border-radius:22px; padding:18px; }
+  .modal-actions, .mcp-actions { display:grid; grid-template-columns:1fr; }
+  .card-favorite { opacity:1; transform:none; top:8px; right:8px; width:40px; height:40px; }
+  .lyrics-actions { width:100%; justify-content:flex-start; }
+  .lyrics-meta-links { flex-wrap:wrap; }
+  .mcp-card-head, .mcp-status-row, .mcp-token-once { grid-template-columns:1fr; }
+  .mcp-card-head { display:grid; }
+}
+.lyrics-actions .lyrics-pick.icon-only { width:42px; min-width:42px; padding:0; justify-content:center; }
+.player-waveform { grid-template-rows:auto 34px auto; }
+.player-waveform > div:not(.wave-fallback) { min-height:34px; align-self:center; overflow:hidden; }
+.player-waveform wave { overflow:hidden !important; }
+.playlist-picker-list { display:grid; gap:8px; max-height:min(48dvh, 360px); overflow:auto; padding-right:2px; }
+.playlist-picker-list button { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:58px; padding:12px 14px; border-radius:16px; border:1px solid var(--line); background:var(--panel2); text-align:left; }
+.playlist-picker-list button.active, .playlist-picker-list button:hover { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
+.playlist-picker-list strong, .playlist-picker-list span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.playlist-picker-list span { color:var(--muted); font-size:13px; }

@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User } from '../types'
+import type { Album, Artist, AuthStatus, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -37,6 +37,7 @@ export const api = {
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),
   artists: () => request<Artist[]>('/api/artists'),
   artistSongs: (id: number) => request<Song[]>(`/api/artists/${id}/songs`),
+  favoriteArtist: (id: number) => request<Artist>(`/api/artists/${id}/favorite`, { method: 'POST' }),
   favoriteAlbum: (id: number) => request<Album>(`/api/albums/${id}/favorite`, { method: 'POST' }),
   playlists: () => request<Playlist[]>('/api/playlists'),
   createPlaylist: (name: string, description = '', cover_theme = 'deep-space') => request<Playlist>('/api/playlists', { method: 'POST', body: JSON.stringify({ name, description, cover_theme }) }),
@@ -44,5 +45,9 @@ export const api = {
   addToPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'POST' }),
   removeFromPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'DELETE' }),
   settings: () => request<Settings>('/api/settings'),
+  mcpToken: () => request<MCPTokenStatus>('/api/mcp/token'),
+  setMcpToken: (token: string) => request<MCPTokenStatus>('/api/mcp/token', { method: 'PUT', body: JSON.stringify({ token }) }),
+  generateMcpToken: () => request<MCPTokenStatus>('/api/mcp/token/generate', { method: 'POST' }),
+  deleteMcpToken: () => request<MCPTokenStatus>('/api/mcp/token', { method: 'DELETE' }),
   saveSettings: (settings: Settings) => request<Settings>('/api/settings', { method: 'PUT', body: JSON.stringify(settings) }),
 }

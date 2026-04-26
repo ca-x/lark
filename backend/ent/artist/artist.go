@@ -24,6 +24,8 @@ const (
 	EdgeSongs = "songs"
 	// EdgeAlbums holds the string denoting the albums edge name in mutations.
 	EdgeAlbums = "albums"
+	// EdgeUserFavorites holds the string denoting the user_favorites edge name in mutations.
+	EdgeUserFavorites = "user_favorites"
 	// Table holds the table name of the artist in the database.
 	Table = "artists"
 	// SongsTable is the table that holds the songs relation/edge.
@@ -40,6 +42,13 @@ const (
 	AlbumsInverseTable = "albums"
 	// AlbumsColumn is the table column denoting the albums relation/edge.
 	AlbumsColumn = "artist_albums"
+	// UserFavoritesTable is the table that holds the user_favorites relation/edge.
+	UserFavoritesTable = "user_artist_favorites"
+	// UserFavoritesInverseTable is the table name for the UserArtistFavorite entity.
+	// It exists in this package in order to avoid circular dependency with the "userartistfavorite" package.
+	UserFavoritesInverseTable = "user_artist_favorites"
+	// UserFavoritesColumn is the table column denoting the user_favorites relation/edge.
+	UserFavoritesColumn = "artist_user_favorites"
 )
 
 // Columns holds all SQL columns for artist fields.
@@ -121,6 +130,20 @@ func ByAlbums(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newAlbumsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByUserFavoritesCount orders the results by user_favorites count.
+func ByUserFavoritesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newUserFavoritesStep(), opts...)
+	}
+}
+
+// ByUserFavorites orders the results by user_favorites terms.
+func ByUserFavorites(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newUserFavoritesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newSongsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -133,5 +156,12 @@ func newAlbumsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(AlbumsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, AlbumsTable, AlbumsColumn),
+	)
+}
+func newUserFavoritesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(UserFavoritesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, UserFavoritesTable, UserFavoritesColumn),
 	)
 }

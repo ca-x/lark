@@ -1,5 +1,5 @@
 import type { ChangeEvent, UIEvent } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Disc,
   GearSix,
@@ -24,6 +24,7 @@ import {
   Timer,
   UploadSimple,
 } from "@phosphor-icons/react";
+import WavesurferPlayer from "@wavesurfer/react";
 import { api } from "./services/api";
 import type {
   Album,
@@ -33,6 +34,7 @@ import type {
   Language,
   LyricCandidate,
   Lyrics,
+  MCPTokenStatus,
   Playlist,
   ScanStatus,
   Settings,
@@ -53,6 +55,7 @@ const defaultSettings: Settings = {
 
 type View =
   | "home"
+  | "favorites"
   | "library"
   | "playlists"
   | "albums"
@@ -74,8 +77,10 @@ type ThemeLabel =
   | "duskAmber";
 type Collection = {
   type: "playlist" | "album" | "artist";
+  id?: number;
   title: string;
   subtitle: string;
+  favorite?: boolean;
   songs: Song[];
   albums?: Album[];
   coverUrl?: string;
@@ -315,13 +320,22 @@ export default function App() {
   const [lyricsFullScreen, setLyricsFullScreen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
+  const [playlistSubmitting, setPlaylistSubmitting] = useState(false);
+  const [playlistPickerSong, setPlaylistPickerSong] = useState<Song | null>(null);
+  const [playlistPendingSong, setPlaylistPendingSong] = useState<Song | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [sleepTimerMins, setSleepTimerMins] = useState(0);
   const [sleepLeft, setSleepLeft] = useState(0);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [inlineLyrics, setInlineLyrics] = useState(false);
+  const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const setAudioNode = useCallback((node: HTMLAudioElement | null) => {
+    audioRef.current = node;
+    setAudioEl((currentNode) => (currentNode === node ? currentNode : node));
+  }, []);
   const lyricsScrollRef = useRef<HTMLDivElement | null>(null);
   const lyricFollowPausedUntil = useRef(0);
   const messageTimerRef = useRef<number | null>(null);
@@ -542,7 +556,22 @@ export default function App() {
     setQueue((old) =>
       options.initializeQueue || old.length === 0 ? songItems : old,
     );
-    setCurrent((old) => old ?? songItems[0] ?? null);
+    setCurrent((old) => {
+      if (!old) return songItems[0] ?? null;
+      return songItems.find((item) => item.id === old.id) ?? null;
+    });
+    setCollection((old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        songs: old.songs
+          .map((song) => songItems.find((item) => item.id === song.id))
+          .filter((song): song is Song => Boolean(song)),
+        albums: old.albums
+          ?.map((album) => albumItems.find((item) => item.id === album.id))
+          .filter((album): album is Album => Boolean(album)),
+      };
+    });
   }
 
   async function playSong(song: Song, list = songs) {
@@ -746,40 +775,117 @@ export default function App() {
     await api.saveSettings(nextSettings).catch(() => undefined);
   }
 
-  async function toggleFavorite(song: Song) {
-    const updated = await api.favoriteSong(song.id);
+  function updateSongState(updated: Song) {
     setSongs((old) =>
       old.map((item) => (item.id === updated.id ? updated : item)),
+    );
+    setQueue((old) =>
+      old.map((item) => (item.id === updated.id ? updated : item)),
+    );
+    setCollection((old) =>
+      old
+        ? {
+            ...old,
+            songs: old.songs.map((item) =>
+              item.id === updated.id ? updated : item,
+            ),
+          }
+        : old,
     );
     if (current?.id === updated.id) setCurrent(updated);
   }
 
-  async function createPlaylist() {
-    const name = window.prompt(t("createPlaylist"))?.trim();
-    if (!name) return;
-    await api.createPlaylist(name, "", settings.theme);
-    setPlaylists(await api.playlists());
+  async function toggleFavorite(song: Song) {
+    const updated = await api.favoriteSong(song.id);
+    updateSongState(updated);
+  }
+
+  async function toggleAlbumFavorite(album: Album) {
+    const updated = await api.favoriteAlbum(album.id);
+    setAlbums((old) =>
+      old.map((item) => (item.id === updated.id ? updated : item)),
+    );
+    setCollection((old) =>
+      old?.type === "album" && old.id === updated.id
+        ? {
+            ...old,
+            favorite: updated.favorite,
+            subtitle: `${updated.artist} · ${old.songs.length} ${t("count")}`,
+            artistId: updated.artist_id,
+            artistName: updated.artist,
+          }
+        : old?.type === "artist"
+          ? {
+              ...old,
+              albums: old.albums?.map((item) =>
+                item.id === updated.id ? updated : item,
+              ),
+            }
+          : old,
+    );
+  }
+
+  async function toggleArtistFavorite(artistItem: Artist) {
+    const updated = await api.favoriteArtist(artistItem.id);
+    setArtists((old) =>
+      old.map((item) => (item.id === updated.id ? updated : item)),
+    );
+    setCollection((old) =>
+      old?.type === "artist" && old.id === updated.id
+        ? { ...old, favorite: updated.favorite, title: updated.name }
+        : old,
+    );
+  }
+
+  function createPlaylist() {
+    setPlaylistDialogOpen(true);
+  }
+
+  async function submitCreatePlaylist(name: string, description: string) {
+    setPlaylistSubmitting(true);
+    try {
+      const playlist = await api.createPlaylist(name, description, settings.theme);
+      if (playlistPendingSong) {
+        await api.addToPlaylist(playlist.id, playlistPendingSong.id);
+        setPlaylistPendingSong(null);
+      }
+      setPlaylists(await api.playlists());
+      setPlaylistDialogOpen(false);
+      showMessage(t("done"));
+      return playlist;
+    } finally {
+      setPlaylistSubmitting(false);
+    }
   }
 
   async function addToPlaylist(song: Song) {
-    if (playlists.length === 0) await createPlaylist();
     const latest = await api.playlists();
     setPlaylists(latest);
-    const choice = window.prompt(
-      `${t("pickPlaylist")}:\n${latest.map((p) => `${p.id}: ${p.name}`).join("\n")}`,
-    );
-    const id = Number(choice);
-    if (!id) return;
-    await api.addToPlaylist(id, song.id);
+    if (latest.length === 0) {
+      setPlaylistPendingSong(song);
+      createPlaylist();
+      showMessage(t("createPlaylistFirst"));
+      return;
+    }
+    setPlaylistPickerSong(song);
+  }
+
+  async function submitAddToPlaylist(playlistId: number) {
+    if (!playlistPickerSong || !playlistId) return;
+    await api.addToPlaylist(playlistId, playlistPickerSong.id);
+    setPlaylistPickerSong(null);
     showMessage(t("done"));
+    setPlaylists(await api.playlists());
   }
 
   async function openPlaylist(playlist: Playlist) {
     const items = await api.playlistSongs(playlist.id);
     setCollection({
       type: "playlist",
+      id: playlist.id,
       title: playlist.name,
       subtitle: `${items.length} ${t("count")}`,
+      favorite: playlist.favorite,
       songs: items,
       coverUrl: items[0] ? coverUrl(items[0]) : undefined,
     });
@@ -790,8 +896,10 @@ export default function App() {
     const items = await api.albumSongs(album.id);
     setCollection({
       type: "album",
+      id: album.id,
       title: album.title,
       subtitle: `${album.artist} · ${items.length} ${t("count")}`,
+      favorite: album.favorite,
       songs: items,
       coverUrl: albumCoverUrl(album),
       artistId: album.artist_id,
@@ -809,8 +917,10 @@ export default function App() {
     const artistAlbums = albums.filter((album) => album.artist_id === id);
     setCollection({
       type: "artist",
+      id,
       title,
       subtitle: `${items.length} ${t("count")}`,
+      favorite: artist?.favorite ?? false,
       songs: items,
       albums: artistAlbums.length
         ? artistAlbums
@@ -839,6 +949,7 @@ export default function App() {
 
   const nav = [
     { id: "home", label: t("home"), icon: <House /> },
+    { id: "favorites", label: t("favorites"), icon: <Heart /> },
     { id: "library", label: t("library"), icon: <MusicNotes /> },
     { id: "playlists", label: t("playlists"), icon: <PlaylistIcon /> },
     { id: "albums", label: t("albums"), icon: <Disc /> },
@@ -857,6 +968,18 @@ export default function App() {
     (view === "collection" &&
       collection?.type === "artist" &&
       id === "artists");
+  const favoriteSongs = useMemo(
+    () => songs.filter((song) => song.favorite),
+    [songs],
+  );
+  const favoriteAlbums = useMemo(
+    () => albums.filter((album) => album.favorite),
+    [albums],
+  );
+  const favoriteArtists = useMemo(
+    () => artists.filter((artist) => artist.favorite),
+    [artists],
+  );
   const heroSong = current ?? songs[0];
   const playModeLabel =
     playMode === "sequence"
@@ -952,6 +1075,14 @@ export default function App() {
             onUserScroll={() => {
               lyricFollowPausedUntil.current = Date.now() + 2500;
             }}
+            onOpenArtist={(song) =>
+              void openArtistById(song.artist_id, song.artist)
+            }
+            onOpenAlbum={(song) => {
+              const album = albums.find((item) => item.id === song.album_id);
+              if (album) void openAlbum(album);
+            }}
+            onFavoriteSong={(song) => void toggleFavorite(song)}
           />
         ) : (
           <>
@@ -993,6 +1124,27 @@ export default function App() {
                 onPlayPlaylist={playPlaylist}
                 onOpenPlaylist={openPlaylist}
                 onCreatePlaylist={createPlaylist}
+              />
+            )}
+
+            {view === "favorites" && (
+              <FavoritesView
+                songs={favoriteSongs}
+                albums={favoriteAlbums}
+                artists={favoriteArtists}
+                current={current}
+                t={t}
+                theme={settings.theme}
+                onPlay={playSong}
+                onFavoriteSong={toggleFavorite}
+                onAdd={addToPlaylist}
+                onInsertNext={(items) => insertNextBatch(items)}
+                onOpenAlbum={(album) => void openAlbum(album)}
+                onPlayAlbum={(album) => void playAlbum(album)}
+                onFavoriteAlbum={(album) => void toggleAlbumFavorite(album)}
+                onOpenArtist={(artist) => void openArtistById(artist.id, artist.name)}
+                onPlayArtist={(artist) => void playArtist(artist)}
+                onFavoriteArtist={(artist) => void toggleArtistFavorite(artist)}
               />
             )}
 
@@ -1064,7 +1216,7 @@ export default function App() {
                 t={t}
                 title={t("playlists")}
                 action={
-                  <button onClick={() => void createPlaylist()}>
+                  <button onClick={createPlaylist}>
                     <Plus /> {t("createPlaylist")}
                   </button>
                 }
@@ -1106,11 +1258,13 @@ export default function App() {
                   meta: a.artist,
                   theme: settings.theme,
                   coverUrl: albumCoverUrl(a),
+                  favorite: a.favorite,
                   onClick: () => void openAlbum(a),
                   onMetaClick: a.artist_id
                     ? () => void openArtistById(a.artist_id, a.artist)
                     : undefined,
                   onPlay: () => void playAlbum(a),
+                  onFavorite: () => void toggleAlbumFavorite(a),
                 }))}
               />
             )}
@@ -1125,8 +1279,10 @@ export default function App() {
                   subtitle: `${a.song_count} ${t("count")} · ${a.album_count} ${t("album")}`,
                   theme: settings.theme,
                   coverUrl: artistCoverUrl(a),
+                  favorite: a.favorite,
                   onClick: () => void openArtistById(a.id, a.name),
                   onPlay: () => void playArtist(a),
+                  onFavorite: () => void toggleArtistFavorite(a),
                 }))}
               />
             )}
@@ -1145,8 +1301,36 @@ export default function App() {
         )}
       </main>
 
+      {playlistDialogOpen ? (
+        <PlaylistDialog
+          t={t}
+          submitting={playlistSubmitting}
+          onCancel={() => {
+            setPlaylistDialogOpen(false);
+            setPlaylistPendingSong(null);
+          }}
+          onSubmit={(name, description) =>
+            void submitCreatePlaylist(name, description)
+          }
+        />
+      ) : null}
+      {playlistPickerSong ? (
+        <AddToPlaylistDialog
+          t={t}
+          song={playlistPickerSong}
+          playlists={playlists}
+          onCancel={() => setPlaylistPickerSong(null)}
+          onSubmit={(playlistId) => void submitAddToPlaylist(playlistId)}
+          onCreate={() => {
+            setPlaylistPendingSong(playlistPickerSong);
+            setPlaylistPickerSong(null);
+            createPlaylist();
+          }}
+        />
+      ) : null}
+
       <footer className="player" style={playerStyle}>
-        <PlayerMood theme={settings.theme} playing={playing} />
+        <PlayerMood theme={settings.theme} playing={playing} song={current} audioEl={audioEl} />
         <div className="now">
           <button
             className="cover-button"
@@ -1291,7 +1475,7 @@ export default function App() {
           </div>
         )}
         <audio
-          ref={audioRef}
+          ref={setAudioNode}
           preload="metadata"
           src={
             current ? `/api/songs/${current.id}/stream?mode=auto` : undefined
@@ -1454,6 +1638,127 @@ function AuthView({
   );
 }
 
+function PlaylistDialog({
+  t,
+  submitting,
+  onCancel,
+  onSubmit,
+}: {
+  t: ReturnType<typeof createT>;
+  submitting: boolean;
+  onCancel: () => void;
+  onSubmit: (name: string, description: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const trimmedName = name.trim();
+  return (
+    <div className="modal-layer" role="presentation">
+      <button
+        className="modal-scrim"
+        type="button"
+        aria-label={t("close")}
+        onClick={onCancel}
+      />
+      <form
+        className="modal-card playlist-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="playlist-dialog-title"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!trimmedName || submitting) return;
+          onSubmit(trimmedName, description.trim());
+        }}
+      >
+        <div>
+          <p>{t("playlists")}</p>
+          <h2 id="playlist-dialog-title">{t("createPlaylist")}</h2>
+        </div>
+        <label>
+          {t("playlistName")}
+          <input
+            value={name}
+            autoFocus
+            required
+            maxLength={80}
+            placeholder={t("playlistName")}
+            onChange={(event) => setName(event.target.value)}
+          />
+        </label>
+        <label>
+          {t("playlistDescription")}
+          <input
+            value={description}
+            maxLength={160}
+            placeholder={t("playlistDescriptionOptional")}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </label>
+        <div className="modal-actions">
+          <button type="button" onClick={onCancel} disabled={submitting}>
+            {t("cancel")}
+          </button>
+          <button className="primary" type="submit" disabled={!trimmedName || submitting}>
+            {submitting ? t("loading") : t("createPlaylist")}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function AddToPlaylistDialog({
+  t,
+  song,
+  playlists,
+  onCancel,
+  onSubmit,
+  onCreate,
+}: {
+  t: ReturnType<typeof createT>;
+  song: Song;
+  playlists: Playlist[];
+  onCancel: () => void;
+  onSubmit: (playlistId: number) => void;
+  onCreate: () => void;
+}) {
+  const [selected, setSelected] = useState(playlists[0]?.id ?? 0);
+  return (
+    <div className="modal-layer" role="presentation">
+      <button className="modal-scrim" type="button" aria-label={t("close")} onClick={onCancel} />
+      <div className="modal-card playlist-picker" role="dialog" aria-modal="true" aria-labelledby="playlist-picker-title">
+        <div className="modal-card-head">
+          <div>
+            <p>{t("addToPlaylist")}</p>
+            <h2 id="playlist-picker-title">{song.title}</h2>
+          </div>
+          <button type="button" onClick={onCreate}><Plus /> {t("createPlaylist")}</button>
+        </div>
+        <div className="playlist-picker-list">
+          {playlists.map((playlist) => (
+            <button
+              key={playlist.id}
+              type="button"
+              className={selected === playlist.id ? "active" : ""}
+              onClick={() => setSelected(playlist.id)}
+            >
+              <strong>{playlist.name}</strong>
+              <span>{playlist.song_count} {t("count")}</span>
+            </button>
+          ))}
+        </div>
+        <div className="modal-actions">
+          <button type="button" onClick={onCancel}>{t("cancel")}</button>
+          <button className="primary" type="button" disabled={!selected} onClick={() => onSubmit(selected)}>
+            {t("addToPlaylist")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function HomeView({
   songs,
   albums,
@@ -1575,7 +1880,6 @@ function HomeView({
               <span>{t("playlists")}</span>
             </button>
           </div>
-          <p>{t("manageHint")}</p>
         </section>
 
         <section className="quick-panel">
@@ -1778,7 +2082,134 @@ function MiniCover({
   );
 }
 
-function PlayerMood({ theme, playing }: { theme: Theme; playing: boolean }) {
+function FavoritesView({
+  songs,
+  albums,
+  artists,
+  current,
+  t,
+  theme,
+  onPlay,
+  onFavoriteSong,
+  onAdd,
+  onInsertNext,
+  onOpenAlbum,
+  onPlayAlbum,
+  onFavoriteAlbum,
+  onOpenArtist,
+  onPlayArtist,
+  onFavoriteArtist,
+}: {
+  songs: Song[];
+  albums: Album[];
+  artists: Artist[];
+  current: Song | null;
+  t: ReturnType<typeof createT>;
+  theme: Theme;
+  onPlay: (song: Song, list: Song[]) => void;
+  onFavoriteSong: (song: Song) => void;
+  onAdd: (song: Song) => void;
+  onInsertNext: (songs: Song[]) => void;
+  onOpenAlbum: (album: Album) => void;
+  onPlayAlbum: (album: Album) => void;
+  onFavoriteAlbum: (album: Album) => void;
+  onOpenArtist: (artist: Artist) => void;
+  onPlayArtist: (artist: Artist) => void;
+  onFavoriteArtist: (artist: Artist) => void;
+}) {
+  const [tab, setTab] = useState<"songs" | "albums" | "artists">("songs");
+  const hasAny = songs.length || albums.length || artists.length;
+  return (
+    <section className="favorites-view">
+      <div className="section-head">
+        <div>
+          <h2>{t("favorites")}</h2>
+          <p className="section-subtitle">{t("favoritesHint")}</p>
+        </div>
+      </div>
+      <div className="collection-tabs">
+        <button
+          className={tab === "songs" ? "active" : ""}
+          onClick={() => setTab("songs")}
+        >
+          {t("songs")} · {songs.length}
+        </button>
+        <button
+          className={tab === "albums" ? "active" : ""}
+          onClick={() => setTab("albums")}
+        >
+          {t("albums")} · {albums.length}
+        </button>
+        <button
+          className={tab === "artists" ? "active" : ""}
+          onClick={() => setTab("artists")}
+        >
+          {t("artists")} · {artists.length}
+        </button>
+      </div>
+      {!hasAny ? (
+        <div className="empty">{t("emptyFavorites")}</div>
+      ) : tab === "songs" ? (
+        <SongTable
+          songs={songs}
+          current={current}
+          t={t}
+          onPlay={onPlay}
+          onFavorite={onFavoriteSong}
+          onAdd={onAdd}
+          onInsertNext={(song) => onInsertNext([song])}
+        />
+      ) : tab === "albums" ? (
+        <CardGrid
+          t={t}
+          title={t("albums")}
+          variant="album"
+          items={albums.map((album) => ({
+            id: album.id,
+            title: album.title,
+            subtitle: `${album.song_count} ${t("count")}`,
+            meta: album.artist,
+            theme,
+            coverUrl: albumCoverUrl(album),
+            favorite: album.favorite,
+            onClick: () => onOpenAlbum(album),
+            onPlay: () => onPlayAlbum(album),
+            onFavorite: () => onFavoriteAlbum(album),
+          }))}
+        />
+      ) : (
+        <CardGrid
+          t={t}
+          title={t("artists")}
+          variant="artist"
+          items={artists.map((artist) => ({
+            id: artist.id,
+            title: artist.name,
+            subtitle: `${artist.song_count} ${t("count")} · ${artist.album_count} ${t("album")}`,
+            theme,
+            coverUrl: artistCoverUrl(artist),
+            favorite: artist.favorite,
+            onClick: () => onOpenArtist(artist),
+            onPlay: () => onPlayArtist(artist),
+            onFavorite: () => onFavoriteArtist(artist),
+          }))}
+        />
+      )}
+    </section>
+  );
+}
+
+function PlayerMood({
+  theme,
+  playing,
+  song,
+  audioEl,
+}: {
+  theme: Theme;
+  playing: boolean;
+  song: Song | null;
+  audioEl: HTMLAudioElement | null;
+}) {
   const labels: Record<Theme, string> = {
     "deep-space": "HI-FI ORBIT",
     "amber-film": "VU TAPE",
@@ -1791,22 +2222,58 @@ function PlayerMood({ theme, playing }: { theme: Theme; playing: boolean }) {
     "sakura-washi": "WASHI",
     "dusk-amber": "19:42",
   };
+  const colors = waveThemeColors(theme);
+  const canRenderWave = Boolean(song && audioEl);
   return (
     <div
-      className="player-mood"
+      className={canRenderWave ? "player-mood player-waveform" : "player-mood"}
       data-theme-key={theme}
       data-playing={playing ? "true" : "false"}
       aria-hidden="true"
     >
       <span>{labels[theme]}</span>
-      <div>
-        {Array.from({ length: 16 }, (_, index) => (
-          <i key={index} style={{ "--i": index } as React.CSSProperties} />
-        ))}
-      </div>
-      <em>{theme === "carbon-volt" ? "74%" : "LIVE"}</em>
+      {canRenderWave && audioEl ? (
+        <WavesurferPlayer
+          key={song?.id ?? "empty"}
+          media={audioEl}
+          height={34}
+          waveColor={colors.wave}
+          progressColor={colors.progress}
+          cursorColor={colors.cursor}
+          cursorWidth={2}
+          barWidth={2}
+          barGap={2}
+          barRadius={999}
+          normalize
+          interact
+          dragToSeek
+        />
+      ) : (
+        <div>
+          {Array.from({ length: 16 }, (_, index) => (
+            <i key={index} style={{ "--i": index } as React.CSSProperties} />
+          ))}
+        </div>
+      )}
+      <em>{theme === "carbon-volt" ? "74%" : playing ? "LIVE" : "IDLE"}</em>
     </div>
   );
+}
+
+function waveThemeColors(theme: Theme) {
+  const map: Record<Theme, { wave: string; progress: string; cursor: string }> = {
+    "deep-space": { wave: "rgba(139,143,216,.38)", progress: "#7c7ed4", cursor: "#bbbfe8" },
+    "amber-film": { wave: "rgba(168,124,48,.38)", progress: "#c09030", cursor: "#eddcaa" },
+    "neon-coral": { wave: "rgba(192,80,112,.35)", progress: "#d45080", cursor: "#f5d0e0" },
+    "arctic-aurora": { wave: "rgba(58,144,184,.35)", progress: "#3a9ac8", cursor: "#c8e8f5" },
+    "carbon-volt": { wave: "rgba(53,160,80,.32)", progress: "#35a850", cursor: "#b8f0c8" },
+    "milk-porcelain": { wave: "rgba(154,149,142,.35)", progress: "#2c2a27", cursor: "#7a7670" },
+    "oat-latte": { wave: "rgba(158,125,94,.35)", progress: "#3d2b1f", cursor: "#c4894a" },
+    "mint-soda": { wave: "rgba(106,158,131,.35)", progress: "#1f8c5e", cursor: "#5aad84" },
+    "sakura-washi": { wave: "rgba(158,104,120,.34)", progress: "#b04060", cursor: "#e8b0c0" },
+    "dusk-amber": { wave: "rgba(158,112,64,.34)", progress: "#c46020", cursor: "#f0b050" },
+  };
+  return map[theme];
 }
 
 function collectionLabel(
@@ -2091,6 +2558,9 @@ function FullLyrics({
   onSelectCandidate,
   onCloseCandidates,
   onUserScroll,
+  onOpenArtist,
+  onOpenAlbum,
+  onFavoriteSong,
 }: {
   song: Song | null;
   lines: ReturnType<typeof parseLyricLines>;
@@ -2107,6 +2577,9 @@ function FullLyrics({
   onSelectCandidate: (candidate: LyricCandidate) => void;
   onCloseCandidates: () => void;
   onUserScroll: () => void;
+  onOpenArtist: (song: Song) => void;
+  onOpenAlbum: (song: Song) => void;
+  onFavoriteSong: (song: Song) => void;
 }) {
   const [seekTargetKey, setSeekTargetKey] = useState("");
   const userScrollUntil = useRef(0);
@@ -2165,12 +2638,35 @@ function FullLyrics({
         <div>
           <p>{t("nowPlaying")}</p>
           <h1>{song?.title ?? `${t("brand")} Music`}</h1>
-          <span>{song ? `${song.artist} · ${song.album}` : "—"}</span>
+          {song ? (
+            <div className="lyrics-meta-links">
+              <button onClick={() => onOpenArtist(song)}>{song.artist}</button>
+              <span>·</span>
+              <button onClick={() => onOpenAlbum(song)}>{song.album}</button>
+            </div>
+          ) : (
+            <span>—</span>
+          )}
         </div>
         {song ? (
-          <button className="lyrics-pick" onClick={onOpenCandidates}>
-            {t("chooseLyrics")}
-          </button>
+          <div className="lyrics-actions">
+            <button
+              className={song.favorite ? "lyrics-pick active" : "lyrics-pick"}
+              onClick={() => onFavoriteSong(song)}
+              aria-label={t("favorites")}
+            >
+              <Heart weight={song.favorite ? "fill" : "regular"} />
+              {t("favorites")}
+            </button>
+            <button
+              className="lyrics-pick icon-only"
+              onClick={onOpenCandidates}
+              title={t("chooseLyrics")}
+              aria-label={t("chooseLyrics")}
+            >
+              <GearSix weight="bold" />
+            </button>
+          </div>
         ) : null}
       </div>
       {candidatesOpen ? (
@@ -2401,6 +2897,58 @@ function UserAvatar({ user }: { user: User }) {
 
 type SettingsTab = "profile" | "users" | "site";
 
+function MCPHelpDialog({
+  t,
+  endpoint,
+  tokenExample,
+  onClose,
+}: {
+  t: ReturnType<typeof createT>;
+  endpoint: string;
+  tokenExample: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-layer mcp-help-layer" role="presentation">
+      <button className="modal-scrim" type="button" aria-label={t("close")} onClick={onClose} />
+      <div className="modal-card mcp-help-dialog" role="dialog" aria-modal="true" aria-labelledby="mcp-help-title">
+        <div className="modal-card-head">
+          <div>
+            <p>{t("mcpAccess")}</p>
+            <h2 id="mcp-help-title">{t("mcpHelpTitle")}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label={t("close")}>{t("close")}</button>
+        </div>
+        <p className="section-subtitle">{t("mcpHelpDescription")}</p>
+        <div className="mcp-help-content">
+          <section>
+            <strong>{t("mcpEndpoint")}</strong>
+            <code>{endpoint}</code>
+          </section>
+          <section>
+            <strong>{t("mcpAuthorization")}</strong>
+            <code>Authorization: Bearer {tokenExample}</code>
+            <code>{endpoint}?token={encodeURIComponent(tokenExample)}</code>
+            <span>{t("mcpAuthorizationHeader")}</span>
+          </section>
+          <section>
+            <strong>{t("mcpAvailableTools")}</strong>
+            <ul>
+              <li>{t("mcpToolArtists")}</li>
+              <li>{t("mcpToolAlbums")}</li>
+              <li>{t("mcpToolSearch")}</li>
+              <li>{t("mcpToolFavorites")}</li>
+              <li>{t("mcpToolPlayback")}</li>
+              <li>{t("mcpToolLyrics")}</li>
+            </ul>
+          </section>
+          <p className="mcp-token-warning">{t("mcpHelpTokenNotice")}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsPanel({
   settings,
   setSettings,
@@ -2423,8 +2971,14 @@ function SettingsPanel({
   const [usersLoading, setUsersLoading] = useState(false);
   const [nickname, setNickname] = useState(user.nickname || user.username);
   const [avatarDataURL, setAvatarDataURL] = useState(user.avatar_data_url || "");
+  const [mcpToken, setMcpToken] = useState<MCPTokenStatus | null>(null);
+  const [mcpLoading, setMcpLoading] = useState(false);
+  const [mcpHelpOpen, setMcpHelpOpen] = useState(false);
+  const [mcpCopied, setMcpCopied] = useState(false);
   const nicknameLabel = settings.language === "zh-CN" ? "昵称" : "Nickname";
   const avatarLabel = settings.language === "zh-CN" ? "头像" : "Avatar";
+  const mcpEndpoint = `${window.location.origin}/api/mcp/sse`;
+  const mcpTokenExample = mcpToken?.token || mcpToken?.hint || "lark_mcp_...";
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "profile", label: t("profileSettings") },
     { id: "users", label: t("userManagement") },
@@ -2440,6 +2994,42 @@ function SettingsPanel({
       .catch(() => setUsers([]))
       .finally(() => setUsersLoading(false));
   }, [activeTab, user.role]);
+
+  useEffect(() => {
+    if (activeTab !== "profile") return;
+    void api
+      .mcpToken()
+      .then(setMcpToken)
+      .catch(() => setMcpToken(null));
+  }, [activeTab]);
+
+  async function generateMcpToken() {
+    if (mcpLoading) return;
+    setMcpLoading(true);
+    setMcpCopied(false);
+    try {
+      setMcpToken(await api.generateMcpToken());
+    } finally {
+      setMcpLoading(false);
+    }
+  }
+
+  async function deleteMcpToken() {
+    if (mcpLoading) return;
+    setMcpLoading(true);
+    setMcpCopied(false);
+    try {
+      setMcpToken(await api.deleteMcpToken());
+    } finally {
+      setMcpLoading(false);
+    }
+  }
+
+  async function copyMcpToken() {
+    if (!mcpToken?.token) return;
+    await navigator.clipboard.writeText(mcpToken.token);
+    setMcpCopied(true);
+  }
 
   return (
     <section className="settings-page">
@@ -2495,6 +3085,50 @@ function SettingsPanel({
             </div>
             <button onClick={onLogout}>{t("logout")}</button>
           </div>
+          <div className="mcp-card settings-wide-row">
+            <div className="mcp-card-head">
+              <div>
+                <strong>{t("mcpToken")}</strong>
+                <span>{t("mcpTokenHint")}</span>
+              </div>
+              <button type="button" onClick={() => setMcpHelpOpen(true)}>
+                {t("mcpHelp")}
+              </button>
+            </div>
+            <div className="mcp-status-row">
+              <span className={mcpToken?.configured ? "status-pill active" : "status-pill"}>
+                {mcpToken?.configured
+                  ? `${t("mcpTokenConfigured")} ${mcpToken.hint || ""}`
+                  : t("mcpTokenNotConfigured")}
+              </span>
+              <code>{mcpEndpoint}</code>
+            </div>
+            {mcpToken?.token ? (
+              <div className="mcp-token-once" role="status">
+                <span>{t("mcpTokenShownOnce")}</span>
+                <code>{mcpToken.token}</code>
+                <button type="button" onClick={() => void copyMcpToken()}>
+                  {mcpCopied ? t("copied") : t("copy")}
+                </button>
+              </div>
+            ) : null}
+            <div className="mcp-actions">
+              <button type="button" className="primary" onClick={() => void generateMcpToken()} disabled={mcpLoading}>
+                {mcpLoading ? t("loading") : t("generateMcpToken")}
+              </button>
+              <button type="button" onClick={() => void deleteMcpToken()} disabled={mcpLoading || !mcpToken?.configured}>
+                {t("deleteMcpToken")}
+              </button>
+            </div>
+          </div>
+          {mcpHelpOpen ? (
+            <MCPHelpDialog
+              t={t}
+              endpoint={mcpEndpoint}
+              tokenExample={mcpTokenExample}
+              onClose={() => setMcpHelpOpen(false)}
+            />
+          ) : null}
         </div>
       )}
 
@@ -2856,9 +3490,11 @@ function CardGrid({
     meta?: string;
     theme: string;
     coverUrl?: string;
+    favorite?: boolean;
     onClick: () => void;
     onMetaClick?: () => void;
     onPlay?: () => void;
+    onFavorite?: () => void;
   }[];
   action?: React.ReactNode;
 }) {
@@ -2939,6 +3575,29 @@ function CardGrid({
                       }}
                     >
                       <Play weight="fill" />
+                    </span>
+                  ) : null}
+                  {item.onFavorite ? (
+                    <span
+                      className={
+                        item.favorite ? "card-favorite active" : "card-favorite"
+                      }
+                      role="button"
+                      tabIndex={0}
+                      aria-label={t("favorites")}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        item.onFavorite?.();
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          item.onFavorite?.();
+                        }
+                      }}
+                    >
+                      <Heart weight={item.favorite ? "fill" : "regular"} />
                     </span>
                   ) : null}
                 </div>

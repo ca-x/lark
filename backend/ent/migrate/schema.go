@@ -220,6 +220,8 @@ var (
 		{Name: "role", Type: field.TypeString, Default: "user"},
 		{Name: "nickname", Type: field.TypeString, Default: ""},
 		{Name: "avatar_data_url", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "mcp_token_hash", Type: field.TypeString, Default: ""},
+		{Name: "mcp_token_hint", Type: field.TypeString, Default: ""},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -260,6 +262,40 @@ var (
 				Name:    "useralbumfavorite_user_album_favorites_album_user_favorites",
 				Unique:  true,
 				Columns: []*schema.Column{UserAlbumFavoritesColumns[3], UserAlbumFavoritesColumns[2]},
+			},
+		},
+	}
+	// UserArtistFavoritesColumns holds the columns for the "user_artist_favorites" table.
+	UserArtistFavoritesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "artist_user_favorites", Type: field.TypeInt},
+		{Name: "user_artist_favorites", Type: field.TypeInt},
+	}
+	// UserArtistFavoritesTable holds the schema information for the "user_artist_favorites" table.
+	UserArtistFavoritesTable = &schema.Table{
+		Name:       "user_artist_favorites",
+		Columns:    UserArtistFavoritesColumns,
+		PrimaryKey: []*schema.Column{UserArtistFavoritesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_artist_favorites_artists_user_favorites",
+				Columns:    []*schema.Column{UserArtistFavoritesColumns[2]},
+				RefColumns: []*schema.Column{ArtistsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "user_artist_favorites_users_artist_favorites",
+				Columns:    []*schema.Column{UserArtistFavoritesColumns[3]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "userartistfavorite_user_artist_favorites_artist_user_favorites",
+				Unique:  true,
+				Columns: []*schema.Column{UserArtistFavoritesColumns[3], UserArtistFavoritesColumns[2]},
 			},
 		},
 	}
@@ -333,6 +369,7 @@ var (
 		SongsTable,
 		UsersTable,
 		UserAlbumFavoritesTable,
+		UserArtistFavoritesTable,
 		UserSongFavoritesTable,
 		PlaylistSongsTable,
 	}
@@ -348,6 +385,8 @@ func init() {
 	SongsTable.ForeignKeys[1].RefTable = ArtistsTable
 	UserAlbumFavoritesTable.ForeignKeys[0].RefTable = AlbumsTable
 	UserAlbumFavoritesTable.ForeignKeys[1].RefTable = UsersTable
+	UserArtistFavoritesTable.ForeignKeys[0].RefTable = ArtistsTable
+	UserArtistFavoritesTable.ForeignKeys[1].RefTable = UsersTable
 	UserSongFavoritesTable.ForeignKeys[0].RefTable = SongsTable
 	UserSongFavoritesTable.ForeignKeys[1].RefTable = UsersTable
 	PlaylistSongsTable.ForeignKeys[0].RefTable = PlaylistsTable

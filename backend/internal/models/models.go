@@ -45,6 +45,7 @@ type Album struct {
 type Artist struct {
 	ID         int       `json:"id"`
 	Name       string    `json:"name"`
+	Favorite   bool      `json:"favorite"`
 	SongCount  int       `json:"song_count"`
 	AlbumCount int       `json:"album_count"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -65,6 +66,12 @@ type AuthStatus struct {
 	Initialized         bool  `json:"initialized"`
 	RegistrationEnabled bool  `json:"registration_enabled"`
 	User                *User `json:"user,omitempty"`
+}
+
+type MCPTokenStatus struct {
+	Configured bool   `json:"configured"`
+	Hint       string `json:"hint"`
+	Token      string `json:"token,omitempty"`
 }
 
 type Playlist struct {

@@ -11,6 +11,7 @@ import (
 	"lark/backend/ent/session"
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/userartistfavorite"
 	"lark/backend/ent/usersongfavorite"
 	"time"
 
@@ -75,6 +76,34 @@ func (_c *UserCreate) SetAvatarDataURL(v string) *UserCreate {
 func (_c *UserCreate) SetNillableAvatarDataURL(v *string) *UserCreate {
 	if v != nil {
 		_c.SetAvatarDataURL(*v)
+	}
+	return _c
+}
+
+// SetMcpTokenHash sets the "mcp_token_hash" field.
+func (_c *UserCreate) SetMcpTokenHash(v string) *UserCreate {
+	_c.mutation.SetMcpTokenHash(v)
+	return _c
+}
+
+// SetNillableMcpTokenHash sets the "mcp_token_hash" field if the given value is not nil.
+func (_c *UserCreate) SetNillableMcpTokenHash(v *string) *UserCreate {
+	if v != nil {
+		_c.SetMcpTokenHash(*v)
+	}
+	return _c
+}
+
+// SetMcpTokenHint sets the "mcp_token_hint" field.
+func (_c *UserCreate) SetMcpTokenHint(v string) *UserCreate {
+	_c.mutation.SetMcpTokenHint(v)
+	return _c
+}
+
+// SetNillableMcpTokenHint sets the "mcp_token_hint" field if the given value is not nil.
+func (_c *UserCreate) SetNillableMcpTokenHint(v *string) *UserCreate {
+	if v != nil {
+		_c.SetMcpTokenHint(*v)
 	}
 	return _c
 }
@@ -167,6 +196,21 @@ func (_c *UserCreate) AddAlbumFavorites(v ...*UserAlbumFavorite) *UserCreate {
 	return _c.AddAlbumFavoriteIDs(ids...)
 }
 
+// AddArtistFavoriteIDs adds the "artist_favorites" edge to the UserArtistFavorite entity by IDs.
+func (_c *UserCreate) AddArtistFavoriteIDs(ids ...int) *UserCreate {
+	_c.mutation.AddArtistFavoriteIDs(ids...)
+	return _c
+}
+
+// AddArtistFavorites adds the "artist_favorites" edges to the UserArtistFavorite entity.
+func (_c *UserCreate) AddArtistFavorites(v ...*UserArtistFavorite) *UserCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddArtistFavoriteIDs(ids...)
+}
+
 // AddPlayHistoryIDs adds the "play_history" edge to the PlayHistory entity by IDs.
 func (_c *UserCreate) AddPlayHistoryIDs(ids ...int) *UserCreate {
 	_c.mutation.AddPlayHistoryIDs(ids...)
@@ -229,6 +273,14 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultAvatarDataURL
 		_c.mutation.SetAvatarDataURL(v)
 	}
+	if _, ok := _c.mutation.McpTokenHash(); !ok {
+		v := user.DefaultMcpTokenHash
+		_c.mutation.SetMcpTokenHash(v)
+	}
+	if _, ok := _c.mutation.McpTokenHint(); !ok {
+		v := user.DefaultMcpTokenHint
+		_c.mutation.SetMcpTokenHint(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := user.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -265,6 +317,12 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.AvatarDataURL(); !ok {
 		return &ValidationError{Name: "avatar_data_url", err: errors.New(`ent: missing required field "User.avatar_data_url"`)}
+	}
+	if _, ok := _c.mutation.McpTokenHash(); !ok {
+		return &ValidationError{Name: "mcp_token_hash", err: errors.New(`ent: missing required field "User.mcp_token_hash"`)}
+	}
+	if _, ok := _c.mutation.McpTokenHint(); !ok {
+		return &ValidationError{Name: "mcp_token_hint", err: errors.New(`ent: missing required field "User.mcp_token_hint"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "User.created_at"`)}
@@ -317,6 +375,14 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AvatarDataURL(); ok {
 		_spec.SetField(user.FieldAvatarDataURL, field.TypeString, value)
 		_node.AvatarDataURL = value
+	}
+	if value, ok := _c.mutation.McpTokenHash(); ok {
+		_spec.SetField(user.FieldMcpTokenHash, field.TypeString, value)
+		_node.McpTokenHash = value
+	}
+	if value, ok := _c.mutation.McpTokenHint(); ok {
+		_spec.SetField(user.FieldMcpTokenHint, field.TypeString, value)
+		_node.McpTokenHint = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
@@ -383,6 +449,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(useralbumfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ArtistFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ArtistFavoritesTable,
+			Columns: []string{user.ArtistFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

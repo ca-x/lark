@@ -47,6 +47,7 @@ export interface Album {
 export interface Artist {
   id: number;
   name: string;
+  favorite: boolean;
   song_count: number;
   album_count: number;
 }
@@ -83,6 +84,12 @@ export interface AuthStatus {
   initialized: boolean;
   registration_enabled: boolean;
   user?: User;
+}
+
+export interface MCPTokenStatus {
+  configured: boolean;
+  hint: string;
+  token?: string;
 }
 export interface HealthInfo {
   status: string;

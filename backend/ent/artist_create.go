@@ -9,6 +9,7 @@ import (
 	"lark/backend/ent/album"
 	"lark/backend/ent/artist"
 	"lark/backend/ent/song"
+	"lark/backend/ent/userartistfavorite"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -84,6 +85,21 @@ func (_c *ArtistCreate) AddAlbums(v ...*Album) *ArtistCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddAlbumIDs(ids...)
+}
+
+// AddUserFavoriteIDs adds the "user_favorites" edge to the UserArtistFavorite entity by IDs.
+func (_c *ArtistCreate) AddUserFavoriteIDs(ids ...int) *ArtistCreate {
+	_c.mutation.AddUserFavoriteIDs(ids...)
+	return _c
+}
+
+// AddUserFavorites adds the "user_favorites" edges to the UserArtistFavorite entity.
+func (_c *ArtistCreate) AddUserFavorites(v ...*UserArtistFavorite) *ArtistCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddUserFavoriteIDs(ids...)
 }
 
 // Mutation returns the ArtistMutation object of the builder.
@@ -210,6 +226,22 @@ func (_c *ArtistCreate) createSpec() (*Artist, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(album.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.UserFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   artist.UserFavoritesTable,
+			Columns: []string{artist.UserFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

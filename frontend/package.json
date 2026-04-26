@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "@wavesurfer/react": "^1.0.12",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "wavesurfer.js": "^7.12.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
