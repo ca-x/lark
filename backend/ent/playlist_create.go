@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/song"
+	"lark/backend/ent/user"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -110,6 +111,25 @@ func (_c *PlaylistCreate) AddSongs(v ...*Song) *PlaylistCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddSongIDs(ids...)
+}
+
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_c *PlaylistCreate) SetOwnerID(id int) *PlaylistCreate {
+	_c.mutation.SetOwnerID(id)
+	return _c
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (_c *PlaylistCreate) SetNillableOwnerID(id *int) *PlaylistCreate {
+	if id != nil {
+		_c = _c.SetOwnerID(*id)
+	}
+	return _c
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_c *PlaylistCreate) SetOwner(v *User) *PlaylistCreate {
+	return _c.SetOwnerID(v.ID)
 }
 
 // Mutation returns the PlaylistMutation object of the builder.
@@ -258,6 +278,23 @@ func (_c *PlaylistCreate) createSpec() (*Playlist, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   playlist.OwnerTable,
+			Columns: []string{playlist.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_playlists = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

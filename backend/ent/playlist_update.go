@@ -9,6 +9,7 @@ import (
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/predicate"
 	"lark/backend/ent/song"
+	"lark/backend/ent/user"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -120,6 +121,25 @@ func (_u *PlaylistUpdate) AddSongs(v ...*Song) *PlaylistUpdate {
 	return _u.AddSongIDs(ids...)
 }
 
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_u *PlaylistUpdate) SetOwnerID(id int) *PlaylistUpdate {
+	_u.mutation.SetOwnerID(id)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (_u *PlaylistUpdate) SetNillableOwnerID(id *int) *PlaylistUpdate {
+	if id != nil {
+		_u = _u.SetOwnerID(*id)
+	}
+	return _u
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_u *PlaylistUpdate) SetOwner(v *User) *PlaylistUpdate {
+	return _u.SetOwnerID(v.ID)
+}
+
 // Mutation returns the PlaylistMutation object of the builder.
 func (_u *PlaylistUpdate) Mutation() *PlaylistMutation {
 	return _u.mutation
@@ -144,6 +164,12 @@ func (_u *PlaylistUpdate) RemoveSongs(v ...*Song) *PlaylistUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSongIDs(ids...)
+}
+
+// ClearOwner clears the "owner" edge to the User entity.
+func (_u *PlaylistUpdate) ClearOwner() *PlaylistUpdate {
+	_u.mutation.ClearOwner()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -267,6 +293,35 @@ func (_u *PlaylistUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.OwnerCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   playlist.OwnerTable,
+			Columns: []string{playlist.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   playlist.OwnerTable,
+			Columns: []string{playlist.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{playlist.Label}
@@ -378,6 +433,25 @@ func (_u *PlaylistUpdateOne) AddSongs(v ...*Song) *PlaylistUpdateOne {
 	return _u.AddSongIDs(ids...)
 }
 
+// SetOwnerID sets the "owner" edge to the User entity by ID.
+func (_u *PlaylistUpdateOne) SetOwnerID(id int) *PlaylistUpdateOne {
+	_u.mutation.SetOwnerID(id)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
+func (_u *PlaylistUpdateOne) SetNillableOwnerID(id *int) *PlaylistUpdateOne {
+	if id != nil {
+		_u = _u.SetOwnerID(*id)
+	}
+	return _u
+}
+
+// SetOwner sets the "owner" edge to the User entity.
+func (_u *PlaylistUpdateOne) SetOwner(v *User) *PlaylistUpdateOne {
+	return _u.SetOwnerID(v.ID)
+}
+
 // Mutation returns the PlaylistMutation object of the builder.
 func (_u *PlaylistUpdateOne) Mutation() *PlaylistMutation {
 	return _u.mutation
@@ -402,6 +476,12 @@ func (_u *PlaylistUpdateOne) RemoveSongs(v ...*Song) *PlaylistUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSongIDs(ids...)
+}
+
+// ClearOwner clears the "owner" edge to the User entity.
+func (_u *PlaylistUpdateOne) ClearOwner() *PlaylistUpdateOne {
+	_u.mutation.ClearOwner()
+	return _u
 }
 
 // Where appends a list predicates to the PlaylistUpdate builder.
@@ -548,6 +628,35 @@ func (_u *PlaylistUpdateOne) sqlSave(ctx context.Context) (_node *Playlist, err 
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(song.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.OwnerCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   playlist.OwnerTable,
+			Columns: []string{playlist.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.OwnerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   playlist.OwnerTable,
+			Columns: []string{playlist.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

@@ -10,6 +10,7 @@ import (
 	"lark/backend/ent/artist"
 	"lark/backend/ent/predicate"
 	"lark/backend/ent/song"
+	"lark/backend/ent/useralbumfavorite"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -140,6 +141,21 @@ func (_u *AlbumUpdate) AddSongs(v ...*Song) *AlbumUpdate {
 	return _u.AddSongIDs(ids...)
 }
 
+// AddUserFavoriteIDs adds the "user_favorites" edge to the UserAlbumFavorite entity by IDs.
+func (_u *AlbumUpdate) AddUserFavoriteIDs(ids ...int) *AlbumUpdate {
+	_u.mutation.AddUserFavoriteIDs(ids...)
+	return _u
+}
+
+// AddUserFavorites adds the "user_favorites" edges to the UserAlbumFavorite entity.
+func (_u *AlbumUpdate) AddUserFavorites(v ...*UserAlbumFavorite) *AlbumUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUserFavoriteIDs(ids...)
+}
+
 // Mutation returns the AlbumMutation object of the builder.
 func (_u *AlbumUpdate) Mutation() *AlbumMutation {
 	return _u.mutation
@@ -170,6 +186,27 @@ func (_u *AlbumUpdate) RemoveSongs(v ...*Song) *AlbumUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSongIDs(ids...)
+}
+
+// ClearUserFavorites clears all "user_favorites" edges to the UserAlbumFavorite entity.
+func (_u *AlbumUpdate) ClearUserFavorites() *AlbumUpdate {
+	_u.mutation.ClearUserFavorites()
+	return _u
+}
+
+// RemoveUserFavoriteIDs removes the "user_favorites" edge to UserAlbumFavorite entities by IDs.
+func (_u *AlbumUpdate) RemoveUserFavoriteIDs(ids ...int) *AlbumUpdate {
+	_u.mutation.RemoveUserFavoriteIDs(ids...)
+	return _u
+}
+
+// RemoveUserFavorites removes "user_favorites" edges to UserAlbumFavorite entities.
+func (_u *AlbumUpdate) RemoveUserFavorites(v ...*UserAlbumFavorite) *AlbumUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUserFavoriteIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -322,6 +359,51 @@ func (_u *AlbumUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.UserFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   album.UserFavoritesTable,
+			Columns: []string{album.UserFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(useralbumfavorite.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUserFavoritesIDs(); len(nodes) > 0 && !_u.mutation.UserFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   album.UserFavoritesTable,
+			Columns: []string{album.UserFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(useralbumfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UserFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   album.UserFavoritesTable,
+			Columns: []string{album.UserFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(useralbumfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{album.Label}
@@ -452,6 +534,21 @@ func (_u *AlbumUpdateOne) AddSongs(v ...*Song) *AlbumUpdateOne {
 	return _u.AddSongIDs(ids...)
 }
 
+// AddUserFavoriteIDs adds the "user_favorites" edge to the UserAlbumFavorite entity by IDs.
+func (_u *AlbumUpdateOne) AddUserFavoriteIDs(ids ...int) *AlbumUpdateOne {
+	_u.mutation.AddUserFavoriteIDs(ids...)
+	return _u
+}
+
+// AddUserFavorites adds the "user_favorites" edges to the UserAlbumFavorite entity.
+func (_u *AlbumUpdateOne) AddUserFavorites(v ...*UserAlbumFavorite) *AlbumUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddUserFavoriteIDs(ids...)
+}
+
 // Mutation returns the AlbumMutation object of the builder.
 func (_u *AlbumUpdateOne) Mutation() *AlbumMutation {
 	return _u.mutation
@@ -482,6 +579,27 @@ func (_u *AlbumUpdateOne) RemoveSongs(v ...*Song) *AlbumUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSongIDs(ids...)
+}
+
+// ClearUserFavorites clears all "user_favorites" edges to the UserAlbumFavorite entity.
+func (_u *AlbumUpdateOne) ClearUserFavorites() *AlbumUpdateOne {
+	_u.mutation.ClearUserFavorites()
+	return _u
+}
+
+// RemoveUserFavoriteIDs removes the "user_favorites" edge to UserAlbumFavorite entities by IDs.
+func (_u *AlbumUpdateOne) RemoveUserFavoriteIDs(ids ...int) *AlbumUpdateOne {
+	_u.mutation.RemoveUserFavoriteIDs(ids...)
+	return _u
+}
+
+// RemoveUserFavorites removes "user_favorites" edges to UserAlbumFavorite entities.
+func (_u *AlbumUpdateOne) RemoveUserFavorites(v ...*UserAlbumFavorite) *AlbumUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveUserFavoriteIDs(ids...)
 }
 
 // Where appends a list predicates to the AlbumUpdate builder.
@@ -657,6 +775,51 @@ func (_u *AlbumUpdateOne) sqlSave(ctx context.Context) (_node *Album, err error)
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(song.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.UserFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   album.UserFavoritesTable,
+			Columns: []string{album.UserFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(useralbumfavorite.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedUserFavoritesIDs(); len(nodes) > 0 && !_u.mutation.UserFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   album.UserFavoritesTable,
+			Columns: []string{album.UserFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(useralbumfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.UserFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   album.UserFavoritesTable,
+			Columns: []string{album.UserFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(useralbumfavorite.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

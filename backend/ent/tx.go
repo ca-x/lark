@@ -18,10 +18,20 @@ type Tx struct {
 	AppSetting *AppSettingClient
 	// Artist is the client for interacting with the Artist builders.
 	Artist *ArtistClient
+	// PlayHistory is the client for interacting with the PlayHistory builders.
+	PlayHistory *PlayHistoryClient
 	// Playlist is the client for interacting with the Playlist builders.
 	Playlist *PlaylistClient
+	// Session is the client for interacting with the Session builders.
+	Session *SessionClient
 	// Song is the client for interacting with the Song builders.
 	Song *SongClient
+	// User is the client for interacting with the User builders.
+	User *UserClient
+	// UserAlbumFavorite is the client for interacting with the UserAlbumFavorite builders.
+	UserAlbumFavorite *UserAlbumFavoriteClient
+	// UserSongFavorite is the client for interacting with the UserSongFavorite builders.
+	UserSongFavorite *UserSongFavoriteClient
 
 	// lazily loaded.
 	client     *Client
@@ -156,8 +166,13 @@ func (tx *Tx) init() {
 	tx.Album = NewAlbumClient(tx.config)
 	tx.AppSetting = NewAppSettingClient(tx.config)
 	tx.Artist = NewArtistClient(tx.config)
+	tx.PlayHistory = NewPlayHistoryClient(tx.config)
 	tx.Playlist = NewPlaylistClient(tx.config)
+	tx.Session = NewSessionClient(tx.config)
 	tx.Song = NewSongClient(tx.config)
+	tx.User = NewUserClient(tx.config)
+	tx.UserAlbumFavorite = NewUserAlbumFavoriteClient(tx.config)
+	tx.UserSongFavorite = NewUserSongFavoriteClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

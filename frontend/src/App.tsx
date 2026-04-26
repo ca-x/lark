@@ -25,12 +25,14 @@ import { api } from "./services/api";
 import type {
   Album,
   Artist,
+  AuthStatus,
   Language,
   Lyrics,
   Playlist,
   Settings,
   Song,
   Theme,
+  User,
 } from "./types";
 import { createT } from "./i18n";
 
@@ -40,6 +42,7 @@ const defaultSettings: Settings = {
   sleep_timer_mins: 0,
   library_path: "",
   netease_fallback: true,
+  registration_enabled: false,
 };
 
 type View =
@@ -212,6 +215,9 @@ function parseLyricLines(lyrics?: string): LyricLine[] {
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [auth, setAuth] = useState<AuthStatus | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
   const [songs, setSongs] = useState<Song[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -315,9 +321,49 @@ export default function App() {
   }, [activeLyric, lyricsFullScreen]);
 
   async function bootstrap() {
+    setAuthLoading(true);
+    setAuthError("");
+    try {
+      const status = await api.authStatus();
+      setAuth(status);
+      if (status.initialized && status.user) {
+        await loadAppData();
+      }
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function loadAppData() {
     const loaded = await api.settings().catch(() => defaultSettings);
     setSettings({ ...loaded, theme: normalizeTheme(loaded.theme) });
     await refreshAll();
+  }
+
+  async function submitAuth(mode: "setup" | "login" | "register", username: string, password: string) {
+    setAuthError("");
+    try {
+      if (mode === "setup") await api.setup(username, password);
+      else if (mode === "register") await api.register(username, password);
+      else await api.login(username, password);
+      await bootstrap();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function logout() {
+    await api.logout().catch(() => undefined);
+    setSongs([]);
+    setAlbums([]);
+    setArtists([]);
+    setPlaylists([]);
+    setQueue([]);
+    setCurrent(null);
+    setPlaying(false);
+    await bootstrap();
   }
 
   async function refreshAll() {
@@ -358,8 +404,24 @@ export default function App() {
   function next(delta: 1 | -1, ended = false) {
     if (!current || queue.length === 0) return;
     if (ended && playMode === "repeat-one") {
-      if (audioRef.current) audioRef.current.currentTime = 0;
-      setPlaying(true);
+      const audio = audioRef.current;
+      if (audio) {
+        audio.currentTime = 0;
+        setProgress(0);
+        const mediaDuration = audio.duration;
+        setDuration(
+          Number.isFinite(mediaDuration) && mediaDuration > 0
+            ? mediaDuration
+            : current.duration_seconds || 0,
+        );
+        void audio
+          .play()
+          .then(() => setPlaying(true))
+          .catch(() => setPlaying(false));
+      } else {
+        setPlaying(true);
+      }
+      void api.markPlayed(current.id).catch(() => undefined);
       return;
     }
     const idx = queue.findIndex((song) => song.id === current.id);
@@ -376,7 +438,10 @@ export default function App() {
           ? mediaDuration
           : target.duration_seconds || 0,
       );
-      setPlaying(true);
+      void audioRef.current
+        .play()
+        .then(() => setPlaying(true))
+        .catch(() => setPlaying(false));
       return;
     }
     void playSong(target, queue);
@@ -553,6 +618,24 @@ export default function App() {
   const playerStyle = coverUrl(current)
     ? ({ "--cover-url": `url(${coverUrl(current)})` } as React.CSSProperties)
     : undefined;
+
+  if (authLoading) {
+    return <AuthView mode="loading" settings={settings} error={authError} onSubmit={submitAuth} />;
+  }
+  if (!auth?.initialized) {
+    return <AuthView mode="setup" settings={settings} error={authError} onSubmit={submitAuth} />;
+  }
+  if (!auth.user) {
+    return (
+      <AuthView
+        mode="login"
+        settings={settings}
+        error={authError}
+        registrationEnabled={auth.registration_enabled}
+        onSubmit={submitAuth}
+      />
+    );
+  }
 
   return (
     <div className={lyricsFullScreen ? "app-shell lyrics-mode" : "app-shell"}>
@@ -745,6 +828,8 @@ export default function App() {
               <SettingsPanel
                 settings={settings}
                 setSettings={(s) => void saveSettings(s)}
+                user={auth.user}
+                onLogout={() => void logout()}
                 t={t}
               />
             )}
@@ -903,6 +988,128 @@ export default function App() {
           onEnded={() => next(1, true)}
         />
       </footer>
+    </div>
+  );
+}
+
+function AuthView({
+  mode,
+  settings,
+  error,
+  registrationEnabled = false,
+  onSubmit,
+}: {
+  mode: "loading" | "setup" | "login";
+  settings: Settings;
+  error?: string;
+  registrationEnabled?: boolean;
+  onSubmit: (mode: "setup" | "login" | "register", username: string, password: string) => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [registerMode, setRegisterMode] = useState(false);
+  const isSetup = mode === "setup";
+  const action = isSetup ? "setup" : registerMode ? "register" : "login";
+  const zh = settings.language === "zh-CN";
+  const title =
+    mode === "loading"
+      ? zh
+        ? "正在进入百灵"
+        : "Opening Lark"
+      : isSetup
+        ? zh
+          ? "初始化百灵"
+          : "Initialize Lark"
+        : registerMode
+          ? zh
+            ? "创建你的账号"
+            : "Create your account"
+          : zh
+            ? "欢迎回来"
+            : "Welcome back";
+  const subtitle = isSetup
+    ? zh
+      ? "首次运行需要创建管理员账号，用于管理曲库、注册和系统设置。"
+      : "Create the first administrator account to manage the library and system settings."
+    : zh
+      ? "登录后可同步你的歌单、喜欢、收藏与播放历史。"
+      : "Sign in to keep playlists, likes, albums, and history separate.";
+
+  return (
+    <div className="auth-shell" data-theme={settings.theme}>
+      <div className="auth-card">
+        <div className="brand auth-brand">
+          <img src="/logo.png" alt={zh ? "百灵" : "Lark"} />
+          <span>{zh ? "百灵" : "Lark"}</span>
+        </div>
+        <div>
+          <p>{zh ? "私人音乐库" : "Private music library"}</p>
+          <h1>{title}</h1>
+          <span>{subtitle}</span>
+        </div>
+        {mode === "loading" ? (
+          <div className="auth-loading" aria-label={title} />
+        ) : (
+          <form
+            className="auth-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSubmit(action, username, password);
+            }}
+          >
+            <label>
+              {zh ? "账号" : "Username"}
+              <input
+                value={username}
+                autoComplete="username"
+                minLength={2}
+                required
+                onChange={(event) => setUsername(event.target.value)}
+              />
+            </label>
+            <label>
+              {zh ? "密码" : "Password"}
+              <input
+                value={password}
+                type="password"
+                autoComplete={isSetup || registerMode ? "new-password" : "current-password"}
+                minLength={6}
+                required
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+            {error ? <div className="auth-error">{error}</div> : null}
+            <button className="primary" type="submit">
+              {isSetup
+                ? zh
+                  ? "创建管理员"
+                  : "Create admin"
+                : registerMode
+                  ? zh
+                    ? "注册并进入"
+                    : "Register"
+                  : zh
+                    ? "登录"
+                    : "Sign in"}
+            </button>
+            {!isSetup && registrationEnabled ? (
+              <button
+                type="button"
+                className="auth-link"
+                onClick={() => setRegisterMode((value) => !value)}
+              >
+                {registerMode
+                  ? zh
+                    ? "已有账号？返回登录"
+                    : "Already have an account? Sign in"
+                  : zh
+                    ? "没有账号？注册"
+                    : "Need an account? Register"}
+              </button>
+            ) : null}
+          </form>
+        )}
+      </div>
     </div>
   );
 }
@@ -1599,10 +1806,14 @@ function SleepTimerControl({
 function SettingsPanel({
   settings,
   setSettings,
+  user,
+  onLogout,
   t,
 }: {
   settings: Settings;
   setSettings: (settings: Settings) => void;
+  user: User;
+  onLogout: () => void;
   t: ReturnType<typeof createT>;
 }) {
   const darkThemes = themes.slice(0, 5);
@@ -1649,6 +1860,25 @@ function SettingsPanel({
         {t("libraryPath")}
         <input readOnly value={settings.library_path} />
       </label>
+      {user.role === "admin" ? (
+        <label className="switch-row">
+          <span>{settings.language === "zh-CN" ? "允许新用户注册" : "Allow registration"}</span>
+          <input
+            type="checkbox"
+            checked={settings.registration_enabled}
+            onChange={(e) =>
+              setSettings({ ...settings, registration_enabled: e.target.checked })
+            }
+          />
+        </label>
+      ) : null}
+      <div className="account-card">
+        <div>
+          <strong>{user.username}</strong>
+          <span>{user.role === "admin" ? "Admin" : "User"}</span>
+        </div>
+        <button onClick={onLogout}>{settings.language === "zh-CN" ? "退出登录" : "Log out"}</button>
+      </div>
     </section>
   );
 }

@@ -416,6 +416,29 @@ func HasSongsWith(preds ...predicate.Song) predicate.Album {
 	})
 }
 
+// HasUserFavorites applies the HasEdge predicate on the "user_favorites" edge.
+func HasUserFavorites() predicate.Album {
+	return predicate.Album(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, UserFavoritesTable, UserFavoritesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasUserFavoritesWith applies the HasEdge predicate on the "user_favorites" edge with a given conditions (other predicates).
+func HasUserFavoritesWith(preds ...predicate.UserAlbumFavorite) predicate.Album {
+	return predicate.Album(func(s *sql.Selector) {
+		step := newUserFavoritesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Album) predicate.Album {
 	return predicate.Album(sql.AndPredicates(predicates...))

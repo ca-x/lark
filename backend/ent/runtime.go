@@ -6,9 +6,14 @@ import (
 	"lark/backend/ent/album"
 	"lark/backend/ent/appsetting"
 	"lark/backend/ent/artist"
+	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/schema"
+	"lark/backend/ent/session"
 	"lark/backend/ent/song"
+	"lark/backend/ent/user"
+	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/usersongfavorite"
 	"time"
 )
 
@@ -80,6 +85,12 @@ func init() {
 	artist.DefaultUpdatedAt = artistDescUpdatedAt.Default.(func() time.Time)
 	// artist.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	artist.UpdateDefaultUpdatedAt = artistDescUpdatedAt.UpdateDefault.(func() time.Time)
+	playhistoryFields := schema.PlayHistory{}.Fields()
+	_ = playhistoryFields
+	// playhistoryDescPlayedAt is the schema descriptor for played_at field.
+	playhistoryDescPlayedAt := playhistoryFields[0].Descriptor()
+	// playhistory.DefaultPlayedAt holds the default value on creation for the played_at field.
+	playhistory.DefaultPlayedAt = playhistoryDescPlayedAt.Default.(func() time.Time)
 	playlistFields := schema.Playlist{}.Fields()
 	_ = playlistFields
 	// playlistDescName is the schema descriptor for name field.
@@ -108,6 +119,16 @@ func init() {
 	playlist.DefaultUpdatedAt = playlistDescUpdatedAt.Default.(func() time.Time)
 	// playlist.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	playlist.UpdateDefaultUpdatedAt = playlistDescUpdatedAt.UpdateDefault.(func() time.Time)
+	sessionFields := schema.Session{}.Fields()
+	_ = sessionFields
+	// sessionDescTokenHash is the schema descriptor for token_hash field.
+	sessionDescTokenHash := sessionFields[0].Descriptor()
+	// session.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	session.TokenHashValidator = sessionDescTokenHash.Validators[0].(func(string) error)
+	// sessionDescCreatedAt is the schema descriptor for created_at field.
+	sessionDescCreatedAt := sessionFields[2].Descriptor()
+	// session.DefaultCreatedAt holds the default value on creation for the created_at field.
+	session.DefaultCreatedAt = sessionDescCreatedAt.Default.(func() time.Time)
 	songFields := schema.Song{}.Fields()
 	_ = songFields
 	// songDescTitle is the schema descriptor for title field.
@@ -180,4 +201,40 @@ func init() {
 	song.DefaultUpdatedAt = songDescUpdatedAt.Default.(func() time.Time)
 	// song.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	song.UpdateDefaultUpdatedAt = songDescUpdatedAt.UpdateDefault.(func() time.Time)
+	userFields := schema.User{}.Fields()
+	_ = userFields
+	// userDescUsername is the schema descriptor for username field.
+	userDescUsername := userFields[0].Descriptor()
+	// user.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
+	user.UsernameValidator = userDescUsername.Validators[0].(func(string) error)
+	// userDescPasswordHash is the schema descriptor for password_hash field.
+	userDescPasswordHash := userFields[1].Descriptor()
+	// user.PasswordHashValidator is a validator for the "password_hash" field. It is called by the builders before save.
+	user.PasswordHashValidator = userDescPasswordHash.Validators[0].(func(string) error)
+	// userDescRole is the schema descriptor for role field.
+	userDescRole := userFields[2].Descriptor()
+	// user.DefaultRole holds the default value on creation for the role field.
+	user.DefaultRole = userDescRole.Default.(string)
+	// userDescCreatedAt is the schema descriptor for created_at field.
+	userDescCreatedAt := userFields[3].Descriptor()
+	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
+	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
+	// userDescUpdatedAt is the schema descriptor for updated_at field.
+	userDescUpdatedAt := userFields[4].Descriptor()
+	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
+	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	user.UpdateDefaultUpdatedAt = userDescUpdatedAt.UpdateDefault.(func() time.Time)
+	useralbumfavoriteFields := schema.UserAlbumFavorite{}.Fields()
+	_ = useralbumfavoriteFields
+	// useralbumfavoriteDescCreatedAt is the schema descriptor for created_at field.
+	useralbumfavoriteDescCreatedAt := useralbumfavoriteFields[0].Descriptor()
+	// useralbumfavorite.DefaultCreatedAt holds the default value on creation for the created_at field.
+	useralbumfavorite.DefaultCreatedAt = useralbumfavoriteDescCreatedAt.Default.(func() time.Time)
+	usersongfavoriteFields := schema.UserSongFavorite{}.Fields()
+	_ = usersongfavoriteFields
+	// usersongfavoriteDescCreatedAt is the schema descriptor for created_at field.
+	usersongfavoriteDescCreatedAt := usersongfavoriteFields[0].Descriptor()
+	// usersongfavorite.DefaultCreatedAt holds the default value on creation for the created_at field.
+	usersongfavorite.DefaultCreatedAt = usersongfavoriteDescCreatedAt.Default.(func() time.Time)
 }

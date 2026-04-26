@@ -36,62 +36,67 @@ type playlistRequest struct {
 	CoverTheme  string `json:"cover_theme"`
 }
 
+const sessionCookieName = "lark_session"
+
+type authRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 type settingsRequest struct {
-	Language        string `json:"language"`
-	Theme           string `json:"theme"`
-	SleepTimerMins  int    `json:"sleep_timer_mins"`
-	NeteaseFallback bool   `json:"netease_fallback"`
+	Language            string `json:"language"`
+	Theme               string `json:"theme"`
+	SleepTimerMins      int    `json:"sleep_timer_mins"`
+	NeteaseFallback     bool   `json:"netease_fallback"`
+	RegistrationEnabled bool   `json:"registration_enabled"`
 }
 
 func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Server {
 	e := echo.New()
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: []string{frontendOrigin}, AllowHeaders: []string{"Content-Type", "Range"}, AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions}}))
+	cors := middleware.CORSConfig{AllowOrigins: []string{frontendOrigin}, AllowHeaders: []string{"Content-Type", "Range"}, AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions}}
+	if frontendOrigin != "*" {
+		cors.AllowCredentials = true
+	}
+	e.Use(middleware.CORSWithConfig(cors))
 	s := &Server{echo: e, client: client, lib: lib}
 
+	auth := s.requireAuth
+	admin := s.requireAdmin
+
 	e.GET("/api/health", s.handleHealth)
+	e.GET("/api/auth/status", s.handleAuthStatus)
+	e.POST("/api/auth/setup", s.handleSetupAdmin)
+	e.POST("/api/auth/login", s.handleLogin)
+	e.POST("/api/auth/register", s.handleRegister)
+	e.POST("/api/auth/logout", s.handleLogout)
 
-	e.GET("/api/songs", s.handleSongs)
+	e.GET("/api/songs", s.handleSongs, auth)
+	e.GET("/api/songs/:id", s.handleSong, auth)
+	e.POST("/api/songs/:id/favorite", s.handleToggleSongFavorite, auth)
+	e.POST("/api/songs/:id/played", s.handleMarkPlayed, auth)
+	e.GET("/api/songs/:id/stream", s.handleStream, auth)
+	e.GET("/api/songs/:id/cover", s.handleCover, auth)
+	e.GET("/api/songs/:id/lyrics", s.handleLyrics, auth)
 
-	e.GET("/api/songs/:id", s.handleSong)
+	e.POST("/api/library/scan", s.handleScan, admin)
+	e.POST("/api/library/upload", s.handleUpload, admin)
 
-	e.POST("/api/songs/:id/favorite", s.handleToggleSongFavorite)
+	e.GET("/api/albums", s.handleAlbums, auth)
+	e.GET("/api/albums/:id/songs", s.handleAlbumSongs, auth)
+	e.GET("/api/artists", s.handleArtists, auth)
+	e.GET("/api/artists/:id/songs", s.handleArtistSongs, auth)
+	e.POST("/api/albums/:id/favorite", s.handleToggleAlbumFavorite, auth)
 
-	e.POST("/api/songs/:id/played", s.handleMarkPlayed)
+	e.GET("/api/playlists", s.handlePlaylists, auth)
+	e.POST("/api/playlists", s.handleCreatePlaylist, auth)
+	e.GET("/api/playlists/:id/songs", s.handlePlaylistSongs, auth)
+	e.POST("/api/playlists/:id/songs/:song", s.handleAddSongToPlaylist, auth)
+	e.DELETE("/api/playlists/:id/songs/:song", s.handleRemoveSongFromPlaylist, auth)
 
-	e.GET("/api/songs/:id/stream", s.handleStream)
-	e.GET("/api/songs/:id/cover", s.handleCover)
-
-	e.GET("/api/songs/:id/lyrics", s.handleLyrics)
-
-	e.POST("/api/library/scan", s.handleScan)
-
-	e.POST("/api/library/upload", s.handleUpload)
-
-	e.GET("/api/albums", s.handleAlbums)
-
-	e.GET("/api/albums/:id/songs", s.handleAlbumSongs)
-
-	e.GET("/api/artists", s.handleArtists)
-
-	e.GET("/api/artists/:id/songs", s.handleArtistSongs)
-
-	e.POST("/api/albums/:id/favorite", s.handleToggleAlbumFavorite)
-
-	e.GET("/api/playlists", s.handlePlaylists)
-
-	e.POST("/api/playlists", s.handleCreatePlaylist)
-
-	e.GET("/api/playlists/:id/songs", s.handlePlaylistSongs)
-
-	e.POST("/api/playlists/:id/songs/:song", s.handleAddSongToPlaylist)
-
-	e.DELETE("/api/playlists/:id/songs/:song", s.handleRemoveSongFromPlaylist)
-
-	e.GET("/api/settings", s.handleGetSettings)
-
-	e.PUT("/api/settings", s.handleSaveSettings)
+	e.GET("/api/settings", s.handleGetSettings, auth)
+	e.PUT("/api/settings", s.handleSaveSettings, admin)
 	s.registerFrontendRoutes()
 	return s
 }
@@ -123,10 +128,121 @@ func (s *Server) handleHealth(c *echo.Context) error {
 	})
 }
 
+func (s *Server) handleAuthStatus(c *echo.Context) error {
+	status, err := s.lib.AuthStatus(c.Request().Context(), s.sessionToken(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, status)
+}
+
+func (s *Server) handleSetupAdmin(c *echo.Context) error {
+	var req authRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	user, token, err := s.lib.SetupAdmin(c.Request().Context(), req.Username, req.Password)
+	if err != nil {
+		return mapError(err)
+	}
+	s.setSessionCookie(c, token, sessionTTLSeconds())
+	return c.JSON(http.StatusCreated, map[string]any{"user": user})
+}
+
+func (s *Server) handleLogin(c *echo.Context) error {
+	var req authRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	user, token, err := s.lib.Login(c.Request().Context(), req.Username, req.Password)
+	if err != nil {
+		return mapError(err)
+	}
+	s.setSessionCookie(c, token, sessionTTLSeconds())
+	return c.JSON(http.StatusOK, map[string]any{"user": user})
+}
+
+func (s *Server) handleRegister(c *echo.Context) error {
+	var req authRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	user, token, err := s.lib.Register(c.Request().Context(), req.Username, req.Password)
+	if err != nil {
+		return mapError(err)
+	}
+	s.setSessionCookie(c, token, sessionTTLSeconds())
+	return c.JSON(http.StatusCreated, map[string]any{"user": user})
+}
+
+func (s *Server) handleLogout(c *echo.Context) error {
+	if err := s.lib.Logout(c.Request().Context(), s.sessionToken(c)); err != nil {
+		return mapError(err)
+	}
+	s.setSessionCookie(c, "", -1)
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) requireAuth(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		u, err := s.lib.UserBySession(c.Request().Context(), s.sessionToken(c))
+		if err != nil {
+			return mapError(library.ErrUnauthenticated)
+		}
+		c.Set("user", u)
+		return next(c)
+	}
+}
+
+func (s *Server) requireAdmin(next echo.HandlerFunc) echo.HandlerFunc {
+	return s.requireAuth(func(c *echo.Context) error {
+		u := currentUser(c)
+		if u == nil || u.Role != "admin" {
+			return mapError(library.ErrForbidden)
+		}
+		return next(c)
+	})
+}
+
+func currentUser(c *echo.Context) *ent.User {
+	if u, ok := c.Get("user").(*ent.User); ok {
+		return u
+	}
+	return nil
+}
+
+func currentUserID(c *echo.Context) int {
+	if u := currentUser(c); u != nil {
+		return u.ID
+	}
+	return 0
+}
+
+func (s *Server) sessionToken(c *echo.Context) string {
+	cookie, err := c.Cookie(sessionCookieName)
+	if err != nil {
+		return ""
+	}
+	return cookie.Value
+}
+
+func (s *Server) setSessionCookie(c *echo.Context, value string, maxAge int) {
+	c.SetCookie(&http.Cookie{
+		Name:     sessionCookieName,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func sessionTTLSeconds() int { return int((30 * 24 * time.Hour).Seconds()) }
+
 func (s *Server) handleSongs(c *echo.Context) error {
 	limit := queryInt(c, "limit", 0)
 	favorites := c.QueryParam("favorites") == "true"
-	items, err := s.lib.Songs(c.Request().Context(), c.QueryParam("q"), favorites, limit)
+	items, err := s.lib.Songs(c.Request().Context(), currentUserID(c), c.QueryParam("q"), favorites, limit)
 	if err != nil {
 		return mapError(err)
 	}
@@ -138,7 +254,7 @@ func (s *Server) handleSong(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	item, err := s.lib.Song(c.Request().Context(), id)
+	item, err := s.lib.Song(c.Request().Context(), currentUserID(c), id)
 	if err != nil {
 		return mapError(err)
 	}
@@ -150,7 +266,7 @@ func (s *Server) handleToggleSongFavorite(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	item, err := s.lib.ToggleSongFavorite(c.Request().Context(), id)
+	item, err := s.lib.ToggleSongFavorite(c.Request().Context(), currentUserID(c), id)
 	if err != nil {
 		return mapError(err)
 	}
@@ -162,7 +278,7 @@ func (s *Server) handleMarkPlayed(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.lib.MarkPlayed(c.Request().Context(), id); err != nil {
+	if err := s.lib.MarkPlayed(c.Request().Context(), currentUserID(c), id); err != nil {
 		return mapError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -308,7 +424,7 @@ func (s *Server) handleUpload(c *echo.Context) error {
 	if err != nil {
 		return mapError(err)
 	}
-	item, err := s.lib.Songs(c.Request().Context(), filepath.Base(dstPath), false, 1)
+	item, err := s.lib.Songs(c.Request().Context(), currentUserID(c), filepath.Base(dstPath), false, 1)
 	if err != nil {
 		return mapError(err)
 	}
@@ -316,7 +432,7 @@ func (s *Server) handleUpload(c *echo.Context) error {
 }
 
 func (s *Server) handleAlbums(c *echo.Context) error {
-	items, err := s.lib.Albums(c.Request().Context())
+	items, err := s.lib.Albums(c.Request().Context(), currentUserID(c))
 	if err != nil {
 		return mapError(err)
 	}
@@ -327,7 +443,7 @@ func (s *Server) handleAlbumSongs(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.AlbumSongs(c.Request().Context(), id)
+	items, err := s.lib.AlbumSongs(c.Request().Context(), currentUserID(c), id)
 	if err != nil {
 		return mapError(err)
 	}
@@ -338,7 +454,7 @@ func (s *Server) handleToggleAlbumFavorite(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	item, err := s.lib.ToggleAlbumFavorite(c.Request().Context(), id)
+	item, err := s.lib.ToggleAlbumFavorite(c.Request().Context(), currentUserID(c), id)
 	if err != nil {
 		return mapError(err)
 	}
@@ -358,7 +474,7 @@ func (s *Server) handleArtistSongs(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.ArtistSongs(c.Request().Context(), id)
+	items, err := s.lib.ArtistSongs(c.Request().Context(), currentUserID(c), id)
 	if err != nil {
 		return mapError(err)
 	}
@@ -366,7 +482,7 @@ func (s *Server) handleArtistSongs(c *echo.Context) error {
 }
 
 func (s *Server) handlePlaylists(c *echo.Context) error {
-	items, err := s.lib.Playlists(c.Request().Context())
+	items, err := s.lib.Playlists(c.Request().Context(), currentUserID(c))
 	if err != nil {
 		return mapError(err)
 	}
@@ -378,7 +494,7 @@ func (s *Server) handleCreatePlaylist(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	item, err := s.lib.CreatePlaylist(c.Request().Context(), req.Name, req.Description, req.CoverTheme)
+	item, err := s.lib.CreatePlaylist(c.Request().Context(), currentUserID(c), req.Name, req.Description, req.CoverTheme)
 	if err != nil {
 		return mapError(err)
 	}
@@ -389,7 +505,7 @@ func (s *Server) handlePlaylistSongs(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.PlaylistSongs(c.Request().Context(), id)
+	items, err := s.lib.PlaylistSongs(c.Request().Context(), currentUserID(c), id)
 	if err != nil {
 		return mapError(err)
 	}
@@ -404,7 +520,7 @@ func (s *Server) handleAddSongToPlaylist(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.lib.AddSongToPlaylist(c.Request().Context(), pid, sid); err != nil {
+	if err := s.lib.AddSongToPlaylist(c.Request().Context(), currentUserID(c), pid, sid); err != nil {
 		return mapError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -418,7 +534,7 @@ func (s *Server) handleRemoveSongFromPlaylist(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := s.lib.RemoveSongFromPlaylist(c.Request().Context(), pid, sid); err != nil {
+	if err := s.lib.RemoveSongFromPlaylist(c.Request().Context(), currentUserID(c), pid, sid); err != nil {
 		return mapError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -436,7 +552,7 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{Language: req.Language, Theme: req.Theme, SleepTimerMins: req.SleepTimerMins, LibraryPath: s.lib.LibraryDir(), NeteaseFallback: req.NeteaseFallback})
+	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{Language: req.Language, Theme: req.Theme, SleepTimerMins: req.SleepTimerMins, LibraryPath: s.lib.LibraryDir(), NeteaseFallback: req.NeteaseFallback, RegistrationEnabled: req.RegistrationEnabled})
 	if err != nil {
 		return mapError(err)
 	}
@@ -462,6 +578,12 @@ func queryInt(c *echo.Context, name string, fallback int) int {
 	return n
 }
 func mapError(err error) error {
+	if errors.Is(err, library.ErrUnauthenticated) {
+		return echo.NewHTTPError(http.StatusUnauthorized, "unauthenticated")
+	}
+	if errors.Is(err, library.ErrForbidden) {
+		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+	}
 	if ent.IsNotFound(err) {
 		return echo.NewHTTPError(http.StatusNotFound, "not found")
 	}

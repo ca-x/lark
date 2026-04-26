@@ -62,12 +62,25 @@ export interface Lyrics {
   lyrics: string;
   fetched: boolean;
 }
+export interface User {
+  id: number;
+  username: string;
+  role: "admin" | "user";
+  created_at: string;
+  updated_at: string;
+}
+export interface AuthStatus {
+  initialized: boolean;
+  registration_enabled: boolean;
+  user?: User;
+}
 export interface Settings {
   language: Language;
   theme: Theme;
   sleep_timer_mins: number;
   library_path: string;
   netease_fallback: boolean;
+  registration_enabled: boolean;
 }
 export interface ScanResult {
   scanned: number;

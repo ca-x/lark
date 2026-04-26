@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"lark/backend/ent/album"
 	"lark/backend/ent/artist"
+	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/song"
+	"lark/backend/ent/usersongfavorite"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -302,6 +304,36 @@ func (_c *SongCreate) AddPlaylists(v ...*Playlist) *SongCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddPlaylistIDs(ids...)
+}
+
+// AddUserFavoriteIDs adds the "user_favorites" edge to the UserSongFavorite entity by IDs.
+func (_c *SongCreate) AddUserFavoriteIDs(ids ...int) *SongCreate {
+	_c.mutation.AddUserFavoriteIDs(ids...)
+	return _c
+}
+
+// AddUserFavorites adds the "user_favorites" edges to the UserSongFavorite entity.
+func (_c *SongCreate) AddUserFavorites(v ...*UserSongFavorite) *SongCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddUserFavoriteIDs(ids...)
+}
+
+// AddPlayHistoryIDs adds the "play_history" edge to the PlayHistory entity by IDs.
+func (_c *SongCreate) AddPlayHistoryIDs(ids ...int) *SongCreate {
+	_c.mutation.AddPlayHistoryIDs(ids...)
+	return _c
+}
+
+// AddPlayHistory adds the "play_history" edges to the PlayHistory entity.
+func (_c *SongCreate) AddPlayHistory(v ...*PlayHistory) *SongCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddPlayHistoryIDs(ids...)
 }
 
 // Mutation returns the SongMutation object of the builder.
@@ -606,6 +638,38 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(playlist.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.UserFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   song.UserFavoritesTable,
+			Columns: []string{song.UserFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(usersongfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.PlayHistoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   song.PlayHistoryTable,
+			Columns: []string{song.PlayHistoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(playhistory.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

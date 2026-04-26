@@ -1114,6 +1114,52 @@ func HasPlaylistsWith(preds ...predicate.Playlist) predicate.Song {
 	})
 }
 
+// HasUserFavorites applies the HasEdge predicate on the "user_favorites" edge.
+func HasUserFavorites() predicate.Song {
+	return predicate.Song(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, UserFavoritesTable, UserFavoritesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasUserFavoritesWith applies the HasEdge predicate on the "user_favorites" edge with a given conditions (other predicates).
+func HasUserFavoritesWith(preds ...predicate.UserSongFavorite) predicate.Song {
+	return predicate.Song(func(s *sql.Selector) {
+		step := newUserFavoritesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasPlayHistory applies the HasEdge predicate on the "play_history" edge.
+func HasPlayHistory() predicate.Song {
+	return predicate.Song(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, PlayHistoryTable, PlayHistoryColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPlayHistoryWith applies the HasEdge predicate on the "play_history" edge with a given conditions (other predicates).
+func HasPlayHistoryWith(preds ...predicate.PlayHistory) predicate.Song {
+	return predicate.Song(func(s *sql.Selector) {
+		step := newPlayHistoryStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Song) predicate.Song {
 	return predicate.Song(sql.AndPredicates(predicates...))

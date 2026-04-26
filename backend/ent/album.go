@@ -43,9 +43,11 @@ type AlbumEdges struct {
 	Artist *Artist `json:"artist,omitempty"`
 	// Songs holds the value of the songs edge.
 	Songs []*Song `json:"songs,omitempty"`
+	// UserFavorites holds the value of the user_favorites edge.
+	UserFavorites []*UserAlbumFavorite `json:"user_favorites,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // ArtistOrErr returns the Artist value or an error if the edge
@@ -66,6 +68,15 @@ func (e AlbumEdges) SongsOrErr() ([]*Song, error) {
 		return e.Songs, nil
 	}
 	return nil, &NotLoadedError{edge: "songs"}
+}
+
+// UserFavoritesOrErr returns the UserFavorites value or an error if the edge
+// was not loaded in eager-loading.
+func (e AlbumEdges) UserFavoritesOrErr() ([]*UserAlbumFavorite, error) {
+	if e.loadedTypes[2] {
+		return e.UserFavorites, nil
+	}
+	return nil, &NotLoadedError{edge: "user_favorites"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -168,6 +179,11 @@ func (_m *Album) QueryArtist() *ArtistQuery {
 // QuerySongs queries the "songs" edge of the Album entity.
 func (_m *Album) QuerySongs() *SongQuery {
 	return NewAlbumClient(_m.config).QuerySongs(_m)
+}
+
+// QueryUserFavorites queries the "user_favorites" edge of the Album entity.
+func (_m *Album) QueryUserFavorites() *UserAlbumFavoriteQuery {
+	return NewAlbumClient(_m.config).QueryUserFavorites(_m)
 }
 
 // Update returns a builder for updating this Album.

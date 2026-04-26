@@ -9,6 +9,7 @@ import (
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/predicate"
 	"lark/backend/ent/song"
+	"lark/backend/ent/user"
 	"math"
 
 	"entgo.io/ent"
@@ -25,6 +26,8 @@ type PlaylistQuery struct {
 	inters     []Interceptor
 	predicates []predicate.Playlist
 	withSongs  *SongQuery
+	withOwner  *UserQuery
+	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -76,6 +79,28 @@ func (_q *PlaylistQuery) QuerySongs() *SongQuery {
 			sqlgraph.From(playlist.Table, playlist.FieldID, selector),
 			sqlgraph.To(song.Table, song.FieldID),
 			sqlgraph.Edge(sqlgraph.M2M, false, playlist.SongsTable, playlist.SongsPrimaryKey...),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryOwner chains the current query on the "owner" edge.
+func (_q *PlaylistQuery) QueryOwner() *UserQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(playlist.Table, playlist.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, playlist.OwnerTable, playlist.OwnerColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -276,6 +301,7 @@ func (_q *PlaylistQuery) Clone() *PlaylistQuery {
 		inters:     append([]Interceptor{}, _q.inters...),
 		predicates: append([]predicate.Playlist{}, _q.predicates...),
 		withSongs:  _q.withSongs.Clone(),
+		withOwner:  _q.withOwner.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -290,6 +316,17 @@ func (_q *PlaylistQuery) WithSongs(opts ...func(*SongQuery)) *PlaylistQuery {
 		opt(query)
 	}
 	_q.withSongs = query
+	return _q
+}
+
+// WithOwner tells the query-builder to eager-load the nodes that are connected to
+// the "owner" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *PlaylistQuery) WithOwner(opts ...func(*UserQuery)) *PlaylistQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withOwner = query
 	return _q
 }
 
@@ -370,11 +407,19 @@ func (_q *PlaylistQuery) prepareQuery(ctx context.Context) error {
 func (_q *PlaylistQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Playlist, error) {
 	var (
 		nodes       = []*Playlist{}
+		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withSongs != nil,
+			_q.withOwner != nil,
 		}
 	)
+	if _q.withOwner != nil {
+		withFKs = true
+	}
+	if withFKs {
+		_spec.Node.Columns = append(_spec.Node.Columns, playlist.ForeignKeys...)
+	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Playlist).scanValues(nil, columns)
 	}
@@ -397,6 +442,12 @@ func (_q *PlaylistQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Pla
 		if err := _q.loadSongs(ctx, query, nodes,
 			func(n *Playlist) { n.Edges.Songs = []*Song{} },
 			func(n *Playlist, e *Song) { n.Edges.Songs = append(n.Edges.Songs, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withOwner; query != nil {
+		if err := _q.loadOwner(ctx, query, nodes, nil,
+			func(n *Playlist, e *User) { n.Edges.Owner = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -460,6 +511,38 @@ func (_q *PlaylistQuery) loadSongs(ctx context.Context, query *SongQuery, nodes 
 		}
 		for kn := range nodes {
 			assign(kn, n)
+		}
+	}
+	return nil
+}
+func (_q *PlaylistQuery) loadOwner(ctx context.Context, query *UserQuery, nodes []*Playlist, init func(*Playlist), assign func(*Playlist, *User)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*Playlist)
+	for i := range nodes {
+		if nodes[i].user_playlists == nil {
+			continue
+		}
+		fk := *nodes[i].user_playlists
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(user.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "user_playlists" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
 		}
 	}
 	return nil

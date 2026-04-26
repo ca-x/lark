@@ -44,6 +44,18 @@ func (f ArtistFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ArtistMutation", m)
 }
 
+// The PlayHistoryFunc type is an adapter to allow the use of ordinary
+// function as PlayHistory mutator.
+type PlayHistoryFunc func(context.Context, *ent.PlayHistoryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PlayHistoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.PlayHistoryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PlayHistoryMutation", m)
+}
+
 // The PlaylistFunc type is an adapter to allow the use of ordinary
 // function as Playlist mutator.
 type PlaylistFunc func(context.Context, *ent.PlaylistMutation) (ent.Value, error)
@@ -56,6 +68,18 @@ func (f PlaylistFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PlaylistMutation", m)
 }
 
+// The SessionFunc type is an adapter to allow the use of ordinary
+// function as Session mutator.
+type SessionFunc func(context.Context, *ent.SessionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SessionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SessionMutation", m)
+}
+
 // The SongFunc type is an adapter to allow the use of ordinary
 // function as Song mutator.
 type SongFunc func(context.Context, *ent.SongMutation) (ent.Value, error)
@@ -66,6 +90,42 @@ func (f SongFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SongMutation", m)
+}
+
+// The UserFunc type is an adapter to allow the use of ordinary
+// function as User mutator.
+type UserFunc func(context.Context, *ent.UserMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserMutation", m)
+}
+
+// The UserAlbumFavoriteFunc type is an adapter to allow the use of ordinary
+// function as UserAlbumFavorite mutator.
+type UserAlbumFavoriteFunc func(context.Context, *ent.UserAlbumFavoriteMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserAlbumFavoriteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserAlbumFavoriteMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAlbumFavoriteMutation", m)
+}
+
+// The UserSongFavoriteFunc type is an adapter to allow the use of ordinary
+// function as UserSongFavorite mutator.
+type UserSongFavoriteFunc func(context.Context, *ent.UserSongFavoriteMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserSongFavoriteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserSongFavoriteMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserSongFavoriteMutation", m)
 }
 
 // Condition is a hook condition function.

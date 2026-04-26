@@ -19,8 +19,12 @@ import (
 	"lark/backend/ent/album"
 	"lark/backend/ent/appsetting"
 	"lark/backend/ent/artist"
+	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/song"
+	"lark/backend/ent/user"
+	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/usersongfavorite"
 	"lark/backend/internal/models"
 	"lark/backend/internal/netease"
 	"lark/backend/internal/qqmusic"
@@ -186,14 +190,14 @@ func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
 	return false, err
 }
 
-func (s *Service) Songs(ctx context.Context, q string, favorites bool, limit int) ([]models.Song, error) {
+func (s *Service) Songs(ctx context.Context, userID int, q string, favorites bool, limit int) ([]models.Song, error) {
 	query := s.client.Song.Query().WithArtist().WithAlbum().Order(ent.Desc(song.FieldUpdatedAt))
 	if strings.TrimSpace(q) != "" {
 		term := strings.TrimSpace(q)
 		query = query.Where(song.Or(song.TitleContainsFold(term), song.FileNameContainsFold(term), song.FormatContainsFold(term)))
 	}
 	if favorites {
-		query = query.Where(song.Favorite(true))
+		query = query.Where(song.HasUserFavoritesWith(usersongfavorite.HasUserWith(user.ID(userID))))
 	}
 	if limit > 0 {
 		query = query.Limit(limit)
@@ -202,15 +206,20 @@ func (s *Service) Songs(ctx context.Context, q string, favorites bool, limit int
 	if err != nil {
 		return nil, err
 	}
-	return mapSongs(items), nil
+	out := mapSongs(items)
+	return s.applySongUserState(ctx, userID, out)
 }
 
-func (s *Service) Song(ctx context.Context, id int) (models.Song, error) {
+func (s *Service) Song(ctx context.Context, userID, id int) (models.Song, error) {
 	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().WithAlbum().Only(ctx)
 	if err != nil {
 		return models.Song{}, err
 	}
-	return mapSong(item), nil
+	out, err := s.applySongUserState(ctx, userID, []models.Song{mapSong(item)})
+	if err != nil {
+		return models.Song{}, err
+	}
+	return out[0], nil
 }
 
 func (s *Service) RawSong(ctx context.Context, id int) (*ent.Song, error) {
@@ -251,19 +260,34 @@ func (s *Service) SongCover(ctx context.Context, id int) ([]byte, string, error)
 	return pic.Data, mimeType, nil
 }
 
-func (s *Service) ToggleSongFavorite(ctx context.Context, id int) (models.Song, error) {
-	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().WithAlbum().Only(ctx)
+func (s *Service) ToggleSongFavorite(ctx context.Context, userID, id int) (models.Song, error) {
+	if _, err := s.client.Song.Get(ctx, id); err != nil {
+		return models.Song{}, err
+	}
+	existing, err := s.client.UserSongFavorite.Query().
+		Where(usersongfavorite.HasUserWith(user.ID(userID)), usersongfavorite.HasSongWith(song.ID(id))).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return models.Song{}, err
+	}
+	if ent.IsNotFound(err) {
+		_, err = s.client.UserSongFavorite.Create().SetUserID(userID).SetSongID(id).Save(ctx)
+	} else {
+		err = s.client.UserSongFavorite.DeleteOneID(existing.ID).Exec(ctx)
+	}
 	if err != nil {
 		return models.Song{}, err
 	}
-	item, err = item.Update().SetFavorite(!item.Favorite).Save(ctx)
-	if err != nil {
-		return models.Song{}, err
-	}
-	return s.Song(ctx, item.ID)
+	return s.Song(ctx, userID, id)
 }
 
-func (s *Service) MarkPlayed(ctx context.Context, id int) error {
+func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
+	if _, err := s.client.Song.Get(ctx, id); err != nil {
+		return err
+	}
+	if _, err := s.client.PlayHistory.Create().SetUserID(userID).SetSongID(id).Save(ctx); err != nil {
+		return err
+	}
 	return s.client.Song.UpdateOneID(id).AddPlayCount(1).SetLastPlayedAt(time.Now()).Exec(ctx)
 }
 
@@ -336,8 +360,8 @@ func (s *Service) matchOnlineLyrics(ctx context.Context, title, artist, preferre
 	return "", "", nil
 }
 
-func (s *Service) Playlists(ctx context.Context) ([]models.Playlist, error) {
-	items, err := s.client.Playlist.Query().WithSongs().Order(ent.Desc(playlist.FieldUpdatedAt)).All(ctx)
+func (s *Service) Playlists(ctx context.Context, userID int) ([]models.Playlist, error) {
+	items, err := s.client.Playlist.Query().Where(playlist.HasOwnerWith(user.ID(userID))).WithSongs().Order(ent.Desc(playlist.FieldUpdatedAt)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +372,7 @@ func (s *Service) Playlists(ctx context.Context) ([]models.Playlist, error) {
 	return out, nil
 }
 
-func (s *Service) CreatePlaylist(ctx context.Context, name, description, theme string) (models.Playlist, error) {
+func (s *Service) CreatePlaylist(ctx context.Context, userID int, name, description, theme string) (models.Playlist, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return models.Playlist{}, fmt.Errorf("playlist name is required")
@@ -356,30 +380,42 @@ func (s *Service) CreatePlaylist(ctx context.Context, name, description, theme s
 	if theme == "" {
 		theme = "deep-space"
 	}
-	p, err := s.client.Playlist.Create().SetName(name).SetDescription(description).SetCoverTheme(theme).Save(ctx)
+	p, err := s.client.Playlist.Create().SetName(name).SetDescription(description).SetCoverTheme(theme).SetOwnerID(userID).Save(ctx)
 	if err != nil {
 		return models.Playlist{}, err
 	}
 	return mapPlaylist(p), nil
 }
 
-func (s *Service) PlaylistSongs(ctx context.Context, id int) ([]models.Song, error) {
-	p, err := s.client.Playlist.Query().Where(playlist.ID(id)).WithSongs(func(q *ent.SongQuery) { q.WithArtist().WithAlbum() }).Only(ctx)
+func (s *Service) PlaylistSongs(ctx context.Context, userID, id int) ([]models.Song, error) {
+	p, err := s.client.Playlist.Query().
+		Where(playlist.ID(id), playlist.HasOwnerWith(user.ID(userID))).
+		WithSongs(func(q *ent.SongQuery) { q.WithArtist().WithAlbum() }).
+		Only(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return mapSongs(p.Edges.Songs), nil
+	out := mapSongs(p.Edges.Songs)
+	return s.applySongUserState(ctx, userID, out)
 }
 
-func (s *Service) AddSongToPlaylist(ctx context.Context, playlistID, songID int) error {
-	return s.client.Playlist.UpdateOneID(playlistID).AddSongIDs(songID).Exec(ctx)
+func (s *Service) AddSongToPlaylist(ctx context.Context, userID, playlistID, songID int) error {
+	p, err := s.client.Playlist.Query().Where(playlist.ID(playlistID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx)
+	if err != nil {
+		return err
+	}
+	return p.Update().AddSongIDs(songID).Exec(ctx)
 }
 
-func (s *Service) RemoveSongFromPlaylist(ctx context.Context, playlistID, songID int) error {
-	return s.client.Playlist.UpdateOneID(playlistID).RemoveSongIDs(songID).Exec(ctx)
+func (s *Service) RemoveSongFromPlaylist(ctx context.Context, userID, playlistID, songID int) error {
+	p, err := s.client.Playlist.Query().Where(playlist.ID(playlistID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx)
+	if err != nil {
+		return err
+	}
+	return p.Update().RemoveSongIDs(songID).Exec(ctx)
 }
 
-func (s *Service) Albums(ctx context.Context) ([]models.Album, error) {
+func (s *Service) Albums(ctx context.Context, userID int) ([]models.Album, error) {
 	items, err := s.client.Album.Query().WithArtist().WithSongs().Order(ent.Desc(album.FieldUpdatedAt)).All(ctx)
 	if err != nil {
 		return nil, err
@@ -388,15 +424,16 @@ func (s *Service) Albums(ctx context.Context) ([]models.Album, error) {
 	for _, a := range items {
 		out = append(out, mapAlbum(a))
 	}
-	return out, nil
+	return s.applyAlbumUserState(ctx, userID, out)
 }
 
-func (s *Service) AlbumSongs(ctx context.Context, id int) ([]models.Song, error) {
+func (s *Service) AlbumSongs(ctx context.Context, userID, id int) ([]models.Song, error) {
 	a, err := s.client.Album.Query().Where(album.ID(id)).WithSongs(func(q *ent.SongQuery) { q.WithArtist().WithAlbum() }).Only(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return mapSongs(a.Edges.Songs), nil
+	out := mapSongs(a.Edges.Songs)
+	return s.applySongUserState(ctx, userID, out)
 }
 
 func (s *Service) Artists(ctx context.Context) ([]models.Artist, error) {
@@ -411,29 +448,46 @@ func (s *Service) Artists(ctx context.Context) ([]models.Artist, error) {
 	return out, nil
 }
 
-func (s *Service) ArtistSongs(ctx context.Context, id int) ([]models.Song, error) {
+func (s *Service) ArtistSongs(ctx context.Context, userID, id int) ([]models.Song, error) {
 	a, err := s.client.Artist.Query().Where(artist.ID(id)).WithSongs(func(q *ent.SongQuery) { q.WithArtist().WithAlbum().Order(ent.Asc(song.FieldTitle)) }).Only(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return mapSongs(a.Edges.Songs), nil
+	out := mapSongs(a.Edges.Songs)
+	return s.applySongUserState(ctx, userID, out)
 }
 
-func (s *Service) ToggleAlbumFavorite(ctx context.Context, id int) (models.Album, error) {
+func (s *Service) ToggleAlbumFavorite(ctx context.Context, userID, id int) (models.Album, error) {
+	if _, err := s.client.Album.Get(ctx, id); err != nil {
+		return models.Album{}, err
+	}
+	existing, err := s.client.UserAlbumFavorite.Query().
+		Where(useralbumfavorite.HasUserWith(user.ID(userID)), useralbumfavorite.HasAlbumWith(album.ID(id))).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return models.Album{}, err
+	}
+	if ent.IsNotFound(err) {
+		_, err = s.client.UserAlbumFavorite.Create().SetUserID(userID).SetAlbumID(id).Save(ctx)
+	} else {
+		err = s.client.UserAlbumFavorite.DeleteOneID(existing.ID).Exec(ctx)
+	}
+	if err != nil {
+		return models.Album{}, err
+	}
 	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs().Only(ctx)
 	if err != nil {
 		return models.Album{}, err
 	}
-	a, err = a.Update().SetFavorite(!a.Favorite).Save(ctx)
+	items, err := s.applyAlbumUserState(ctx, userID, []models.Album{mapAlbum(a)})
 	if err != nil {
 		return models.Album{}, err
 	}
-	a, _ = s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs().Only(ctx)
-	return mapAlbum(a), nil
+	return items[0], nil
 }
 
 func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
-	settings := models.Settings{Language: "zh-CN", Theme: "deep-space", SleepTimerMins: 0, LibraryPath: s.libraryDir, NeteaseFallback: true}
+	settings := models.Settings{Language: "zh-CN", Theme: "deep-space", SleepTimerMins: 0, LibraryPath: s.libraryDir, NeteaseFallback: true, RegistrationEnabled: false}
 	items, err := s.client.AppSetting.Query().All(ctx)
 	if err != nil {
 		return settings, err
@@ -448,6 +502,8 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.SleepTimerMins, _ = strconv.Atoi(item.Value)
 		case "netease_fallback":
 			settings.NeteaseFallback = item.Value != "false"
+		case settingRegistrationEnabled:
+			settings.RegistrationEnabled = item.Value == "true"
 		}
 	}
 	return settings, nil
@@ -460,7 +516,7 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 	if settings.Theme == "" {
 		settings.Theme = "deep-space"
 	}
-	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback)}
+	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback), settingRegistrationEnabled: strconv.FormatBool(settings.RegistrationEnabled)}
 	for key, value := range pairs {
 		if err := s.setSetting(ctx, key, value); err != nil {
 			return models.Settings{}, err
@@ -627,6 +683,86 @@ func sourceIf(ok bool, yes, no string) string {
 		return yes
 	}
 	return no
+}
+
+func (s *Service) applySongUserState(ctx context.Context, userID int, items []models.Song) ([]models.Song, error) {
+	if len(items) == 0 {
+		return items, nil
+	}
+	ids := make([]int, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	favorites, err := s.client.UserSongFavorite.Query().
+		Where(usersongfavorite.HasUserWith(user.ID(userID)), usersongfavorite.HasSongWith(song.IDIn(ids...))).
+		WithSong().
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	favoriteIDs := map[int]bool{}
+	for _, favorite := range favorites {
+		if favorite.Edges.Song != nil {
+			favoriteIDs[favorite.Edges.Song.ID] = true
+		}
+	}
+	histories, err := s.client.PlayHistory.Query().
+		Where(playhistory.HasUserWith(user.ID(userID)), playhistory.HasSongWith(song.IDIn(ids...))).
+		WithSong().
+		Order(ent.Desc(playhistory.FieldPlayedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	playCounts := map[int]int{}
+	lastPlayed := map[int]time.Time{}
+	for _, history := range histories {
+		if history.Edges.Song == nil {
+			continue
+		}
+		songID := history.Edges.Song.ID
+		playCounts[songID]++
+		if lastPlayed[songID].IsZero() || history.PlayedAt.After(lastPlayed[songID]) {
+			lastPlayed[songID] = history.PlayedAt
+		}
+	}
+	for i := range items {
+		items[i].Favorite = favoriteIDs[items[i].ID]
+		items[i].PlayCount = playCounts[items[i].ID]
+		if playedAt, ok := lastPlayed[items[i].ID]; ok {
+			items[i].LastPlayedAt = &playedAt
+		} else {
+			items[i].LastPlayedAt = nil
+		}
+	}
+	return items, nil
+}
+
+func (s *Service) applyAlbumUserState(ctx context.Context, userID int, items []models.Album) ([]models.Album, error) {
+	if len(items) == 0 {
+		return items, nil
+	}
+	ids := make([]int, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	favorites, err := s.client.UserAlbumFavorite.Query().
+		Where(useralbumfavorite.HasUserWith(user.ID(userID)), useralbumfavorite.HasAlbumWith(album.IDIn(ids...))).
+		WithAlbum().
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	favoriteIDs := map[int]bool{}
+	for _, favorite := range favorites {
+		if favorite.Edges.Album != nil {
+			favoriteIDs[favorite.Edges.Album.ID] = true
+		}
+	}
+	for i := range items {
+		items[i].Favorite = favoriteIDs[items[i].ID]
+	}
+	return items, nil
 }
 
 func mapSongs(items []*ent.Song) []models.Song {

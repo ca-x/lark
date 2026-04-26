@@ -56,6 +56,10 @@ const (
 	EdgeAlbum = "album"
 	// EdgePlaylists holds the string denoting the playlists edge name in mutations.
 	EdgePlaylists = "playlists"
+	// EdgeUserFavorites holds the string denoting the user_favorites edge name in mutations.
+	EdgeUserFavorites = "user_favorites"
+	// EdgePlayHistory holds the string denoting the play_history edge name in mutations.
+	EdgePlayHistory = "play_history"
 	// Table holds the table name of the song in the database.
 	Table = "songs"
 	// ArtistTable is the table that holds the artist relation/edge.
@@ -77,6 +81,20 @@ const (
 	// PlaylistsInverseTable is the table name for the Playlist entity.
 	// It exists in this package in order to avoid circular dependency with the "playlist" package.
 	PlaylistsInverseTable = "playlists"
+	// UserFavoritesTable is the table that holds the user_favorites relation/edge.
+	UserFavoritesTable = "user_song_favorites"
+	// UserFavoritesInverseTable is the table name for the UserSongFavorite entity.
+	// It exists in this package in order to avoid circular dependency with the "usersongfavorite" package.
+	UserFavoritesInverseTable = "user_song_favorites"
+	// UserFavoritesColumn is the table column denoting the user_favorites relation/edge.
+	UserFavoritesColumn = "song_user_favorites"
+	// PlayHistoryTable is the table that holds the play_history relation/edge.
+	PlayHistoryTable = "play_histories"
+	// PlayHistoryInverseTable is the table name for the PlayHistory entity.
+	// It exists in this package in order to avoid circular dependency with the "playhistory" package.
+	PlayHistoryInverseTable = "play_histories"
+	// PlayHistoryColumn is the table column denoting the play_history relation/edge.
+	PlayHistoryColumn = "song_play_history"
 )
 
 // Columns holds all SQL columns for song fields.
@@ -294,6 +312,34 @@ func ByPlaylists(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newPlaylistsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByUserFavoritesCount orders the results by user_favorites count.
+func ByUserFavoritesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newUserFavoritesStep(), opts...)
+	}
+}
+
+// ByUserFavorites orders the results by user_favorites terms.
+func ByUserFavorites(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newUserFavoritesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByPlayHistoryCount orders the results by play_history count.
+func ByPlayHistoryCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newPlayHistoryStep(), opts...)
+	}
+}
+
+// ByPlayHistory orders the results by play_history terms.
+func ByPlayHistory(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newPlayHistoryStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newArtistStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -313,5 +359,19 @@ func newPlaylistsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PlaylistsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2M, true, PlaylistsTable, PlaylistsPrimaryKey...),
+	)
+}
+func newUserFavoritesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(UserFavoritesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, UserFavoritesTable, UserFavoritesColumn),
+	)
+}
+func newPlayHistoryStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(PlayHistoryInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, PlayHistoryTable, PlayHistoryColumn),
 	)
 }

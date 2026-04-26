@@ -60,21 +60,91 @@ var (
 		Columns:    ArtistsColumns,
 		PrimaryKey: []*schema.Column{ArtistsColumns[0]},
 	}
+	// PlayHistoriesColumns holds the columns for the "play_histories" table.
+	PlayHistoriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "played_at", Type: field.TypeTime},
+		{Name: "song_play_history", Type: field.TypeInt},
+		{Name: "user_play_history", Type: field.TypeInt},
+	}
+	// PlayHistoriesTable holds the schema information for the "play_histories" table.
+	PlayHistoriesTable = &schema.Table{
+		Name:       "play_histories",
+		Columns:    PlayHistoriesColumns,
+		PrimaryKey: []*schema.Column{PlayHistoriesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "play_histories_songs_play_history",
+				Columns:    []*schema.Column{PlayHistoriesColumns[2]},
+				RefColumns: []*schema.Column{SongsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "play_histories_users_play_history",
+				Columns:    []*schema.Column{PlayHistoriesColumns[3]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "playhistory_user_play_history",
+				Unique:  false,
+				Columns: []*schema.Column{PlayHistoriesColumns[3]},
+			},
+			{
+				Name:    "playhistory_song_play_history",
+				Unique:  false,
+				Columns: []*schema.Column{PlayHistoriesColumns[2]},
+			},
+		},
+	}
 	// PlaylistsColumns holds the columns for the "playlists" table.
 	PlaylistsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "name", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "cover_theme", Type: field.TypeString, Default: "deep-space"},
 		{Name: "favorite", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "user_playlists", Type: field.TypeInt, Nullable: true},
 	}
 	// PlaylistsTable holds the schema information for the "playlists" table.
 	PlaylistsTable = &schema.Table{
 		Name:       "playlists",
 		Columns:    PlaylistsColumns,
 		PrimaryKey: []*schema.Column{PlaylistsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "playlists_users_playlists",
+				Columns:    []*schema.Column{PlaylistsColumns[7]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// SessionsColumns holds the columns for the "sessions" table.
+	SessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "user_sessions", Type: field.TypeInt},
+	}
+	// SessionsTable holds the schema information for the "sessions" table.
+	SessionsTable = &schema.Table{
+		Name:       "sessions",
+		Columns:    SessionsColumns,
+		PrimaryKey: []*schema.Column{SessionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "sessions_users_sessions",
+				Columns:    []*schema.Column{SessionsColumns[4]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
 	}
 	// SongsColumns holds the columns for the "songs" table.
 	SongsColumns = []*schema.Column{
@@ -137,6 +207,89 @@ var (
 			},
 		},
 	}
+	// UsersColumns holds the columns for the "users" table.
+	UsersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "username", Type: field.TypeString, Unique: true},
+		{Name: "password_hash", Type: field.TypeString},
+		{Name: "role", Type: field.TypeString, Default: "user"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// UsersTable holds the schema information for the "users" table.
+	UsersTable = &schema.Table{
+		Name:       "users",
+		Columns:    UsersColumns,
+		PrimaryKey: []*schema.Column{UsersColumns[0]},
+	}
+	// UserAlbumFavoritesColumns holds the columns for the "user_album_favorites" table.
+	UserAlbumFavoritesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "album_user_favorites", Type: field.TypeInt},
+		{Name: "user_album_favorites", Type: field.TypeInt},
+	}
+	// UserAlbumFavoritesTable holds the schema information for the "user_album_favorites" table.
+	UserAlbumFavoritesTable = &schema.Table{
+		Name:       "user_album_favorites",
+		Columns:    UserAlbumFavoritesColumns,
+		PrimaryKey: []*schema.Column{UserAlbumFavoritesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_album_favorites_albums_user_favorites",
+				Columns:    []*schema.Column{UserAlbumFavoritesColumns[2]},
+				RefColumns: []*schema.Column{AlbumsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "user_album_favorites_users_album_favorites",
+				Columns:    []*schema.Column{UserAlbumFavoritesColumns[3]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "useralbumfavorite_user_album_favorites_album_user_favorites",
+				Unique:  true,
+				Columns: []*schema.Column{UserAlbumFavoritesColumns[3], UserAlbumFavoritesColumns[2]},
+			},
+		},
+	}
+	// UserSongFavoritesColumns holds the columns for the "user_song_favorites" table.
+	UserSongFavoritesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "song_user_favorites", Type: field.TypeInt},
+		{Name: "user_song_favorites", Type: field.TypeInt},
+	}
+	// UserSongFavoritesTable holds the schema information for the "user_song_favorites" table.
+	UserSongFavoritesTable = &schema.Table{
+		Name:       "user_song_favorites",
+		Columns:    UserSongFavoritesColumns,
+		PrimaryKey: []*schema.Column{UserSongFavoritesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_song_favorites_songs_user_favorites",
+				Columns:    []*schema.Column{UserSongFavoritesColumns[2]},
+				RefColumns: []*schema.Column{SongsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "user_song_favorites_users_song_favorites",
+				Columns:    []*schema.Column{UserSongFavoritesColumns[3]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usersongfavorite_user_song_favorites_song_user_favorites",
+				Unique:  true,
+				Columns: []*schema.Column{UserSongFavoritesColumns[3], UserSongFavoritesColumns[2]},
+			},
+		},
+	}
 	// PlaylistSongsColumns holds the columns for the "playlist_songs" table.
 	PlaylistSongsColumns = []*schema.Column{
 		{Name: "playlist_id", Type: field.TypeInt},
@@ -167,16 +320,29 @@ var (
 		AlbumsTable,
 		AppSettingsTable,
 		ArtistsTable,
+		PlayHistoriesTable,
 		PlaylistsTable,
+		SessionsTable,
 		SongsTable,
+		UsersTable,
+		UserAlbumFavoritesTable,
+		UserSongFavoritesTable,
 		PlaylistSongsTable,
 	}
 )
 
 func init() {
 	AlbumsTable.ForeignKeys[0].RefTable = ArtistsTable
+	PlayHistoriesTable.ForeignKeys[0].RefTable = SongsTable
+	PlayHistoriesTable.ForeignKeys[1].RefTable = UsersTable
+	PlaylistsTable.ForeignKeys[0].RefTable = UsersTable
+	SessionsTable.ForeignKeys[0].RefTable = UsersTable
 	SongsTable.ForeignKeys[0].RefTable = AlbumsTable
 	SongsTable.ForeignKeys[1].RefTable = ArtistsTable
+	UserAlbumFavoritesTable.ForeignKeys[0].RefTable = AlbumsTable
+	UserAlbumFavoritesTable.ForeignKeys[1].RefTable = UsersTable
+	UserSongFavoritesTable.ForeignKeys[0].RefTable = SongsTable
+	UserSongFavoritesTable.ForeignKeys[1].RefTable = UsersTable
 	PlaylistSongsTable.ForeignKeys[0].RefTable = PlaylistsTable
 	PlaylistSongsTable.ForeignKeys[1].RefTable = SongsTable
 }

@@ -71,9 +71,13 @@ type SongEdges struct {
 	Album *Album `json:"album,omitempty"`
 	// Playlists holds the value of the playlists edge.
 	Playlists []*Playlist `json:"playlists,omitempty"`
+	// UserFavorites holds the value of the user_favorites edge.
+	UserFavorites []*UserSongFavorite `json:"user_favorites,omitempty"`
+	// PlayHistory holds the value of the play_history edge.
+	PlayHistory []*PlayHistory `json:"play_history,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [5]bool
 }
 
 // ArtistOrErr returns the Artist value or an error if the edge
@@ -105,6 +109,24 @@ func (e SongEdges) PlaylistsOrErr() ([]*Playlist, error) {
 		return e.Playlists, nil
 	}
 	return nil, &NotLoadedError{edge: "playlists"}
+}
+
+// UserFavoritesOrErr returns the UserFavorites value or an error if the edge
+// was not loaded in eager-loading.
+func (e SongEdges) UserFavoritesOrErr() ([]*UserSongFavorite, error) {
+	if e.loadedTypes[3] {
+		return e.UserFavorites, nil
+	}
+	return nil, &NotLoadedError{edge: "user_favorites"}
+}
+
+// PlayHistoryOrErr returns the PlayHistory value or an error if the edge
+// was not loaded in eager-loading.
+func (e SongEdges) PlayHistoryOrErr() ([]*PlayHistory, error) {
+	if e.loadedTypes[4] {
+		return e.PlayHistory, nil
+	}
+	return nil, &NotLoadedError{edge: "play_history"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -296,6 +318,16 @@ func (_m *Song) QueryAlbum() *AlbumQuery {
 // QueryPlaylists queries the "playlists" edge of the Song entity.
 func (_m *Song) QueryPlaylists() *PlaylistQuery {
 	return NewSongClient(_m.config).QueryPlaylists(_m)
+}
+
+// QueryUserFavorites queries the "user_favorites" edge of the Song entity.
+func (_m *Song) QueryUserFavorites() *UserSongFavoriteQuery {
+	return NewSongClient(_m.config).QueryUserFavorites(_m)
+}
+
+// QueryPlayHistory queries the "play_history" edge of the Song entity.
+func (_m *Song) QueryPlayHistory() *PlayHistoryQuery {
+	return NewSongClient(_m.config).QueryPlayHistory(_m)
 }
 
 // Update returns a builder for updating this Song.

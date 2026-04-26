@@ -1,0 +1,31 @@
+package schema
+
+import (
+	"time"
+
+	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
+	"entgo.io/ent/schema/field"
+)
+
+type User struct{ ent.Schema }
+
+func (User) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("username").Unique().NotEmpty(),
+		field.String("password_hash").NotEmpty(),
+		field.String("role").Default("user"),
+		field.Time("created_at").Default(time.Now),
+		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
+	}
+}
+
+func (User) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.To("sessions", Session.Type),
+		edge.To("playlists", Playlist.Type),
+		edge.To("song_favorites", UserSongFavorite.Type),
+		edge.To("album_favorites", UserAlbumFavorite.Type),
+		edge.To("play_history", PlayHistory.Type),
+	}
+}

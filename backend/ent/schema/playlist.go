@@ -12,7 +12,7 @@ type Playlist struct{ ent.Schema }
 
 func (Playlist) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("name").Unique().NotEmpty(),
+		field.String("name").NotEmpty(),
 		field.Text("description").Default(""),
 		field.String("cover_theme").Default("deep-space"),
 		field.Bool("favorite").Default(false),
@@ -24,5 +24,6 @@ func (Playlist) Fields() []ent.Field {
 func (Playlist) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("songs", Song.Type),
+		edge.From("owner", User.Type).Ref("playlists").Unique(),
 	}
 }

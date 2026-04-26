@@ -39,6 +39,8 @@ func (Song) Edges() []ent.Edge {
 		edge.From("artist", Artist.Type).Ref("songs").Unique(),
 		edge.From("album", Album.Type).Ref("songs").Unique(),
 		edge.From("playlists", Playlist.Type).Ref("songs"),
+		edge.To("user_favorites", UserSongFavorite.Type),
+		edge.To("play_history", PlayHistory.Type),
 	}
 }
 

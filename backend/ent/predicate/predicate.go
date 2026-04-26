@@ -15,8 +15,23 @@ type AppSetting func(*sql.Selector)
 // Artist is the predicate function for artist builders.
 type Artist func(*sql.Selector)
 
+// PlayHistory is the predicate function for playhistory builders.
+type PlayHistory func(*sql.Selector)
+
 // Playlist is the predicate function for playlist builders.
 type Playlist func(*sql.Selector)
 
+// Session is the predicate function for session builders.
+type Session func(*sql.Selector)
+
 // Song is the predicate function for song builders.
 type Song func(*sql.Selector)
+
+// User is the predicate function for user builders.
+type User func(*sql.Selector)
+
+// UserAlbumFavorite is the predicate function for useralbumfavorite builders.
+type UserAlbumFavorite func(*sql.Selector)
+
+// UserSongFavorite is the predicate function for usersongfavorite builders.
+type UserSongFavorite func(*sql.Selector)

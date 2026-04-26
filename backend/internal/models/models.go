@@ -49,6 +49,20 @@ type Artist struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+type User struct {
+	ID        int       `json:"id"`
+	Username  string    `json:"username"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type AuthStatus struct {
+	Initialized         bool  `json:"initialized"`
+	RegistrationEnabled bool  `json:"registration_enabled"`
+	User                *User `json:"user,omitempty"`
+}
+
 type Playlist struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
@@ -68,11 +82,12 @@ type Lyrics struct {
 }
 
 type Settings struct {
-	Language        string `json:"language"`
-	Theme           string `json:"theme"`
-	SleepTimerMins  int    `json:"sleep_timer_mins"`
-	LibraryPath     string `json:"library_path"`
-	NeteaseFallback bool   `json:"netease_fallback"`
+	Language            string `json:"language"`
+	Theme               string `json:"theme"`
+	SleepTimerMins      int    `json:"sleep_timer_mins"`
+	LibraryPath         string `json:"library_path"`
+	NeteaseFallback     bool   `json:"netease_fallback"`
+	RegistrationEnabled bool   `json:"registration_enabled"`
 }
 
 type ScanResult struct {
