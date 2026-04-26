@@ -18,8 +18,8 @@ services:
       - '${LARK_PORT:-8080}:8080'
     volumes:
       - lark_data:/app/data
-      # Optional: mount an existing music folder instead of uploading files
-      # - /path/to/music:/app/data/music:ro
+      # Host music library. Defaults to ./.shared-center; override with LARK_MUSIC_DIR=/path/to/music.
+      - ${LARK_MUSIC_DIR:-./.shared-center}:/app/data/music
 
 volumes:
   lark_data:
