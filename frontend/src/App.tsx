@@ -1,5 +1,5 @@
 import type { ChangeEvent, UIEvent } from "react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Disc,
   GearSix,
@@ -14,6 +14,7 @@ import {
   Play,
   Playlist as PlaylistIcon,
   Plus,
+  CopySimple,
   Record,
   Repeat,
   RepeatOnce,
@@ -23,6 +24,7 @@ import {
   SpeakerHigh,
   Timer,
   UploadSimple,
+  X,
 } from "@phosphor-icons/react";
 import WavesurferPlayer from "@wavesurfer/react";
 import { api } from "./services/api";
@@ -116,7 +118,7 @@ const themeAliases: Record<string, Theme> = {
 const SONG_ROW_HEIGHT = 64;
 const VIRTUAL_TABLE_THRESHOLD = 220;
 const VIRTUAL_OVERSCAN = 8;
-const CARD_GRID_BATCH = 120;
+const CARD_GRID_BATCH = 72;
 
 function normalizeTheme(theme: string): Theme {
   return themes.some((item) => item.id === theme)
@@ -398,10 +400,22 @@ export default function App() {
       .finally(() => setLyricsLoading(false));
   }, [current]);
   useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !current) return;
+    audio.pause();
+    audio.currentTime = 0;
+    audio.load();
+  }, [current?.id]);
+
+  useEffect(() => {
     if (!audioRef.current) return;
-    if (playing) void audioRef.current.play().catch(() => setPlaying(false));
+    if (playing)
+      void audioRef.current.play().catch(() => {
+        setPlaying(false);
+        showMessage(t("playbackFailed"));
+      });
     else audioRef.current.pause();
-  }, [playing, current]);
+  }, [playing, current, t]);
   useEffect(() => {
     if (!sleepTimerMins) {
       setSleepLeft(0);
@@ -576,7 +590,14 @@ export default function App() {
 
   async function playSong(song: Song, list = songs) {
     const sameSong = current?.id === song.id;
-    if (current && !sameSong) syncPlaybackProgress(false);
+    if (current && !sameSong) {
+      syncPlaybackProgress(false);
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+    }
     setCurrent(song);
     setQueue(list.length ? list : [song]);
     setDuration((value) => value || song.duration_seconds || 0);
@@ -1075,12 +1096,16 @@ export default function App() {
             onUserScroll={() => {
               lyricFollowPausedUntil.current = Date.now() + 2500;
             }}
-            onOpenArtist={(song) =>
-              void openArtistById(song.artist_id, song.artist)
-            }
+            onOpenArtist={(song) => {
+              setLyricsFullScreen(false);
+              void openArtistById(song.artist_id, song.artist);
+            }}
             onOpenAlbum={(song) => {
               const album = albums.find((item) => item.id === song.album_id);
-              if (album) void openAlbum(album);
+              if (album) {
+                setLyricsFullScreen(false);
+                void openAlbum(album);
+              }
             }}
             onFavoriteSong={(song) => void toggleFavorite(song)}
           />
@@ -1191,6 +1216,19 @@ export default function App() {
                 onFavorite={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
+                onFavoriteCollection={
+                  collection.type === "album"
+                    ? () => {
+                        const album = albums.find((item) => item.id === collection.id);
+                        if (album) void toggleAlbumFavorite(album);
+                      }
+                    : collection.type === "artist"
+                      ? () => {
+                          const artist = artists.find((item) => item.id === collection.id);
+                          if (artist) void toggleArtistFavorite(artist);
+                        }
+                      : undefined
+                }
                 onOpenAlbum={(song) => {
                   const album = albums.find((item) => item.id === song.album_id);
                   if (album) void openAlbum(album);
@@ -1477,6 +1515,7 @@ export default function App() {
         <audio
           ref={setAudioNode}
           preload="metadata"
+          data-song-id={current?.id ?? undefined}
           src={
             current ? `/api/songs/${current.id}/stream?mode=auto` : undefined
           }
@@ -1509,6 +1548,12 @@ export default function App() {
           }}
           onSeeking={(e) => setProgress(e.currentTarget.currentTime)}
           onPause={() => syncPlaybackProgress(false)}
+          onError={(event) => {
+            event.currentTarget.pause();
+            setPlaying(false);
+            setProgress(0);
+            showMessage(t("playbackFailed"));
+          }}
           onEnded={() => next(1, true)}
         />
       </footer>
@@ -2236,7 +2281,10 @@ function PlayerMood({
         <WavesurferPlayer
           key={song?.id ?? "empty"}
           media={audioEl}
-          height={34}
+          url={song ? `/api/songs/${song.id}/stream?mode=auto` : undefined}
+          height={42}
+          fillParent
+          hideScrollbar
           waveColor={colors.wave}
           progressColor={colors.progress}
           cursorColor={colors.cursor}
@@ -2295,6 +2343,7 @@ function CollectionView({
   onFavorite,
   onAdd,
   onInsertNext,
+  onFavoriteCollection,
   onOpenAlbum,
   onOpenAlbumCard,
   onPlayAlbumCard,
@@ -2310,6 +2359,7 @@ function CollectionView({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  onFavoriteCollection?: () => void;
   onOpenAlbum?: (song: Song) => void;
   onOpenAlbumCard?: (album: Album) => void;
   onPlayAlbumCard?: (album: Album) => void;
@@ -2359,6 +2409,15 @@ function CollectionView({
             >
               <SkipForward /> {t("insertNext")}
             </button>
+            {onFavoriteCollection ? (
+              <button
+                className={collection.favorite ? "active" : ""}
+                onClick={onFavoriteCollection}
+                aria-label={t("favorites")}
+              >
+                <Heart weight={collection.favorite ? "fill" : "regular"} /> {t("favorites")}
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -2868,6 +2927,7 @@ function SleepTimerControl({
       aria-label={label}
     >
       <Timer />
+      {value ? <span className="sleep-countdown">{Math.ceil(left / 60)}</span> : null}
       <select
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
@@ -2878,7 +2938,6 @@ function SleepTimerControl({
         <option value="60">60 {t("minutes")}</option>
         <option value="90">90 {t("minutes")}</option>
       </select>
-      {value ? <span>{Math.ceil(left / 60)}</span> : null}
     </label>
   );
 }
@@ -2917,7 +2976,9 @@ function MCPHelpDialog({
             <p>{t("mcpAccess")}</p>
             <h2 id="mcp-help-title">{t("mcpHelpTitle")}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label={t("close")}>{t("close")}</button>
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t("close")} title={t("close")}>
+            <X weight="bold" />
+          </button>
         </div>
         <p className="section-subtitle">{t("mcpHelpDescription")}</p>
         <div className="mcp-help-content">
@@ -3107,8 +3168,15 @@ function SettingsPanel({
               <div className="mcp-token-once" role="status">
                 <span>{t("mcpTokenShownOnce")}</span>
                 <code>{mcpToken.token}</code>
-                <button type="button" onClick={() => void copyMcpToken()}>
-                  {mcpCopied ? t("copied") : t("copy")}
+                <button
+                  type="button"
+                  className="icon-button copy-token-button"
+                  onClick={() => void copyMcpToken()}
+                  aria-label={mcpCopied ? t("copied") : t("copy")}
+                  title={mcpCopied ? t("copied") : t("copy")}
+                >
+                  <CopySimple weight="bold" />
+                  <span>{mcpCopied ? t("copied") : t("copy")}</span>
                 </button>
               </div>
             ) : null}
@@ -3426,78 +3494,92 @@ function SongTable({
   );
 }
 
-function LazyCoverImage({ src }: { src?: string }) {
-  const imgRef = useRef<HTMLImageElement | null>(null);
-  const [shouldLoad, setShouldLoad] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
+const LazyCoverImage = memo(function LazyCoverImage({ src }: { src?: string }) {
+  const [failedSrc, setFailedSrc] = useState("");
 
   useEffect(() => {
-    setShouldLoad(false);
-    setLoaded(false);
-    setFailed(false);
-  }, [src]);
+    if (src !== failedSrc) setFailedSrc("");
+  }, [failedSrc, src]);
 
-  useEffect(() => {
-    const node = imgRef.current;
-    if (!node || !src || failed) return;
-    if (!("IntersectionObserver" in window)) {
-      setShouldLoad(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        setShouldLoad(true);
-        observer.disconnect();
-      },
-      { rootMargin: "220px 0px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [failed, src]);
-
-  if (!src || failed) return null;
+  if (!src || failedSrc === src) return null;
   return (
     <img
-      ref={imgRef}
       className="cover-image"
-      src={shouldLoad ? src : undefined}
+      src={src}
       alt=""
       loading="lazy"
       decoding="async"
-      data-loaded={loaded ? "true" : undefined}
-      onLoad={() => setLoaded(true)}
-      onError={() => setFailed(true)}
+      onLoad={(event) => {
+        event.currentTarget.dataset.loaded = "true";
+      }}
+      onError={() => setFailedSrc(src)}
     />
+  );
+});
+
+type CardGridItem = {
+  id: number;
+  title: string;
+  subtitle: string;
+  meta?: string;
+  theme: string;
+  coverUrl?: string;
+  favorite?: boolean;
+  onClick: () => void;
+  onMetaClick?: () => void;
+  onPlay?: () => void;
+  onFavorite?: () => void;
+};
+
+type CardGridProps = {
+  t: ReturnType<typeof createT>;
+  title: string;
+  variant?: "playlist" | "album" | "artist";
+  items: CardGridItem[];
+  action?: React.ReactNode;
+  actionKey?: string | number;
+};
+
+function cardGridItemsEqual(a: CardGridItem[], b: CardGridItem[]) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const left = a[i];
+    const right = b[i];
+    if (
+      left.id !== right.id ||
+      left.title !== right.title ||
+      left.subtitle !== right.subtitle ||
+      left.meta !== right.meta ||
+      left.theme !== right.theme ||
+      left.coverUrl !== right.coverUrl ||
+      left.favorite !== right.favorite ||
+      Boolean(left.onPlay) !== Boolean(right.onPlay) ||
+      Boolean(left.onFavorite) !== Boolean(right.onFavorite) ||
+      Boolean(left.onMetaClick) !== Boolean(right.onMetaClick)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areCardGridPropsEqual(previous: CardGridProps, next: CardGridProps) {
+  return (
+    previous.title === next.title &&
+    previous.variant === next.variant &&
+    previous.actionKey === next.actionKey &&
+    cardGridItemsEqual(previous.items, next.items)
   );
 }
 
-function CardGrid({
+const CardGrid = memo(function CardGrid({
   t,
   title,
   items,
   action,
   variant = "playlist",
-}: {
-  t: ReturnType<typeof createT>;
-  title: string;
-  variant?: "playlist" | "album" | "artist";
-  items: {
-    id: number;
-    title: string;
-    subtitle: string;
-    meta?: string;
-    theme: string;
-    coverUrl?: string;
-    favorite?: boolean;
-    onClick: () => void;
-    onMetaClick?: () => void;
-    onPlay?: () => void;
-    onFavorite?: () => void;
-  }[];
-  action?: React.ReactNode;
-}) {
+}: CardGridProps) {
   const [visibleCount, setVisibleCount] = useState(CARD_GRID_BATCH);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const visibleItems = items.slice(0, Math.min(visibleCount, items.length));
@@ -3649,4 +3731,4 @@ function CardGrid({
       )}
     </section>
   );
-}
+}, areCardGridPropsEqual);

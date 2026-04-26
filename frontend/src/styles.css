@@ -672,3 +672,93 @@ body, button, input, select { font-family: Inter, ui-sans-serif, system-ui, -app
 .playlist-picker-list button.active, .playlist-picker-list button:hover { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
 .playlist-picker-list strong, .playlist-picker-list span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .playlist-picker-list span { color:var(--muted); font-size:13px; }
+
+/* v0.2.1 smooth management grids and compact timer control */
+.sleep-control svg { transition:opacity .18s var(--ease), transform .18s var(--ease); }
+.sleep-control.active svg { opacity:.22; transform:scale(.86); }
+.sleep-control .sleep-countdown { position:absolute; inset:0; z-index:1; min-width:0; height:auto; display:grid; place-items:center; border-radius:inherit; background:transparent; color:var(--accent); font-size:13px; line-height:1; font-weight:950; font-variant-numeric:tabular-nums; letter-spacing:-.04em; pointer-events:none; }
+.sleep-control.active::after { display:none !important; }
+[data-theme='carbon-volt'] .sleep-control .sleep-countdown { color:#b8f0c8; }
+
+.card-album.media-card,
+.card-artist.media-card,
+.artist-album-card {
+  transform:none !important;
+  box-shadow:none;
+  content-visibility:auto;
+  contain-intrinsic-size:238px 270px;
+}
+.card-album.media-card:hover,
+.card-artist.media-card:hover,
+.artist-album-card:hover {
+  transform:none !important;
+  box-shadow:0 6px 16px color-mix(in srgb, var(--accent) 8%, transparent) !important;
+}
+.card-album .plain-cover,
+.card-artist .plain-cover,
+.artist-album-card .plain-cover,
+[data-theme] .card-album .plain-cover,
+[data-theme] .card-artist .plain-cover,
+[data-theme] .artist-album-card .plain-cover {
+  position:relative;
+  border:0 !important;
+  border-radius:16px !important;
+  box-shadow:none !important;
+  filter:none !important;
+  animation:none !important;
+  clip-path:none !important;
+  contain:paint;
+  transform:translateZ(0) !important;
+  transition:none !important;
+  background-color:var(--panel2) !important;
+}
+.card-album .plain-cover::before,
+.card-album .plain-cover::after,
+.card-artist .plain-cover::before,
+.card-artist .plain-cover::after,
+.artist-album-card .plain-cover::before,
+.artist-album-card .plain-cover::after,
+[data-theme] .card-album .plain-cover::before,
+[data-theme] .card-album .plain-cover::after,
+[data-theme] .card-artist .plain-cover::before,
+[data-theme] .card-artist .plain-cover::after,
+[data-theme] .artist-album-card .plain-cover::before,
+[data-theme] .artist-album-card .plain-cover::after {
+  display:none !important;
+  content:none !important;
+  animation:none !important;
+  background:none !important;
+  box-shadow:none !important;
+}
+.card-album .cover-image,
+.card-artist .cover-image,
+.artist-album-card .cover-image {
+  opacity:1;
+  transition:none !important;
+  animation:none !important;
+  filter:none !important;
+  transform:translateZ(0);
+}
+.card-album .card-play,
+.card-artist .card-play,
+.artist-album-card .card-play,
+.card-album .card-favorite,
+.card-artist .card-favorite {
+  backdrop-filter:none !important;
+  transition:opacity .12s var(--ease), background .12s var(--ease), color .12s var(--ease) !important;
+  transform:none !important;
+}
+.card-album.media-card:hover .card-play,
+.card-artist.media-card:hover .card-play,
+.card-album.media-card:hover .card-favorite,
+.card-artist.media-card:hover .card-favorite,
+.artist-album-card:hover .card-play {
+  transform:none !important;
+}
+.player-waveform { grid-template-rows:auto minmax(38px, 1fr) auto; }
+.player-waveform > div:not(.wave-fallback) { display:block !important; width:100%; min-width:0; min-height:42px; align-self:stretch; overflow:hidden; }
+.player-waveform wave { display:block !important; width:100% !important; min-height:42px !important; overflow:hidden !important; }
+.player-waveform canvas { width:100% !important; }
+.icon-button { width:40px; min-width:40px; min-height:40px; padding:0 !important; display:inline-grid; place-items:center; }
+.copy-token-button { width:auto; min-width:40px; grid-auto-flow:column; gap:7px; padding:0 12px !important; }
+.copy-token-button svg { flex:0 0 auto; }
