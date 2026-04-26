@@ -7,7 +7,7 @@ services:
     environment:
       LARK_PORT: ${LARK_PORT:-8080}
       LARK_DATA_DIR: /app/data
-      LARK_LIBRARY_DIR: /app/data/music
+      LARK_LIBRARY_DIR: ${LARK_LIBRARY_DIR:-/app/data/music}
       LARK_DB_PATH: /app/data/lark.db
       LARK_FRONTEND_ORIGIN: ${LARK_FRONTEND_ORIGIN:-*}
       # Optional first-run bootstrap. These are only used when the database has no users.
@@ -18,8 +18,6 @@ services:
       - '${LARK_PORT:-8080}:8080'
     volumes:
       - lark_data:/app/data
-      # Host music library. Defaults to ./.shared-center; override with LARK_MUSIC_DIR=/path/to/music.
-      - ${LARK_MUSIC_DIR:-./.shared-center}:/app/data/music
 
 volumes:
   lark_data:

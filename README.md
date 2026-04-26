@@ -138,11 +138,10 @@ LARK_ADMIN_NICKNAME='Lark Admin' \
 docker compose up -d
 ```
 
-The default compose file stores app data in the `lark_data` volume and mounts the host music library from `./.shared-center` to `/app/data/music` inside the container. Override the host music path with `LARK_MUSIC_DIR`:
-The published Docker image already includes `ffmpeg`/`ffprobe`; no extra compose environment is required for the default transcoding and metadata probe paths.
+The default compose file stores app data and uploaded music in the `lark_data` volume. If your runtime already exposes a music directory inside the container, set `LARK_LIBRARY_DIR` to that in-container path; otherwise leave it as `/app/data/music` and use uploads/scans within the app data volume. The published Docker image already includes `ffmpeg`/`ffprobe`; no extra compose environment is required for the default transcoding and metadata probe paths.
 
 ```bash
-LARK_MUSIC_DIR=/path/to/music docker compose up -d
+LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d
 ```
 
 Then open:
