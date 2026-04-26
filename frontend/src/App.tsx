@@ -72,6 +72,7 @@ type View =
   | "settings"
   | "about";
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
+type ResumeMode = "resume" | "restart";
 type ThemeLabel =
   | "deepSpace"
   | "amberFilm"
@@ -177,6 +178,10 @@ function resumePosition(song?: Song | null) {
   if (progress < 5) return 0;
   if (duration > 0 && progress >= duration - 5) return 0;
   return progress;
+}
+
+function resumePreferenceKey(user?: User | null) {
+  return `lark.resume-mode.${user?.id ?? "guest"}`;
 }
 
 function sanitizeFontFamily(value?: string) {
@@ -364,6 +369,7 @@ export default function App() {
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [sleepTimerMins, setSleepTimerMins] = useState(0);
   const [sleepLeft, setSleepLeft] = useState(0);
+  const [resumeMode, setResumeMode] = useState<ResumeMode>("resume");
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [inlineLyrics, setInlineLyrics] = useState(false);
@@ -415,6 +421,11 @@ export default function App() {
     void bootstrap();
   }, []);
   useEffect(() => {
+    if (!auth?.user) return;
+    const stored = window.localStorage.getItem(resumePreferenceKey(auth.user));
+    setResumeMode(stored === "restart" ? "restart" : "resume");
+  }, [auth?.user?.id]);
+  useEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
     document.documentElement.lang = settings.language;
     document.title = `${t("brand")} Music`;
@@ -440,7 +451,7 @@ export default function App() {
   }, [settings.theme, settings.language, settings.web_font_url, settings.web_font_family, t]);
   useEffect(() => {
     if (!current) return;
-    const resume = resumePosition(current);
+    const resume = resumeMode === "resume" ? resumePosition(current) : 0;
     resumeSeekRef.current = resume;
     setProgress(resume);
     setDuration(current.duration_seconds || 0);
@@ -453,7 +464,7 @@ export default function App() {
       .then(setLyrics)
       .catch(() => setLyrics(null))
       .finally(() => setLyricsLoading(false));
-  }, [current]);
+  }, [current, resumeMode]);
   const requestAudioPlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !current) return;
@@ -1415,6 +1426,11 @@ export default function App() {
                 settings={settings}
                 setSettings={(s) => void saveSettings(s)}
                 user={auth.user}
+                resumeMode={resumeMode}
+                onResumeModeChange={(mode) => {
+                  setResumeMode(mode);
+                  window.localStorage.setItem(resumePreferenceKey(auth.user), mode);
+                }}
                 activeTab={settingsTab}
                 onTabChange={setSettingsTab}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
@@ -3170,6 +3186,8 @@ function SettingsPanel({
   settings,
   setSettings,
   user,
+  resumeMode,
+  onResumeModeChange,
   activeTab,
   onTabChange,
   onUpdateProfile,
@@ -3178,6 +3196,8 @@ function SettingsPanel({
   settings: Settings;
   setSettings: (settings: Settings) => void;
   user: User;
+  resumeMode: ResumeMode;
+  onResumeModeChange: (mode: ResumeMode) => void;
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
@@ -3345,6 +3365,28 @@ function SettingsPanel({
               />
             </label>
             <button onClick={() => onUpdateProfile(nickname, avatarDataURL)}>{t("save")}</button>
+          </div>
+          <div className="resume-settings-card settings-wide-row">
+            <div>
+              <strong>{t("playbackResumeSetting")}</strong>
+              <span>{t("playbackResumeHint")}</span>
+            </div>
+            <div className="segmented-control" role="group" aria-label={t("playbackResumeSetting")}>
+              <button
+                type="button"
+                className={resumeMode === "resume" ? "active" : ""}
+                onClick={() => onResumeModeChange("resume")}
+              >
+                {t("resumeFromHistory")}
+              </button>
+              <button
+                type="button"
+                className={resumeMode === "restart" ? "active" : ""}
+                onClick={() => onResumeModeChange("restart")}
+              >
+                {t("restartFromBeginning")}
+              </button>
+            </div>
           </div>
           <div className="mcp-card settings-wide-row">
             <div className="mcp-card-head">
