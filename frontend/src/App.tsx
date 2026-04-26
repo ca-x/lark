@@ -1,4 +1,11 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Disc,
   GearSix,
@@ -27,6 +34,7 @@ import type {
   Artist,
   AuthStatus,
   Language,
+  LyricCandidate,
   Lyrics,
   Playlist,
   ScanStatus,
@@ -71,6 +79,7 @@ type Collection = {
   title: string;
   subtitle: string;
   songs: Song[];
+  coverUrl?: string;
   artistId?: number;
   artistName?: string;
 };
@@ -100,6 +109,10 @@ const themeAliases: Record<string, Theme> = {
   sakura: "sakura-washi",
   amber: "dusk-amber",
 };
+const SONG_ROW_HEIGHT = 64;
+const VIRTUAL_TABLE_THRESHOLD = 220;
+const VIRTUAL_OVERSCAN = 8;
+
 function normalizeTheme(theme: string): Theme {
   return themes.some((item) => item.id === theme)
     ? (theme as Theme)
@@ -115,6 +128,12 @@ function randomQueueIndex(length: number, currentIndex: number) {
 
 function coverUrl(song?: Song | null) {
   return song ? `/api/songs/${song.id}/cover` : undefined;
+}
+function albumCoverUrl(album?: Album | null) {
+  return album ? `/api/albums/${album.id}/cover` : undefined;
+}
+function artistCoverUrl(artist?: Artist | null) {
+  return artist ? `/api/artists/${artist.id}/cover` : undefined;
 }
 
 function formatDuration(seconds: number) {
@@ -206,12 +225,29 @@ function parseLyricLines(lyrics?: string): LyricLine[] {
     });
   });
 
-  return parsed.sort((a, b) => {
+  const sorted = parsed.sort((a, b) => {
     if (a.at < 0 && b.at < 0) return a.order - b.order;
     if (a.at < 0) return 1;
     if (b.at < 0) return -1;
     return a.at - b.at || a.order - b.order;
   });
+  const firstTimedIndex = sorted.findIndex((line) => line.at >= 0);
+  const firstTimed = firstTimedIndex >= 0 ? sorted[firstTimedIndex] : null;
+  if (firstTimed && firstTimed.at > 0) {
+    sorted[firstTimedIndex] = {
+      ...firstTimed,
+      at: 0,
+      groupKey: "0.000",
+      key: `intro-${firstTimed.key}`,
+    };
+    sorted.sort((a, b) => {
+      if (a.at < 0 && b.at < 0) return a.order - b.order;
+      if (a.at < 0) return 1;
+      if (b.at < 0) return -1;
+      return a.at - b.at || a.order - b.order;
+    });
+  }
+  return sorted;
 }
 
 export default function App() {
@@ -232,6 +268,9 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
+  const [lyricCandidates, setLyricCandidates] = useState<LyricCandidate[]>([]);
+  const [lyricCandidatesOpen, setLyricCandidatesOpen] = useState(false);
+  const [lyricCandidatesLoading, setLyricCandidatesLoading] = useState(false);
   const [lyricsFullScreen, setLyricsFullScreen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -243,6 +282,7 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lyricsScrollRef = useRef<HTMLDivElement | null>(null);
   const lyricFollowPausedUntil = useRef(0);
+  const messageTimerRef = useRef<number | null>(null);
   const t = useMemo(() => createT(settings.language), [settings.language]);
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
   const activeLyric = useMemo(() => {
@@ -275,6 +315,8 @@ export default function App() {
     setProgress(0);
     setDuration(current.duration_seconds || 0);
     setLyrics(null);
+    setLyricCandidates([]);
+    setLyricCandidatesOpen(false);
     setLyricsLoading(true);
     void api
       .lyrics(current.id)
@@ -304,6 +346,28 @@ export default function App() {
     }, 1000);
     return () => window.clearInterval(timer);
   }, [sleepTimerMins]);
+
+  useEffect(() => {
+    return () => {
+      if (messageTimerRef.current != null) {
+        window.clearTimeout(messageTimerRef.current);
+      }
+    };
+  }, []);
+
+  function showMessage(text: string, duration = 3500) {
+    if (messageTimerRef.current != null) {
+      window.clearTimeout(messageTimerRef.current);
+      messageTimerRef.current = null;
+    }
+    setMessage(text);
+    if (duration > 0) {
+      messageTimerRef.current = window.setTimeout(() => {
+        setMessage("");
+        messageTimerRef.current = null;
+      }, duration);
+    }
+  }
 
   useEffect(() => {
     if (
@@ -341,7 +405,7 @@ export default function App() {
   async function loadAppData() {
     const loaded = await api.settings().catch(() => defaultSettings);
     setSettings({ ...loaded, theme: normalizeTheme(loaded.theme) });
-    await refreshAll();
+    await refreshAll({ initializeQueue: true });
   }
 
   async function submitAuth(mode: "setup" | "login" | "register", username: string, password: string) {
@@ -368,7 +432,14 @@ export default function App() {
     await bootstrap();
   }
 
-  async function refreshAll() {
+  async function updateProfile(nickname: string, avatarDataURL: string) {
+    const user = await api.updateProfile(nickname, avatarDataURL);
+    if (!user) return;
+    setAuth((old) => (old ? { ...old, user } : old));
+    showMessage(t("done"));
+  }
+
+  async function refreshAll(options: { initializeQueue?: boolean } = {}) {
     const [songItems, albumItems, artistItems, playlistItems] =
       await Promise.all([
         api.songs(query),
@@ -380,7 +451,9 @@ export default function App() {
     setAlbums(albumItems);
     setArtists(artistItems);
     setPlaylists(playlistItems);
-    setQueue(songItems);
+    setQueue((old) =>
+      options.initializeQueue || old.length === 0 ? songItems : old,
+    );
     setCurrent((old) => old ?? songItems[0] ?? null);
   }
 
@@ -455,7 +528,7 @@ export default function App() {
     if (!current) {
       setQueue(batch);
       void playSong(batch[0], batch);
-      setMessage(t("queueInserted"));
+      showMessage(t("queueInserted"));
       return;
     }
     setQueue((old) => {
@@ -466,7 +539,49 @@ export default function App() {
       );
       return [...base.slice(0, idx + 1), ...batch, ...base.slice(idx + 1)];
     });
-    setMessage(t("queueInserted"));
+    showMessage(t("queueInserted"));
+  }
+
+  function seekTo(seconds: number) {
+    const audio = audioRef.current;
+    const target = Math.max(0, Number(seconds) || 0);
+    setProgress(target);
+    if (!audio) return;
+    try {
+      if (typeof audio.fastSeek === "function") audio.fastSeek(target);
+      else audio.currentTime = target;
+    } catch {
+      audio.currentTime = target;
+    }
+    if (current && !playing) setPlaying(true);
+  }
+
+  async function openLyricCandidates() {
+    if (!current) return;
+    setLyricCandidatesOpen(true);
+    setLyricCandidatesLoading(true);
+    try {
+      setLyricCandidates(await api.lyricCandidates(current.id));
+    } finally {
+      setLyricCandidatesLoading(false);
+    }
+  }
+
+  async function selectLyricCandidate(candidate: LyricCandidate) {
+    if (!current) return;
+    setLyricsLoading(true);
+    try {
+      const selected = await api.selectLyrics(
+        current.id,
+        candidate.source,
+        candidate.id,
+      );
+      setLyrics(selected);
+      setLyricCandidatesOpen(false);
+      setProgress(0);
+    } finally {
+      setLyricsLoading(false);
+    }
   }
 
   function cyclePlayMode() {
@@ -480,11 +595,29 @@ export default function App() {
   }
 
   async function scan() {
-    setMessage(`${t("scanning")}...`);
+    showMessage(`${t("scanning")}...`, 0);
+    let refreshBusy = false;
+    let lastLibraryRefresh = 0;
+    const refreshLibraryDuringScan = () => {
+      const now = Date.now();
+      if (refreshBusy || now - lastLibraryRefresh < 2000) return;
+      refreshBusy = true;
+      lastLibraryRefresh = now;
+      void refreshAll().finally(() => {
+        refreshBusy = false;
+      });
+    };
     const poll = window.setInterval(() => {
-      void api.scanStatus().then(setScanStatus).catch(() => undefined);
+      void api
+        .scanStatus()
+        .then((status) => {
+          setScanStatus(status);
+          if (status.running) refreshLibraryDuringScan();
+        })
+        .catch(() => undefined);
     }, 500);
     try {
+      refreshLibraryDuringScan();
       const result = await api.scan();
       const latest = await api.scanStatus().catch(() => null);
       setScanStatus(
@@ -499,7 +632,7 @@ export default function App() {
           errors: result.errors,
         },
       );
-      setMessage(
+      showMessage(
         `${t("done")}: +${result.added}, ↻${result.updated}, errors ${result.errors.length}`,
       );
       await refreshAll();
@@ -511,9 +644,9 @@ export default function App() {
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setMessage(`Uploading ${file.name}...`);
+    showMessage(`Uploading ${file.name}...`, 0);
     await api.upload(file);
-    setMessage(t("done"));
+    showMessage(t("done"));
     await refreshAll();
   }
 
@@ -547,7 +680,7 @@ export default function App() {
     const id = Number(choice);
     if (!id) return;
     await api.addToPlaylist(id, song.id);
-    setMessage(t("done"));
+    showMessage(t("done"));
   }
 
   async function openPlaylist(playlist: Playlist) {
@@ -557,6 +690,7 @@ export default function App() {
       title: playlist.name,
       subtitle: `${items.length} ${t("count")}`,
       songs: items,
+      coverUrl: items[0] ? coverUrl(items[0]) : undefined,
     });
     setView("collection");
   }
@@ -568,6 +702,7 @@ export default function App() {
       title: album.title,
       subtitle: `${album.artist} · ${items.length} ${t("count")}`,
       songs: items,
+      coverUrl: albumCoverUrl(album),
       artistId: album.artist_id,
       artistName: album.artist,
     });
@@ -585,6 +720,7 @@ export default function App() {
       title,
       subtitle: `${items.length} ${t("count")}`,
       songs: items,
+      coverUrl: `/api/artists/${id}/cover`,
       artistId: id,
       artistName: title,
     });
@@ -697,6 +833,14 @@ export default function App() {
             loading={lyricsLoading}
             t={t}
             scrollRef={lyricsScrollRef}
+            onToggleView={() => setLyricsFullScreen(false)}
+            onSeek={seekTo}
+            candidates={lyricCandidates}
+            candidatesOpen={lyricCandidatesOpen}
+            candidatesLoading={lyricCandidatesLoading}
+            onOpenCandidates={() => void openLyricCandidates()}
+            onSelectCandidate={(candidate) => void selectLyricCandidate(candidate)}
+            onCloseCandidates={() => setLyricCandidatesOpen(false)}
             onUserScroll={() => {
               lyricFollowPausedUntil.current = Date.now() + 2500;
             }}
@@ -731,6 +875,7 @@ export default function App() {
                 heroSong={heroSong}
                 current={current}
                 playing={playing}
+                user={auth.user}
                 t={t}
                 onPlay={playSong}
                 onPlayAlbum={playAlbum}
@@ -825,6 +970,7 @@ export default function App() {
                   subtitle: `${a.song_count} ${t("count")}`,
                   meta: a.artist,
                   theme: settings.theme,
+                  coverUrl: albumCoverUrl(a),
                   onClick: () => void openAlbum(a),
                   onMetaClick: a.artist_id
                     ? () => void openArtistById(a.artist_id, a.artist)
@@ -842,6 +988,7 @@ export default function App() {
                   title: a.name,
                   subtitle: `${a.song_count} ${t("count")} · ${a.album_count} ${t("album")}`,
                   theme: settings.theme,
+                  coverUrl: artistCoverUrl(a),
                   onClick: () => void openArtistById(a.id, a.name),
                   onPlay: () => void playArtist(a),
                 }))}
@@ -852,6 +999,7 @@ export default function App() {
                 settings={settings}
                 setSettings={(s) => void saveSettings(s)}
                 user={auth.user}
+                onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
                 onLogout={() => void logout()}
                 t={t}
               />
@@ -1145,6 +1293,7 @@ function HomeView({
   heroSong,
   current,
   playing,
+  user,
   t,
   onPlay,
   onPlayAlbum,
@@ -1162,6 +1311,7 @@ function HomeView({
   heroSong?: Song | null;
   current: Song | null;
   playing: boolean;
+  user: User;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
   onPlayAlbum: (album: Album) => void;
@@ -1184,6 +1334,10 @@ function HomeView({
           playing={playing && current?.id === heroSong?.id}
         />
         <div>
+          <div className="home-user-card">
+            <UserAvatar user={user} />
+            <span>{user.nickname || user.username}</span>
+          </div>
           <p>{t("jumpBackIn")}</p>
           <h1>{heroSong?.title ?? `${t("brand")} Music`}</h1>
           <h2>
@@ -1304,6 +1458,11 @@ function HomeView({
                   <article key={album.id} className="mini-card">
                     <button
                       className="mini-card-cover"
+                      style={
+                        {
+                          "--cover-url": `url(${albumCoverUrl(album)})`,
+                        } as React.CSSProperties
+                      }
                       onClick={() => onOpenAlbum(album)}
                     >
                       <Record weight="fill" />
@@ -1339,6 +1498,11 @@ function HomeView({
                   <article key={artist.id} className="mini-card artist-mini">
                     <button
                       className="mini-card-cover"
+                      style={
+                        {
+                          "--cover-url": `url(${artistCoverUrl(artist)})`,
+                        } as React.CSSProperties
+                      }
                       onClick={() => onOpenArtist(artist.id, artist.name)}
                     >
                       <Record weight="fill" />
@@ -1562,8 +1726,9 @@ function CollectionView({
 
 function CollectionCover({ collection }: { collection: Collection }) {
   const firstSong = collection.songs[0];
-  const style = coverUrl(firstSong)
-    ? ({ "--cover-url": `url(${coverUrl(firstSong)})` } as React.CSSProperties)
+  const resolvedCover = collection.coverUrl || coverUrl(firstSong);
+  const style = resolvedCover
+    ? ({ "--cover-url": `url(${resolvedCover})` } as React.CSSProperties)
     : undefined;
   return (
     <div className="cover collection-cover" style={style}>
@@ -1670,6 +1835,14 @@ function FullLyrics({
   loading,
   t,
   scrollRef,
+  onToggleView,
+  onSeek,
+  candidates,
+  candidatesOpen,
+  candidatesLoading,
+  onOpenCandidates,
+  onSelectCandidate,
+  onCloseCandidates,
   onUserScroll,
 }: {
   song: Song | null;
@@ -1678,31 +1851,124 @@ function FullLyrics({
   loading: boolean;
   t: ReturnType<typeof createT>;
   scrollRef: React.RefObject<HTMLDivElement | null>;
+  onToggleView: () => void;
+  onSeek: (seconds: number) => void;
+  candidates: LyricCandidate[];
+  candidatesOpen: boolean;
+  candidatesLoading: boolean;
+  onOpenCandidates: () => void;
+  onSelectCandidate: (candidate: LyricCandidate) => void;
+  onCloseCandidates: () => void;
   onUserScroll: () => void;
 }) {
+  const [seekTargetKey, setSeekTargetKey] = useState("");
+  const userScrollUntil = useRef(0);
+  const seekTimer = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (seekTimer.current != null) window.clearTimeout(seekTimer.current);
+    };
+  }, []);
+  const syncSeekTargetFromScroll = () => {
+    const container = scrollRef.current;
+    if (!container || Date.now() > userScrollUntil.current) return;
+    const center = container.getBoundingClientRect().top + container.clientHeight / 2;
+    const nodes = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-lyric-key]"),
+    );
+    let best: { key: string; at: number; distance: number } | null = null;
+    for (const node of nodes) {
+      const at = Number(node.dataset.lyricAt);
+      if (!Number.isFinite(at) || at < 0) continue;
+      const rect = node.getBoundingClientRect();
+      const distance = Math.abs(rect.top + rect.height / 2 - center);
+      if (!best || distance < best.distance) {
+        best = { key: node.dataset.lyricKey || "", at, distance };
+      }
+    }
+    if (!best) return;
+    setSeekTargetKey(best.key);
+    if (seekTimer.current != null) window.clearTimeout(seekTimer.current);
+    seekTimer.current = window.setTimeout(() => {
+      onSeek(best!.at);
+      seekTimer.current = null;
+    }, 220);
+  };
+  const markUserScroll = () => {
+    userScrollUntil.current = Date.now() + 900;
+    onUserScroll();
+    window.requestAnimationFrame(syncSeekTargetFromScroll);
+  };
   return (
     <section className="full-lyrics">
       <Turntable song={song} playing={false} decorative />
       <div className="full-lyrics-head">
-        <MiniCover song={song} playing={false} />
+        <button
+          className="full-lyrics-cover-button"
+          type="button"
+          title={t("lyrics")}
+          aria-label={t("lyrics")}
+          onClick={onToggleView}
+        >
+          <MiniCover song={song} playing={false} />
+        </button>
         <div>
           <p>{t("nowPlaying")}</p>
           <h1>{song?.title ?? `${t("brand")} Music`}</h1>
           <span>{song ? `${song.artist} · ${song.album}` : "—"}</span>
         </div>
+        {song ? (
+          <button className="lyrics-pick" onClick={onOpenCandidates}>
+            {t("chooseLyrics")}
+          </button>
+        ) : null}
       </div>
+      {candidatesOpen ? (
+        <div className="lyrics-candidates">
+          <div>
+            <strong>{t("chooseLyrics")}</strong>
+            <button onClick={onCloseCandidates}>{t("close")}</button>
+          </div>
+          {candidatesLoading ? (
+            <p>{t("matchingLyrics")}</p>
+          ) : candidates.length ? (
+            candidates.map((candidate, index) => (
+              <button
+                key={`${candidate.source}-${candidate.id}`}
+                onClick={() => onSelectCandidate(candidate)}
+              >
+                <strong>{candidate.title}</strong>
+                <span>{candidate.artist || t("artist")}</span>
+                <em>
+                  {t("candidate")} {index + 1}
+                </em>
+              </button>
+            ))
+          ) : (
+            <p>{t("noLyricsTitle")}</p>
+          )}
+        </div>
+      ) : null}
       <div
         className="full-lyrics-lines"
         ref={scrollRef}
-        onWheel={onUserScroll}
-        onTouchMove={onUserScroll}
+        onScroll={syncSeekTargetFromScroll}
+        onWheel={markUserScroll}
+        onTouchMove={markUserScroll}
       >
         {lines.length ? (
           lines.map((line) => (
             <p
               key={line.key}
               data-lyric-key={line.key}
-              className={line.key === activeLyric ? "live" : ""}
+              data-lyric-at={line.at}
+              className={[
+                line.key === activeLyric ? "live" : "",
+                line.key === seekTargetKey ? "seek-target" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => line.at >= 0 && onSeek(line.at)}
             >
               {line.text}
             </p>
@@ -1871,23 +2137,69 @@ function SleepTimerControl({
   );
 }
 
+function UserAvatar({ user }: { user: User }) {
+  const label = (user.nickname || user.username || "U").trim();
+  return user.avatar_data_url ? (
+    <img className="user-avatar" src={user.avatar_data_url} alt={label} />
+  ) : (
+    <span className="user-avatar" aria-label={label}>
+      {label.slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
+
 function SettingsPanel({
   settings,
   setSettings,
   user,
+  onUpdateProfile,
   onLogout,
   t,
 }: {
   settings: Settings;
   setSettings: (settings: Settings) => void;
   user: User;
+  onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
   onLogout: () => void;
   t: ReturnType<typeof createT>;
 }) {
   const darkThemes = themes.slice(0, 5);
   const lightThemes = themes.slice(5);
+  const [nickname, setNickname] = useState(user.nickname || user.username);
+  const [avatarDataURL, setAvatarDataURL] = useState(user.avatar_data_url || "");
+  const profileLabel = settings.language === "zh-CN" ? "个人设置" : "Profile";
+  const nicknameLabel = settings.language === "zh-CN" ? "昵称" : "Nickname";
+  const avatarLabel = settings.language === "zh-CN" ? "头像" : "Avatar";
   return (
     <section className="settings-grid">
+      <div className="profile-settings-card">
+        <div className="profile-settings-head">
+          <UserAvatar user={{ ...user, nickname, avatar_data_url: avatarDataURL }} />
+          <div>
+            <strong>{profileLabel}</strong>
+            <span>{user.username}</span>
+          </div>
+        </div>
+        <label>
+          {nicknameLabel}
+          <input value={nickname} onChange={(e) => setNickname(e.target.value)} />
+        </label>
+        <label className="upload avatar-upload">
+          {avatarLabel}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => setAvatarDataURL(String(reader.result || ""));
+              reader.readAsDataURL(file);
+            }}
+          />
+        </label>
+        <button onClick={() => onUpdateProfile(nickname, avatarDataURL)}>{t("save")}</button>
+      </div>
       <label>
         {t("language")}
         <select
@@ -1941,8 +2253,9 @@ function SettingsPanel({
         </label>
       ) : null}
       <div className="account-card">
+        <UserAvatar user={user} />
         <div>
-          <strong>{user.username}</strong>
+          <strong>{user.nickname || user.username}</strong>
           <span>{user.role === "admin" ? "Admin" : "User"}</span>
         </div>
         <button onClick={onLogout}>{settings.language === "zh-CN" ? "退出登录" : "Log out"}</button>
@@ -1973,63 +2286,112 @@ function SongTable({
   selectedIds?: Set<number>;
   onToggleSelected?: (song: Song) => void;
 }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(520);
+  const virtual = songs.length > VIRTUAL_TABLE_THRESHOLD;
+  useLayoutEffect(() => {
+    if (!virtual || !scrollerRef.current) return;
+    const node = scrollerRef.current;
+    const update = () => setViewportHeight(node.clientHeight || 520);
+    update();
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(node);
+    return () => resizeObserver.disconnect();
+  }, [virtual]);
+  const windowed = useMemo(() => {
+    if (!virtual) return { start: 0, items: songs };
+    const start = Math.max(
+      0,
+      Math.floor(scrollTop / SONG_ROW_HEIGHT) - VIRTUAL_OVERSCAN,
+    );
+    const visible = Math.ceil(viewportHeight / SONG_ROW_HEIGHT);
+    const end = Math.min(
+      songs.length,
+      start + visible + VIRTUAL_OVERSCAN * 2,
+    );
+    return { start, items: songs.slice(start, end) };
+  }, [songs, scrollTop, viewportHeight, virtual]);
+  const renderRow = (song: Song, absoluteIndex: number) => (
+    <div
+      key={song.id}
+      className={current?.id === song.id ? "song-row active" : "song-row"}
+      style={
+        virtual
+          ? ({
+              top: absoluteIndex * SONG_ROW_HEIGHT,
+            } as React.CSSProperties)
+          : undefined
+      }
+      onDoubleClick={() => onPlay(song, songs)}
+    >
+      {onToggleSelected ? (
+        <label
+          className="row-check"
+          aria-label={`${t("selected")} ${song.title}`}
+        >
+          <input
+            type="checkbox"
+            checked={selectedIds?.has(song.id) ?? false}
+            onChange={() => onToggleSelected(song)}
+          />
+        </label>
+      ) : (
+        <span>{absoluteIndex + 1}</span>
+      )}
+      <button onClick={() => onPlay(song, songs)} aria-label={t("play")}>
+        <Play weight="fill" />
+      </button>
+      <div>
+        <strong>{song.title}</strong>
+        {onOpenArtist && song.artist_id ? (
+          <button className="artist-link" onClick={() => onOpenArtist(song)}>
+            {song.artist}
+          </button>
+        ) : (
+          <small>{song.artist}</small>
+        )}
+      </div>
+      <div>{song.album}</div>
+      <div>{formatQuality(song)}</div>
+      <div>{formatDuration(song.duration_seconds)}</div>
+      <button onClick={() => onFavorite(song)} aria-label={t("favorites")}>
+        <Heart weight={song.favorite ? "fill" : "regular"} />
+      </button>
+      {onInsertNext ? (
+        <button
+          onClick={() => onInsertNext(song)}
+          title={t("playNext")}
+          aria-label={t("playNext")}
+        >
+          <SkipForward />
+        </button>
+      ) : null}
+      <button onClick={() => onAdd(song)}>{t("addToPlaylist")}</button>
+    </div>
+  );
   if (!songs.length) return <div className="empty">{t("noSongs")}</div>;
+  if (virtual) {
+    return (
+      <section
+        className="song-table virtual"
+        ref={scrollerRef}
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+      >
+        <div
+          className="song-table-spacer"
+          style={{ height: songs.length * SONG_ROW_HEIGHT }}
+        >
+          {windowed.items.map((song, offset) =>
+            renderRow(song, windowed.start + offset),
+          )}
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="song-table">
-      {songs.map((song, index) => (
-        <div
-          key={song.id}
-          className={current?.id === song.id ? "song-row active" : "song-row"}
-          onDoubleClick={() => onPlay(song, songs)}
-        >
-          {onToggleSelected ? (
-            <label
-              className="row-check"
-              aria-label={`${t("selected")} ${song.title}`}
-            >
-              <input
-                type="checkbox"
-                checked={selectedIds?.has(song.id) ?? false}
-                onChange={() => onToggleSelected(song)}
-              />
-            </label>
-          ) : (
-            <span>{index + 1}</span>
-          )}
-          <button onClick={() => onPlay(song, songs)} aria-label={t("play")}>
-            <Play weight="fill" />
-          </button>
-          <div>
-            <strong>{song.title}</strong>
-            {onOpenArtist && song.artist_id ? (
-              <button
-                className="artist-link"
-                onClick={() => onOpenArtist(song)}
-              >
-                {song.artist}
-              </button>
-            ) : (
-              <small>{song.artist}</small>
-            )}
-          </div>
-          <div>{song.album}</div>
-          <div>{formatQuality(song)}</div>
-          <div>{formatDuration(song.duration_seconds)}</div>
-          <button onClick={() => onFavorite(song)} aria-label={t("favorites")}>
-            <Heart weight={song.favorite ? "fill" : "regular"} />
-          </button>
-          {onInsertNext ? (
-            <button
-              onClick={() => onInsertNext(song)}
-              title={t("playNext")}
-              aria-label={t("playNext")}
-            >
-              <SkipForward />
-            </button>
-          ) : null}
-          <button onClick={() => onAdd(song)}>{t("addToPlaylist")}</button>
-        </div>
-      ))}
+      {songs.map((song, index) => renderRow(song, index))}
     </section>
   );
 }
@@ -2048,6 +2410,7 @@ function CardGrid({
     subtitle: string;
     meta?: string;
     theme: string;
+    coverUrl?: string;
     onClick: () => void;
     onMetaClick?: () => void;
     onPlay?: () => void;
@@ -2068,7 +2431,16 @@ function CardGrid({
               key={item.id}
               onClick={item.onClick}
             >
-              <div className="cover">
+              <div
+                className="cover"
+                style={
+                  item.coverUrl
+                    ? ({
+                        "--cover-url": `url(${item.coverUrl})`,
+                      } as React.CSSProperties)
+                    : undefined
+                }
+              >
                 <Record weight="fill" />
                 {item.onPlay ? (
                   <span

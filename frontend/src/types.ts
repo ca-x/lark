@@ -62,9 +62,17 @@ export interface Lyrics {
   lyrics: string;
   fetched: boolean;
 }
+export interface LyricCandidate {
+  id: string;
+  source: string;
+  title: string;
+  artist: string;
+}
 export interface User {
   id: number;
   username: string;
+  nickname: string;
+  avatar_data_url: string;
   role: "admin" | "user";
   created_at: string;
   updated_at: string;

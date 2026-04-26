@@ -75,6 +75,34 @@ func (_u *UserUpdate) SetNillableRole(v *string) *UserUpdate {
 	return _u
 }
 
+// SetNickname sets the "nickname" field.
+func (_u *UserUpdate) SetNickname(v string) *UserUpdate {
+	_u.mutation.SetNickname(v)
+	return _u
+}
+
+// SetNillableNickname sets the "nickname" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableNickname(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetNickname(*v)
+	}
+	return _u
+}
+
+// SetAvatarDataURL sets the "avatar_data_url" field.
+func (_u *UserUpdate) SetAvatarDataURL(v string) *UserUpdate {
+	_u.mutation.SetAvatarDataURL(v)
+	return _u
+}
+
+// SetNillableAvatarDataURL sets the "avatar_data_url" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableAvatarDataURL(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetAvatarDataURL(*v)
+	}
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *UserUpdate) SetCreatedAt(v time.Time) *UserUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -351,6 +379,12 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Nickname(); ok {
+		_spec.SetField(user.FieldNickname, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AvatarDataURL(); ok {
+		_spec.SetField(user.FieldAvatarDataURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)
@@ -641,6 +675,34 @@ func (_u *UserUpdateOne) SetRole(v string) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillableRole(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetRole(*v)
+	}
+	return _u
+}
+
+// SetNickname sets the "nickname" field.
+func (_u *UserUpdateOne) SetNickname(v string) *UserUpdateOne {
+	_u.mutation.SetNickname(v)
+	return _u
+}
+
+// SetNillableNickname sets the "nickname" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableNickname(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetNickname(*v)
+	}
+	return _u
+}
+
+// SetAvatarDataURL sets the "avatar_data_url" field.
+func (_u *UserUpdateOne) SetAvatarDataURL(v string) *UserUpdateOne {
+	_u.mutation.SetAvatarDataURL(v)
+	return _u
+}
+
+// SetNillableAvatarDataURL sets the "avatar_data_url" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableAvatarDataURL(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetAvatarDataURL(*v)
 	}
 	return _u
 }
@@ -951,6 +1013,12 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Nickname(); ok {
+		_spec.SetField(user.FieldNickname, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AvatarDataURL(); ok {
+		_spec.SetField(user.FieldAvatarDataURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)

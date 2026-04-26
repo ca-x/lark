@@ -130,6 +130,25 @@ func (s *Service) IsAdmin(ctx context.Context, userID int) (bool, error) {
 	return u.Role == "admin", nil
 }
 
+func (s *Service) UpdateProfile(ctx context.Context, userID int, nickname, avatarDataURL string) (models.User, error) {
+	nickname = strings.TrimSpace(nickname)
+	avatarDataURL = strings.TrimSpace(avatarDataURL)
+	if len(nickname) > 48 {
+		return models.User{}, fmt.Errorf("nickname must be at most 48 characters")
+	}
+	if len(avatarDataURL) > 512*1024 {
+		return models.User{}, fmt.Errorf("avatar is too large")
+	}
+	if avatarDataURL != "" && !strings.HasPrefix(avatarDataURL, "data:image/") {
+		return models.User{}, fmt.Errorf("avatar must be an image data URL")
+	}
+	u, err := s.client.User.UpdateOneID(userID).SetNickname(nickname).SetAvatarDataURL(avatarDataURL).Save(ctx)
+	if err != nil {
+		return models.User{}, err
+	}
+	return mapUser(u), nil
+}
+
 func (s *Service) createUserWithSession(ctx context.Context, username, password, role string) (models.User, string, error) {
 	username = strings.TrimSpace(username)
 	if len(username) < 2 {
@@ -237,5 +256,5 @@ func pbkdf2Key(password, salt []byte, iter, keyLen int) []byte {
 }
 
 func mapUser(u *ent.User) models.User {
-	return models.User{ID: u.ID, Username: u.Username, Role: u.Role, CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt}
+	return models.User{ID: u.ID, Username: u.Username, Nickname: u.Nickname, AvatarDataURL: u.AvatarDataURL, Role: u.Role, CreatedAt: u.CreatedAt, UpdatedAt: u.UpdatedAt}
 }

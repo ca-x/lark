@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song } from '../types'
+import type { Album, Artist, AuthStatus, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -13,11 +13,14 @@ export const api = {
   login: (username: string, password: string) => request<{ user: AuthStatus['user'] }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
   register: (username: string, password: string) => request<{ user: AuthStatus['user'] }>('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+  updateProfile: (nickname: string, avatar_data_url: string) => request<AuthStatus['user']>('/api/me', { method: 'PUT', body: JSON.stringify({ nickname, avatar_data_url }) }),
   songs: (q = '') => request<Song[]>(`/api/songs${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   song: (id: number) => request<Song>(`/api/songs/${id}`),
   favoriteSong: (id: number) => request<Song>(`/api/songs/${id}/favorite`, { method: 'POST' }),
   markPlayed: (id: number) => request<void>(`/api/songs/${id}/played`, { method: 'POST' }),
   lyrics: (id: number, sourceId?: string) => request<Lyrics>(`/api/songs/${id}/lyrics${sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ''}`),
+  lyricCandidates: (id: number) => request<LyricCandidate[]>(`/api/songs/${id}/lyrics/candidates`),
+  selectLyrics: (id: number, source: string, candidateId: string) => request<Lyrics>(`/api/songs/${id}/lyrics/select`, { method: 'POST', body: JSON.stringify({ source, id: candidateId }) }),
   scan: () => request<ScanResult>('/api/library/scan', { method: 'POST' }),
   scanStatus: () => request<ScanStatus>('/api/library/scan/status'),
   upload: async (file: File) => {

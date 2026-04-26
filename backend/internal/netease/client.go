@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"lark/backend/internal/models"
 )
 
 type Client struct {
@@ -80,6 +82,39 @@ func (c *Client) SongExists(ctx context.Context, id string) (bool, error) {
 		}
 	}
 	return false, lastErr
+}
+
+func (c *Client) SearchCandidates(ctx context.Context, title, artist string) ([]models.LyricCandidate, error) {
+	title = strings.TrimSpace(title)
+	artist = strings.TrimSpace(artist)
+	if title == "" {
+		return nil, nil
+	}
+	seen := map[string]bool{}
+	out := []models.LyricCandidate{}
+	queries := []string{strings.TrimSpace(title + " " + artist), title}
+	for _, query := range queries {
+		if query == "" {
+			continue
+		}
+		url := "https://music.163.com/api/search/get/web?s=" + url.QueryEscape(query) + "&type=1&limit=12&offset=0"
+		var resp searchResponse
+		if err := c.getJSON(ctx, url, &resp); err != nil {
+			continue
+		}
+		for _, song := range resp.Result.Songs {
+			id := fmt.Sprint(song.ID)
+			if seen[id] {
+				continue
+			}
+			if !sameTitle(title, song.Name) && artist != "" && !artistsContain(song.Artists, artist) {
+				continue
+			}
+			seen[id] = true
+			out = append(out, models.LyricCandidate{ID: id, Source: "netease", Title: song.Name, Artist: joinArtists(song.Artists)})
+		}
+	}
+	return out, nil
 }
 
 func (c *Client) SearchSongID(ctx context.Context, title, artist string) (string, error) {
@@ -180,6 +215,16 @@ func sameTitle(a, b string) bool {
 	a = normalizeSongText(a)
 	b = normalizeSongText(b)
 	return a == b || strings.Contains(b, a) || strings.Contains(a, b)
+}
+
+func joinArtists(artists []searchArtist) string {
+	names := make([]string, 0, len(artists))
+	for _, item := range artists {
+		if strings.TrimSpace(item.Name) != "" {
+			names = append(names, strings.TrimSpace(item.Name))
+		}
+	}
+	return strings.Join(names, " / ")
 }
 
 func artistsContain(artists []searchArtist, artist string) bool {

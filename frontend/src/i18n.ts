@@ -31,6 +31,8 @@ const dict = {
     noLyricsTitle: "暂未匹配到歌词",
     noLyricsBody: "已自动尝试按歌曲名称和艺人匹配；未找到时将保持空白。",
     matchingLyrics: "正在自动匹配歌词…",
+    chooseLyrics: "选择歌词",
+    candidate: "候选",
     fetchLyrics: "重新匹配",
     theme: "主题",
     language: "语言",
@@ -115,6 +117,8 @@ const dict = {
     noLyricsBody:
       "Lark already tried matching by song title and artist; if none is found this area stays empty.",
     matchingLyrics: "Matching lyrics automatically…",
+    chooseLyrics: "Choose lyrics",
+    candidate: "Candidate",
     fetchLyrics: "Retry match",
     theme: "Theme",
     language: "Language",

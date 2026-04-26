@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"lark/backend/internal/models"
 )
 
 type Client struct {
@@ -67,6 +69,45 @@ type lyricResponse struct {
 	SubCode int    `json:"subcode"`
 	Lyric   string `json:"lyric"`
 	Trans   string `json:"trans"`
+}
+
+func (c *Client) SearchCandidates(ctx context.Context, title, artist string) ([]models.LyricCandidate, error) {
+	title = strings.TrimSpace(title)
+	artist = strings.TrimSpace(artist)
+	if title == "" {
+		return nil, nil
+	}
+	seen := map[string]bool{}
+	out := []models.LyricCandidate{}
+	queries := []string{strings.TrimSpace(title + " " + artist), title}
+	for _, query := range queries {
+		if query == "" {
+			continue
+		}
+		resp, err := c.search(ctx, query)
+		if err != nil {
+			continue
+		}
+		for _, item := range resp.Req.Data.Body.Song.List {
+			name := item.Title
+			if strings.TrimSpace(name) == "" {
+				name = item.Name
+			}
+			id := strings.TrimSpace(item.Mid)
+			if id == "" {
+				id = fmt.Sprint(item.ID)
+			}
+			if id == "" || seen[id] {
+				continue
+			}
+			if !sameTitle(title, name) && artist != "" && !singersContain(item.Singer, artist) {
+				continue
+			}
+			seen[id] = true
+			out = append(out, models.LyricCandidate{ID: id, Source: "qq", Title: name, Artist: joinSingers(item.Singer)})
+		}
+	}
+	return out, nil
 }
 
 func (c *Client) SearchSongID(ctx context.Context, title, artist string) (string, error) {
@@ -180,6 +221,18 @@ func sameTitle(a, b string) bool {
 	a = normalizeSongText(a)
 	b = normalizeSongText(b)
 	return a == b || strings.Contains(b, a) || strings.Contains(a, b)
+}
+
+func joinSingers(singers []struct {
+	Name string `json:"name"`
+}) string {
+	names := make([]string, 0, len(singers))
+	for _, item := range singers {
+		if strings.TrimSpace(item.Name) != "" {
+			names = append(names, strings.TrimSpace(item.Name))
+		}
+	}
+	return strings.Join(names, " / ")
 }
 
 func singersContain(singers []struct {

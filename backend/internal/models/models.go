@@ -50,11 +50,13 @@ type Artist struct {
 }
 
 type User struct {
-	ID        int       `json:"id"`
-	Username  string    `json:"username"`
-	Role      string    `json:"role"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID            int       `json:"id"`
+	Username      string    `json:"username"`
+	Nickname      string    `json:"nickname"`
+	AvatarDataURL string    `json:"avatar_data_url"`
+	Role          string    `json:"role"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type AuthStatus struct {
@@ -79,6 +81,13 @@ type Lyrics struct {
 	Source  string `json:"source"`
 	Lyrics  string `json:"lyrics"`
 	Fetched bool   `json:"fetched"`
+}
+
+type LyricCandidate struct {
+	ID     string `json:"id"`
+	Source string `json:"source"`
+	Title  string `json:"title"`
+	Artist string `json:"artist"`
 }
 
 type Settings struct {

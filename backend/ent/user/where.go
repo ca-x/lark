@@ -70,6 +70,16 @@ func Role(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldRole, v))
 }
 
+// Nickname applies equality check predicate on the "nickname" field. It's identical to NicknameEQ.
+func Nickname(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldNickname, v))
+}
+
+// AvatarDataURL applies equality check predicate on the "avatar_data_url" field. It's identical to AvatarDataURLEQ.
+func AvatarDataURL(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAvatarDataURL, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldCreatedAt, v))
@@ -273,6 +283,136 @@ func RoleEqualFold(v string) predicate.User {
 // RoleContainsFold applies the ContainsFold predicate on the "role" field.
 func RoleContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldRole, v))
+}
+
+// NicknameEQ applies the EQ predicate on the "nickname" field.
+func NicknameEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldNickname, v))
+}
+
+// NicknameNEQ applies the NEQ predicate on the "nickname" field.
+func NicknameNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldNickname, v))
+}
+
+// NicknameIn applies the In predicate on the "nickname" field.
+func NicknameIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldNickname, vs...))
+}
+
+// NicknameNotIn applies the NotIn predicate on the "nickname" field.
+func NicknameNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldNickname, vs...))
+}
+
+// NicknameGT applies the GT predicate on the "nickname" field.
+func NicknameGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldNickname, v))
+}
+
+// NicknameGTE applies the GTE predicate on the "nickname" field.
+func NicknameGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldNickname, v))
+}
+
+// NicknameLT applies the LT predicate on the "nickname" field.
+func NicknameLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldNickname, v))
+}
+
+// NicknameLTE applies the LTE predicate on the "nickname" field.
+func NicknameLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldNickname, v))
+}
+
+// NicknameContains applies the Contains predicate on the "nickname" field.
+func NicknameContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldNickname, v))
+}
+
+// NicknameHasPrefix applies the HasPrefix predicate on the "nickname" field.
+func NicknameHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldNickname, v))
+}
+
+// NicknameHasSuffix applies the HasSuffix predicate on the "nickname" field.
+func NicknameHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldNickname, v))
+}
+
+// NicknameEqualFold applies the EqualFold predicate on the "nickname" field.
+func NicknameEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldNickname, v))
+}
+
+// NicknameContainsFold applies the ContainsFold predicate on the "nickname" field.
+func NicknameContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldNickname, v))
+}
+
+// AvatarDataURLEQ applies the EQ predicate on the "avatar_data_url" field.
+func AvatarDataURLEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLNEQ applies the NEQ predicate on the "avatar_data_url" field.
+func AvatarDataURLNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLIn applies the In predicate on the "avatar_data_url" field.
+func AvatarDataURLIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldAvatarDataURL, vs...))
+}
+
+// AvatarDataURLNotIn applies the NotIn predicate on the "avatar_data_url" field.
+func AvatarDataURLNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldAvatarDataURL, vs...))
+}
+
+// AvatarDataURLGT applies the GT predicate on the "avatar_data_url" field.
+func AvatarDataURLGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLGTE applies the GTE predicate on the "avatar_data_url" field.
+func AvatarDataURLGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLLT applies the LT predicate on the "avatar_data_url" field.
+func AvatarDataURLLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLLTE applies the LTE predicate on the "avatar_data_url" field.
+func AvatarDataURLLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLContains applies the Contains predicate on the "avatar_data_url" field.
+func AvatarDataURLContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLHasPrefix applies the HasPrefix predicate on the "avatar_data_url" field.
+func AvatarDataURLHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLHasSuffix applies the HasSuffix predicate on the "avatar_data_url" field.
+func AvatarDataURLHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLEqualFold applies the EqualFold predicate on the "avatar_data_url" field.
+func AvatarDataURLEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldAvatarDataURL, v))
+}
+
+// AvatarDataURLContainsFold applies the ContainsFold predicate on the "avatar_data_url" field.
+func AvatarDataURLContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldAvatarDataURL, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

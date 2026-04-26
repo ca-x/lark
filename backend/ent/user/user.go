@@ -20,6 +20,10 @@ const (
 	FieldPasswordHash = "password_hash"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
+	// FieldNickname holds the string denoting the nickname field in the database.
+	FieldNickname = "nickname"
+	// FieldAvatarDataURL holds the string denoting the avatar_data_url field in the database.
+	FieldAvatarDataURL = "avatar_data_url"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -79,6 +83,8 @@ var Columns = []string{
 	FieldUsername,
 	FieldPasswordHash,
 	FieldRole,
+	FieldNickname,
+	FieldAvatarDataURL,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -100,6 +106,10 @@ var (
 	PasswordHashValidator func(string) error
 	// DefaultRole holds the default value on creation for the "role" field.
 	DefaultRole string
+	// DefaultNickname holds the default value on creation for the "nickname" field.
+	DefaultNickname string
+	// DefaultAvatarDataURL holds the default value on creation for the "avatar_data_url" field.
+	DefaultAvatarDataURL string
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -129,6 +139,16 @@ func ByPasswordHash(opts ...sql.OrderTermOption) OrderOption {
 // ByRole orders the results by the role field.
 func ByRole(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRole, opts...).ToFunc()
+}
+
+// ByNickname orders the results by the nickname field.
+func ByNickname(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNickname, opts...).ToFunc()
+}
+
+// ByAvatarDataURL orders the results by the avatar_data_url field.
+func ByAvatarDataURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAvatarDataURL, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

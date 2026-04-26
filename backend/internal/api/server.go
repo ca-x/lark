@@ -43,6 +43,16 @@ type authRequest struct {
 	Password string `json:"password"`
 }
 
+type profileRequest struct {
+	Nickname      string `json:"nickname"`
+	AvatarDataURL string `json:"avatar_data_url"`
+}
+
+type lyricSelectRequest struct {
+	Source string `json:"source"`
+	ID     string `json:"id"`
+}
+
 type settingsRequest struct {
 	Language            string `json:"language"`
 	Theme               string `json:"theme"`
@@ -71,6 +81,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/auth/login", s.handleLogin)
 	e.POST("/api/auth/register", s.handleRegister)
 	e.POST("/api/auth/logout", s.handleLogout)
+	e.PUT("/api/me", s.handleUpdateProfile, auth)
 
 	e.GET("/api/songs", s.handleSongs, auth)
 	e.GET("/api/songs/:id", s.handleSong, auth)
@@ -78,6 +89,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/songs/:id/played", s.handleMarkPlayed, auth)
 	e.GET("/api/songs/:id/stream", s.handleStream, auth)
 	e.GET("/api/songs/:id/cover", s.handleCover, auth)
+	e.GET("/api/songs/:id/lyrics/candidates", s.handleLyricCandidates, auth)
+	e.POST("/api/songs/:id/lyrics/select", s.handleSelectLyrics, auth)
 	e.GET("/api/songs/:id/lyrics", s.handleLyrics, auth)
 
 	e.POST("/api/library/scan", s.handleScan, admin)
@@ -85,8 +98,10 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/library/upload", s.handleUpload, admin)
 
 	e.GET("/api/albums", s.handleAlbums, auth)
+	e.GET("/api/albums/:id/cover", s.handleAlbumCover, auth)
 	e.GET("/api/albums/:id/songs", s.handleAlbumSongs, auth)
 	e.GET("/api/artists", s.handleArtists, auth)
+	e.GET("/api/artists/:id/cover", s.handleArtistCover, auth)
 	e.GET("/api/artists/:id/songs", s.handleArtistSongs, auth)
 	e.POST("/api/albums/:id/favorite", s.handleToggleAlbumFavorite, auth)
 
@@ -182,6 +197,18 @@ func (s *Server) handleLogout(c *echo.Context) error {
 	}
 	s.setSessionCookie(c, "", -1)
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) handleUpdateProfile(c *echo.Context) error {
+	var req profileRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	user, err := s.lib.UpdateProfile(c.Request().Context(), currentUserID(c), req.Nickname, req.AvatarDataURL)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, user)
 }
 
 func (s *Server) requireAuth(next echo.HandlerFunc) echo.HandlerFunc {
@@ -321,6 +348,39 @@ func (s *Server) handleCover(c *echo.Context) error {
 	if len(data) == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
 	}
+	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
+	return c.Blob(http.StatusOK, mimeType, data)
+}
+
+func (s *Server) handleAlbumCover(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	data, mimeType, err := s.lib.AlbumCover(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	if len(data) == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
+	}
+	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
+	return c.Blob(http.StatusOK, mimeType, data)
+}
+
+func (s *Server) handleArtistCover(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	data, mimeType, err := s.lib.ArtistCover(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	if len(data) == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
+	}
+	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
 	return c.Blob(http.StatusOK, mimeType, data)
 }
 
@@ -374,6 +434,34 @@ func (s *Server) handleLyrics(c *echo.Context) error {
 		sourceID = c.QueryParam("netease_id")
 	}
 	lyrics, err := s.lib.Lyrics(c.Request().Context(), id, sourceID)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, lyrics)
+}
+
+func (s *Server) handleLyricCandidates(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	candidates, err := s.lib.LyricCandidates(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, candidates)
+}
+
+func (s *Server) handleSelectLyrics(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	var req lyricSelectRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	lyrics, err := s.lib.SelectLyrics(c.Request().Context(), id, req.Source, req.ID)
 	if err != nil {
 		return mapError(err)
 	}

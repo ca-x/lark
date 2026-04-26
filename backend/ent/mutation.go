@@ -5528,6 +5528,8 @@ type UserMutation struct {
 	username               *string
 	password_hash          *string
 	role                   *string
+	nickname               *string
+	avatar_data_url        *string
 	created_at             *time.Time
 	updated_at             *time.Time
 	clearedFields          map[string]struct{}
@@ -5755,6 +5757,78 @@ func (m *UserMutation) OldRole(ctx context.Context) (v string, err error) {
 // ResetRole resets all changes to the "role" field.
 func (m *UserMutation) ResetRole() {
 	m.role = nil
+}
+
+// SetNickname sets the "nickname" field.
+func (m *UserMutation) SetNickname(s string) {
+	m.nickname = &s
+}
+
+// Nickname returns the value of the "nickname" field in the mutation.
+func (m *UserMutation) Nickname() (r string, exists bool) {
+	v := m.nickname
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNickname returns the old "nickname" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldNickname(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNickname is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNickname requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNickname: %w", err)
+	}
+	return oldValue.Nickname, nil
+}
+
+// ResetNickname resets all changes to the "nickname" field.
+func (m *UserMutation) ResetNickname() {
+	m.nickname = nil
+}
+
+// SetAvatarDataURL sets the "avatar_data_url" field.
+func (m *UserMutation) SetAvatarDataURL(s string) {
+	m.avatar_data_url = &s
+}
+
+// AvatarDataURL returns the value of the "avatar_data_url" field in the mutation.
+func (m *UserMutation) AvatarDataURL() (r string, exists bool) {
+	v := m.avatar_data_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvatarDataURL returns the old "avatar_data_url" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldAvatarDataURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvatarDataURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvatarDataURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvatarDataURL: %w", err)
+	}
+	return oldValue.AvatarDataURL, nil
+}
+
+// ResetAvatarDataURL resets all changes to the "avatar_data_url" field.
+func (m *UserMutation) ResetAvatarDataURL() {
+	m.avatar_data_url = nil
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -6133,7 +6207,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 7)
 	if m.username != nil {
 		fields = append(fields, user.FieldUsername)
 	}
@@ -6142,6 +6216,12 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.role != nil {
 		fields = append(fields, user.FieldRole)
+	}
+	if m.nickname != nil {
+		fields = append(fields, user.FieldNickname)
+	}
+	if m.avatar_data_url != nil {
+		fields = append(fields, user.FieldAvatarDataURL)
 	}
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
@@ -6163,6 +6243,10 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.PasswordHash()
 	case user.FieldRole:
 		return m.Role()
+	case user.FieldNickname:
+		return m.Nickname()
+	case user.FieldAvatarDataURL:
+		return m.AvatarDataURL()
 	case user.FieldCreatedAt:
 		return m.CreatedAt()
 	case user.FieldUpdatedAt:
@@ -6182,6 +6266,10 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldPasswordHash(ctx)
 	case user.FieldRole:
 		return m.OldRole(ctx)
+	case user.FieldNickname:
+		return m.OldNickname(ctx)
+	case user.FieldAvatarDataURL:
+		return m.OldAvatarDataURL(ctx)
 	case user.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case user.FieldUpdatedAt:
@@ -6215,6 +6303,20 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRole(v)
+		return nil
+	case user.FieldNickname:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNickname(v)
+		return nil
+	case user.FieldAvatarDataURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvatarDataURL(v)
 		return nil
 	case user.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -6287,6 +6389,12 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldRole:
 		m.ResetRole()
+		return nil
+	case user.FieldNickname:
+		m.ResetNickname()
+		return nil
+	case user.FieldAvatarDataURL:
+		m.ResetAvatarDataURL()
 		return nil
 	case user.FieldCreatedAt:
 		m.ResetCreatedAt()

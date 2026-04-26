@@ -282,7 +282,46 @@ func (s *Service) SongCover(ctx context.Context, id int) ([]byte, string, error)
 	if err != nil {
 		return nil, "", err
 	}
-	f, err := os.Open(item.Path)
+	return coverFromFile(item.Path)
+}
+
+func (s *Service) AlbumCover(ctx context.Context, id int) ([]byte, string, error) {
+	items, err := s.client.Song.Query().
+		Where(song.HasAlbumWith(album.ID(id))).
+		Order(ent.Asc(song.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	return firstEmbeddedCover(items)
+}
+
+func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, error) {
+	items, err := s.client.Song.Query().
+		Where(song.HasArtistWith(artist.ID(id))).
+		Order(ent.Asc(song.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	return firstEmbeddedCover(items)
+}
+
+func firstEmbeddedCover(items []*ent.Song) ([]byte, string, error) {
+	for _, item := range items {
+		data, mimeType, err := coverFromFile(item.Path)
+		if err != nil {
+			continue
+		}
+		if len(data) > 0 {
+			return data, mimeType, nil
+		}
+	}
+	return nil, "", nil
+}
+
+func coverFromFile(path string) ([]byte, string, error) {
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, "", err
 	}
@@ -358,30 +397,93 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 	if item.Edges.Artist != nil {
 		artistName = item.Edges.Artist.Name
 	}
-	lyric, matchedID, err := s.matchOnlineLyrics(ctx, item.Title, artistName, sourceID)
+	lyric, matchedID, matchedSource, err := s.matchOnlineLyrics(ctx, item.Title, artistName, sourceID)
 	if err != nil {
 		return models.Lyrics{}, err
 	}
 	if strings.TrimSpace(lyric) == "" {
 		return models.Lyrics{SongID: id, Source: "online:not-found", Lyrics: ""}, nil
 	}
-	update := item.Update().SetLyricsEmbedded(lyric).SetLyricsSource("online")
-	if matchedID != "" {
+	if matchedSource == "" {
+		matchedSource = "online"
+	}
+	update := item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(matchedSource)
+	if matchedSource == "netease" && matchedID != "" {
 		update.SetNeteaseID(matchedID)
 	}
 	_, _ = update.Save(ctx)
 	return models.Lyrics{SongID: id, Source: "online", Lyrics: lyric, Fetched: true}, nil
 }
 
-func (s *Service) matchOnlineLyrics(ctx context.Context, title, artist, preferredID string) (string, string, error) {
+func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCandidate, error) {
+	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	artistName := ""
+	if item.Edges.Artist != nil {
+		artistName = item.Edges.Artist.Name
+	}
+	out := []models.LyricCandidate{}
+	seen := map[string]bool{}
+	appendCandidates := func(items []models.LyricCandidate) {
+		for _, candidate := range items {
+			key := candidate.Source + ":" + candidate.ID
+			if candidate.ID == "" || seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, candidate)
+		}
+	}
+	if s.netease != nil {
+		items, _ := s.netease.SearchCandidates(ctx, item.Title, artistName)
+		appendCandidates(items)
+	}
+	if s.qqmusic != nil {
+		items, _ := s.qqmusic.SearchCandidates(ctx, item.Title, artistName)
+		appendCandidates(items)
+	}
+	return out, nil
+}
+
+func (s *Service) SelectLyrics(ctx context.Context, id int, source, sourceID string) (models.Lyrics, error) {
+	source = strings.ToLower(strings.TrimSpace(source))
+	sourceID = strings.TrimSpace(sourceID)
+	if sourceID == "" {
+		return models.Lyrics{}, fmt.Errorf("lyric candidate id is required")
+	}
+	lyric, err := s.fetchLyricsBySource(ctx, source, sourceID)
+	if err != nil {
+		return models.Lyrics{}, err
+	}
+	if strings.TrimSpace(lyric) == "" {
+		return models.Lyrics{SongID: id, Source: source + ":not-found", Lyrics: ""}, nil
+	}
+	update := s.client.Song.UpdateOneID(id).SetLyricsEmbedded(lyric).SetLyricsSource(source)
+	if source == "netease" {
+		update.SetNeteaseID(sourceID)
+	}
+	if err := update.Exec(ctx); err != nil {
+		return models.Lyrics{}, err
+	}
+	return models.Lyrics{SongID: id, Source: source, Lyrics: lyric, Fetched: true}, nil
+}
+
+func (s *Service) matchOnlineLyrics(ctx context.Context, title, artist, preferredID string) (string, string, string, error) {
 	preferredID = strings.TrimSpace(preferredID)
-	if preferredID != "" {
+	if strings.Contains(preferredID, ":") {
+		parts := strings.SplitN(preferredID, ":", 2)
+		lyric, err := s.fetchLyricsBySource(ctx, parts[0], parts[1])
+		return lyric, parts[1], strings.ToLower(strings.TrimSpace(parts[0])), err
+	}
+	if preferredID != "" && s.netease != nil {
 		lyric, err := s.netease.Lyrics(ctx, preferredID)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 		if strings.TrimSpace(lyric) != "" {
-			return lyric, preferredID, nil
+			return lyric, preferredID, "netease", nil
 		}
 	}
 	if s.netease != nil {
@@ -389,10 +491,10 @@ func (s *Service) matchOnlineLyrics(ctx context.Context, title, artist, preferre
 		if err == nil && strings.TrimSpace(id) != "" {
 			lyric, lyricErr := s.netease.Lyrics(ctx, id)
 			if lyricErr != nil {
-				return "", "", lyricErr
+				return "", "", "", lyricErr
 			}
 			if strings.TrimSpace(lyric) != "" {
-				return lyric, id, nil
+				return lyric, id, "netease", nil
 			}
 		}
 	}
@@ -401,14 +503,32 @@ func (s *Service) matchOnlineLyrics(ctx context.Context, title, artist, preferre
 		if err == nil && strings.TrimSpace(id) != "" {
 			lyric, lyricErr := s.qqmusic.Lyrics(ctx, id)
 			if lyricErr != nil {
-				return "", "", lyricErr
+				return "", "", "", lyricErr
 			}
 			if strings.TrimSpace(lyric) != "" {
-				return lyric, "", nil
+				return lyric, id, "qq", nil
 			}
 		}
 	}
-	return "", "", nil
+	return "", "", "", nil
+}
+
+func (s *Service) fetchLyricsBySource(ctx context.Context, source, sourceID string) (string, error) {
+	source = strings.ToLower(strings.TrimSpace(source))
+	switch source {
+	case "netease", "":
+		if s.netease == nil {
+			return "", nil
+		}
+		return s.netease.Lyrics(ctx, sourceID)
+	case "qq", "qqmusic":
+		if s.qqmusic == nil {
+			return "", nil
+		}
+		return s.qqmusic.Lyrics(ctx, sourceID)
+	default:
+		return "", fmt.Errorf("unsupported lyric source")
+	}
 }
 
 func (s *Service) Playlists(ctx context.Context, userID int) ([]models.Playlist, error) {

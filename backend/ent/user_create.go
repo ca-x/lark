@@ -51,6 +51,34 @@ func (_c *UserCreate) SetNillableRole(v *string) *UserCreate {
 	return _c
 }
 
+// SetNickname sets the "nickname" field.
+func (_c *UserCreate) SetNickname(v string) *UserCreate {
+	_c.mutation.SetNickname(v)
+	return _c
+}
+
+// SetNillableNickname sets the "nickname" field if the given value is not nil.
+func (_c *UserCreate) SetNillableNickname(v *string) *UserCreate {
+	if v != nil {
+		_c.SetNickname(*v)
+	}
+	return _c
+}
+
+// SetAvatarDataURL sets the "avatar_data_url" field.
+func (_c *UserCreate) SetAvatarDataURL(v string) *UserCreate {
+	_c.mutation.SetAvatarDataURL(v)
+	return _c
+}
+
+// SetNillableAvatarDataURL sets the "avatar_data_url" field if the given value is not nil.
+func (_c *UserCreate) SetNillableAvatarDataURL(v *string) *UserCreate {
+	if v != nil {
+		_c.SetAvatarDataURL(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *UserCreate) SetCreatedAt(v time.Time) *UserCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -193,6 +221,14 @@ func (_c *UserCreate) defaults() {
 		v := user.DefaultRole
 		_c.mutation.SetRole(v)
 	}
+	if _, ok := _c.mutation.Nickname(); !ok {
+		v := user.DefaultNickname
+		_c.mutation.SetNickname(v)
+	}
+	if _, ok := _c.mutation.AvatarDataURL(); !ok {
+		v := user.DefaultAvatarDataURL
+		_c.mutation.SetAvatarDataURL(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := user.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -223,6 +259,12 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.Role(); !ok {
 		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "User.role"`)}
+	}
+	if _, ok := _c.mutation.Nickname(); !ok {
+		return &ValidationError{Name: "nickname", err: errors.New(`ent: missing required field "User.nickname"`)}
+	}
+	if _, ok := _c.mutation.AvatarDataURL(); !ok {
+		return &ValidationError{Name: "avatar_data_url", err: errors.New(`ent: missing required field "User.avatar_data_url"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "User.created_at"`)}
@@ -267,6 +309,14 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeString, value)
 		_node.Role = value
+	}
+	if value, ok := _c.mutation.Nickname(); ok {
+		_spec.SetField(user.FieldNickname, field.TypeString, value)
+		_node.Nickname = value
+	}
+	if value, ok := _c.mutation.AvatarDataURL(); ok {
+		_spec.SetField(user.FieldAvatarDataURL, field.TypeString, value)
+		_node.AvatarDataURL = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(user.FieldCreatedAt, field.TypeTime, value)

@@ -213,6 +213,8 @@ var (
 		{Name: "username", Type: field.TypeString, Unique: true},
 		{Name: "password_hash", Type: field.TypeString},
 		{Name: "role", Type: field.TypeString, Default: "user"},
+		{Name: "nickname", Type: field.TypeString, Default: ""},
+		{Name: "avatar_data_url", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
