@@ -4,6 +4,7 @@ import {
   Disc,
   GearSix,
   Info,
+  CaretDown,
   Heart,
   House,
   ListBullets,
@@ -24,6 +25,8 @@ import {
   SpeakerHigh,
   Timer,
   UploadSimple,
+  UserCircle,
+  SignOut,
   X,
 } from "@phosphor-icons/react";
 import WavesurferPlayer from "@wavesurfer/react";
@@ -43,6 +46,7 @@ import type {
   Song,
   Theme,
   User,
+  WebFont,
 } from "./types";
 import { createT } from "./i18n";
 
@@ -53,6 +57,8 @@ const defaultSettings: Settings = {
   library_path: "",
   netease_fallback: true,
   registration_enabled: false,
+  web_font_url: "",
+  web_font_family: "",
 };
 
 type View =
@@ -77,6 +83,7 @@ type ThemeLabel =
   | "mintSoda"
   | "sakuraWashi"
   | "duskAmber";
+type SettingsTab = "profile" | "users" | "site";
 type Collection = {
   type: "playlist" | "album" | "artist";
   id?: number;
@@ -152,6 +159,12 @@ function formatDuration(seconds: number) {
   return `${m}:${s}`;
 }
 
+function formatBytes(bytes: number) {
+  if (!bytes) return "—";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
@@ -164,6 +177,27 @@ function resumePosition(song?: Song | null) {
   if (progress < 5) return 0;
   if (duration > 0 && progress >= duration - 5) return 0;
   return progress;
+}
+
+function sanitizeFontFamily(value?: string) {
+  return (value || "")
+    .trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/[^\p{L}\p{N} _-]/gu, "")
+    .trim();
+}
+
+function sanitizeUploadedFontURL(value?: string) {
+  const url = (value || "").trim();
+  return url.startsWith("/api/fonts/") ? url : "";
+}
+
+function fontFormat(url: string) {
+  const clean = url.toLowerCase().split("?")[0];
+  if (clean.endsWith(".woff2")) return "woff2";
+  if (clean.endsWith(".woff")) return "woff";
+  if (clean.endsWith(".otf")) return "opentype";
+  return "truetype";
 }
 
 function albumsFromSongs(
@@ -312,6 +346,7 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [playMode, setPlayMode] = useState<PlayMode>("sequence");
   const [view, setView] = useState<View>("home");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
   const [query, setQuery] = useState("");
   const [albumArtistFilter, setAlbumArtistFilter] = useState(0);
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
@@ -343,6 +378,7 @@ export default function App() {
   const messageTimerRef = useRef<number | null>(null);
   const resumeSeekRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
+  const pendingAutoplayRef = useRef(false);
   const t = useMemo(() => createT(settings.language), [settings.language]);
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
   const activeLyric = useMemo(() => {
@@ -382,7 +418,26 @@ export default function App() {
     document.documentElement.dataset.theme = settings.theme;
     document.documentElement.lang = settings.language;
     document.title = `${t("brand")} Music`;
-  }, [settings.theme, settings.language, t]);
+    const fontFamily = sanitizeFontFamily(settings.web_font_family);
+    const fontURL = sanitizeUploadedFontURL(settings.web_font_url);
+    const fontStyleId = "lark-web-font";
+    const existing = document.getElementById(fontStyleId) as HTMLStyleElement | null;
+    if (fontFamily && fontURL) {
+      const style = existing || document.createElement("style");
+      style.id = fontStyleId;
+      style.textContent = `@font-face{font-family:"${fontFamily}";src:url("${fontURL}") format("${fontFormat(fontURL)}");font-display:swap;}`;
+      if (!existing) document.head.appendChild(style);
+      document.documentElement.dataset.customFont = "true";
+      document.documentElement.style.setProperty("--app-font", `"${fontFamily}", var(--font-cjk)`);
+    } else {
+      existing?.remove();
+      delete document.documentElement.dataset.customFont;
+      document.documentElement.style.setProperty(
+        "--app-font",
+        "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', var(--font-cjk)",
+      );
+    }
+  }, [settings.theme, settings.language, settings.web_font_url, settings.web_font_family, t]);
   useEffect(() => {
     if (!current) return;
     const resume = resumePosition(current);
@@ -399,23 +454,43 @@ export default function App() {
       .catch(() => setLyrics(null))
       .finally(() => setLyricsLoading(false));
   }, [current]);
+  const requestAudioPlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || !current) return;
+    if (audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      pendingAutoplayRef.current = true;
+      return;
+    }
+    pendingAutoplayRef.current = false;
+    void audio.play().catch((error) => {
+      const name = error instanceof DOMException ? error.name : "";
+      if (name === "AbortError" || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        pendingAutoplayRef.current = true;
+        return;
+      }
+      pendingAutoplayRef.current = false;
+      setPlaying(false);
+      showMessage(t("playbackFailed"));
+    });
+  }, [current, t]);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !current) return;
     audio.pause();
     audio.currentTime = 0;
     audio.load();
+    pendingAutoplayRef.current = playing;
   }, [current?.id]);
 
   useEffect(() => {
     if (!audioRef.current) return;
-    if (playing)
-      void audioRef.current.play().catch(() => {
-        setPlaying(false);
-        showMessage(t("playbackFailed"));
-      });
-    else audioRef.current.pause();
-  }, [playing, current, t]);
+    if (playing) requestAudioPlay();
+    else {
+      pendingAutoplayRef.current = false;
+      audioRef.current.pause();
+    }
+  }, [playing, current?.id, requestAudioPlay]);
   useEffect(() => {
     if (!sleepTimerMins) {
       setSleepLeft(0);
@@ -1127,6 +1202,16 @@ export default function App() {
                   }}
                 />
               </label>
+              <UserMenu
+                user={auth.user}
+                t={t}
+                onOpenProfile={() => {
+                  setLyricsFullScreen(false);
+                  setSettingsTab("profile");
+                  setView("settings");
+                }}
+                onLogout={() => void logout()}
+              />
             </header>
             {message && <div className="message">{message}</div>}
 
@@ -1329,8 +1414,9 @@ export default function App() {
                 settings={settings}
                 setSettings={(s) => void saveSettings(s)}
                 user={auth.user}
+                activeTab={settingsTab}
+                onTabChange={setSettingsTab}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
-                onLogout={() => void logout()}
                 t={t}
               />
             )}
@@ -1542,6 +1628,9 @@ export default function App() {
               Number.isFinite(d) && d > 0 ? d : current?.duration_seconds || 0,
             );
           }}
+          onCanPlay={() => {
+            if (playing || pendingAutoplayRef.current) requestAudioPlay();
+          }}
           onTimeUpdate={(e) => {
             setProgress(e.currentTarget.currentTime);
             syncPlaybackProgress(false);
@@ -1549,6 +1638,7 @@ export default function App() {
           onSeeking={(e) => setProgress(e.currentTarget.currentTime)}
           onPause={() => syncPlaybackProgress(false)}
           onError={(event) => {
+            pendingAutoplayRef.current = false;
             event.currentTarget.pause();
             setPlaying(false);
             setProgress(0);
@@ -2954,7 +3044,78 @@ function UserAvatar({ user }: { user: User }) {
   );
 }
 
-type SettingsTab = "profile" | "users" | "site";
+function UserMenu({
+  user,
+  t,
+  onOpenProfile,
+  onLogout,
+}: {
+  user: User;
+  t: ReturnType<typeof createT>;
+  onOpenProfile: () => void;
+  onLogout: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const label = user.nickname || user.username;
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    window.addEventListener("pointerdown", closeOnOutside);
+    return () => window.removeEventListener("pointerdown", closeOnOutside);
+  }, [open]);
+
+  return (
+    <div className="user-menu" ref={menuRef}>
+      <button
+        type="button"
+        className={open ? "user-menu-trigger active" : "user-menu-trigger"}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <UserAvatar user={user} />
+        <span>{label}</span>
+        <CaretDown weight="bold" />
+      </button>
+      {open ? (
+        <div className="user-menu-popover" role="menu">
+          <div className="user-menu-head">
+            <UserAvatar user={user} />
+            <div>
+              <strong>{label}</strong>
+              <span>@{user.username}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onOpenProfile();
+            }}
+          >
+            <UserCircle /> {t("profileSettings")}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="danger"
+            onClick={() => {
+              setOpen(false);
+              onLogout();
+            }}
+          >
+            <SignOut /> {t("logout")}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function MCPHelpDialog({
   t,
@@ -3014,24 +3175,29 @@ function SettingsPanel({
   settings,
   setSettings,
   user,
+  activeTab,
+  onTabChange,
   onUpdateProfile,
-  onLogout,
   t,
 }: {
   settings: Settings;
   setSettings: (settings: Settings) => void;
   user: User;
+  activeTab: SettingsTab;
+  onTabChange: (tab: SettingsTab) => void;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
-  onLogout: () => void;
   t: ReturnType<typeof createT>;
 }) {
   const darkThemes = themes.slice(0, 5);
   const lightThemes = themes.slice(5);
-  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [nickname, setNickname] = useState(user.nickname || user.username);
   const [avatarDataURL, setAvatarDataURL] = useState(user.avatar_data_url || "");
+  const [webFontFamily, setWebFontFamily] = useState(settings.web_font_family || "");
+  const [fonts, setFonts] = useState<WebFont[]>([]);
+  const [fontsLoading, setFontsLoading] = useState(false);
+  const [fontUploading, setFontUploading] = useState(false);
   const [mcpToken, setMcpToken] = useState<MCPTokenStatus | null>(null);
   const [mcpLoading, setMcpLoading] = useState(false);
   const [mcpHelpOpen, setMcpHelpOpen] = useState(false);
@@ -3045,6 +3211,25 @@ function SettingsPanel({
     { id: "users", label: t("userManagement") },
     { id: "site", label: t("siteSettings") },
   ];
+
+  useEffect(() => {
+    setNickname(user.nickname || user.username);
+    setAvatarDataURL(user.avatar_data_url || "");
+  }, [user]);
+
+  useEffect(() => {
+    setWebFontFamily(settings.web_font_family || "");
+  }, [settings.web_font_family]);
+
+  useEffect(() => {
+    if (activeTab !== "site") return;
+    setFontsLoading(true);
+    void api
+      .fonts()
+      .then(setFonts)
+      .catch(() => setFonts([]))
+      .finally(() => setFontsLoading(false));
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "users" || user.role !== "admin") return;
@@ -3092,6 +3277,34 @@ function SettingsPanel({
     setMcpCopied(true);
   }
 
+  async function uploadWebFont(file: File) {
+    setFontUploading(true);
+    try {
+      const nextSettings = await api.uploadFont(file);
+      setSettings(nextSettings);
+      setWebFontFamily(nextSettings.web_font_family || "");
+      setFonts(await api.fonts().catch(() => []));
+    } finally {
+      setFontUploading(false);
+    }
+  }
+
+  function applyWebFont(font: WebFont) {
+    setWebFontFamily(font.family);
+    setSettings({
+      ...settings,
+      web_font_family: font.family,
+      web_font_url: sanitizeUploadedFontURL(font.url),
+    });
+  }
+
+  async function deleteWebFont(font: WebFont) {
+    const nextSettings = await api.deleteFont(font.name);
+    setSettings(nextSettings);
+    setWebFontFamily(nextSettings.web_font_family || "");
+    setFonts(await api.fonts().catch(() => []));
+  }
+
   return (
     <section className="settings-page">
       <div className="settings-tabs" role="tablist" aria-label={t("settings")}>
@@ -3101,7 +3314,7 @@ function SettingsPanel({
             role="tab"
             aria-selected={activeTab === tab.id}
             className={activeTab === tab.id ? "active" : ""}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => onTabChange(tab.id)}
           >
             {tab.label}
           </button>
@@ -3144,7 +3357,6 @@ function SettingsPanel({
               <strong>{user.nickname || user.username}</strong>
               <span>{user.role === "admin" ? "Admin" : "User"}</span>
             </div>
-            <button onClick={onLogout}>{t("logout")}</button>
           </div>
           <div className="mcp-card settings-wide-row">
             <div className="mcp-card-head">
@@ -3279,6 +3491,99 @@ function SettingsPanel({
               </optgroup>
             </select>
           </label>
+          <div className="font-settings-card settings-wide-row">
+            <div>
+              <strong>{t("webFontSettings")}</strong>
+              <span>{t("webFontHint")}</span>
+            </div>
+            <label className="upload font-upload-control">
+              <UploadSimple /> {fontUploading ? t("loading") : t("uploadWebFont")}
+              <input
+                type="file"
+                accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+                disabled={fontUploading}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.currentTarget.value = "";
+                  if (file) void uploadWebFont(file);
+                }}
+              />
+            </label>
+            <label>
+              {t("webFontFamily")}
+              <input
+                value={webFontFamily}
+                placeholder="Lark Custom Font"
+                onChange={(event) => setWebFontFamily(event.target.value)}
+              />
+            </label>
+            <div className="font-current-row">
+              <span>{t("currentFont")}</span>
+              <strong style={{ fontFamily: settings.web_font_family ? `"${settings.web_font_family}", var(--font-cjk)` : undefined }}>
+                {settings.web_font_family || t("defaultFont")}
+              </strong>
+            </div>
+            <div className="font-actions">
+              <button
+                type="button"
+                disabled={!settings.web_font_url}
+                onClick={() =>
+                  setSettings({
+                    ...settings,
+                    web_font_family: sanitizeFontFamily(webFontFamily),
+                    web_font_url: sanitizeUploadedFontURL(settings.web_font_url),
+                  })
+                }
+              >
+                {t("saveFontSettings")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWebFontFamily("");
+                  setSettings({ ...settings, web_font_family: "", web_font_url: "" });
+                }}
+              >
+                {t("useDefaultFont")}
+              </button>
+            </div>
+            <div className="font-library" aria-busy={fontsLoading}>
+              <div className="font-library-head">
+                <strong>{t("fontLibrary")}</strong>
+                <span>{fontsLoading ? t("loading") : `${fonts.length} ${t("fonts")}`}</span>
+              </div>
+              {fonts.length ? (
+                <div className="font-picker-list">
+                  {fonts.map((font) => {
+                    const active = settings.web_font_url === font.url;
+                    return (
+                      <div key={font.name} className={active ? "font-picker-item active" : "font-picker-item"}>
+                        <button
+                          type="button"
+                          className="font-sample"
+                          style={{ fontFamily: `"${font.family}", var(--font-cjk)` }}
+                          onClick={() => applyWebFont(font)}
+                        >
+                          <strong>{font.family}</strong>
+                          <span>{font.name} · {formatBytes(font.size)}</span>
+                        </button>
+                        <div className="font-item-actions">
+                          <button type="button" className={active ? "active" : ""} onClick={() => applyWebFont(font)}>
+                            {active ? t("selectedFont") : t("applyFont")}
+                          </button>
+                          <button type="button" className="danger" onClick={() => void deleteWebFont(font)}>
+                            {t("deleteFont")}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="settings-empty">{t("noFontsUploaded")}</div>
+              )}
+            </div>
+          </div>
           <label className="settings-wide-row">
             {t("libraryPath")}
             <input readOnly value={settings.library_path} />

@@ -66,6 +66,8 @@ type settingsRequest struct {
 	SleepTimerMins      int    `json:"sleep_timer_mins"`
 	NeteaseFallback     bool   `json:"netease_fallback"`
 	RegistrationEnabled bool   `json:"registration_enabled"`
+	WebFontFamily       string `json:"web_font_family"`
+	WebFontURL          string `json:"web_font_url"`
 }
 
 func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Server {
@@ -84,6 +86,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	admin := s.requireAdmin
 
 	e.GET("/api/health", s.handleHealth)
+	e.GET("/api/fonts/:name", s.handleWebFont)
 	e.GET("/api/auth/status", s.handleAuthStatus)
 	e.POST("/api/auth/setup", s.handleSetupAdmin)
 	e.POST("/api/auth/login", s.handleLogin)
@@ -112,6 +115,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/library/scan", s.handleScan, admin)
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
 	e.POST("/api/library/upload", s.handleUpload, admin)
+	e.GET("/api/fonts", s.handleWebFonts, admin)
+	e.POST("/api/fonts", s.handleUploadWebFont, admin)
+	e.DELETE("/api/fonts/:name", s.handleDeleteWebFont, admin)
 
 	e.GET("/api/albums", s.handleAlbums, auth)
 	e.GET("/api/albums/:id/cover", s.handleAlbumCover, auth)
@@ -685,6 +691,44 @@ func (s *Server) handleRemoveSongFromPlaylist(c *echo.Context) error {
 	}
 	return c.NoContent(http.StatusNoContent)
 }
+
+func (s *Server) handleWebFonts(c *echo.Context) error {
+	fonts, err := s.lib.ListWebFonts(c.Request().Context())
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, fonts)
+}
+
+func (s *Server) handleUploadWebFont(c *echo.Context) error {
+	file, err := c.FormFile("font")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "font file is required")
+	}
+	settings, err := s.lib.UploadWebFont(c.Request().Context(), file)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handleDeleteWebFont(c *echo.Context) error {
+	settings, err := s.lib.DeleteWebFont(c.Request().Context(), c.Param("name"))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handleWebFont(c *echo.Context) error {
+	data, contentType, err := s.lib.LoadWebFont(c.Request().Context(), c.Param("name"))
+	if err != nil {
+		return mapError(err)
+	}
+	c.Response().Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	return c.Blob(http.StatusOK, contentType, data)
+}
+
 func (s *Server) handleGetSettings(c *echo.Context) error {
 	settings, err := s.lib.GetSettings(c.Request().Context())
 	if err != nil {
@@ -698,7 +742,7 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{Language: req.Language, Theme: req.Theme, SleepTimerMins: req.SleepTimerMins, LibraryPath: s.lib.LibraryDir(), NeteaseFallback: req.NeteaseFallback, RegistrationEnabled: req.RegistrationEnabled})
+	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{Language: req.Language, Theme: req.Theme, SleepTimerMins: req.SleepTimerMins, LibraryPath: s.lib.LibraryDir(), NeteaseFallback: req.NeteaseFallback, RegistrationEnabled: req.RegistrationEnabled, WebFontFamily: req.WebFontFamily, WebFontURL: req.WebFontURL})
 	if err != nil {
 		return mapError(err)
 	}

@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus } from '../types'
+import type { Album, Artist, AuthStatus, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -45,6 +45,15 @@ export const api = {
   addToPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'POST' }),
   removeFromPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'DELETE' }),
   settings: () => request<Settings>('/api/settings'),
+  fonts: () => request<WebFont[]>('/api/fonts'),
+  uploadFont: async (file: File) => {
+    const body = new FormData()
+    body.append('font', file)
+    const res = await fetch('/api/fonts', { method: 'POST', body, credentials: 'include' })
+    if (!res.ok) throw new Error(await res.text())
+    return res.json() as Promise<Settings>
+  },
+  deleteFont: (name: string) => request<Settings>(`/api/fonts/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   mcpToken: () => request<MCPTokenStatus>('/api/mcp/token'),
   setMcpToken: (token: string) => request<MCPTokenStatus>('/api/mcp/token', { method: 'PUT', body: JSON.stringify({ token }) }),
   generateMcpToken: () => request<MCPTokenStatus>('/api/mcp/token/generate', { method: 'POST' }),

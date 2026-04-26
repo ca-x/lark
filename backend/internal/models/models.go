@@ -99,6 +99,13 @@ type LyricCandidate struct {
 	Artist string `json:"artist"`
 }
 
+type WebFont struct {
+	Name   string `json:"name"`
+	Family string `json:"family"`
+	URL    string `json:"url"`
+	Size   int64  `json:"size"`
+}
+
 type Settings struct {
 	Language            string `json:"language"`
 	Theme               string `json:"theme"`
@@ -106,6 +113,8 @@ type Settings struct {
 	LibraryPath         string `json:"library_path"`
 	NeteaseFallback     bool   `json:"netease_fallback"`
 	RegistrationEnabled bool   `json:"registration_enabled"`
+	WebFontFamily       string `json:"web_font_family"`
+	WebFontURL          string `json:"web_font_url"`
 }
 
 type ScanStatus struct {

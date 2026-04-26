@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
+	"mime/multipart"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -40,6 +44,7 @@ var supportedExts = map[string]bool{
 
 type Service struct {
 	client     *ent.Client
+	dataDir    string
 	libraryDir string
 	ffprobe    string
 	ffmpeg     string
@@ -76,13 +81,15 @@ type fileMetadata struct {
 	Lyrics      string
 }
 
-func New(client *ent.Client, libraryDir, ffprobe, ffmpeg string, neteaseClient *netease.Client, qqClient *qqmusic.Client) *Service {
-	return &Service{client: client, libraryDir: libraryDir, ffprobe: ffprobe, ffmpeg: ffmpeg, netease: neteaseClient, qqmusic: qqClient}
+func New(client *ent.Client, dataDir, libraryDir, ffprobe, ffmpeg string, neteaseClient *netease.Client, qqClient *qqmusic.Client) *Service {
+	return &Service{client: client, dataDir: dataDir, libraryDir: libraryDir, ffprobe: ffprobe, ffmpeg: ffmpeg, netease: neteaseClient, qqmusic: qqClient}
 }
 
 func (s *Service) FFmpegBin() string { return s.ffmpeg }
 
 func (s *Service) LibraryDir() string { return s.libraryDir }
+
+func (s *Service) fontDir() string { return filepath.Join(s.dataDir, "fonts") }
 
 func IsSupported(path string) bool { return supportedExts[strings.ToLower(filepath.Ext(path))] }
 
@@ -863,6 +870,10 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.NeteaseFallback = item.Value != "false"
 		case settingRegistrationEnabled:
 			settings.RegistrationEnabled = item.Value == "true"
+		case "web_font_family":
+			settings.WebFontFamily = item.Value
+		case "web_font_url":
+			settings.WebFontURL = item.Value
 		}
 	}
 	return settings, nil
@@ -875,13 +886,196 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 	if settings.Theme == "" {
 		settings.Theme = "deep-space"
 	}
-	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback), settingRegistrationEnabled: strconv.FormatBool(settings.RegistrationEnabled)}
+	settings.WebFontFamily = sanitizeFontFamily(settings.WebFontFamily)
+	settings.WebFontURL = sanitizeFontURL(settings.WebFontURL)
+	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback), settingRegistrationEnabled: strconv.FormatBool(settings.RegistrationEnabled), "web_font_family": settings.WebFontFamily, "web_font_url": settings.WebFontURL}
 	for key, value := range pairs {
 		if err := s.setSetting(ctx, key, value); err != nil {
 			return models.Settings{}, err
 		}
 	}
 	return s.GetSettings(ctx)
+}
+
+func (s *Service) UploadWebFont(ctx context.Context, fontFile *multipart.FileHeader) (models.Settings, error) {
+	if fontFile == nil {
+		return models.Settings{}, errors.New("font file is required")
+	}
+	if err := os.MkdirAll(s.fontDir(), 0o755); err != nil {
+		return models.Settings{}, err
+	}
+	filename := safeFontFileName(fontFile.Filename)
+	if filename == "" || !isSupportedFont(filename) {
+		return models.Settings{}, errors.New("unsupported font type")
+	}
+	src, err := fontFile.Open()
+	if err != nil {
+		return models.Settings{}, err
+	}
+	defer src.Close()
+	dstPath := filepath.Join(s.fontDir(), filename)
+	if _, err := os.Stat(dstPath); err == nil {
+		ext := filepath.Ext(filename)
+		base := strings.TrimSuffix(filename, ext)
+		for i := 1; ; i++ {
+			candidate := fmt.Sprintf("%s-%d%s", base, i, ext)
+			dstPath = filepath.Join(s.fontDir(), candidate)
+			if _, err := os.Stat(dstPath); errors.Is(err, os.ErrNotExist) {
+				filename = candidate
+				break
+			}
+		}
+	}
+	dst, err := os.Create(dstPath)
+	if err != nil {
+		return models.Settings{}, err
+	}
+	_, copyErr := io.Copy(dst, src)
+	closeErr := dst.Close()
+	if copyErr != nil {
+		return models.Settings{}, copyErr
+	}
+	if closeErr != nil {
+		return models.Settings{}, closeErr
+	}
+	font := webFontModel(filename, 0)
+	settings, err := s.GetSettings(ctx)
+	if err != nil {
+		return models.Settings{}, err
+	}
+	settings.WebFontFamily = font.Family
+	settings.WebFontURL = font.URL
+	return s.SaveSettings(ctx, settings)
+}
+
+func (s *Service) LoadWebFont(ctx context.Context, name string) ([]byte, string, error) {
+	_ = ctx
+	filename := safeFontFileName(name)
+	if filename == "" || !isSupportedFont(filename) {
+		return nil, "", errors.New("font not found")
+	}
+	path := filepath.Join(s.fontDir(), filename)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, "", err
+	}
+	return data, detectFontContentType(path), nil
+}
+
+func (s *Service) ListWebFonts(ctx context.Context) ([]models.WebFont, error) {
+	_ = ctx
+	entries, err := os.ReadDir(s.fontDir())
+	if errors.Is(err, os.ErrNotExist) {
+		return []models.WebFont{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	fonts := make([]models.WebFont, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !isSupportedFont(entry.Name()) {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		fonts = append(fonts, webFontModel(entry.Name(), info.Size()))
+	}
+	sort.Slice(fonts, func(i, j int) bool { return strings.ToLower(fonts[i].Family) < strings.ToLower(fonts[j].Family) })
+	return fonts, nil
+}
+
+func (s *Service) DeleteWebFont(ctx context.Context, name string) (models.Settings, error) {
+	filename := safeFontFileName(name)
+	if filename == "" || !isSupportedFont(filename) {
+		return models.Settings{}, errors.New("font not found")
+	}
+	path := filepath.Join(s.fontDir(), filename)
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return models.Settings{}, err
+	}
+	settings, err := s.GetSettings(ctx)
+	if err != nil {
+		return models.Settings{}, err
+	}
+	if settings.WebFontURL == webFontModel(filename, 0).URL {
+		settings.WebFontFamily = ""
+		settings.WebFontURL = ""
+		return s.SaveSettings(ctx, settings)
+	}
+	return settings, nil
+}
+
+func webFontModel(filename string, size int64) models.WebFont {
+	family := sanitizeFontFamily(strings.TrimSuffix(filename, filepath.Ext(filename)))
+	if family == "" {
+		family = "Lark Custom Font"
+	}
+	return models.WebFont{Name: filename, Family: family, URL: "/api/fonts/" + url.PathEscape(filename), Size: size}
+}
+
+func safeFontFileName(name string) string {
+	base := filepath.Base(strings.TrimSpace(name))
+	base = strings.ReplaceAll(base, string(filepath.Separator), "-")
+	base = strings.Map(func(r rune) rune {
+		if r == '-' || r == '_' || r == '.' || r == ' ' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= 0x4e00 && r <= 0x9fff {
+			return r
+		}
+		return '-'
+	}, base)
+	base = strings.Trim(base, ". -")
+	if base == "" || base == "." || base == ".." {
+		return ""
+	}
+	return base
+}
+
+func isSupportedFont(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".woff2", ".woff", ".ttf", ".otf":
+		return true
+	default:
+		return false
+	}
+}
+
+func detectFontContentType(path string) string {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".woff2":
+		return "font/woff2"
+	case ".woff":
+		return "font/woff"
+	case ".otf":
+		return "font/otf"
+	case ".ttf":
+		return "font/ttf"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+func sanitizeFontFamily(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.Trim(value, "'\"")
+	value = strings.Map(func(r rune) rune {
+		if r == ' ' || r == '-' || r == '_' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= 0x4e00 && r <= 0x9fff {
+			return r
+		}
+		return -1
+	}, value)
+	return strings.TrimSpace(value)
+}
+
+func sanitizeFontURL(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if !strings.HasPrefix(value, "/api/fonts/") {
+		return ""
+	}
+	return value
 }
 
 func (s *Service) setSetting(ctx context.Context, key, value string) error {

@@ -36,7 +36,7 @@ func main() {
 	if err := client.Schema.Create(context.Background(), migrate.WithForeignKeys(true)); err != nil {
 		log.Fatal(err)
 	}
-	lib := library.New(client, cfg.LibraryDir, cfg.FFprobeBin, cfg.FFmpegBin, netease.New(), qqmusic.New())
+	lib := library.New(client, cfg.DataDir, cfg.LibraryDir, cfg.FFprobeBin, cfg.FFmpegBin, netease.New(), qqmusic.New())
 	if err := ensureInitialAdminFromEnv(context.Background(), lib, cfg); err != nil {
 		log.Fatal(err)
 	}

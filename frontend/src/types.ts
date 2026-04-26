@@ -103,6 +103,12 @@ export interface HealthInfo {
   metadata_backend: string;
   transcode_backend: string;
 }
+export interface WebFont {
+  name: string;
+  family: string;
+  url: string;
+  size: number;
+}
 export interface Settings {
   language: Language;
   theme: Theme;
@@ -110,6 +116,8 @@ export interface Settings {
   library_path: string;
   netease_fallback: boolean;
   registration_enabled: boolean;
+  web_font_family: string;
+  web_font_url: string;
 }
 export interface ScanStatus {
   running: boolean;
