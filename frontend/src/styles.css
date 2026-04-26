@@ -495,3 +495,15 @@ body, button, input, select { font-family: Inter, ui-sans-serif, system-ui, -app
 .account-card strong, .account-card span { display:block; }
 .account-card span { color:var(--muted); font-size:12px; }
 .account-card button { min-height:38px; padding:8px 12px; border-radius:999px; background:var(--panel); border:1px solid var(--line); color:var(--text); }
+
+.scan-progress { margin:12px 0 18px; padding:14px; border-radius:18px; background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); display:grid; gap:10px; color:var(--muted); }
+.scan-progress.compact { width:min(560px, 100%); margin-top:4px; text-align:left; }
+.scan-progress-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.scan-progress-head strong { color:var(--text); }
+.scan-progress-head span { font-size:12px; }
+.scan-progress-stats { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
+.scan-progress-stats span { min-height:34px; display:grid; place-items:center; border-radius:12px; background:var(--panel); color:var(--text); font-weight:850; }
+.scan-progress p { display:grid; grid-template-columns:110px minmax(0,1fr); gap:10px; margin:0; font-size:13px; }
+.scan-progress b { color:var(--text); }
+.scan-progress p span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.scan-progress small { color:color-mix(in srgb, #ff8a8a 78%, var(--text)); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

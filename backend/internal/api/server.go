@@ -81,6 +81,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.GET("/api/songs/:id/lyrics", s.handleLyrics, auth)
 
 	e.POST("/api/library/scan", s.handleScan, admin)
+	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
 	e.POST("/api/library/upload", s.handleUpload, admin)
 
 	e.GET("/api/albums", s.handleAlbums, auth)
@@ -385,6 +386,10 @@ func (s *Server) handleScan(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, result)
+}
+
+func (s *Server) handleScanStatus(c *echo.Context) error {
+	return c.JSON(http.StatusOK, s.lib.ScanStatus())
 }
 
 func (s *Server) handleUpload(c *echo.Context) error {

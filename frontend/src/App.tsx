@@ -29,6 +29,7 @@ import type {
   Language,
   Lyrics,
   Playlist,
+  ScanStatus,
   Settings,
   Song,
   Theme,
@@ -234,6 +235,7 @@ export default function App() {
   const [lyricsFullScreen, setLyricsFullScreen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [sleepTimerMins, setSleepTimerMins] = useState(0);
   const [sleepLeft, setSleepLeft] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -478,12 +480,32 @@ export default function App() {
   }
 
   async function scan() {
-    setMessage("Scanning...");
-    const result = await api.scan();
-    setMessage(
-      `${t("done")}: +${result.added}, ↻${result.updated}, errors ${result.errors.length}`,
-    );
-    await refreshAll();
+    setMessage(`${t("scanning")}...`);
+    const poll = window.setInterval(() => {
+      void api.scanStatus().then(setScanStatus).catch(() => undefined);
+    }, 500);
+    try {
+      const result = await api.scan();
+      const latest = await api.scanStatus().catch(() => null);
+      setScanStatus(
+        latest ?? {
+          running: false,
+          current_dir: result.current_dir,
+          current_path: "",
+          scanned: result.scanned,
+          added: result.added,
+          updated: result.updated,
+          skipped: result.skipped,
+          errors: result.errors,
+        },
+      );
+      setMessage(
+        `${t("done")}: +${result.added}, ↻${result.updated}, errors ${result.errors.length}`,
+      );
+      await refreshAll();
+    } finally {
+      window.clearInterval(poll);
+    }
   }
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
@@ -735,6 +757,7 @@ export default function App() {
                 }
                 onScan={() => void scan()}
                 onUpload={upload}
+                scanStatus={scanStatus}
               />
             )}
             {view === "collection" && collection && (
@@ -1560,6 +1583,7 @@ function LibraryView({
   onOpenArtist,
   onScan,
   onUpload,
+  scanStatus,
 }: {
   songs: Song[];
   current: Song | null;
@@ -1571,6 +1595,7 @@ function LibraryView({
   onOpenArtist: (song: Song) => void;
   onScan: () => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  scanStatus: ScanStatus | null;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const selectedSongs = songs.filter((song) => selected.has(song.id));
@@ -1617,6 +1642,7 @@ function LibraryView({
           </label>
         </div>
       </div>
+      {scanStatus ? <ScanProgress status={scanStatus} t={t} /> : null}
       {songs.length ? (
         <SongTable
           songs={songs}
@@ -1631,7 +1657,7 @@ function LibraryView({
           onToggleSelected={toggleSelected}
         />
       ) : (
-        <EmptyLibrary t={t} onScan={onScan} onUpload={onUpload} />
+        <EmptyLibrary t={t} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
       )}
     </section>
   );
@@ -1694,14 +1720,55 @@ function FullLyrics({
   );
 }
 
+function ScanProgress({
+  status,
+  t,
+  compact = false,
+}: {
+  status: ScanStatus;
+  t: ReturnType<typeof createT>;
+  compact?: boolean;
+}) {
+  const currentName = status.current_path || status.current_dir || "—";
+  return (
+    <div className={compact ? "scan-progress compact" : "scan-progress"}>
+      <div className="scan-progress-head">
+        <strong>{status.running ? t("scanning") : t("done")}</strong>
+        <span>{t("scanStats")}</span>
+      </div>
+      <div className="scan-progress-stats">
+        <span>{status.scanned}</span>
+        <span>{status.added}</span>
+        <span>{status.updated}</span>
+        <span>{status.skipped}</span>
+      </div>
+      <p>
+        <b>{t("scanCurrentDir")}</b>
+        <span>{status.current_dir || "—"}</span>
+      </p>
+      <p>
+        <b>{t("scanCurrentFile")}</b>
+        <span>{currentName}</span>
+      </p>
+      {status.errors?.length ? (
+        <small>
+          {t("error")}: {status.errors[status.errors.length - 1]}
+        </small>
+      ) : null}
+    </div>
+  );
+}
+
 function EmptyLibrary({
   t,
   onScan,
   onUpload,
+  scanStatus,
 }: {
   t: ReturnType<typeof createT>;
   onScan: () => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  scanStatus: ScanStatus | null;
 }) {
   return (
     <section className="empty-library">
@@ -1724,6 +1791,7 @@ function EmptyLibrary({
         </label>
       </div>
       <small>{t("scanHint")}</small>
+      {scanStatus ? <ScanProgress status={scanStatus} t={t} compact /> : null}
     </section>
   );
 }

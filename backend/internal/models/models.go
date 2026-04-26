@@ -90,10 +90,24 @@ type Settings struct {
 	RegistrationEnabled bool   `json:"registration_enabled"`
 }
 
+type ScanStatus struct {
+	Running     bool       `json:"running"`
+	CurrentDir  string     `json:"current_dir"`
+	CurrentPath string     `json:"current_path"`
+	Scanned     int        `json:"scanned"`
+	Added       int        `json:"added"`
+	Updated     int        `json:"updated"`
+	Skipped     int        `json:"skipped"`
+	Errors      []string   `json:"errors"`
+	StartedAt   *time.Time `json:"started_at,omitempty"`
+	FinishedAt  *time.Time `json:"finished_at,omitempty"`
+}
+
 type ScanResult struct {
-	Scanned int      `json:"scanned"`
-	Added   int      `json:"added"`
-	Updated int      `json:"updated"`
-	Skipped int      `json:"skipped"`
-	Errors  []string `json:"errors"`
+	Scanned    int      `json:"scanned"`
+	Added      int      `json:"added"`
+	Updated    int      `json:"updated"`
+	Skipped    int      `json:"skipped"`
+	Errors     []string `json:"errors"`
+	CurrentDir string   `json:"current_dir"`
 }

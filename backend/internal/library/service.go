@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dhowden/tag"
@@ -43,6 +44,8 @@ type Service struct {
 	ffmpeg     string
 	netease    *netease.Client
 	qqmusic    *qqmusic.Client
+	scanMu     sync.RWMutex
+	scanStatus models.ScanStatus
 }
 
 type ffprobeOutput struct {
@@ -81,24 +84,48 @@ func (s *Service) LibraryDir() string { return s.libraryDir }
 
 func IsSupported(path string) bool { return supportedExts[strings.ToLower(filepath.Ext(path))] }
 
+func (s *Service) ScanStatus() models.ScanStatus {
+	s.scanMu.RLock()
+	defer s.scanMu.RUnlock()
+	return cloneScanStatus(s.scanStatus)
+}
+
 func (s *Service) Scan(ctx context.Context) (models.ScanResult, error) {
-	result := models.ScanResult{}
+	started := time.Now()
+	s.setScanStatus(func(status *models.ScanStatus) {
+		*status = models.ScanStatus{Running: true, CurrentDir: s.libraryDir, Errors: []string{}, StartedAt: &started}
+	})
+	result := models.ScanResult{Errors: []string{}}
+	defer func() {
+		finished := time.Now()
+		s.setScanStatus(func(status *models.ScanStatus) {
+			status.Running = false
+			status.FinishedAt = &finished
+		})
+	}()
 	err := filepath.WalkDir(s.libraryDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			result.Errors = append(result.Errors, err.Error())
+			s.updateScanProgress(path, filepath.Dir(path), &result)
 			return nil
 		}
 		if d.IsDir() {
+			result.CurrentDir = path
+			s.updateScanProgress("", path, &result)
 			return nil
 		}
+		result.CurrentDir = filepath.Dir(path)
+		s.updateScanProgress(path, result.CurrentDir, &result)
 		if !IsSupported(path) {
 			result.Skipped++
+			s.updateScanProgress(path, result.CurrentDir, &result)
 			return nil
 		}
 		result.Scanned++
 		added, err := s.ImportFile(ctx, path)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", path, err))
+			s.updateScanProgress(path, result.CurrentDir, &result)
 			return nil
 		}
 		if added {
@@ -106,12 +133,36 @@ func (s *Service) Scan(ctx context.Context) (models.ScanResult, error) {
 		} else {
 			result.Updated++
 		}
+		s.updateScanProgress(path, result.CurrentDir, &result)
 		return nil
 	})
 	if err != nil {
 		return result, err
 	}
 	return result, nil
+}
+
+func (s *Service) updateScanProgress(currentPath, currentDir string, result *models.ScanResult) {
+	s.setScanStatus(func(status *models.ScanStatus) {
+		status.CurrentPath = currentPath
+		status.CurrentDir = currentDir
+		status.Scanned = result.Scanned
+		status.Added = result.Added
+		status.Updated = result.Updated
+		status.Skipped = result.Skipped
+		status.Errors = append(status.Errors[:0], result.Errors...)
+	})
+}
+
+func (s *Service) setScanStatus(update func(*models.ScanStatus)) {
+	s.scanMu.Lock()
+	defer s.scanMu.Unlock()
+	update(&s.scanStatus)
+}
+
+func cloneScanStatus(status models.ScanStatus) models.ScanStatus {
+	status.Errors = append([]string{}, status.Errors...)
+	return status
 }
 
 func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {

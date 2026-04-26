@@ -82,10 +82,23 @@ export interface Settings {
   netease_fallback: boolean;
   registration_enabled: boolean;
 }
+export interface ScanStatus {
+  running: boolean;
+  current_dir: string;
+  current_path: string;
+  scanned: number;
+  added: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+  started_at?: string;
+  finished_at?: string;
+}
 export interface ScanResult {
   scanned: number;
   added: number;
   updated: number;
   skipped: number;
   errors: string[];
+  current_dir: string;
 }

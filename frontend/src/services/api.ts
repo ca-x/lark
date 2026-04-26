@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, Lyrics, Playlist, ScanResult, Settings, Song } from '../types'
+import type { Album, Artist, AuthStatus, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -19,6 +19,7 @@ export const api = {
   markPlayed: (id: number) => request<void>(`/api/songs/${id}/played`, { method: 'POST' }),
   lyrics: (id: number, sourceId?: string) => request<Lyrics>(`/api/songs/${id}/lyrics${sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ''}`),
   scan: () => request<ScanResult>('/api/library/scan', { method: 'POST' }),
+  scanStatus: () => request<ScanStatus>('/api/library/scan/status'),
   upload: async (file: File) => {
     const body = new FormData()
     body.append('file', file)
