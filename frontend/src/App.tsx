@@ -9,6 +9,7 @@ import {
 import {
   Disc,
   GearSix,
+  Info,
   Heart,
   House,
   ListBullets,
@@ -62,7 +63,8 @@ type View =
   | "albums"
   | "artists"
   | "collection"
-  | "settings";
+  | "settings"
+  | "about";
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ThemeLabel =
   | "deepSpace"
@@ -752,6 +754,7 @@ export default function App() {
     { id: "albums", label: t("albums"), icon: <Disc /> },
     { id: "artists", label: t("artists"), icon: <Record /> },
     { id: "settings", label: t("settings"), icon: <GearSix /> },
+    { id: "about", label: t("about"), icon: <Info /> },
   ] as const;
   const activeNav = (id: (typeof nav)[number]["id"]) =>
     view === id ||
@@ -967,6 +970,7 @@ export default function App() {
               <CardGrid
                 t={t}
                 title={t("albums")}
+                variant="album"
                 items={albums.map((a) => ({
                   id: a.id,
                   title: a.title,
@@ -986,6 +990,7 @@ export default function App() {
               <CardGrid
                 t={t}
                 title={t("artists")}
+                variant="artist"
                 items={artists.map((a) => ({
                   id: a.id,
                   title: a.name,
@@ -1002,12 +1007,12 @@ export default function App() {
                 settings={settings}
                 setSettings={(s) => void saveSettings(s)}
                 user={auth.user}
-                health={health}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
                 onLogout={() => void logout()}
                 t={t}
               />
             )}
+            {view === "about" && <AboutView health={health} settings={settings} t={t} />}
           </>
         )}
       </main>
@@ -1735,7 +1740,10 @@ function CollectionCover({ collection }: { collection: Collection }) {
     ? ({ "--cover-url": `url(${resolvedCover})` } as React.CSSProperties)
     : undefined;
   return (
-    <div className="cover collection-cover" style={style}>
+    <div
+      className={`cover collection-cover ${collection.type === "playlist" ? "" : "plain-cover"}`}
+      style={style}
+    >
       <Record weight="fill" />
     </div>
   );
@@ -2143,20 +2151,22 @@ function SleepTimerControl({
 
 function UserAvatar({ user }: { user: User }) {
   const label = (user.nickname || user.username || "U").trim();
+  const initial = label.slice(0, 1).toUpperCase();
   return user.avatar_data_url ? (
     <img className="user-avatar" src={user.avatar_data_url} alt={label} />
   ) : (
-    <span className="user-avatar" aria-label={label}>
-      {label.slice(0, 1).toUpperCase()}
+    <span className="user-avatar user-avatar-fallback" aria-label={label}>
+      <span>{initial}</span>
     </span>
   );
 }
+
+type SettingsTab = "profile" | "users" | "site";
 
 function SettingsPanel({
   settings,
   setSettings,
   user,
-  health,
   onUpdateProfile,
   onLogout,
   t,
@@ -2164,118 +2174,189 @@ function SettingsPanel({
   settings: Settings;
   setSettings: (settings: Settings) => void;
   user: User;
-  health: HealthInfo | null;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
   onLogout: () => void;
   t: ReturnType<typeof createT>;
 }) {
   const darkThemes = themes.slice(0, 5);
   const lightThemes = themes.slice(5);
+  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [nickname, setNickname] = useState(user.nickname || user.username);
   const [avatarDataURL, setAvatarDataURL] = useState(user.avatar_data_url || "");
-  const profileLabel = settings.language === "zh-CN" ? "个人设置" : "Profile";
   const nicknameLabel = settings.language === "zh-CN" ? "昵称" : "Nickname";
   const avatarLabel = settings.language === "zh-CN" ? "头像" : "Avatar";
+  const tabs: { id: SettingsTab; label: string }[] = [
+    { id: "profile", label: t("profileSettings") },
+    { id: "users", label: t("userManagement") },
+    { id: "site", label: t("siteSettings") },
+  ];
+
   return (
-    <section className="settings-grid">
-      <div className="profile-settings-card">
-        <div className="profile-settings-head">
-          <UserAvatar user={{ ...user, nickname, avatar_data_url: avatarDataURL }} />
-          <div>
-            <strong>{profileLabel}</strong>
-            <span>{user.username}</span>
+    <section className="settings-page">
+      <div className="settings-tabs" role="tablist" aria-label={t("settings")}>
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={activeTab === tab.id ? "active" : ""}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "profile" && (
+        <div className="settings-grid settings-tab-panel" role="tabpanel">
+          <div className="profile-settings-card">
+            <div className="profile-settings-head">
+              <UserAvatar user={{ ...user, nickname, avatar_data_url: avatarDataURL }} />
+              <div>
+                <strong>{t("profileSettings")}</strong>
+                <span>{user.username}</span>
+              </div>
+            </div>
+            <label>
+              {nicknameLabel}
+              <input value={nickname} onChange={(e) => setNickname(e.target.value)} />
+            </label>
+            <label className="upload avatar-upload">
+              {avatarLabel}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => setAvatarDataURL(String(reader.result || ""));
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </label>
+            <button onClick={() => onUpdateProfile(nickname, avatarDataURL)}>{t("save")}</button>
+          </div>
+          <div className="account-card">
+            <UserAvatar user={user} />
+            <div>
+              <strong>{user.nickname || user.username}</strong>
+              <span>{user.role === "admin" ? "Admin" : "User"}</span>
+            </div>
+            <button onClick={onLogout}>{t("logout")}</button>
           </div>
         </div>
-        <label>
-          {nicknameLabel}
-          <input value={nickname} onChange={(e) => setNickname(e.target.value)} />
-        </label>
-        <label className="upload avatar-upload">
-          {avatarLabel}
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = () => setAvatarDataURL(String(reader.result || ""));
-              reader.readAsDataURL(file);
-            }}
-          />
-        </label>
-        <button onClick={() => onUpdateProfile(nickname, avatarDataURL)}>{t("save")}</button>
-      </div>
-      <label>
-        {t("language")}
-        <select
-          value={settings.language}
-          onChange={(e) =>
-            setSettings({ ...settings, language: e.target.value as Language })
-          }
-        >
-          <option value="zh-CN">简体中文</option>
-          <option value="en-US">English</option>
-        </select>
-      </label>
-      <label>
-        {t("theme")}
-        <select
-          value={settings.theme}
-          onChange={(e) =>
-            setSettings({ ...settings, theme: normalizeTheme(e.target.value) })
-          }
-        >
-          <optgroup label={t("darkThemes")}>
-            {darkThemes.map((theme) => (
-              <option key={theme.id} value={theme.id}>
-                {t(theme.label)}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label={t("lightThemes")}>
-            {lightThemes.map((theme) => (
-              <option key={theme.id} value={theme.id}>
-                {t(theme.label)}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </label>
-      <label>
-        {t("libraryPath")}
-        <input readOnly value={settings.library_path} />
-      </label>
-      <div className="version-card">
-        <strong>{t("about")}</strong>
-        <span>{health?.full_version || "lark/dev"}</span>
-        <small>
-          {health?.commit && health.commit !== "unknown"
-            ? health.commit.slice(0, 12)
-            : "unknown"}
-          {" · "}
-          {health?.build_time || "unknown"}
-        </small>
-      </div>
-      {user.role === "admin" ? (
-        <label className="switch-row">
-          <span>{settings.language === "zh-CN" ? "允许新用户注册" : "Allow registration"}</span>
-          <input
-            type="checkbox"
-            checked={settings.registration_enabled}
-            onChange={(e) =>
-              setSettings({ ...settings, registration_enabled: e.target.checked })
-            }
-          />
-        </label>
-      ) : null}
-      <div className="account-card">
-        <UserAvatar user={user} />
-        <div>
-          <strong>{user.nickname || user.username}</strong>
-          <span>{user.role === "admin" ? "Admin" : "User"}</span>
+      )}
+
+      {activeTab === "users" && (
+        <div className="settings-grid settings-tab-panel" role="tabpanel">
+          {user.role === "admin" ? (
+            <label className="switch-row settings-wide-row">
+              <span>{t("allowRegistration")}</span>
+              <input
+                type="checkbox"
+                checked={settings.registration_enabled}
+                onChange={(e) =>
+                  setSettings({ ...settings, registration_enabled: e.target.checked })
+                }
+              />
+            </label>
+          ) : (
+            <div className="settings-empty settings-wide-row">{t("adminOnly")}</div>
+          )}
         </div>
-        <button onClick={onLogout}>{settings.language === "zh-CN" ? "退出登录" : "Log out"}</button>
+      )}
+
+      {activeTab === "site" && (
+        <div className="settings-grid settings-tab-panel" role="tabpanel">
+          <label>
+            {t("language")}
+            <select
+              value={settings.language}
+              onChange={(e) =>
+                setSettings({ ...settings, language: e.target.value as Language })
+              }
+            >
+              <option value="zh-CN">简体中文</option>
+              <option value="en-US">English</option>
+            </select>
+          </label>
+          <label>
+            {t("theme")}
+            <select
+              value={settings.theme}
+              onChange={(e) =>
+                setSettings({ ...settings, theme: normalizeTheme(e.target.value) })
+              }
+            >
+              <optgroup label={t("darkThemes")}>
+                {darkThemes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {t(theme.label)}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label={t("lightThemes")}>
+                {lightThemes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {t(theme.label)}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
+          <label className="settings-wide-row">
+            {t("libraryPath")}
+            <input readOnly value={settings.library_path} />
+          </label>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AboutView({
+  health,
+  settings,
+  t,
+}: {
+  health: HealthInfo | null;
+  settings: Settings;
+  t: ReturnType<typeof createT>;
+}) {
+  const rows = [
+    { label: t("version"), value: health?.full_version || health?.version || "lark/dev" },
+    {
+      label: t("commit"),
+      value:
+        health?.commit && health.commit !== "unknown"
+          ? health.commit.slice(0, 12)
+          : "unknown",
+    },
+    { label: t("buildTime"), value: health?.build_time || "unknown" },
+    { label: t("runtime"), value: health?.go_version || "unknown" },
+    { label: t("libraryPath"), value: health?.library || settings.library_path || "—" },
+    { label: t("audioBackend"), value: health?.audio_backend || "unknown" },
+    { label: t("metadataBackend"), value: health?.metadata_backend || "unknown" },
+    { label: t("transcodeBackend"), value: health?.transcode_backend || "unknown" },
+  ];
+  return (
+    <section className="about-page">
+      <div className="about-hero">
+        <img src="/logo.png" alt={t("brand")} />
+        <div>
+          <p>{t("about")}</p>
+          <h2>{t("brand")}</h2>
+          <span>{t("aboutTagline")}</span>
+        </div>
+      </div>
+      <div className="about-grid">
+        {rows.map((row) => (
+          <div className="about-row" key={row.label}>
+            <span>{row.label}</span>
+            <strong>{row.value}</strong>
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -2418,9 +2499,11 @@ function CardGrid({
   title,
   items,
   action,
+  variant = "playlist",
 }: {
   t: ReturnType<typeof createT>;
   title: string;
+  variant?: "playlist" | "album" | "artist";
   items: {
     id: number;
     title: string;
@@ -2444,12 +2527,12 @@ function CardGrid({
         <div className="cards">
           {items.map((item) => (
             <button
-              className={`media-card ${item.theme}`}
+              className={`media-card ${item.theme} card-${variant}`}
               key={item.id}
               onClick={item.onClick}
             >
               <div
-                className="cover"
+                className={variant === "playlist" ? "cover" : "cover plain-cover"}
                 style={
                   item.coverUrl
                     ? ({
