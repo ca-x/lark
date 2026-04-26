@@ -138,7 +138,7 @@ LARK_ADMIN_NICKNAME='百灵管理员' \
 docker compose up -d
 ```
 
-默认 compose 会把应用数据和上传音乐保存在 `lark_data` volume 中。如果你的运行环境已经把音乐目录暴露到了容器内部，请把 `LARK_LIBRARY_DIR` 设置成这个容器内路径；否则保持默认 `/app/data/music`，通过应用数据 volume 使用上传/扫描。发布的 Docker 镜像已经内置 `ffmpeg`/`ffprobe`，默认转码和元数据探测不需要在 compose 里额外配置路径。
+默认 compose 会把应用数据和上传音乐保存在 `lark_data` volume 中。如果你的运行环境已经把音乐目录暴露到了容器内部，请把 `LARK_LIBRARY_DIR` 设置成这个容器内路径；否则保持默认 `/app/data/music`，通过应用数据 volume 使用上传/扫描。发布的 Docker 镜像已经内置 `ffmpeg`/`ffprobe`，默认转码和元数据探测不需要在 compose 里额外配置路径。 递归扫描只会跳过名为 `.shared-center` 的平台辅助目录，然后继续扫描同级其他目录；不会改写你配置的曲库根路径。
 
 ```bash
 LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d

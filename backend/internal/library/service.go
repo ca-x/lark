@@ -110,6 +110,11 @@ func (s *Service) Scan(ctx context.Context) (models.ScanResult, error) {
 			return nil
 		}
 		if d.IsDir() {
+			if shouldSkipScanDir(s.libraryDir, path, d.Name()) {
+				result.Skipped++
+				s.updateScanProgress("", filepath.Dir(path), &result)
+				return filepath.SkipDir
+			}
 			result.CurrentDir = path
 			s.updateScanProgress("", path, &result)
 			return nil
@@ -140,6 +145,22 @@ func (s *Service) Scan(ctx context.Context) (models.ScanResult, error) {
 		return result, err
 	}
 	return result, nil
+}
+
+func shouldSkipScanDir(root, path, name string) bool {
+	if samePath(root, path) {
+		return false
+	}
+	return name == ".shared-center"
+}
+
+func samePath(a, b string) bool {
+	absA, errA := filepath.Abs(a)
+	absB, errB := filepath.Abs(b)
+	if errA == nil && errB == nil {
+		return filepath.Clean(absA) == filepath.Clean(absB)
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
 }
 
 func (s *Service) updateScanProgress(currentPath, currentDir string, result *models.ScanResult) {
