@@ -1501,22 +1501,7 @@ export default function App() {
         </div>
         <div className="transport">
           <div className="transport-controls">
-            <button
-              className={
-                playMode === "sequence" ? "mode-button" : "mode-button active"
-              }
-              title={playModeLabel}
-              aria-label={playModeLabel}
-              onClick={cyclePlayMode}
-            >
-              {playMode === "shuffle" ? (
-                <Shuffle />
-              ) : playMode === "repeat-one" ? (
-                <RepeatOnce />
-              ) : (
-                <Repeat />
-              )}
-            </button>
+            <span className="transport-spacer" aria-hidden="true" />
             <div className="playback-buttons">
               <button aria-label={t("previous")} onClick={() => next(-1)}>
                 <SkipBack weight="fill" />
@@ -1564,6 +1549,22 @@ export default function App() {
           </span>
         </div>
         <div className="volume">
+          <button
+            className={
+              playMode === "sequence" ? "mode-button" : "mode-button active"
+            }
+            title={playModeLabel}
+            aria-label={playModeLabel}
+            onClick={cyclePlayMode}
+          >
+            {playMode === "shuffle" ? (
+              <Shuffle />
+            ) : playMode === "repeat-one" ? (
+              <RepeatOnce />
+            ) : (
+              <Repeat />
+            )}
+          </button>
           <button
             className={inlineLyrics ? "lyric-toggle active" : "lyric-toggle"}
             title={t("inlineLyrics")}

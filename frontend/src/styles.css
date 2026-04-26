@@ -163,7 +163,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .transport span { color:var(--muted); font-size:12px; text-align:center; line-height:14px; }
 .transport .inline-lyrics-line { min-width:0; display:flex; align-items:center; justify-content:center; gap:6px; color:var(--text); font-weight:760; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .transport .inline-lyrics-line svg { flex:0 0 auto; color:var(--accent); }
-.volume { display:grid; grid-template-columns:44px 44px 44px 24px minmax(110px, 1fr); align-items:center; justify-content:flex-end; gap:10px; min-height:44px; color:var(--muted); }
+.volume { display:grid; grid-template-columns:44px 44px 44px 44px 24px minmax(110px, 1fr); align-items:center; justify-content:flex-end; gap:10px; min-height:44px; color:var(--muted); }
 .volume svg { flex:0 0 auto; }
 .sleep-control { position:relative; width:44px; overflow:hidden; border:1px solid var(--line); background:var(--panel2); }
 .sleep-control select { position:absolute; inset:0; opacity:0; cursor:pointer; }
@@ -377,7 +377,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   .search { max-width:680px; }
   .player { --player-h:138px; grid-template-columns:minmax(180px, .9fr) minmax(320px, 1.5fr) minmax(260px, 320px); gap:14px; padding:12px 14px; }
   .player-mood { display:none; }
-  .volume { grid-template-columns:42px 42px 42px 22px minmax(86px, 110px); justify-content:center; gap:7px; }
+  .volume { grid-template-columns:42px 42px 42px 42px 22px minmax(86px, 110px); justify-content:center; gap:7px; }
   .volume input[type='range'] { width:110px; flex-basis:auto; }
   .hero { grid-template-columns:1fr; justify-items:center; text-align:center; }
   .song-row { grid-template-columns:32px 42px minmax(0,1.6fr) minmax(0,1fr) 44px 44px; }
@@ -918,7 +918,7 @@ body, button, input, select { font-family: var(--app-font); }
 
 @media (max-width:720px) {
   .app-shell {
-    --player-h:190px;
+    --player-h:202px;
     --nav-h:68px;
     grid-template-rows:minmax(0,1fr) var(--player-h);
     padding:8px 8px calc(var(--nav-h) + var(--safe-bottom) + 14px);
@@ -928,7 +928,7 @@ body, button, input, select { font-family: var(--app-font); }
     grid-column:1;
     grid-row:2;
     z-index:40;
-    grid-template-rows:48px 82px 42px;
+    grid-template-rows:48px 76px 44px;
     gap:4px;
     min-height:var(--player-h);
     max-height:var(--player-h);
@@ -936,12 +936,36 @@ body, button, input, select { font-family: var(--app-font); }
   }
   .now { grid-template-columns:48px minmax(0,1fr) 42px; align-items:center; }
   .now > button:last-child { width:42px; height:42px; border:1px solid var(--line); border-radius:999px; background:color-mix(in srgb, var(--panel2) 82%, transparent); }
-  .transport { grid-template-rows:42px 18px 14px; gap:4px; align-self:stretch; overflow:visible; }
+  .transport { grid-template-rows:38px 18px 14px; gap:3px; align-self:stretch; overflow:visible; }
   .transport span { align-self:center; min-height:14px; }
   .transport .inline-lyrics-line { max-width:100%; }
-  .volume { min-height:42px; align-self:center; padding-top:0; border-top:1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+  .volume {
+    display:grid;
+    grid-template-columns:repeat(4, minmax(44px, 1fr));
+    justify-items:center;
+    gap:8px;
+    min-height:44px;
+    align-self:center;
+    padding-top:0;
+    border-top:1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  }
+  .volume .mode-button,
+  .volume .lyric-toggle,
+  .volume .queue-toggle,
+  .volume .sleep-control {
+    width:44px;
+    min-width:44px;
+    height:44px;
+    min-height:44px;
+  }
   .volume button, .volume .sleep-control { background:color-mix(in srgb, var(--panel2) 86%, transparent); border:1px solid var(--line); }
   .volume button.active, .volume .sleep-control.active { border-color:color-mix(in srgb, var(--accent) 60%, var(--line)); background:color-mix(in srgb, var(--accent) 16%, var(--panel2)); color:var(--accent); }
+  .app-shell.lyrics-mode {
+    grid-template-rows:minmax(0,1fr) var(--player-h);
+    padding-bottom:8px;
+  }
+  .app-shell.lyrics-mode .main { scroll-padding-bottom:calc(var(--player-h) + 18px); }
+  .app-shell.lyrics-mode .sidebar { display:none; }
   .sidebar {
     position:fixed;
     left:10px;
