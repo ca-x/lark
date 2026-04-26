@@ -994,3 +994,20 @@ body, button, input, select { font-family: var(--app-font); }
   .queue-list button { min-height:62px; border-radius:16px; margin-bottom:4px; background:color-mix(in srgb, var(--panel2) 88%, var(--panel)); }
   .queue-list button.active { background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 24%, var(--panel2)), color-mix(in srgb, var(--panel2) 92%, var(--panel))); }
 }
+
+/* v0.2.7 animated mini cover */
+.cover-button .mini-art { isolation:isolate; transform-origin:center; will-change:transform, box-shadow, filter; }
+.cover-button .mini-art::before { content:''; position:absolute; inset:-1px; z-index:1; border-radius:inherit; pointer-events:none; background:conic-gradient(from 120deg, transparent 0 18%, color-mix(in srgb, var(--highlight) 42%, transparent) 22%, transparent 34% 100%); opacity:0; mix-blend-mode:screen; }
+.cover-button .mini-art svg { position:relative; z-index:2; }
+.cover-button .mini-art[data-playing='true'] { animation:mini-cover-float 3.6s ease-in-out infinite; box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent), 0 12px 30px color-mix(in srgb, var(--accent) 20%, transparent); filter:saturate(1.08); }
+.cover-button .mini-art[data-playing='true']::before { opacity:.85; animation:mini-cover-sheen 4.8s linear infinite; }
+.cover-button .mini-art[data-playing='false'] { animation:none; filter:saturate(.92); }
+@keyframes mini-cover-float {
+  0%, 100% { transform:translateY(0) rotate(-.8deg) scale(1); }
+  50% { transform:translateY(-2px) rotate(.8deg) scale(1.025); }
+}
+@keyframes mini-cover-sheen { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .cover-button .mini-art[data-playing='true'],
+  .cover-button .mini-art[data-playing='true']::before { animation:none !important; }
+}
