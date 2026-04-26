@@ -3346,13 +3346,6 @@ function SettingsPanel({
             </label>
             <button onClick={() => onUpdateProfile(nickname, avatarDataURL)}>{t("save")}</button>
           </div>
-          <div className="account-card">
-            <UserAvatar user={user} />
-            <div>
-              <strong>{user.nickname || user.username}</strong>
-              <span>{user.role === "admin" ? "Admin" : "User"}</span>
-            </div>
-          </div>
           <div className="mcp-card settings-wide-row">
             <div className="mcp-card-head">
               <div>

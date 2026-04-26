@@ -554,10 +554,6 @@ body, button, input, select { font-family: var(--app-font); }
 .auth-loading { width:48px; height:48px; border-radius:50%; border:3px solid color-mix(in srgb, var(--accent) 18%, var(--line)); border-top-color:var(--accent); animation:spin .9s linear infinite; justify-self:center; }
 .switch-row { display:flex !important; align-items:center; justify-content:space-between; gap:12px; min-height:70px; padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--panel2); }
 .switch-row input { width:46px !important; min-height:24px; accent-color:var(--accent); }
-.account-card { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); }
-.account-card strong, .account-card span { display:block; }
-.account-card span { color:var(--muted); font-size:12px; }
-.account-card button { min-height:38px; padding:8px 12px; border-radius:999px; background:var(--panel); border:1px solid var(--line); color:var(--text); }
 .user-list { display:grid; gap:8px; padding:14px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); }
 .user-list-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
 .user-list-head span { color:var(--muted); font-size:12px; }
@@ -589,7 +585,6 @@ body, button, input, select { font-family: var(--app-font); }
 .profile-settings-head span { color:var(--muted); font-size:13px; }
 .profile-settings-card button { width:max-content; min-height:40px; padding:9px 14px; border-radius:999px; background:var(--accent); color:var(--bg); font-weight:850; }
 .avatar-upload { width:max-content; }
-.account-card { grid-column:1 / -1; }
 .version-card { display:grid; gap:6px; padding:14px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); color:var(--muted); }
 .version-card strong { color:var(--text); }
 .version-card span, .version-card small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
