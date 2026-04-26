@@ -906,3 +906,91 @@ body, button, input, select { font-family: var(--app-font); }
 }
 
 @keyframes mobile-queue-sheet { from { transform:translateY(100%); opacity:.82; } to { transform:translateY(0); opacity:1; } }
+
+/* v0.2.6 mobile player + queue refinements */
+.queue-list button { border:1px solid transparent; }
+.queue-list button.active { border-color:color-mix(in srgb, var(--accent) 58%, var(--line)); background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 24%, var(--panel2)), color-mix(in srgb, var(--panel2) 86%, var(--panel))); color:var(--text); box-shadow:inset 3px 0 0 var(--accent); }
+.queue-list button.active > span:first-child { min-width:26px; height:26px; display:grid; place-items:center; border-radius:999px; background:var(--accent); color:var(--bg); font-weight:900; }
+.song-row.active { background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 20%, var(--panel2)), color-mix(in srgb, var(--panel2) 80%, transparent)); color:var(--text); box-shadow:inset 3px 0 0 var(--accent); }
+.song-row.active strong { color:var(--text); }
+.song-row.active > span:first-child { color:var(--accent); font-weight:900; }
+.quick-song-list > button.active { border-color:color-mix(in srgb, var(--accent) 56%, var(--line)); background:color-mix(in srgb, var(--accent) 16%, var(--panel2)); box-shadow:inset 3px 0 0 var(--accent); }
+
+@media (max-width:720px) {
+  .app-shell {
+    --player-h:190px;
+    --nav-h:68px;
+    grid-template-rows:minmax(0,1fr) var(--player-h);
+    padding:8px 8px calc(var(--nav-h) + var(--safe-bottom) + 14px);
+  }
+  .main { scroll-padding-bottom:calc(var(--player-h) + var(--nav-h) + 24px); }
+  .player {
+    grid-column:1;
+    grid-row:2;
+    z-index:40;
+    grid-template-rows:48px 82px 42px;
+    gap:4px;
+    min-height:var(--player-h);
+    max-height:var(--player-h);
+    padding:9px 12px 10px;
+  }
+  .now { grid-template-columns:48px minmax(0,1fr) 42px; align-items:center; }
+  .now > button:last-child { width:42px; height:42px; border:1px solid var(--line); border-radius:999px; background:color-mix(in srgb, var(--panel2) 82%, transparent); }
+  .transport { grid-template-rows:42px 18px 14px; gap:4px; align-self:stretch; overflow:visible; }
+  .transport span { align-self:center; min-height:14px; }
+  .transport .inline-lyrics-line { max-width:100%; }
+  .volume { min-height:42px; align-self:center; padding-top:0; border-top:1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+  .volume button, .volume .sleep-control { background:color-mix(in srgb, var(--panel2) 86%, transparent); border:1px solid var(--line); }
+  .volume button.active, .volume .sleep-control.active { border-color:color-mix(in srgb, var(--accent) 60%, var(--line)); background:color-mix(in srgb, var(--accent) 16%, var(--panel2)); color:var(--accent); }
+  .sidebar {
+    position:fixed;
+    left:10px;
+    right:10px;
+    bottom:calc(8px + var(--safe-bottom));
+    z-index:90;
+    grid-row:auto;
+    height:auto;
+    padding:0;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    box-shadow:none;
+    pointer-events:none;
+  }
+  .sidebar nav {
+    pointer-events:auto;
+    width:min(100%, 640px);
+    margin:0 auto;
+    display:flex;
+    gap:5px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    padding:6px;
+    border-radius:24px;
+    background:color-mix(in srgb, var(--panel) 98%, var(--bg));
+    border:1px solid color-mix(in srgb, var(--accent) 20%, var(--line));
+    box-shadow:0 14px 42px rgba(0,0,0,.42);
+    backdrop-filter:blur(18px);
+    scroll-snap-type:x proximity;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .sidebar nav::-webkit-scrollbar { display:none; }
+  .sidebar nav button { flex:0 0 62px; min-height:54px; padding:6px 4px; border-radius:18px; scroll-snap-align:center; }
+  .sidebar nav button.active { color:var(--bg); background:var(--accent); box-shadow:0 10px 24px color-mix(in srgb, var(--accent) 26%, transparent); }
+  .sidebar nav button.active svg { color:var(--bg); }
+  .queue-layer { z-index:1700; }
+  .queue-layer .queue-panel,
+  .queue-panel {
+    height:min(88dvh, 760px);
+    min-height:min(76dvh, 640px);
+    max-height:none;
+    border-radius:26px 26px 0 0;
+    background:color-mix(in srgb, var(--panel) 100%, var(--bg));
+    transform:translateZ(0);
+  }
+  .queue-head { position:relative; min-height:62px; padding:18px 18px 12px; background:color-mix(in srgb, var(--panel) 100%, var(--bg)); }
+  .queue-list { max-height:none; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:10px 10px calc(14px + var(--safe-bottom)); contain:content; }
+  .queue-list button { min-height:62px; border-radius:16px; margin-bottom:4px; background:color-mix(in srgb, var(--panel2) 88%, var(--panel)); }
+  .queue-list button.active { background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 24%, var(--panel2)), color-mix(in srgb, var(--panel2) 92%, var(--panel))); }
+}

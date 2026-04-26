@@ -2992,6 +2992,7 @@ function QueuePanel({
           <button
             key={`${song.id}-${index}`}
             className={song.id === current?.id ? "active" : ""}
+            aria-current={song.id === current?.id ? "true" : undefined}
             onClick={() => onPlay(song)}
           >
             <span>{index + 1}</span>
