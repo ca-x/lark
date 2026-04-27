@@ -228,6 +228,11 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .full-lyrics-head { position:relative; z-index:1; display:flex; align-items:center; gap:16px; padding-bottom:22px; border-bottom:1px solid color-mix(in srgb, var(--text) 16%, transparent); }
 .full-lyrics-head p { margin:0; color:var(--muted); }
 .full-lyrics-head h1 { margin:2px 0; font-size:34px; letter-spacing:-.04em; }
+.lyrics-title-marquee { max-width:100%; overflow:hidden; white-space:nowrap; }
+.lyrics-title-marquee > span { display:inline-flex; min-width:max-content; gap:44px; padding-right:44px; will-change:transform; animation:lyrics-title-marquee 15s linear infinite; }
+.lyrics-title-marquee span { color:inherit; }
+.lyrics-title-marquee > span > span { flex:0 0 auto; }
+.lyrics-title-marquee:hover > span { animation-play-state:paused; }
 .full-lyrics-head span { color:var(--muted); }
 .lyrics-pick { margin-left:auto; min-height:40px; padding:9px 14px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); color:var(--text); }
 .lyrics-pick:hover { border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
@@ -906,6 +911,10 @@ body, button, input, select { font-family: var(--app-font); }
 }
 
 @keyframes mobile-queue-sheet { from { transform:translateY(100%); opacity:.82; } to { transform:translateY(0); opacity:1; } }
+@keyframes lyrics-title-marquee {
+  0%, 14% { transform:translateX(0); }
+  86%, 100% { transform:translateX(calc(-50% - 22px)); }
+}
 
 /* v0.2.6 mobile player + queue refinements */
 .queue-list button { border:1px solid transparent; }
@@ -1032,6 +1041,9 @@ body, button, input, select { font-family: var(--app-font); }
 }
 @keyframes mini-cover-sheen { to { transform:rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
+  .lyrics-title-marquee { text-overflow:ellipsis; }
+  .lyrics-title-marquee > span { display:block; overflow:hidden; text-overflow:ellipsis; animation:none !important; }
+  .lyrics-title-marquee > span > span[aria-hidden='true'] { display:none; }
   .cover-button .mini-art[data-playing='true'],
   .cover-button .mini-art[data-playing='true']::before { animation:none !important; }
 }

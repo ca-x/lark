@@ -2745,6 +2745,7 @@ function FullLyrics({
   const [seekTargetKey, setSeekTargetKey] = useState("");
   const userScrollUntil = useRef(0);
   const seekTimer = useRef<number | null>(null);
+  const lyricsTitle = song?.title ?? `${t("brand")} Music`;
   const backgroundStyle = coverUrl(song)
     ? ({ "--cover-url": `url(${coverUrl(song)})` } as React.CSSProperties)
     : undefined;
@@ -2798,7 +2799,12 @@ function FullLyrics({
         </button>
         <div>
           <p>{t("nowPlaying")}</p>
-          <h1>{song?.title ?? `${t("brand")} Music`}</h1>
+          <h1 className="lyrics-title-marquee" title={lyricsTitle}>
+            <span>
+              <span>{lyricsTitle}</span>
+              <span aria-hidden="true">{lyricsTitle}</span>
+            </span>
+          </h1>
           {song ? (
             <div className="lyrics-meta-links">
               <button onClick={() => onOpenArtist(song)}>{song.artist}</button>
