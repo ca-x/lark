@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"lark/backend/ent"
+	"lark/backend/internal/models"
 )
 
 func TestShouldSkipSharedCenterScanDirBelowRoot(t *testing.T) {
@@ -91,5 +92,71 @@ func TestReadSidecarLyricsPrefersLRCNextToAudio(t *testing.T) {
 	got := readSidecarLyrics(audioPath)
 	if got != "[00:00.00]sidecar lyric" {
 		t.Fatalf("expected sidecar lyric, got %q", got)
+	}
+}
+
+func TestRelativeFolderPathRejectsEscapes(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "music")
+	outside := filepath.Join(filepath.Dir(root), "outside")
+	if rel, ok := relativeFolderPath(root, outside); ok {
+		t.Fatalf("expected outside folder to be rejected, got %q", rel)
+	}
+}
+
+func TestRelativeFolderPathNormalizesNestedFolder(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "music")
+	folder := filepath.Join(root, "Artist", "Album")
+	rel, ok := relativeFolderPath(root, folder)
+	if !ok {
+		t.Fatal("expected nested folder to be accepted")
+	}
+	if rel != "Artist/Album" {
+		t.Fatalf("expected slash-normalized path, got %q", rel)
+	}
+}
+
+func TestResolveLibraryFolderRejectsTraversal(t *testing.T) {
+	root := t.TempDir()
+	service := &Service{libraryDir: root}
+	if _, err := service.resolveLibraryFolder("../escape"); err == nil {
+		t.Fatal("expected traversal to be rejected")
+	}
+}
+
+func TestResolveLibraryFolderAcceptsRootAliases(t *testing.T) {
+	root := t.TempDir()
+	service := &Service{libraryDir: root}
+	got, err := service.resolveLibraryFolder(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != abs {
+		t.Fatalf("expected root %q, got %q", abs, got)
+	}
+}
+
+func TestRecentArtistInMixUsesGapOnly(t *testing.T) {
+	items := []models.Song{{ArtistID: 7}, {ArtistID: 8}, {ArtistID: 9}}
+	if recentArtistInMix(items, 7, 2) {
+		t.Fatal("artist outside the recent gap should not block selection")
+	}
+	if !recentArtistInMix(items, 8, 2) {
+		t.Fatal("artist inside the recent gap should block selection")
+	}
+}
+
+func TestDailyScoreIsStableForSameDayAndUser(t *testing.T) {
+	item := models.Song{ID: 42, ArtistID: 3, Title: "Track"}
+	first := dailyScore("2026-04-27", 1, item)
+	second := dailyScore("2026-04-27", 1, item)
+	if first != second {
+		t.Fatalf("expected stable score, got %d and %d", first, second)
+	}
+	if first == dailyScore("2026-04-28", 1, item) {
+		t.Fatal("expected daily seed to change score")
 	}
 }

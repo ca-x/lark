@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +14,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"lark/backend/ent"
@@ -38,6 +41,10 @@ type playlistRequest struct {
 }
 
 const sessionCookieName = "lark_session"
+
+const transcodeChunkSize = 512 * 1024
+
+var transcodeCacheLocks sync.Map
 
 type authRequest struct {
 	Username string `json:"username"`
@@ -102,6 +109,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/mcp/sse", s.handleMCP)
 
 	e.GET("/api/songs", s.handleSongs, auth)
+	e.GET("/api/daily-mix", s.handleDailyMix, auth)
 	e.GET("/api/songs/:id", s.handleSong, auth)
 	e.POST("/api/songs/:id/favorite", s.handleToggleSongFavorite, auth)
 	e.POST("/api/songs/:id/played", s.handleMarkPlayed, auth)
@@ -115,6 +123,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/library/scan", s.handleScan, admin)
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
 	e.POST("/api/library/upload", s.handleUpload, admin)
+	e.GET("/api/folders", s.handleFolders, auth)
+	e.GET("/api/folders/songs", s.handleFolderSongs, auth)
 	e.GET("/api/fonts", s.handleWebFonts, admin)
 	e.POST("/api/fonts", s.handleUploadWebFont, admin)
 	e.DELETE("/api/fonts/:name", s.handleDeleteWebFont, admin)
@@ -309,6 +319,14 @@ func (s *Server) handleSongs(c *echo.Context) error {
 	return c.JSON(http.StatusOK, items)
 }
 
+func (s *Server) handleDailyMix(c *echo.Context) error {
+	items, err := s.lib.DailyMix(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 24))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
 func (s *Server) handleSong(c *echo.Context) error {
 	id, err := paramInt(c, "id")
 	if err != nil {
@@ -436,11 +454,35 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 	if ffmpeg == "" {
 		return echo.NewHTTPError(http.StatusUnsupportedMediaType, "ffmpeg is not configured for this audio format")
 	}
+	quality, err := transcodeQuality(c.QueryParam("quality"))
+	if err != nil {
+		return err
+	}
+	start := queryFloat(c, "start", 0)
+	if queryBool(c, "cache") {
+		cachePath, err := s.transcodeCachePath(sourcePath, quality)
+		if err != nil {
+			return mapError(err)
+		}
+		if start == 0 && validCachedFile(cachePath) {
+			c.Response().Header().Set("Accept-Ranges", "bytes")
+			c.Response().Header().Set("Cache-Control", "private, max-age=86400")
+			c.Response().Header().Set("Content-Type", "audio/mpeg")
+			c.Response().Header().Set("X-Lark-Transcoded", fmt.Sprintf("ffmpeg-mp3-%dk-cache", quality))
+			http.ServeFile(c.Response(), c.Request(), cachePath)
+			return nil
+		}
+		go s.warmTranscodeCache(ffmpeg, sourcePath, quality)
+	}
+	return s.pipeTranscodedAudio(c, ffmpeg, sourcePath, quality, start)
+}
+
+func transcodeQuality(raw string) (int, error) {
 	quality := 320
-	if requested := strings.TrimSpace(c.QueryParam("quality")); requested != "" {
+	if requested := strings.TrimSpace(raw); requested != "" {
 		parsed, err := strconv.Atoi(requested)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "quality must be a bitrate in kbps")
+			return 0, echo.NewHTTPError(http.StatusBadRequest, "quality must be a bitrate in kbps")
 		}
 		switch {
 		case parsed < 96:
@@ -451,10 +493,17 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 			quality = parsed
 		}
 	}
+	return quality, nil
+}
+
+func (s *Server) pipeTranscodedAudio(c *echo.Context, ffmpeg, sourcePath string, quality int, start float64) error {
 	ctx, cancel := context.WithCancel(c.Request().Context())
 	defer cancel()
-	cmd := exec.CommandContext(ctx, ffmpeg,
-		"-hide_banner", "-loglevel", "error",
+	args := []string{"-hide_banner", "-loglevel", "error"}
+	if start > 0 {
+		args = append(args, "-ss", fmt.Sprintf("%.3f", start))
+	}
+	args = append(args,
 		"-i", sourcePath,
 		"-vn",
 		"-map", "0:a:0",
@@ -464,6 +513,7 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 		"-f", "mp3",
 		"pipe:1",
 	)
+	cmd := exec.CommandContext(ctx, ffmpeg, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return mapError(err)
@@ -485,6 +535,74 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 	c.Response().WriteHeader(http.StatusOK)
 	_, copyErr := io.Copy(c.Response(), stdout)
 	return copyErr
+}
+
+func (s *Server) warmTranscodeCache(ffmpeg, sourcePath string, quality int) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	_, _ = s.ensureTranscodeCache(ctx, ffmpeg, sourcePath, quality)
+}
+
+func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath string, quality int) (string, error) {
+	cachePath, err := s.transcodeCachePath(sourcePath, quality)
+	if err != nil {
+		return "", mapError(err)
+	}
+	lockValue, _ := transcodeCacheLocks.LoadOrStore(cachePath, &sync.Mutex{})
+	lock := lockValue.(*sync.Mutex)
+	lock.Lock()
+	defer lock.Unlock()
+	if validCachedFile(cachePath) {
+		return cachePath, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(cachePath), 0o755); err != nil {
+		return "", mapError(err)
+	}
+	tmpPath := fmt.Sprintf("%s.%d.tmp", cachePath, time.Now().UnixNano())
+	defer os.Remove(tmpPath)
+	cmd := exec.CommandContext(ctx, ffmpeg,
+		"-hide_banner", "-loglevel", "error",
+		"-i", sourcePath,
+		"-vn",
+		"-map", "0:a:0",
+		"-map_metadata", "0",
+		"-acodec", "libmp3lame",
+		"-b:a", fmt.Sprintf("%dk", quality),
+		"-write_xing", "0",
+		"-f", "mp3",
+		tmpPath,
+	)
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", echo.NewHTTPError(http.StatusUnsupportedMediaType, "unable to build playback cache: "+err.Error())
+	}
+	if !validCachedFile(tmpPath) {
+		return "", echo.NewHTTPError(http.StatusUnsupportedMediaType, "transcoded playback cache is empty")
+	}
+	if err := os.Rename(tmpPath, cachePath); err != nil {
+		return "", mapError(err)
+	}
+	return cachePath, nil
+}
+
+func (s *Server) transcodeCachePath(sourcePath string, quality int) (string, error) {
+	info, err := os.Stat(sourcePath)
+	if err != nil {
+		return "", err
+	}
+	abs, err := filepath.Abs(sourcePath)
+	if err != nil {
+		return "", err
+	}
+	seed := fmt.Sprintf("%s:%d:%d:%d", abs, info.Size(), info.ModTime().UnixNano(), quality)
+	sum := sha1.Sum([]byte(seed))
+	name := hex.EncodeToString(sum[:]) + fmt.Sprintf("-%dk.mp3", quality)
+	return filepath.Join(s.lib.DataDir(), "transcodes", name), nil
+}
+
+func validCachedFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Size() >= transcodeChunkSize/4
 }
 
 func (s *Server) handleLyrics(c *echo.Context) error {
@@ -585,6 +703,22 @@ func (s *Server) handleUpload(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusCreated, item)
+}
+
+func (s *Server) handleFolders(c *echo.Context) error {
+	items, err := s.lib.Folders(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 12))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleFolderSongs(c *echo.Context) error {
+	items, err := s.lib.FolderSongs(c.Request().Context(), currentUserID(c), c.QueryParam("path"))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
 }
 
 func (s *Server) handleAlbums(c *echo.Context) error {
@@ -772,6 +906,27 @@ func paramInt(c *echo.Context, name string) (int, error) {
 	}
 	return id, nil
 }
+func queryBool(c *echo.Context, name string) bool {
+	switch strings.ToLower(strings.TrimSpace(c.QueryParam(name))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func queryFloat(c *echo.Context, name string, fallback float64) float64 {
+	raw := strings.TrimSpace(c.QueryParam(name))
+	if raw == "" {
+		return fallback
+	}
+	n, err := strconv.ParseFloat(raw, 64)
+	if err != nil || n < 0 {
+		return fallback
+	}
+	return n
+}
+
 func queryInt(c *echo.Context, name string, fallback int) int {
 	raw := strings.TrimSpace(c.QueryParam(name))
 	if raw == "" {

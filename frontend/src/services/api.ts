@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont } from '../types'
+import type { Album, Artist, AuthStatus, Folder, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -18,6 +18,7 @@ export const api = {
   users: () => request<User[]>('/api/users'),
   saveProgress: (id: number, progress_seconds: number, duration_seconds: number, completed = false) => request<void>(`/api/songs/${id}/progress`, { method: 'PUT', body: JSON.stringify({ progress_seconds, duration_seconds, completed }) }),
   songs: (q = '') => request<Song[]>(`/api/songs${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  dailyMix: (limit = 24) => request<Song[]>(`/api/daily-mix?limit=${limit}`),
   song: (id: number) => request<Song>(`/api/songs/${id}`),
   favoriteSong: (id: number) => request<Song>(`/api/songs/${id}/favorite`, { method: 'POST' }),
   markPlayed: (id: number) => request<void>(`/api/songs/${id}/played`, { method: 'POST' }),
@@ -33,6 +34,8 @@ export const api = {
     if (!res.ok) throw new Error(await res.text())
     return res.json() as Promise<Song[]>
   },
+  folders: (limit = 12) => request<Folder[]>(`/api/folders?limit=${limit}`),
+  folderSongs: (path: string) => request<Song[]>(`/api/folders/songs?path=${encodeURIComponent(path)}`),
   albums: () => request<Album[]>('/api/albums'),
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),
   artists: () => request<Artist[]>('/api/artists'),

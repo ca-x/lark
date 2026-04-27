@@ -36,6 +36,7 @@ import type {
   Album,
   Artist,
   AuthStatus,
+  Folder,
   HealthInfo,
   Language,
   LyricCandidate,
@@ -75,6 +76,8 @@ type View =
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
 type StreamMode = "auto" | "adaptive";
+const ADAPTIVE_STREAM_QUALITY = 128;
+const AUTO_DOWNGRADE_STALL_MS = 1200;
 type ThemeLabel =
   | "deepSpace"
   | "amberFilm"
@@ -199,13 +202,28 @@ function prefersLowBandwidthStream() {
   );
 }
 
-function streamUrl(song?: Song | null, mode: StreamMode = "auto") {
+function streamUrl(song?: Song | null, mode: StreamMode = "auto", start = 0) {
   if (!song) return undefined;
   const params = new URLSearchParams({
     mode: mode === "adaptive" ? "transcode" : "auto",
   });
-  if (mode === "adaptive") params.set("quality", "192");
+  if (mode === "adaptive") {
+    params.set("quality", String(ADAPTIVE_STREAM_QUALITY));
+    params.set("cache", "1");
+    if (start > 0) params.set("start", start.toFixed(2));
+  }
   return `/api/songs/${song.id}/stream?${params.toString()}`;
+}
+
+function defaultStreamMode(song?: Song | null): StreamMode {
+  if (!song) return prefersLowBandwidthStream() ? "adaptive" : "auto";
+  const format = song.format.toLowerCase().replace(/^\./, "");
+  if (prefersLowBandwidthStream()) return "adaptive";
+  if (["flac", "wav", "aiff", "aif", "ape", "dsf", "dff", "dst"].includes(format))
+    return "adaptive";
+  if (song.bit_rate > 320_000 || song.size_bytes > 28 * 1024 * 1024)
+    return "adaptive";
+  return "auto";
 }
 
 function sanitizeFontFamily(value?: string) {
@@ -366,6 +384,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const [songs, setSongs] = useState<Song[]>([]);
+  const [dailyMix, setDailyMix] = useState<Song[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -401,6 +421,7 @@ export default function App() {
   const [streamMode, setStreamMode] = useState<StreamMode>(() =>
     prefersLowBandwidthStream() ? "adaptive" : "auto",
   );
+  const [streamOffset, setStreamOffset] = useState(0);
   const [inlineLyrics, setInlineLyrics] = useState(false);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -414,14 +435,19 @@ export default function App() {
   const resumeSeekRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
   const pendingAutoplayRef = useRef(false);
+  const stallDowngradeTimerRef = useRef<number | null>(null);
   const currentRef = useRef<Song | null>(null);
   const queueRef = useRef<Song[]>([]);
   const playModeRef = useRef<PlayMode>("sequence");
   const playingRef = useRef(false);
+  const streamModeRef = useRef<StreamMode>(streamMode);
+  const streamOffsetRef = useRef(0);
   currentRef.current = current;
   queueRef.current = queue;
   playModeRef.current = playMode;
   playingRef.current = playing;
+  streamModeRef.current = streamMode;
+  streamOffsetRef.current = streamOffset;
   const t = useMemo(() => createT(settings.language), [settings.language]);
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
   const activeLyric = useMemo(() => {
@@ -494,7 +520,8 @@ export default function App() {
     setDuration(current.duration_seconds || 0);
     setBufferedEnd(0);
     setBuffering(false);
-    setStreamMode(prefersLowBandwidthStream() ? "adaptive" : "auto");
+    setStreamOffset(0);
+    setStreamMode(defaultStreamMode(current));
     setLyrics(null);
     setLyricCandidates([]);
     setLyricCandidatesOpen(false);
@@ -572,6 +599,9 @@ export default function App() {
       if (messageTimerRef.current != null) {
         window.clearTimeout(messageTimerRef.current);
       }
+      if (stallDowngradeTimerRef.current != null) {
+        window.clearTimeout(stallDowngradeTimerRef.current);
+      }
     };
   }, []);
 
@@ -644,6 +674,8 @@ export default function App() {
   async function logout() {
     await api.logout().catch(() => undefined);
     setSongs([]);
+    setDailyMix([]);
+    setFolders([]);
     setAlbums([]);
     setArtists([]);
     setPlaylists([]);
@@ -663,7 +695,7 @@ export default function App() {
   function syncPlaybackProgress(completed = false) {
     if (!current) return;
     const audio = audioRef.current;
-    const currentProgress = audio?.currentTime ?? progress;
+    const currentProgress = audio ? streamOffsetRef.current + audio.currentTime : progress;
     const mediaDuration = audio?.duration;
     const currentDuration =
       Number.isFinite(mediaDuration) && mediaDuration && mediaDuration > 0
@@ -697,32 +729,78 @@ export default function App() {
     const currentTime = media.currentTime;
     for (let i = 0; i < ranges.length; i += 1) {
       if (ranges.start(i) <= currentTime && currentTime <= ranges.end(i)) {
-        setBufferedEnd(ranges.end(i));
+        setBufferedEnd(streamOffsetRef.current + ranges.end(i));
         return;
       }
     }
-    setBufferedEnd(ranges.end(ranges.length - 1));
+    setBufferedEnd(streamOffsetRef.current + ranges.end(ranges.length - 1));
+  }
+
+  function bufferedAhead(media: HTMLAudioElement) {
+    const currentTime = media.currentTime;
+    for (let i = 0; i < media.buffered.length; i += 1) {
+      if (media.buffered.start(i) <= currentTime && currentTime <= media.buffered.end(i)) {
+        return Math.max(0, media.buffered.end(i) - currentTime);
+      }
+    }
+    return 0;
+  }
+
+  function clearStallDowngradeTimer() {
+    if (stallDowngradeTimerRef.current == null) return;
+    window.clearTimeout(stallDowngradeTimerRef.current);
+    stallDowngradeTimerRef.current = null;
+  }
+
+  function handlePlaybackStall(media: HTMLAudioElement) {
+    if (!(playingRef.current || pendingAutoplayRef.current)) return;
+    setBuffering(true);
+    if (streamModeRef.current === "adaptive" || stallDowngradeTimerRef.current != null)
+      return;
+    const stalledAt = media.currentTime || 0;
+    stallDowngradeTimerRef.current = window.setTimeout(() => {
+      stallDowngradeTimerRef.current = null;
+      const audio = audioRef.current;
+      if (!audio || !currentRef.current || streamModeRef.current === "adaptive") return;
+      const barelyMoved = Math.abs((audio.currentTime || 0) - stalledAt) < 0.25;
+      const lowBuffer = bufferedAhead(audio) < 2.5;
+      if (
+        (playingRef.current || pendingAutoplayRef.current) &&
+        (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA || barelyMoved || lowBuffer)
+      ) {
+        resumeSeekRef.current = streamOffsetRef.current + (audio.currentTime || progress);
+        pendingAutoplayRef.current = true;
+        setStreamMode("adaptive");
+        showMessage(t("networkRescue"));
+      }
+    }, AUTO_DOWNGRADE_STALL_MS);
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songItems, albumItems, artistItems, playlistItems] =
+    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems] =
       await Promise.all([
         api.songs(query),
         api.albums(),
         api.artists(),
         api.playlists(),
+        api.dailyMix(24).catch(() => []),
+        api.folders(12).catch(() => []),
       ]);
     setSongs(songItems);
+    setDailyMix(dailyItems);
+    setFolders(folderItems);
     setAlbums(albumItems);
     setArtists(artistItems);
     setPlaylists(playlistItems);
     setQueue((old) =>
       options.initializeQueue || old.length === 0 ? songItems : old,
     );
-    setCurrent((old) => {
-      if (!old) return songItems[0] ?? null;
-      return songItems.find((item) => item.id === old.id) ?? null;
-    });
+    const nextCurrent = current
+      ? (songItems.find((item) => item.id === current.id) ?? null)
+      : (songItems[0] ?? null);
+    setStreamOffset(0);
+    setStreamMode(defaultStreamMode(nextCurrent));
+    setCurrent(nextCurrent);
     setCollection((old) => {
       if (!old) return old;
       return {
@@ -748,6 +826,9 @@ export default function App() {
       }
     }
     pendingAutoplayRef.current = true;
+    setBuffering(true);
+    setStreamOffset(0);
+    setStreamMode(defaultStreamMode(song));
     setCurrent(song);
     setQueue(list.length ? list : [song]);
     setDuration((value) => value || song.duration_seconds || 0);
@@ -780,6 +861,7 @@ export default function App() {
       const audio = audioRef.current;
       if (audio) {
         audio.currentTime = 0;
+        setStreamOffset(0);
         setProgress(0);
         const mediaDuration = audio.duration;
         setDuration(
@@ -815,6 +897,7 @@ export default function App() {
     }
     if (target.id === active.id && audioRef.current) {
       audioRef.current.currentTime = 0;
+      setStreamOffset(0);
       setProgress(0);
       const mediaDuration = audioRef.current.duration;
       setDuration(
@@ -854,6 +937,19 @@ export default function App() {
     const audio = audioRef.current;
     const target = Math.max(0, Number(seconds) || 0);
     setProgress(target);
+    if (streamModeRef.current === "adaptive") {
+      setBuffering(true);
+      pendingAutoplayRef.current = true;
+      setStreamOffset(target);
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      window.requestAnimationFrame(requestAudioPlay);
+      syncPlaybackProgress(false);
+      if (current && !playing) setPlaying(true);
+      return;
+    }
     if (!audio) return;
     try {
       if (typeof audio.fastSeek === "function") audio.fastSeek(target);
@@ -1136,6 +1232,11 @@ export default function App() {
     if (items[0]) void playSong(items[0], items);
   }
 
+  async function playFolder(folder: Folder) {
+    const items = await api.folderSongs(folder.path);
+    if (items[0]) void playSong(items[0], items);
+  }
+
   const nav = [
     { id: "home", label: t("home"), icon: <House /> },
     { id: "favorites", label: t("favorites"), icon: <Heart /> },
@@ -1206,7 +1307,7 @@ export default function App() {
   const playerStyle = coverUrl(current)
     ? ({ "--cover-url": `url(${coverUrl(current)})` } as React.CSSProperties)
     : undefined;
-  const currentStreamUrl = streamUrl(current, streamMode);
+  const currentStreamUrl = streamUrl(current, streamMode, streamOffset);
   const seekStyle = {
     "--played": playedPercent,
     "--buffered": bufferedPercent,
@@ -1328,6 +1429,8 @@ export default function App() {
             {view === "home" && (
               <HomeView
                 songs={songs}
+                dailyMix={dailyMix}
+                folders={folders}
                 albums={albums}
                 artists={artists}
                 playlists={playlists}
@@ -1343,6 +1446,7 @@ export default function App() {
                 onPlayPlaylist={playPlaylist}
                 onOpenPlaylist={openPlaylist}
                 onCreatePlaylist={createPlaylist}
+                onPlayFolder={playFolder}
               />
             )}
 
@@ -1574,6 +1678,7 @@ export default function App() {
           song={current}
           audioEl={audioEl}
           streamSrc={currentStreamUrl}
+          lowBandwidth={streamMode === "adaptive" || buffering}
         />
         <div className="now">
           <button
@@ -1661,12 +1766,7 @@ export default function App() {
             disabled={!playableDuration}
             style={seekStyle}
             onChange={(e) => {
-              if (audioRef.current) {
-                const nextTime = Number(e.target.value);
-                audioRef.current.currentTime = nextTime;
-                setProgress(nextTime);
-                syncPlaybackProgress(false);
-              }
+              seekTo(Number(e.target.value));
             }}
           />
           <span className={inlineLyrics ? "inline-lyrics-line" : ""}>
@@ -1771,7 +1871,12 @@ export default function App() {
                   ? Math.max(0, d - 3)
                   : resumeSeekRef.current,
               );
-              e.currentTarget.currentTime = target;
+              if (streamModeRef.current === "adaptive") {
+                setStreamOffset(target);
+                e.currentTarget.currentTime = 0;
+              } else {
+                e.currentTarget.currentTime = target;
+              }
               setProgress(target);
               resumeSeekRef.current = 0;
             }
@@ -1786,40 +1891,41 @@ export default function App() {
             );
           }}
           onLoadedData={() => {
+            clearStallDowngradeTimer();
             setBuffering(false);
             if (playingRef.current || pendingAutoplayRef.current)
               requestAudioPlay();
           }}
           onCanPlay={(event) => {
+            clearStallDowngradeTimer();
             updateBuffered(event.currentTarget);
             setBuffering(false);
             if (playingRef.current || pendingAutoplayRef.current)
               requestAudioPlay();
           }}
           onPlaying={(event) => {
+            clearStallDowngradeTimer();
             updateBuffered(event.currentTarget);
             setBuffering(false);
           }}
           onProgress={(event) => updateBuffered(event.currentTarget)}
           onTimeUpdate={(e) => {
-            setProgress(e.currentTarget.currentTime);
+            setProgress(streamOffsetRef.current + e.currentTarget.currentTime);
             updateBuffered(e.currentTarget);
+            if (bufferedAhead(e.currentTarget) > 1.5) setBuffering(false);
             syncPlaybackProgress(false);
           }}
           onSeeking={(e) => {
-            setProgress(e.currentTarget.currentTime);
+            setProgress(streamOffsetRef.current + e.currentTarget.currentTime);
             updateBuffered(e.currentTarget);
           }}
-          onWaiting={() => {
-            if (playingRef.current || pendingAutoplayRef.current) setBuffering(true);
-          }}
-          onStalled={() => {
-            if (playingRef.current || pendingAutoplayRef.current) setBuffering(true);
-          }}
+          onWaiting={(event) => handlePlaybackStall(event.currentTarget)}
+          onStalled={(event) => handlePlaybackStall(event.currentTarget)}
           onPause={() => syncPlaybackProgress(false)}
           onError={(event) => {
+            clearStallDowngradeTimer();
             if (streamMode === "adaptive") {
-              resumeSeekRef.current = event.currentTarget.currentTime || progress;
+              resumeSeekRef.current = streamOffsetRef.current + (event.currentTarget.currentTime || progress);
               pendingAutoplayRef.current = playingRef.current;
               setStreamMode("auto");
               setBuffering(false);
@@ -1828,6 +1934,7 @@ export default function App() {
             pendingAutoplayRef.current = false;
             event.currentTarget.pause();
             setPlaying(false);
+            setStreamOffset(0);
             setProgress(0);
             showMessage(t("playbackFailed"));
           }}
@@ -2083,6 +2190,8 @@ function AddToPlaylistDialog({
 
 function HomeView({
   songs,
+  dailyMix,
+  folders,
   albums,
   artists,
   playlists,
@@ -2098,8 +2207,11 @@ function HomeView({
   onPlayPlaylist,
   onOpenPlaylist,
   onCreatePlaylist,
+  onPlayFolder,
 }: {
   songs: Song[];
+  dailyMix: Song[];
+  folders: Folder[];
   albums: Album[];
   artists: Artist[];
   playlists: Playlist[];
@@ -2115,8 +2227,11 @@ function HomeView({
   onPlayPlaylist: (playlist: Playlist) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
   onCreatePlaylist: () => void;
+  onPlayFolder: (folder: Folder) => void;
 }) {
   const latestSongs = songs.slice(0, 5);
+  const dailySongs = dailyMix.length ? dailyMix.slice(0, 5) : songs.slice(0, 5);
+  const featuredFolders = folders.slice(0, 4);
   const featuredAlbums = albums.slice(0, 4);
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
@@ -2259,6 +2374,79 @@ function HomeView({
           </div>
         </section>
       </div>
+
+      {dailySongs.length || featuredFolders.length ? (
+        <section className="daily-folder-grid">
+          {dailySongs.length ? (
+            <div className="quick-panel daily-mix-panel">
+              <div className="section-head compact">
+                <div>
+                  <h2>{t("dailyMix")}</h2>
+                  <p className="section-subtitle">{t("dailyMixHint")}</p>
+                </div>
+                <button onClick={() => onPlay(dailySongs[0], dailyMix.length ? dailyMix : songs)}>
+                  <Play weight="fill" /> {t("playAll")}
+                </button>
+              </div>
+              <div className="quick-song-list">
+                {dailySongs.map((song) => (
+                  <button
+                    key={song.id}
+                    className={song.id === current?.id ? "active" : ""}
+                    onClick={() => onPlay(song, dailyMix.length ? dailyMix : songs)}
+                  >
+                    <MiniCover
+                      song={song}
+                      playing={playing && song.id === current?.id}
+                    />
+                    <span>
+                      <strong>{song.title}</strong>
+                      <small>{song.artist} · {song.album}</small>
+                    </span>
+                    <Play weight="fill" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {featuredFolders.length ? (
+            <div className="summary-panel folder-mix-panel">
+              <div className="section-head compact">
+                <div>
+                  <h2>{t("folders")}</h2>
+                  <p className="section-subtitle">{t("folderPlayHint")}</p>
+                </div>
+              </div>
+              <div className="folder-card-grid">
+                {featuredFolders.map((folder) => (
+                  <button
+                    key={folder.path}
+                    className="folder-card"
+                    onClick={() => onPlayFolder(folder)}
+                  >
+                    <span
+                      className="folder-cover"
+                      style={
+                        folder.cover_song_id
+                          ? ({
+                              "--cover-url": `url(/api/songs/${folder.cover_song_id}/cover)`,
+                            } as React.CSSProperties)
+                          : undefined
+                      }
+                    >
+                      <MusicNotes weight="fill" />
+                    </span>
+                    <strong>{folder.name}</strong>
+                    <small>
+                      {folder.song_count} {t("count")} · {formatDuration(folder.duration_seconds)}
+                    </small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {featuredAlbums.length ||
       featuredArtists.length ||
@@ -2546,12 +2734,14 @@ function PlayerMood({
   song,
   audioEl,
   streamSrc,
+  lowBandwidth,
 }: {
   theme: Theme;
   playing: boolean;
   song: Song | null;
   audioEl: HTMLAudioElement | null;
   streamSrc?: string;
+  lowBandwidth: boolean;
 }) {
   const labels: Record<Theme, string> = {
     "deep-space": "HI-FI ORBIT",
@@ -2572,7 +2762,7 @@ function PlayerMood({
     setWaveReady(false);
     setWaveFailed(false);
   }, [song?.id, streamSrc]);
-  const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed);
+  const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed && !lowBandwidth);
   return (
     <div
       className={
@@ -2617,7 +2807,7 @@ function PlayerMood({
           }}
         />
       ) : null}
-      <em>{waveFailed ? "METER" : theme === "carbon-volt" ? "74%" : playing ? "LIVE" : "IDLE"}</em>
+      <em>{lowBandwidth || waveFailed ? "METER" : theme === "carbon-volt" ? "74%" : playing ? "LIVE" : "IDLE"}</em>
     </div>
   );
 }

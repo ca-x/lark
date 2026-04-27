@@ -59,6 +59,13 @@ export interface Playlist {
   favorite: boolean;
   song_count: number;
 }
+export interface Folder {
+  path: string;
+  name: string;
+  song_count: number;
+  duration_seconds: number;
+  cover_song_id: number;
+}
 export interface Lyrics {
   song_id: number;
   source: string;

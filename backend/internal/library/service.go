@@ -89,6 +89,8 @@ func (s *Service) FFmpegBin() string { return s.ffmpeg }
 
 func (s *Service) LibraryDir() string { return s.libraryDir }
 
+func (s *Service) DataDir() string { return s.dataDir }
+
 func (s *Service) fontDir() string { return filepath.Join(s.dataDir, "fonts") }
 
 func IsSupported(path string) bool { return supportedExts[strings.ToLower(filepath.Ext(path))] }
@@ -388,6 +390,194 @@ func (s *Service) Song(ctx context.Context, userID, id int) (models.Song, error)
 		return models.Song{}, err
 	}
 	return out[0], nil
+}
+
+func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Song, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 24
+	}
+	items, err := s.client.Song.Query().WithArtist().WithAlbum().Order(ent.Asc(song.FieldID)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out, err := s.applySongUserState(ctx, userID, mapSongs(items))
+	if err != nil {
+		return nil, err
+	}
+	if len(out) <= limit {
+		return out, nil
+	}
+	today := time.Now().Format("2006-01-02")
+	type scoredSong struct {
+		song  models.Song
+		score uint64
+	}
+	scored := make([]scoredSong, 0, len(out))
+	for _, item := range out {
+		score := dailyScore(today, userID, item)
+		scored = append(scored, scoredSong{song: item, score: score})
+	}
+	sort.SliceStable(scored, func(i, j int) bool {
+		return scored[i].score > scored[j].score
+	})
+	selected := make([]models.Song, 0, limit)
+	for len(selected) < limit && len(scored) > 0 {
+		pick := 0
+		for i := 0; i < len(scored); i++ {
+			if !recentArtistInMix(selected, scored[i].song.ArtistID, 3) {
+				pick = i
+				break
+			}
+		}
+		selected = append(selected, scored[pick].song)
+		scored = append(scored[:pick], scored[pick+1:]...)
+	}
+	return selected, nil
+}
+
+func dailyScore(day string, userID int, item models.Song) uint64 {
+	seed := fmt.Sprintf("%s:%d:%d:%d:%s", day, userID, item.ID, item.ArtistID, item.Title)
+	var hash uint64 = 1469598103934665603
+	for _, b := range []byte(seed) {
+		hash ^= uint64(b)
+		hash *= 1099511628211
+	}
+	if item.Favorite {
+		hash += 1 << 62
+	}
+	if item.PlayCount > 0 {
+		hash += uint64(minInt(item.PlayCount, 20)) << 56
+	}
+	if item.LastPlayedAt != nil && time.Since(*item.LastPlayedAt) < 24*time.Hour {
+		hash >>= 1
+	}
+	return hash
+}
+
+func recentArtistInMix(items []models.Song, artistID, gap int) bool {
+	if artistID == 0 {
+		return false
+	}
+	start := len(items) - gap
+	if start < 0 {
+		start = 0
+	}
+	for _, item := range items[start:] {
+		if item.ArtistID == artistID {
+			return true
+		}
+	}
+	return false
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Folder, error) {
+	if limit <= 0 || limit > 60 {
+		limit = 12
+	}
+	items, err := s.client.Song.Query().Order(ent.Desc(song.FieldUpdatedAt), ent.Asc(song.FieldPath)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	root, err := filepath.Abs(s.libraryDir)
+	if err != nil {
+		return nil, err
+	}
+	grouped := map[string]*models.Folder{}
+	order := []string{}
+	for _, item := range items {
+		rel, ok := relativeFolderPath(root, filepath.Dir(item.Path))
+		if !ok {
+			continue
+		}
+		folder := grouped[rel]
+		if folder == nil {
+			name := filepath.Base(rel)
+			if rel == "." || rel == "" {
+				name = filepath.Base(root)
+			}
+			folder = &models.Folder{Path: rel, Name: name, CoverSongID: item.ID}
+			grouped[rel] = folder
+			order = append(order, rel)
+		}
+		folder.SongCount++
+		folder.DurationSeconds += item.DurationSeconds
+	}
+	out := make([]models.Folder, 0, minInt(limit, len(order)))
+	for _, rel := range order {
+		if len(out) >= limit {
+			break
+		}
+		out = append(out, *grouped[rel])
+	}
+	return out, nil
+}
+
+func (s *Service) FolderSongs(ctx context.Context, userID int, relPath string) ([]models.Song, error) {
+	folderPath, err := s.resolveLibraryFolder(relPath)
+	if err != nil {
+		return nil, err
+	}
+	prefix := folderPath
+	if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
+		prefix += string(os.PathSeparator)
+	}
+	query := s.client.Song.Query().
+		Where(song.Or(song.PathHasPrefix(prefix), song.Path(folderPath))).
+		WithArtist().
+		WithAlbum().
+		Order(ent.Asc(song.FieldPath))
+	items, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out, err := s.applySongUserState(ctx, userID, mapSongs(items))
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Service) resolveLibraryFolder(relPath string) (string, error) {
+	root, err := filepath.Abs(s.libraryDir)
+	if err != nil {
+		return "", err
+	}
+	cleanRel := filepath.Clean(strings.TrimSpace(relPath))
+	if cleanRel == "" || cleanRel == "." || cleanRel == string(os.PathSeparator) {
+		return root, nil
+	}
+	if filepath.IsAbs(cleanRel) {
+		return "", fmt.Errorf("folder path must be relative")
+	}
+	target, err := filepath.Abs(filepath.Join(root, cleanRel))
+	if err != nil {
+		return "", err
+	}
+	if target != root && !strings.HasPrefix(target, root+string(os.PathSeparator)) {
+		return "", fmt.Errorf("folder path escapes library")
+	}
+	return target, nil
+}
+
+func relativeFolderPath(root, folder string) (string, bool) {
+	rel, err := filepath.Rel(root, folder)
+	if err != nil {
+		return "", false
+	}
+	if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+		return "", false
+	}
+	if rel == "" {
+		return ".", true
+	}
+	return filepath.ToSlash(rel), true
 }
 
 func (s *Service) RawSong(ctx context.Context, id int) (*ent.Song, error) {

@@ -85,6 +85,14 @@ type Playlist struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type Folder struct {
+	Path            string  `json:"path"`
+	Name            string  `json:"name"`
+	SongCount       int     `json:"song_count"`
+	DurationSeconds float64 `json:"duration_seconds"`
+	CoverSongID      int     `json:"cover_song_id"`
+}
+
 type Lyrics struct {
 	SongID  int    `json:"song_id"`
 	Source  string `json:"source"`
