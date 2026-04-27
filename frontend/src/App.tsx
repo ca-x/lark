@@ -1,9 +1,10 @@
-import type { ChangeEvent, UIEvent } from "react";
+import type { ChangeEvent, ReactNode, UIEvent } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Disc,
   GearSix,
   Info,
+  ArrowLeft,
   ArrowUp,
   CaretDown,
   CaretRight,
@@ -497,6 +498,7 @@ export default function App() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [queue, setQueue] = useState<Song[]>([]);
   const [collection, setCollection] = useState<Collection | null>(null);
+  const [collectionBack, setCollectionBack] = useState<Collection | null>(null);
   const [current, setCurrent] = useState<Song | null>(null);
   const [playing, setPlaying] = useState(false);
   const [playMode, setPlayMode] = useState<PlayMode>("sequence");
@@ -1432,6 +1434,7 @@ export default function App() {
   }
 
   async function openPlaylist(playlist: Playlist) {
+    setCollectionBack(null);
     const requestId = ++collectionRequestRef.current;
     const nextCollection: Collection = {
       type: "playlist",
@@ -1461,7 +1464,8 @@ export default function App() {
     }
   }
 
-  async function openAlbum(album: Album) {
+  async function openAlbum(album: Album, backTo: Collection | null = null) {
+    setCollectionBack(backTo);
     const requestId = ++collectionRequestRef.current;
     const nextCollection: Collection = {
       type: "album",
@@ -1506,6 +1510,7 @@ export default function App() {
 
   async function openArtistById(id: number, fallbackName = "") {
     if (!id) return;
+    setCollectionBack(null);
     const requestId = ++collectionRequestRef.current;
     const artist = artists.find((item) => item.id === id);
     const title = artist?.name || fallbackName || t("artists");
@@ -1632,6 +1637,14 @@ export default function App() {
     collection && view === "collection"
       ? collection.title
       : (nav.find((item) => item.id === view)?.label ?? t("brand"));
+  const topbarHasScreenTitle = !([
+    "favorites",
+    "library",
+    "playlists",
+    "albums",
+    "artists",
+    "collection",
+  ] as View[]).includes(view);
   const currentAlbum =
     current && current.album_id
       ? albums.find((item) => item.id === current.album_id)
@@ -1728,9 +1741,9 @@ export default function App() {
         ) : (
           <>
             <header className="topbar">
-              <div className="top-title">
-                <span>{t("brand")}</span>
-                <h1>{screenTitle}</h1>
+              <div className={topbarHasScreenTitle ? "top-title" : "top-title compact"}>
+                <span>{topbarHasScreenTitle ? t("brand") : t("playingFrom")}</span>
+                {topbarHasScreenTitle ? <h1>{screenTitle}</h1> : null}
               </div>
               <label className="search">
                 <MagnifyingGlass />
@@ -1831,15 +1844,27 @@ export default function App() {
                 collection={collection}
                 current={current}
                 t={t}
-                onBack={() =>
+                backLabel={
+                  collection.type === "album" && collectionBack
+                    ? collectionBack.title
+                    : undefined
+                }
+                onBack={() => {
+                  if (collection.type === "album" && collectionBack) {
+                    setCollection(collectionBack);
+                    setCollectionBack(null);
+                    setView("collection");
+                    return;
+                  }
+                  setCollectionBack(null);
                   setView(
                     collection.type === "playlist"
                       ? "playlists"
                       : collection.type === "album"
                         ? "albums"
                         : "artists",
-                  )
-                }
+                  );
+                }}
                 onPlayAll={() => void playCollection(collection)}
                 onPlay={playSong}
                 onFavorite={toggleFavorite}
@@ -1861,12 +1886,16 @@ export default function App() {
                 }
                 onOpenAlbum={(song) => {
                   const album = albums.find((item) => item.id === song.album_id);
-                  if (album) void openAlbum(album);
+                  if (album) {
+                    void openAlbum(album, collection.type === "artist" ? collection : null);
+                  }
                 }}
                 onOpenArtist={(song) =>
                   void openArtistById(song.artist_id, song.artist)
                 }
-                onOpenAlbumCard={(album) => void openAlbum(album)}
+                onOpenAlbumCard={(album) =>
+                  void openAlbum(album, collection.type === "artist" ? collection : null)
+                }
                 onPlayAlbumCard={(album) => void playAlbum(album)}
                 onOpenCollectionArtist={
                   collection.artistId
@@ -3409,6 +3438,7 @@ function CollectionView({
   collection,
   current,
   t,
+  backLabel,
   onBack,
   onPlayAll,
   onPlay,
@@ -3426,6 +3456,7 @@ function CollectionView({
   collection: Collection;
   current: Song | null;
   t: ReturnType<typeof createT>;
+  backLabel?: string;
   onBack: () => void;
   onPlayAll: () => void;
   onPlay: (song: Song, list: Song[]) => void;
@@ -3441,6 +3472,7 @@ function CollectionView({
   onOpenCollectionArtist?: () => void;
 }) {
   const label = collectionLabel(collection.type, t);
+  const resolvedBackLabel = backLabel || label;
   const hasResolvableSongs = collection.songs.length > 0 || Boolean(collection.id);
   const [artistView, setArtistView] = useState<"songs" | "albums">("songs");
   const artistAlbums = useMemo(
@@ -3452,8 +3484,14 @@ function CollectionView({
   );
   return (
     <section className="collection-view">
-      <button className="back-button" onClick={onBack}>
-        ← {label}
+      <button
+        className="back-button"
+        onClick={onBack}
+        aria-label={`${t("backTo")} ${resolvedBackLabel}`}
+        title={`${t("backTo")} ${resolvedBackLabel}`}
+      >
+        <ArrowLeft aria-hidden="true" />
+        <span>{resolvedBackLabel}</span>
       </button>
       <div className="collection-hero">
         <CollectionCover collection={collection} />
@@ -4838,7 +4876,9 @@ function AboutView({
   settings: Settings;
   t: ReturnType<typeof createT>;
 }) {
-  const rows = [
+  const rows: { label: string; value: ReactNode }[] = [
+    { label: t("github"), value: <a href="https://github.com/ca-x/lark" target="_blank" rel="noreferrer">github.com/ca-x/lark</a> },
+    { label: t("author"), value: settings.language === "zh-CN" ? "虫子樱桃" : "czyt" },
     { label: t("version"), value: health?.full_version || health?.version || "lark/dev" },
     {
       label: t("commit"),
