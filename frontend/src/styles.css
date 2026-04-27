@@ -146,6 +146,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .cover-button:hover .mini-art { transform:scale(1.04); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
 .mini-art { width:60px; height:60px; border-radius:16px; display:grid; place-items:center; position:relative; overflow:hidden; background:var(--cover-url), var(--cover); background-size:cover; background-position:center; color:var(--bg); transition:transform .18s var(--ease), box-shadow .18s var(--ease); }
 .mini-art::after { content:''; position:absolute; inset:0; border-radius:inherit; background:radial-gradient(circle, transparent 0 30%, rgba(0,0,0,.55) 31% 34%, transparent 35%), repeating-radial-gradient(circle, rgba(0,0,0,.18) 0 2px, transparent 3px 6px); opacity:0; }
+.mini-art[data-has-cover='true'] svg { display:none; }
 .now-pulse { width:18px; height:24px; display:flex; align-items:end; gap:3px; opacity:.85; }
 .now-pulse i { width:4px; height:35%; border-radius:999px; background:var(--accent); animation:vu 900ms var(--ease) infinite alternate; }
 .now-pulse i:nth-child(2) { height:70%; animation-delay:120ms; }
@@ -1051,6 +1052,20 @@ body, button, input, select { font-family: var(--app-font); }
 .cover-button .mini-art[data-playing='true'] { animation:mini-cover-float 3.6s ease-in-out infinite; box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent), 0 12px 30px color-mix(in srgb, var(--accent) 20%, transparent); filter:saturate(1.08); }
 .cover-button .mini-art[data-playing='true']::before { opacity:.85; animation:mini-cover-sheen 4.8s linear infinite; }
 .cover-button .mini-art[data-playing='false'] { animation:none; filter:saturate(.92); }
+.cover-button .mini-art[data-has-cover='true']::before,
+.cover-button .mini-art[data-has-cover='true']::after,
+.full-lyrics-cover-button .mini-art[data-has-cover='true']::before,
+.full-lyrics-cover-button .mini-art[data-has-cover='true']::after,
+[data-theme] .cover-button .mini-art[data-has-cover='true']::before,
+[data-theme] .cover-button .mini-art[data-has-cover='true']::after,
+[data-theme] .full-lyrics-cover-button .mini-art[data-has-cover='true']::before,
+[data-theme] .full-lyrics-cover-button .mini-art[data-has-cover='true']::after {
+  display:none !important;
+  content:none !important;
+  animation:none !important;
+  background:none !important;
+  opacity:0 !important;
+}
 @keyframes mini-cover-float {
   0%, 100% { transform:translateY(0) rotate(-.8deg) scale(1); }
   50% { transform:translateY(-2px) rotate(.8deg) scale(1.025); }

@@ -515,13 +515,14 @@ export default function App() {
   useEffect(() => {
     if (!current) return;
     const resume = resumeMode === "resume" ? resumePosition(current) : 0;
+    const nextMode = defaultStreamMode(current);
     resumeSeekRef.current = resume;
     setProgress(resume);
     setDuration(current.duration_seconds || 0);
     setBufferedEnd(0);
     setBuffering(false);
-    setStreamOffset(0);
-    setStreamMode(defaultStreamMode(current));
+    setStreamOffset(nextMode === "adaptive" ? resume : 0);
+    setStreamMode(nextMode);
     setLyrics(null);
     setLyricCandidates([]);
     setLyricCandidatesOpen(false);
@@ -768,8 +769,10 @@ export default function App() {
         (playingRef.current || pendingAutoplayRef.current) &&
         (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA || barelyMoved || lowBuffer)
       ) {
-        resumeSeekRef.current = streamOffsetRef.current + (audio.currentTime || progress);
+        const resumeAt = streamOffsetRef.current + (audio.currentTime || progress);
+        resumeSeekRef.current = resumeAt;
         pendingAutoplayRef.current = true;
+        setStreamOffset(resumeAt);
         setStreamMode("adaptive");
         showMessage(t("networkRescue"));
       }
@@ -1863,23 +1866,27 @@ export default function App() {
           onLoadedMetadata={(e) => {
             updateBuffered(e.currentTarget);
             const d = e.currentTarget.duration;
+            const mediaDuration = Number.isFinite(d) && d > 0 ? d : 0;
+            const libraryDuration = current?.duration_seconds || 0;
             setDuration(
-              Number.isFinite(d) && d > 0 ? d : current?.duration_seconds || 0,
+              streamModeRef.current === "adaptive"
+                ? libraryDuration || streamOffsetRef.current + mediaDuration
+                : mediaDuration || libraryDuration,
             );
             if (resumeSeekRef.current > 0) {
-              const target = Math.min(
-                resumeSeekRef.current,
-                Number.isFinite(d) && d > 0
-                  ? Math.max(0, d - 3)
-                  : resumeSeekRef.current,
-              );
               if (streamModeRef.current === "adaptive") {
+                const target = resumeSeekRef.current;
                 setStreamOffset(target);
                 e.currentTarget.currentTime = 0;
+                setProgress(target);
               } else {
+                const target = Math.min(
+                  resumeSeekRef.current,
+                  mediaDuration > 0 ? Math.max(0, mediaDuration - 3) : resumeSeekRef.current,
+                );
                 e.currentTarget.currentTime = target;
+                setProgress(target);
               }
-              setProgress(target);
               resumeSeekRef.current = 0;
             }
             if (playingRef.current || pendingAutoplayRef.current)
@@ -1888,8 +1895,12 @@ export default function App() {
           onDurationChange={(e) => {
             updateBuffered(e.currentTarget);
             const d = e.currentTarget.duration;
+            const mediaDuration = Number.isFinite(d) && d > 0 ? d : 0;
+            const libraryDuration = current?.duration_seconds || 0;
             setDuration(
-              Number.isFinite(d) && d > 0 ? d : current?.duration_seconds || 0,
+              streamModeRef.current === "adaptive"
+                ? libraryDuration || streamOffsetRef.current + mediaDuration
+                : mediaDuration || libraryDuration,
             );
           }}
           onLoadedData={() => {
@@ -1927,8 +1938,15 @@ export default function App() {
           onError={(event) => {
             clearStallDowngradeTimer();
             if (streamMode === "adaptive") {
-              resumeSeekRef.current = streamOffsetRef.current + (event.currentTarget.currentTime || progress);
+              const mediaTime = event.currentTarget.currentTime || 0;
+              const resumeAt =
+                mediaTime > 0.05
+                  ? streamOffsetRef.current + mediaTime
+                  : progress;
+              resumeSeekRef.current = resumeAt;
               pendingAutoplayRef.current = playingRef.current;
+              setStreamOffset(0);
+              setProgress(resumeAt);
               setStreamMode("auto");
               setBuffering(false);
               return;
@@ -2286,15 +2304,6 @@ function HomeView({
               {heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
               {heroPlaying ? t("nowPlaying") : t("play")}
             </button>
-            {heroSong?.artist_id ? (
-              <button
-                onClick={() =>
-                  onOpenArtist(heroSong.artist_id, heroSong.artist)
-                }
-              >
-                <Record /> {t("artist")}
-              </button>
-            ) : null}
           </div>
         </div>
       </section>
@@ -2539,16 +2548,13 @@ function Turntable({
   duration?: number;
   decorative?: boolean;
 }) {
-  const label = song?.title || "Lark Music";
-  const artist = song?.artist || "Local Library";
   return (
     <div
       className={decorative ? "turntable decorative" : "turntable"}
       data-playing={playing ? "true" : "false"}
     >
       <VinylCanvas
-        title={label}
-        artist={artist}
+        cover={coverUrl(song)}
         playing={playing}
         progress={progress}
         duration={duration || song?.duration_seconds || 0}
@@ -2560,26 +2566,43 @@ function Turntable({
 }
 
 function VinylCanvas({
-  title,
-  artist,
+  cover,
   playing,
   progress,
   duration,
 }: {
-  title: string;
-  artist: string;
+  cover?: string;
   playing: boolean;
   progress: number;
   duration: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const armRef = useRef<SVGSVGElement | null>(null);
+  const coverRef = useRef<HTMLImageElement | null>(null);
   const stateRef = useRef({ rotation: 0, last: 0, needle: 0 });
-  const inputRef = useRef({ title, artist, playing, progress, duration });
+  const inputRef = useRef({ cover, playing, progress, duration });
 
   useEffect(() => {
-    inputRef.current = { title, artist, playing, progress, duration };
-  }, [title, artist, playing, progress, duration]);
+    inputRef.current = { cover, playing, progress, duration };
+  }, [cover, playing, progress, duration]);
+
+  useEffect(() => {
+    coverRef.current = null;
+    if (!cover) return;
+    let cancelled = false;
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => {
+      if (!cancelled) coverRef.current = image;
+    };
+    image.onerror = () => {
+      if (!cancelled) coverRef.current = null;
+    };
+    image.src = cover;
+    return () => {
+      cancelled = true;
+    };
+  }, [cover]);
 
   useEffect(() => {
     let frame = 0;
@@ -2609,7 +2632,7 @@ function VinylCanvas({
       const pct = input.duration > 0 ? Math.min(1, Math.max(0, input.progress / input.duration)) : 0;
       const targetNeedle = input.playing ? pct : 0;
       state.needle += (targetNeedle - state.needle) * (input.playing ? 0.055 : 0.035);
-      drawVinylCanvas(ctx, state.rotation, input.title, input.artist);
+      drawVinylCanvas(ctx, state.rotation, coverRef.current);
       drawTonearmSvg(arm, state.needle);
       frame = window.requestAnimationFrame(drawFrame);
     };
@@ -2625,7 +2648,11 @@ function VinylCanvas({
   );
 }
 
-function drawVinylCanvas(ctx: CanvasRenderingContext2D, rotation: number, title: string, artist: string) {
+function drawVinylCanvas(
+  ctx: CanvasRenderingContext2D,
+  rotation: number,
+  coverImage: HTMLImageElement | null,
+) {
   const cx = 120;
   const cy = 120;
   const radius = 116;
@@ -2659,25 +2686,35 @@ function drawVinylCanvas(ctx: CanvasRenderingContext2D, rotation: number, title:
   ctx.translate(cx, cy);
   ctx.rotate(rotation * 0.35);
   ctx.beginPath();
-  ctx.arc(0, 0, 31, 0, Math.PI * 2);
-  ctx.fillStyle = "#2a1a06";
-  ctx.fill();
-  const label = ctx.createRadialGradient(-5, -7, 2, 0, 0, 29);
-  label.addColorStop(0, "#533514");
-  label.addColorStop(0.62, "#2a1a06");
-  label.addColorStop(1, "#160904");
+  ctx.arc(0, 0, 34, 0, Math.PI * 2);
+  ctx.clip();
+  if (coverImage?.complete && coverImage.naturalWidth > 0) {
+    const side = Math.min(coverImage.naturalWidth, coverImage.naturalHeight);
+    const sx = (coverImage.naturalWidth - side) / 2;
+    const sy = (coverImage.naturalHeight - side) / 2;
+    ctx.drawImage(coverImage, sx, sy, side, side, -34, -34, 68, 68);
+  } else {
+    const label = ctx.createRadialGradient(-8, -9, 2, 0, 0, 34);
+    label.addColorStop(0, "#5a3a18");
+    label.addColorStop(0.58, "#2a1a06");
+    label.addColorStop(1, "#100704");
+    ctx.fillStyle = label;
+    ctx.fillRect(-34, -34, 68, 68);
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(cx, cy);
   ctx.beginPath();
-  ctx.arc(0, 0, 28, 0, Math.PI * 2);
-  ctx.fillStyle = label;
-  ctx.fill();
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "rgba(240,219,168,.92)";
-  ctx.font = "700 8px sans-serif";
-  ctx.fillText(title.slice(0, 17).toUpperCase(), 0, -7);
-  ctx.fillStyle = "rgba(200,169,110,.74)";
-  ctx.font = "600 7px sans-serif";
-  ctx.fillText(artist.slice(0, 19).toUpperCase(), 0, 6);
+  ctx.arc(0, 0, 34, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(200,169,110,.82)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, 27, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(0,0,0,.24)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
   ctx.restore();
 
   ctx.beginPath();
@@ -2734,16 +2771,18 @@ function MiniCover({
   song?: Song | null;
   playing: boolean;
 }) {
-  const style = coverUrl(song)
-    ? ({ "--cover-url": `url(${coverUrl(song)})` } as React.CSSProperties)
+  const url = coverUrl(song);
+  const style = url
+    ? ({ "--cover-url": `url(${url})` } as React.CSSProperties)
     : undefined;
   return (
     <div
       className="mini-art"
       data-playing={playing ? "true" : "false"}
+      data-has-cover={url ? "true" : "false"}
       style={style}
     >
-      <Record weight="fill" />
+      {!url ? <Record weight="fill" /> : null}
     </div>
   );
 }
@@ -2906,12 +2945,16 @@ function PlayerMood({
     "dusk-amber": "19:42",
   };
   const colors = waveThemeColors(theme);
+  const waveformPeaks = useMemo(
+    () => syntheticWaveformPeaks(song?.id ?? 0),
+    [song?.id],
+  );
   const [waveReady, setWaveReady] = useState(false);
   const [waveFailed, setWaveFailed] = useState(false);
   useEffect(() => {
     setWaveReady(false);
     setWaveFailed(false);
-  }, [song?.id, streamSrc]);
+  }, [song?.id]);
   const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed && !lowBandwidth);
   return (
     <div
@@ -2935,9 +2978,10 @@ function PlayerMood({
         )}
         {canRenderWave && audioEl ? (
           <WavesurferPlayer
-            key={`${song?.id ?? "empty"}-${streamSrc}`}
+            key={song?.id ?? "empty"}
             media={audioEl}
-            url={streamSrc}
+            peaks={waveformPeaks}
+            duration={Math.max(1, song?.duration_seconds || audioEl.duration || 1)}
             height={42}
             fillParent
             hideScrollbar
@@ -2979,6 +3023,23 @@ function waveThemeColors(theme: Theme) {
     "dusk-amber": { wave: "rgba(158,112,64,.34)", progress: "#c46020", cursor: "#f0b050" },
   };
   return map[theme];
+}
+
+function syntheticWaveformPeaks(seed: number) {
+  let value = Math.max(1, seed || 1);
+  const next = () => {
+    value = (value * 1664525 + 1013904223) % 4294967296;
+    return value / 4294967296;
+  };
+  const peaks = Array.from({ length: 192 }, (_, index) => {
+    const phase = index / 192;
+    const envelope =
+      0.2 +
+      0.58 * Math.sin(Math.PI * phase) +
+      0.18 * Math.sin(Math.PI * phase * 7 + seed * 0.03);
+    return Math.max(0.08, Math.min(1, envelope * (0.72 + next() * 0.5)));
+  });
+  return [peaks];
 }
 
 function collectionLabel(
