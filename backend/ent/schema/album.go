@@ -15,6 +15,7 @@ func (Album) Fields() []ent.Field {
 		field.String("title").NotEmpty(),
 		field.String("album_artist").Default(""),
 		field.String("cover_path").Default(""),
+		field.Int("year").Default(0),
 		field.Bool("favorite").Default(false),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),

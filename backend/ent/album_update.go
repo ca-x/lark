@@ -73,6 +73,27 @@ func (_u *AlbumUpdate) SetNillableCoverPath(v *string) *AlbumUpdate {
 	return _u
 }
 
+// SetYear sets the "year" field.
+func (_u *AlbumUpdate) SetYear(v int) *AlbumUpdate {
+	_u.mutation.ResetYear()
+	_u.mutation.SetYear(v)
+	return _u
+}
+
+// SetNillableYear sets the "year" field if the given value is not nil.
+func (_u *AlbumUpdate) SetNillableYear(v *int) *AlbumUpdate {
+	if v != nil {
+		_u.SetYear(*v)
+	}
+	return _u
+}
+
+// AddYear adds value to the "year" field.
+func (_u *AlbumUpdate) AddYear(v int) *AlbumUpdate {
+	_u.mutation.AddYear(v)
+	return _u
+}
+
 // SetFavorite sets the "favorite" field.
 func (_u *AlbumUpdate) SetFavorite(v bool) *AlbumUpdate {
 	_u.mutation.SetFavorite(v)
@@ -276,6 +297,12 @@ func (_u *AlbumUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.CoverPath(); ok {
 		_spec.SetField(album.FieldCoverPath, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Year(); ok {
+		_spec.SetField(album.FieldYear, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedYear(); ok {
+		_spec.AddField(album.FieldYear, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(album.FieldFavorite, field.TypeBool, value)
 	}
@@ -463,6 +490,27 @@ func (_u *AlbumUpdateOne) SetNillableCoverPath(v *string) *AlbumUpdateOne {
 	if v != nil {
 		_u.SetCoverPath(*v)
 	}
+	return _u
+}
+
+// SetYear sets the "year" field.
+func (_u *AlbumUpdateOne) SetYear(v int) *AlbumUpdateOne {
+	_u.mutation.ResetYear()
+	_u.mutation.SetYear(v)
+	return _u
+}
+
+// SetNillableYear sets the "year" field if the given value is not nil.
+func (_u *AlbumUpdateOne) SetNillableYear(v *int) *AlbumUpdateOne {
+	if v != nil {
+		_u.SetYear(*v)
+	}
+	return _u
+}
+
+// AddYear adds value to the "year" field.
+func (_u *AlbumUpdateOne) AddYear(v int) *AlbumUpdateOne {
+	_u.mutation.AddYear(v)
 	return _u
 }
 
@@ -698,6 +746,12 @@ func (_u *AlbumUpdateOne) sqlSave(ctx context.Context) (_node *Album, err error)
 	}
 	if value, ok := _u.mutation.CoverPath(); ok {
 		_spec.SetField(album.FieldCoverPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Year(); ok {
+		_spec.SetField(album.FieldYear, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedYear(); ok {
+		_spec.AddField(album.FieldYear, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(album.FieldFavorite, field.TypeBool, value)

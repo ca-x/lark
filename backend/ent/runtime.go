@@ -36,16 +36,20 @@ func init() {
 	albumDescCoverPath := albumFields[2].Descriptor()
 	// album.DefaultCoverPath holds the default value on creation for the cover_path field.
 	album.DefaultCoverPath = albumDescCoverPath.Default.(string)
+	// albumDescYear is the schema descriptor for year field.
+	albumDescYear := albumFields[3].Descriptor()
+	// album.DefaultYear holds the default value on creation for the year field.
+	album.DefaultYear = albumDescYear.Default.(int)
 	// albumDescFavorite is the schema descriptor for favorite field.
-	albumDescFavorite := albumFields[3].Descriptor()
+	albumDescFavorite := albumFields[4].Descriptor()
 	// album.DefaultFavorite holds the default value on creation for the favorite field.
 	album.DefaultFavorite = albumDescFavorite.Default.(bool)
 	// albumDescCreatedAt is the schema descriptor for created_at field.
-	albumDescCreatedAt := albumFields[4].Descriptor()
+	albumDescCreatedAt := albumFields[5].Descriptor()
 	// album.DefaultCreatedAt holds the default value on creation for the created_at field.
 	album.DefaultCreatedAt = albumDescCreatedAt.Default.(func() time.Time)
 	// albumDescUpdatedAt is the schema descriptor for updated_at field.
-	albumDescUpdatedAt := albumFields[5].Descriptor()
+	albumDescUpdatedAt := albumFields[6].Descriptor()
 	// album.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	album.DefaultUpdatedAt = albumDescUpdatedAt.Default.(func() time.Time)
 	// album.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

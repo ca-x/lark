@@ -309,7 +309,7 @@ func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	albumEntity, err := s.ensureAlbum(ctx, meta.Album, meta.AlbumArtist, artistEntity)
+	albumEntity, err := s.ensureAlbum(ctx, meta.Album, meta.AlbumArtist, artistEntity, meta.Year)
 	if err != nil {
 		return false, err
 	}
@@ -1625,19 +1625,26 @@ func (s *Service) ensureArtist(ctx context.Context, name string) (*ent.Artist, e
 	return s.client.Artist.Create().SetName(name).Save(ctx)
 }
 
-func (s *Service) ensureAlbum(ctx context.Context, title, albumArtist string, ar *ent.Artist) (*ent.Album, error) {
+func (s *Service) ensureAlbum(ctx context.Context, title, albumArtist string, ar *ent.Artist, year int) (*ent.Album, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		title = "Unknown Album"
 	}
 	item, err := s.client.Album.Query().Where(album.Title(title)).Only(ctx)
 	if err == nil {
+		if item.Year == 0 && year > 0 {
+			updated, updateErr := item.Update().SetYear(year).Save(ctx)
+			if updateErr != nil {
+				return nil, updateErr
+			}
+			return updated, nil
+		}
 		return item, nil
 	}
 	if !ent.IsNotFound(err) {
 		return nil, err
 	}
-	return s.client.Album.Create().SetTitle(title).SetAlbumArtist(albumArtist).SetArtist(ar).Save(ctx)
+	return s.client.Album.Create().SetTitle(title).SetAlbumArtist(albumArtist).SetYear(year).SetArtist(ar).Save(ctx)
 }
 
 func (s *Service) probe(path string) fileMetadata {
@@ -2209,7 +2216,7 @@ func mapAlbum(item *ent.Album) models.Album {
 		artistID = item.Edges.Artist.ID
 		artistName = item.Edges.Artist.Name
 	}
-	year := 0
+	year := item.Year
 	for _, song := range item.Edges.Songs {
 		if song.Year > 0 && (year == 0 || song.Year < year) {
 			year = song.Year
@@ -2254,6 +2261,11 @@ func (s *Service) OnlineAlbumInfo(ctx context.Context, id int) (models.OnlineAlb
 		return models.OnlineAlbumInfo{}, nil
 	}
 	best := candidates[0]
+	if best.Year > 0 && a.Year == 0 {
+		if updated, updateErr := a.Update().SetYear(best.Year).Save(ctx); updateErr == nil {
+			a = updated
+		}
+	}
 	best.Candidates = candidates
 	return best, nil
 }
@@ -2262,7 +2274,7 @@ func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName stri
 	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
 	type providerResult struct {
-		items []online.AlbumCandidate
+		items []online.AlbumInfo
 	}
 	resultCh := make(chan providerResult, len(s.online))
 	var wg sync.WaitGroup
@@ -2275,7 +2287,7 @@ func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName stri
 			if strings.TrimSpace(artistName) != "" {
 				queries = append(queries, "")
 			}
-			itemsOut := []online.AlbumCandidate{}
+			itemsOut := []online.AlbumInfo{}
 			seenProvider := map[string]bool{}
 			for _, currentArtist := range queries {
 				items, err := provider.SearchAlbums(ctx, title, currentArtist)
@@ -2288,7 +2300,16 @@ func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName stri
 						continue
 					}
 					seenProvider[key] = true
-					itemsOut = append(itemsOut, item)
+					info := online.AlbumInfo{AlbumCandidate: item}
+					if detail, detailErr := provider.AlbumInfo(ctx, item.ID); detailErr == nil {
+						mergeOnlineAlbumInfo(&info, detail)
+					}
+					if len(info.Tracks) == 0 {
+						if songs, songErr := provider.SearchSongs(ctx, info.Title, info.Artist); songErr == nil {
+							info.Tracks = tracksFromOnlineSongs(songs, item)
+						}
+					}
+					itemsOut = append(itemsOut, info)
 				}
 			}
 			select {
@@ -2322,10 +2343,62 @@ func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName stri
 	return out
 }
 
-func mapOnlineAlbum(item online.AlbumCandidate) models.OnlineAlbumInfo {
-	tracks := make([]models.OnlineAlbumTrack, 0, len(item.Extra))
-	_ = tracks
-	return models.OnlineAlbumInfo{ID: item.ID, Source: item.Source, Title: item.Title, Artist: item.Artist, Cover: item.Cover, ReleaseDate: item.ReleaseDate, Year: item.Year, Description: item.Description, TrackCount: item.TrackCount, Link: item.Link}
+func mapOnlineAlbum(item online.AlbumInfo) models.OnlineAlbumInfo {
+	tracks := make([]models.OnlineAlbumTrack, 0, len(item.Tracks))
+	for _, track := range item.Tracks {
+		tracks = append(tracks, models.OnlineAlbumTrack{Title: track.Title, Artist: track.Artist, DurationSeconds: track.DurationSec, TrackNumber: track.TrackNumber})
+	}
+	return models.OnlineAlbumInfo{ID: item.ID, Source: item.Source, Title: item.Title, Artist: item.Artist, Cover: item.Cover, ReleaseDate: item.ReleaseDate, Year: item.Year, Description: item.Description, TrackCount: item.TrackCount, Link: item.Link, Tracks: tracks}
+}
+
+func tracksFromOnlineSongs(songs []online.Song, album online.AlbumCandidate) []online.Track {
+	tracks := []online.Track{}
+	for _, song := range songs {
+		if album.ID != "" && song.AlbumID != "" && song.AlbumID != album.ID {
+			continue
+		}
+		if song.AlbumID == "" && !albumTitleMatchesOnline(album.Title, song.Album) {
+			continue
+		}
+		tracks = append(tracks, online.Track{Title: song.Title, Artist: song.Artist, DurationSec: song.Duration, TrackNumber: len(tracks) + 1})
+	}
+	return tracks
+}
+
+func albumTitleMatchesOnline(want, got string) bool {
+	want = normalizeCompareText(want)
+	got = normalizeCompareText(got)
+	return want != "" && got != "" && (want == got || strings.Contains(want, got) || strings.Contains(got, want))
+}
+
+func mergeOnlineAlbumInfo(base *online.AlbumInfo, detail online.AlbumInfo) {
+	if strings.TrimSpace(detail.Title) != "" {
+		base.Title = detail.Title
+	}
+	if strings.TrimSpace(detail.Artist) != "" {
+		base.Artist = detail.Artist
+	}
+	if strings.TrimSpace(detail.Cover) != "" {
+		base.Cover = detail.Cover
+	}
+	if strings.TrimSpace(detail.ReleaseDate) != "" {
+		base.ReleaseDate = detail.ReleaseDate
+	}
+	if detail.Year > 0 {
+		base.Year = detail.Year
+	}
+	if strings.TrimSpace(detail.Description) != "" {
+		base.Description = detail.Description
+	}
+	if detail.TrackCount > 0 {
+		base.TrackCount = detail.TrackCount
+	}
+	if strings.TrimSpace(detail.Link) != "" {
+		base.Link = detail.Link
+	}
+	if len(detail.Tracks) > 0 {
+		base.Tracks = detail.Tracks
+	}
 }
 
 func onlineAlbumScore(item models.OnlineAlbumInfo, title, artistName string) int {

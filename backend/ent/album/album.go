@@ -20,6 +20,8 @@ const (
 	FieldAlbumArtist = "album_artist"
 	// FieldCoverPath holds the string denoting the cover_path field in the database.
 	FieldCoverPath = "cover_path"
+	// FieldYear holds the string denoting the year field in the database.
+	FieldYear = "year"
 	// FieldFavorite holds the string denoting the favorite field in the database.
 	FieldFavorite = "favorite"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -63,6 +65,7 @@ var Columns = []string{
 	FieldTitle,
 	FieldAlbumArtist,
 	FieldCoverPath,
+	FieldYear,
 	FieldFavorite,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -96,6 +99,8 @@ var (
 	DefaultAlbumArtist string
 	// DefaultCoverPath holds the default value on creation for the "cover_path" field.
 	DefaultCoverPath string
+	// DefaultYear holds the default value on creation for the "year" field.
+	DefaultYear int
 	// DefaultFavorite holds the default value on creation for the "favorite" field.
 	DefaultFavorite bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -127,6 +132,11 @@ func ByAlbumArtist(opts ...sql.OrderTermOption) OrderOption {
 // ByCoverPath orders the results by the cover_path field.
 func ByCoverPath(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCoverPath, opts...).ToFunc()
+}
+
+// ByYear orders the results by the year field.
+func ByYear(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldYear, opts...).ToFunc()
 }
 
 // ByFavorite orders the results by the favorite field.

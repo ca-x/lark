@@ -3851,6 +3851,21 @@ function AlbumInfoDrawer({
                 <p>{activeInfo.description}</p>
               </section>
             ) : null}
+
+            {activeInfo.tracks?.length ? (
+              <section className="album-info-section album-info-tracks">
+                <h4>{t("songs")}</h4>
+                <div>
+                  {activeInfo.tracks.map((track, index) => (
+                    <div key={`${track.track_number || index}-${track.title}`}>
+                      <span>{track.track_number || index + 1}</span>
+                      <strong>{track.title}</strong>
+                      <em>{track.artist || activeInfo.artist || collection.artistName || "—"}</em>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             {activeInfo.link ? (
               <a
                 className="album-info-link"

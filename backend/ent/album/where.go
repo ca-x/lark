@@ -70,6 +70,11 @@ func CoverPath(v string) predicate.Album {
 	return predicate.Album(sql.FieldEQ(FieldCoverPath, v))
 }
 
+// Year applies equality check predicate on the "year" field. It's identical to YearEQ.
+func Year(v int) predicate.Album {
+	return predicate.Album(sql.FieldEQ(FieldYear, v))
+}
+
 // Favorite applies equality check predicate on the "favorite" field. It's identical to FavoriteEQ.
 func Favorite(v bool) predicate.Album {
 	return predicate.Album(sql.FieldEQ(FieldFavorite, v))
@@ -278,6 +283,46 @@ func CoverPathEqualFold(v string) predicate.Album {
 // CoverPathContainsFold applies the ContainsFold predicate on the "cover_path" field.
 func CoverPathContainsFold(v string) predicate.Album {
 	return predicate.Album(sql.FieldContainsFold(FieldCoverPath, v))
+}
+
+// YearEQ applies the EQ predicate on the "year" field.
+func YearEQ(v int) predicate.Album {
+	return predicate.Album(sql.FieldEQ(FieldYear, v))
+}
+
+// YearNEQ applies the NEQ predicate on the "year" field.
+func YearNEQ(v int) predicate.Album {
+	return predicate.Album(sql.FieldNEQ(FieldYear, v))
+}
+
+// YearIn applies the In predicate on the "year" field.
+func YearIn(vs ...int) predicate.Album {
+	return predicate.Album(sql.FieldIn(FieldYear, vs...))
+}
+
+// YearNotIn applies the NotIn predicate on the "year" field.
+func YearNotIn(vs ...int) predicate.Album {
+	return predicate.Album(sql.FieldNotIn(FieldYear, vs...))
+}
+
+// YearGT applies the GT predicate on the "year" field.
+func YearGT(v int) predicate.Album {
+	return predicate.Album(sql.FieldGT(FieldYear, v))
+}
+
+// YearGTE applies the GTE predicate on the "year" field.
+func YearGTE(v int) predicate.Album {
+	return predicate.Album(sql.FieldGTE(FieldYear, v))
+}
+
+// YearLT applies the LT predicate on the "year" field.
+func YearLT(v int) predicate.Album {
+	return predicate.Album(sql.FieldLT(FieldYear, v))
+}
+
+// YearLTE applies the LTE predicate on the "year" field.
+func YearLTE(v int) predicate.Album {
+	return predicate.Album(sql.FieldLTE(FieldYear, v))
 }
 
 // FavoriteEQ applies the EQ predicate on the "favorite" field.

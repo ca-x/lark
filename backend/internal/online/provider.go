@@ -174,10 +174,127 @@ func FilterSongs(items []Song, title, artist string, limit int) []Song {
 // URL logic from upstream references is not included in Lark.
 func Providers() []Provider {
 	return []Provider{
-		NewLRCLib(),
+		NewLRCLib(), NewNeteaseAlbum(),
 		NewKuwo(), NewKugou(), NewMigu(), NewQianqian(), NewSoda(), NewJoox(), NewFivesing(),
 		NewJamendo(), NewITunes(), NewLastFM(),
 	}
+}
+
+// NeteaseAlbum reads public NetEase album metadata. It intentionally does not
+// expose playback URLs; it only contributes searchable album details.
+type NeteaseAlbum struct{ baseProvider }
+
+type neteaseName struct {
+	Name string `json:"name"`
+}
+
+func NewNeteaseAlbum() *NeteaseAlbum                                                { return &NeteaseAlbum{baseProvider{newHTTP()}} }
+func (p *NeteaseAlbum) Name() string                                                { return "netease" }
+func (p *NeteaseAlbum) SearchSongs(context.Context, string, string) ([]Song, error) { return nil, nil }
+func (p *NeteaseAlbum) Lyrics(context.Context, Song) (string, error)                { return "", nil }
+func (p *NeteaseAlbum) SearchAlbums(ctx context.Context, title, artist string) ([]AlbumCandidate, error) {
+	endpoint := "https://music.163.com/api/search/get/web?" + q(map[string]string{"s": query(title, artist), "type": "10", "limit": "10", "offset": "0"})
+	var resp struct {
+		Result struct {
+			Albums []struct {
+				ID          int           `json:"id"`
+				Name        string        `json:"name"`
+				PicURL      string        `json:"picUrl"`
+				PublishTime int64         `json:"publishTime"`
+				Description string        `json:"description"`
+				BriefDesc   string        `json:"briefDesc"`
+				Company     string        `json:"company"`
+				Size        int           `json:"size"`
+				Artist      neteaseName   `json:"artist"`
+				Artists     []neteaseName `json:"artists"`
+			} `json:"albums"`
+		} `json:"result"`
+	}
+	if err := p.getJSON(ctx, endpoint, map[string]string{"User-Agent": defaultUA, "Referer": "https://music.163.com/"}, &resp); err != nil {
+		return nil, err
+	}
+	out := []AlbumCandidate{}
+	for _, it := range resp.Result.Albums {
+		name := clean(it.Name)
+		ar := clean(first(joinNames(it.Artists), it.Artist.Name))
+		if !matchTitle(title, name) || !matchArtist(artist, ar) {
+			continue
+		}
+		rel := formatMillisDate(it.PublishTime)
+		desc := clean(first(it.Description, it.BriefDesc))
+		if desc == "" && strings.TrimSpace(it.Company) != "" {
+			desc = "唱片公司：" + strings.TrimSpace(it.Company)
+		}
+		id := strconv.Itoa(it.ID)
+		out = append(out, AlbumCandidate{Source: p.Name(), ID: id, Title: name, Artist: ar, Cover: it.PicURL, ReleaseDate: rel, Year: parseYear(rel), Description: desc, TrackCount: it.Size, Link: "https://music.163.com/#/album?id=" + id})
+	}
+	return out, nil
+}
+func (p *NeteaseAlbum) AlbumInfo(ctx context.Context, id string) (AlbumInfo, error) {
+	endpoint := "https://music.163.com/api/album/" + url.PathEscape(id)
+	var resp struct {
+		Album struct {
+			ID          int         `json:"id"`
+			Name        string      `json:"name"`
+			PicURL      string      `json:"picUrl"`
+			PublishTime int64       `json:"publishTime"`
+			Description string      `json:"description"`
+			BriefDesc   string      `json:"briefDesc"`
+			Company     string      `json:"company"`
+			Size        int         `json:"size"`
+			Artist      neteaseName `json:"artist"`
+		} `json:"album"`
+		Songs []struct {
+			Name    string        `json:"name"`
+			DT      int           `json:"dt"`
+			Ar      []neteaseName `json:"ar"`
+			Artists []neteaseName `json:"artists"`
+		} `json:"songs"`
+	}
+	if err := p.getJSON(ctx, endpoint, map[string]string{"User-Agent": defaultUA, "Referer": "https://music.163.com/"}, &resp); err != nil {
+		return AlbumInfo{}, err
+	}
+	rel := formatMillisDate(resp.Album.PublishTime)
+	desc := clean(first(resp.Album.Description, resp.Album.BriefDesc))
+	if desc == "" && strings.TrimSpace(resp.Album.Company) != "" {
+		desc = "唱片公司：" + strings.TrimSpace(resp.Album.Company)
+	}
+	tracks := make([]Track, 0, len(resp.Songs))
+	for idx, song := range resp.Songs {
+		artist := joinNames(song.Ar)
+		if artist == "" {
+			artist = joinNames(song.Artists)
+		}
+		tracks = append(tracks, Track{Title: clean(song.Name), Artist: artist, DurationSec: song.DT / 1000, TrackNumber: idx + 1})
+	}
+	trackCount := resp.Album.Size
+	if trackCount == 0 {
+		trackCount = len(tracks)
+	}
+	return AlbumInfo{AlbumCandidate: AlbumCandidate{Source: p.Name(), ID: id, Title: clean(resp.Album.Name), Artist: clean(resp.Album.Artist.Name), Cover: resp.Album.PicURL, ReleaseDate: rel, Year: parseYear(rel), Description: desc, TrackCount: trackCount, Link: "https://music.163.com/#/album?id=" + id}, Tracks: tracks}, nil
+}
+func (p *NeteaseAlbum) SearchArtists(context.Context, string) ([]ArtistCandidate, error) {
+	return nil, nil
+}
+
+func joinNames(items []neteaseName) string {
+	names := make([]string, 0, len(items))
+	seen := map[string]bool{}
+	for _, item := range items {
+		name := clean(item.Name)
+		if name != "" && !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+	return strings.Join(names, " / ")
+}
+
+func formatMillisDate(ms int64) string {
+	if ms <= 0 {
+		return ""
+	}
+	return time.UnixMilli(ms).UTC().Format("2006-01-02")
 }
 
 // LRCLIB: foreign/open synced lyrics. No album provider.

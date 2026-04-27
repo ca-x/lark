@@ -27,11 +27,19 @@ func TestSearchOnlineAlbumsLiveJayCatalog(t *testing.T) {
 			}
 			matchedTitle := false
 			hasCover := false
+			hasRelatedInfo := false
+			hasRichInfo := false
 			sources := map[string]bool{}
 			for _, item := range items {
 				sources[item.Source] = true
 				if item.Cover != "" {
 					hasCover = true
+				}
+				if item.Description != "" || len(item.Tracks) > 0 || item.TrackCount > 0 {
+					hasRelatedInfo = true
+				}
+				if item.Description != "" || len(item.Tracks) > 0 {
+					hasRichInfo = true
 				}
 				if albumTitleMatches(tc.title, item.Title) {
 					matchedTitle = true
@@ -42,6 +50,12 @@ func TestSearchOnlineAlbumsLiveJayCatalog(t *testing.T) {
 			}
 			if !hasCover {
 				t.Fatalf("expected at least one online cover for %q, got %#v", tc.title, items)
+			}
+			if !hasRelatedInfo {
+				t.Fatalf("expected related album info beyond a cover for %q, got %#v", tc.title, items)
+			}
+			if !hasRichInfo {
+				t.Fatalf("expected description or track details for %q, got %#v", tc.title, items)
 			}
 			if tc.title == "Jay" && len(sources) < 2 {
 				t.Fatalf("expected multiple switchable sources for %q, got sources %#v from %#v", tc.title, sources, items)

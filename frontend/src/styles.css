@@ -1328,6 +1328,38 @@ body, button, input, select { font-family: var(--app-font); }
   line-height: 1.7;
   white-space: pre-wrap;
 }
+.album-info-tracks > div {
+  max-height: min(34dvh, 360px);
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+}
+.album-info-tracks > div > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0,1fr);
+  gap: 2px 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 74%, transparent);
+}
+.album-info-tracks span {
+  grid-row: 1 / span 2;
+  color: var(--muted);
+  font-size: 12px;
+}
+.album-info-tracks strong,
+.album-info-tracks em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.album-info-tracks em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
 .album-info-link {
   display: inline-flex;
   justify-content: center;

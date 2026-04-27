@@ -57,6 +57,20 @@ func (_c *AlbumCreate) SetNillableCoverPath(v *string) *AlbumCreate {
 	return _c
 }
 
+// SetYear sets the "year" field.
+func (_c *AlbumCreate) SetYear(v int) *AlbumCreate {
+	_c.mutation.SetYear(v)
+	return _c
+}
+
+// SetNillableYear sets the "year" field if the given value is not nil.
+func (_c *AlbumCreate) SetNillableYear(v *int) *AlbumCreate {
+	if v != nil {
+		_c.SetYear(*v)
+	}
+	return _c
+}
+
 // SetFavorite sets the "favorite" field.
 func (_c *AlbumCreate) SetFavorite(v bool) *AlbumCreate {
 	_c.mutation.SetFavorite(v)
@@ -191,6 +205,10 @@ func (_c *AlbumCreate) defaults() {
 		v := album.DefaultCoverPath
 		_c.mutation.SetCoverPath(v)
 	}
+	if _, ok := _c.mutation.Year(); !ok {
+		v := album.DefaultYear
+		_c.mutation.SetYear(v)
+	}
 	if _, ok := _c.mutation.Favorite(); !ok {
 		v := album.DefaultFavorite
 		_c.mutation.SetFavorite(v)
@@ -220,6 +238,9 @@ func (_c *AlbumCreate) check() error {
 	}
 	if _, ok := _c.mutation.CoverPath(); !ok {
 		return &ValidationError{Name: "cover_path", err: errors.New(`ent: missing required field "Album.cover_path"`)}
+	}
+	if _, ok := _c.mutation.Year(); !ok {
+		return &ValidationError{Name: "year", err: errors.New(`ent: missing required field "Album.year"`)}
 	}
 	if _, ok := _c.mutation.Favorite(); !ok {
 		return &ValidationError{Name: "favorite", err: errors.New(`ent: missing required field "Album.favorite"`)}
@@ -267,6 +288,10 @@ func (_c *AlbumCreate) createSpec() (*Album, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CoverPath(); ok {
 		_spec.SetField(album.FieldCoverPath, field.TypeString, value)
 		_node.CoverPath = value
+	}
+	if value, ok := _c.mutation.Year(); ok {
+		_spec.SetField(album.FieldYear, field.TypeInt, value)
+		_node.Year = value
 	}
 	if value, ok := _c.mutation.Favorite(); ok {
 		_spec.SetField(album.FieldFavorite, field.TypeBool, value)

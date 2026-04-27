@@ -14,6 +14,7 @@ var (
 		{Name: "title", Type: field.TypeString},
 		{Name: "album_artist", Type: field.TypeString, Default: ""},
 		{Name: "cover_path", Type: field.TypeString, Default: ""},
+		{Name: "year", Type: field.TypeInt, Default: 0},
 		{Name: "favorite", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -27,7 +28,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "albums_artists_albums",
-				Columns:    []*schema.Column{AlbumsColumns[7]},
+				Columns:    []*schema.Column{AlbumsColumns[8]},
 				RefColumns: []*schema.Column{ArtistsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},

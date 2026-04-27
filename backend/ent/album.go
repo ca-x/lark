@@ -24,6 +24,8 @@ type Album struct {
 	AlbumArtist string `json:"album_artist,omitempty"`
 	// CoverPath holds the value of the "cover_path" field.
 	CoverPath string `json:"cover_path,omitempty"`
+	// Year holds the value of the "year" field.
+	Year int `json:"year,omitempty"`
 	// Favorite holds the value of the "favorite" field.
 	Favorite bool `json:"favorite,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -86,7 +88,7 @@ func (*Album) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case album.FieldFavorite:
 			values[i] = new(sql.NullBool)
-		case album.FieldID:
+		case album.FieldID, album.FieldYear:
 			values[i] = new(sql.NullInt64)
 		case album.FieldTitle, album.FieldAlbumArtist, album.FieldCoverPath:
 			values[i] = new(sql.NullString)
@@ -132,6 +134,12 @@ func (_m *Album) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field cover_path", values[i])
 			} else if value.Valid {
 				_m.CoverPath = value.String
+			}
+		case album.FieldYear:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field year", values[i])
+			} else if value.Valid {
+				_m.Year = int(value.Int64)
 			}
 		case album.FieldFavorite:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -217,6 +225,9 @@ func (_m *Album) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("cover_path=")
 	builder.WriteString(_m.CoverPath)
+	builder.WriteString(", ")
+	builder.WriteString("year=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Year))
 	builder.WriteString(", ")
 	builder.WriteString("favorite=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Favorite))
