@@ -1,6 +1,7 @@
 package library
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -56,15 +57,15 @@ type Service struct {
 
 type ffprobeOutput struct {
 	Format struct {
-		Duration string            `json:"duration"`
-		BitRate  string            `json:"bit_rate"`
-		Tags     map[string]string `json:"tags"`
+		Duration string       `json:"duration"`
+		BitRate  string       `json:"bit_rate"`
+		Tags     metadataTags `json:"tags"`
 	} `json:"format"`
 	Streams []struct {
-		CodecType  string            `json:"codec_type"`
-		SampleRate string            `json:"sample_rate"`
-		Bits       int               `json:"bits_per_sample"`
-		Tags       map[string]string `json:"tags"`
+		CodecType  string       `json:"codec_type"`
+		SampleRate string       `json:"sample_rate"`
+		Bits       int          `json:"bits_per_sample"`
+		Tags       metadataTags `json:"tags"`
 	} `json:"streams"`
 }
 
@@ -295,15 +296,7 @@ func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
 		return false, fmt.Errorf("unsupported audio file")
 	}
 	meta := s.probe(abs)
-	if meta.Title == "" {
-		meta.Title = strings.TrimSuffix(filepath.Base(abs), filepath.Ext(abs))
-	}
-	if meta.Artist == "" {
-		meta.Artist = "Unknown Artist"
-	}
-	if meta.Album == "" {
-		meta.Album = "Unknown Album"
-	}
+	applyMetadataFallback(abs, s.libraryDir, &meta)
 	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(abs)), ".")
 	mimeType := mime.TypeByExtension(filepath.Ext(abs))
 	if mimeType == "" {
@@ -1540,6 +1533,7 @@ func (s *Service) ensureAlbum(ctx context.Context, title, albumArtist string, ar
 
 func (s *Service) probe(path string) fileMetadata {
 	meta := s.probeTags(path)
+	mergeFileMetadata(&meta, probeWAVMetadata(path))
 	if s.ffprobe == "" {
 		return meta
 	}
@@ -1554,7 +1548,7 @@ func (s *Service) probe(path string) fileMetadata {
 	if err := json.Unmarshal(out, &probed); err != nil {
 		return meta
 	}
-	tags := normalizeTags(probed.Format.Tags)
+	tags := normalizeTags(map[string]string(probed.Format.Tags))
 	if meta.Title == "" {
 		meta.Title = first(tags, "title")
 	}
@@ -1573,16 +1567,23 @@ func (s *Service) probe(path string) fileMetadata {
 	if meta.Year == 0 {
 		meta.Year = parseYear(first(tags, "date", "year", "originaldate", "originalyear", "releasedate"))
 	}
-	meta.Duration, _ = strconv.ParseFloat(probed.Format.Duration, 64)
-	bitrate, _ := strconv.Atoi(probed.Format.BitRate)
-	meta.BitRate = bitrate
+	if duration, _ := strconv.ParseFloat(probed.Format.Duration, 64); duration > 0 {
+		meta.Duration = duration
+	}
+	if bitrate, _ := strconv.Atoi(probed.Format.BitRate); bitrate > 0 {
+		meta.BitRate = bitrate
+	}
 	for _, stream := range probed.Streams {
 		if stream.CodecType != "audio" {
 			continue
 		}
-		meta.SampleRate, _ = strconv.Atoi(stream.SampleRate)
-		meta.BitDepth = stream.Bits
-		streamTags := normalizeTags(stream.Tags)
+		if sampleRate, _ := strconv.Atoi(stream.SampleRate); sampleRate > 0 {
+			meta.SampleRate = sampleRate
+		}
+		if stream.Bits > 0 {
+			meta.BitDepth = stream.Bits
+		}
+		streamTags := normalizeTags(map[string]string(stream.Tags))
 		if meta.Lyrics == "" {
 			meta.Lyrics = first(streamTags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
 		}
@@ -1618,10 +1619,235 @@ func (s *Service) probeTags(path string) fileMetadata {
 	return meta
 }
 
+type metadataTags map[string]string
+
+func (tags *metadataTags) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		*tags = metadataTags{}
+		return nil
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	delim, ok := token.(json.Delim)
+	if !ok || delim != '{' {
+		return fmt.Errorf("expected metadata tags object")
+	}
+	out := metadataTags{}
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := token.(string)
+		if !ok {
+			return fmt.Errorf("expected metadata tag key")
+		}
+		var raw any
+		if err := decoder.Decode(&raw); err != nil {
+			return err
+		}
+		value := metadataTagValue(raw)
+		normalizedKey := strings.ToLower(strings.TrimSpace(key))
+		if normalizedKey == "" || strings.TrimSpace(value) == "" {
+			continue
+		}
+		if existing, ok := out[normalizedKey]; ok {
+			out[normalizedKey] = preferredMetadataTagValue(existing, value)
+		} else {
+			out[normalizedKey] = value
+		}
+	}
+	token, err = decoder.Token()
+	if err != nil {
+		return err
+	}
+	delim, ok = token.(json.Delim)
+	if !ok || delim != '}' {
+		return fmt.Errorf("expected end of metadata tags object")
+	}
+	*tags = out
+	return nil
+}
+
+func metadataTagValue(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case float64, bool:
+		return fmt.Sprint(v)
+	default:
+		return ""
+	}
+}
+
+func preferredMetadataTagValue(existing, candidate string) string {
+	existingClean := cleanMetadataText(existing)
+	candidateClean := cleanMetadataText(candidate)
+	if candidateClean == "" {
+		return existing
+	}
+	if existingClean == "" {
+		return candidate
+	}
+	candidateScore := metadataTextScore(candidateClean)
+	existingScore := metadataTextScore(existingClean)
+	if containsReplacement(candidateClean) {
+		candidateScore -= 100
+	}
+	if containsReplacement(existingClean) {
+		existingScore -= 100
+	}
+	if candidateScore > existingScore {
+		return candidate
+	}
+	return existing
+}
+
+type filenameMetadata struct {
+	Title  string
+	Artist string
+	Album  string
+}
+
+func applyMetadataFallback(path, libraryRoot string, meta *fileMetadata) {
+	fallback := parseFilenameMetadata(path, libraryRoot)
+	if meta.Title == "" {
+		meta.Title = fallback.Title
+	}
+	if meta.Artist == "" {
+		meta.Artist = fallback.Artist
+	}
+	if meta.Album == "" {
+		meta.Album = fallback.Album
+	}
+	if meta.AlbumArtist == "" {
+		meta.AlbumArtist = meta.Artist
+	}
+	if meta.Title == "" {
+		meta.Title = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	}
+	if meta.Artist == "" {
+		meta.Artist = "Unknown Artist"
+	}
+	if meta.Album == "" {
+		meta.Album = "Unknown Album"
+	}
+}
+
+func parseFilenameMetadata(path, libraryRoot string) filenameMetadata {
+	stem := cleanFilenameForMetadata(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)))
+	album := fallbackAlbumFromFolder(path, libraryRoot)
+	parts, spacedSeparator := splitFilenameMetadataParts(stem)
+	out := filenameMetadata{Title: stem, Album: album}
+	switch {
+	case len(parts) >= 3 && looksLikeTrackNumber(parts[0]):
+		out.Artist = parts[1]
+		out.Title = strings.Join(parts[2:], " - ")
+	case len(parts) >= 2 && spacedSeparator:
+		out.Artist = parts[0]
+		out.Title = strings.Join(parts[1:], " - ")
+	case len(parts) == 2:
+		out.Title = parts[0]
+		out.Artist = parts[1]
+	}
+	out.Title = cleanFilenameForMetadata(out.Title)
+	out.Artist = cleanFilenameForMetadata(out.Artist)
+	out.Album = cleanFilenameForMetadata(out.Album)
+	return out
+}
+
+func fallbackAlbumFromFolder(path, libraryRoot string) string {
+	if strings.TrimSpace(libraryRoot) == "" {
+		return ""
+	}
+	parent := filepath.Dir(path)
+	root, err := filepath.Abs(libraryRoot)
+	if err != nil {
+		return ""
+	}
+	absParent, err := filepath.Abs(parent)
+	if err != nil {
+		return ""
+	}
+	if samePath(root, absParent) {
+		return ""
+	}
+	rel, err := filepath.Rel(root, absParent)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return ""
+	}
+	return cleanFilenameForMetadata(filepath.Base(absParent))
+}
+
+func splitFilenameMetadataParts(stem string) ([]string, bool) {
+	spacedSeparator := strings.Contains(stem, " - ")
+	rawParts := strings.Split(stem, " - ")
+	if !spacedSeparator && strings.Count(stem, "-") == 1 {
+		rawParts = strings.Split(stem, "-")
+	}
+	parts := make([]string, 0, len(rawParts))
+	for _, part := range rawParts {
+		part = cleanFilenameForMetadata(part)
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts, spacedSeparator
+}
+
+func cleanFilenameForMetadata(value string) string {
+	value = strings.TrimSpace(strings.ReplaceAll(value, "_", " "))
+	value = strings.Join(strings.Fields(value), " ")
+	lower := strings.ToLower(value)
+	if strings.Contains(lower, "official") {
+		value = stripParentheticalOfficial(value)
+	}
+	return strings.TrimSpace(value)
+}
+
+func stripParentheticalOfficial(value string) string {
+	for {
+		start := strings.Index(value, "(")
+		if start < 0 {
+			break
+		}
+		end := strings.Index(value[start:], ")")
+		if end < 0 {
+			break
+		}
+		end += start
+		if strings.Contains(strings.ToLower(value[start:end+1]), "official") {
+			value = strings.TrimSpace(value[:start] + value[end+1:])
+			continue
+		}
+		break
+	}
+	return value
+}
+
+func looksLikeTrackNumber(value string) bool {
+	value = strings.TrimSpace(value)
+	value = strings.TrimSuffix(value, ".")
+	value = strings.TrimLeft(value, "0")
+	if value == "" {
+		value = "0"
+	}
+	_, err := strconv.Atoi(value)
+	return err == nil
+}
+
 func normalizeTags(in map[string]string) map[string]string {
 	out := map[string]string{}
 	for k, v := range in {
-		out[strings.ToLower(strings.TrimSpace(k))] = cleanMetadataText(v)
+		key := strings.ToLower(strings.TrimSpace(k))
+		value := cleanMetadataText(v)
+		out[key] = value
+		if strings.HasPrefix(key, "lyrics-") && strings.TrimSpace(out["lyrics"]) == "" {
+			out["lyrics"] = value
+		}
 	}
 	return out
 }

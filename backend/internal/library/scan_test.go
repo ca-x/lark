@@ -2,9 +2,12 @@ package library
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"unicode/utf16"
 
 	"lark/backend/ent"
 	"lark/backend/internal/models"
@@ -189,4 +192,157 @@ func TestCleanMetadataTextDecodesUTF16LEBOM(t *testing.T) {
 	if got != "测试" {
 		t.Fatalf("expected UTF-16LE BOM to decode, got %q", got)
 	}
+}
+
+func TestApplyMetadataFallbackParsesTrackArtistTitleFromFilename(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "叶惠美", "01 - 周杰伦 - 晴天.wav")
+	meta := fileMetadata{}
+	applyMetadataFallback(path, root, &meta)
+	if meta.Title != "晴天" {
+		t.Fatalf("expected title from filename, got %q", meta.Title)
+	}
+	if meta.Artist != "周杰伦" {
+		t.Fatalf("expected artist from filename, got %q", meta.Artist)
+	}
+	if meta.Album != "叶惠美" {
+		t.Fatalf("expected album from parent folder, got %q", meta.Album)
+	}
+	if meta.AlbumArtist != "周杰伦" {
+		t.Fatalf("expected album artist to fall back to artist, got %q", meta.AlbumArtist)
+	}
+}
+
+func TestApplyMetadataFallbackDoesNotOverwriteExistingTags(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "Folder Album", "Other Artist - Other Title.flac")
+	meta := fileMetadata{
+		Title:  "Tagged Title",
+		Artist: "Tagged Artist",
+		Album:  "Tagged Album",
+	}
+	applyMetadataFallback(path, root, &meta)
+	if meta.Title != "Tagged Title" || meta.Artist != "Tagged Artist" || meta.Album != "Tagged Album" {
+		t.Fatalf("expected existing tags to stay, got title=%q artist=%q album=%q", meta.Title, meta.Artist, meta.Album)
+	}
+	if meta.AlbumArtist != "Tagged Artist" {
+		t.Fatalf("expected missing album artist to fall back to tagged artist, got %q", meta.AlbumArtist)
+	}
+}
+
+func TestApplyMetadataFallbackParsesCompactTitleArtistFilenameAtRoot(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "2002年的第一场雪-刀郎.wav")
+	meta := fileMetadata{}
+	applyMetadataFallback(path, root, &meta)
+	if meta.Title != "2002年的第一场雪" {
+		t.Fatalf("expected compact filename title, got %q", meta.Title)
+	}
+	if meta.Artist != "刀郎" {
+		t.Fatalf("expected compact filename artist, got %q", meta.Artist)
+	}
+	if meta.Album != "Unknown Album" {
+		t.Fatalf("expected root-level file not to use root folder as album, got %q", meta.Album)
+	}
+}
+
+func TestMetadataTagsPreferReadableDuplicateValues(t *testing.T) {
+	var tags metadataTags
+	raw := []byte(`{"title":"寸寸相思寸寸心","artist":"邰正宵","title":"������˼������","artist":"ۢ����"}`)
+	if err := json.Unmarshal(raw, &tags); err != nil {
+		t.Fatal(err)
+	}
+	normalized := normalizeTags(map[string]string(tags))
+	if normalized["title"] != "寸寸相思寸寸心" {
+		t.Fatalf("expected readable duplicate title to win, got %q", normalized["title"])
+	}
+	if normalized["artist"] != "邰正宵" {
+		t.Fatalf("expected readable duplicate artist to win, got %q", normalized["artist"])
+	}
+}
+
+func TestParseWAVInfoListDecodesRawGBKTags(t *testing.T) {
+	data := append([]byte("INFO"), wavInfoChunk("INAM", []byte{0xb2, 0xe2, 0xca, 0xd4, 0xb8, 0xe8, 0xc7, 0xfa, 0x00})...)
+	meta := parseWAVInfoList(data)
+	if meta.Title != "测试歌曲" {
+		t.Fatalf("expected WAV LIST/INFO GBK title to decode, got %q", meta.Title)
+	}
+}
+
+func TestParseID3MetadataFromWAVChunkDecodesUTF16TagsAndLyrics(t *testing.T) {
+	id3 := buildID3Tag(
+		id3TextFrame("TIT2", "寸寸相思寸寸心"),
+		id3TextFrame("TPE1", "邰正宵"),
+		id3TextFrame("TALB", "重燃爱恋"),
+		id3LyricsFrame("[00:01.19]邰正宵 - 寸寸相思寸寸心"),
+	)
+	meta := parseID3Metadata(id3)
+	if meta.Title != "寸寸相思寸寸心" {
+		t.Fatalf("expected ID3 title, got %q", meta.Title)
+	}
+	if meta.Artist != "邰正宵" {
+		t.Fatalf("expected ID3 artist, got %q", meta.Artist)
+	}
+	if meta.Album != "重燃爱恋" {
+		t.Fatalf("expected ID3 album, got %q", meta.Album)
+	}
+	if meta.Lyrics != "[00:01.19]邰正宵 - 寸寸相思寸寸心" {
+		t.Fatalf("expected ID3 lyrics, got %q", meta.Lyrics)
+	}
+}
+
+func wavInfoChunk(id string, value []byte) []byte {
+	out := []byte(id)
+	var size [4]byte
+	binary.LittleEndian.PutUint32(size[:], uint32(len(value)))
+	out = append(out, size[:]...)
+	out = append(out, value...)
+	if len(value)%2 == 1 {
+		out = append(out, 0)
+	}
+	return out
+}
+
+func buildID3Tag(frames ...[]byte) []byte {
+	payload := []byte{}
+	for _, frame := range frames {
+		payload = append(payload, frame...)
+	}
+	out := []byte{'I', 'D', '3', 3, 0, 0}
+	out = append(out, syncsafeBytes(len(payload))...)
+	out = append(out, payload...)
+	return out
+}
+
+func id3TextFrame(id, value string) []byte {
+	payload := append([]byte{1}, utf16LEBOMString(value)...)
+	return id3Frame(id, payload)
+}
+
+func id3LyricsFrame(value string) []byte {
+	payload := []byte{1, 'X', 'X', 'X', 0xff, 0xfe, 0x00, 0x00}
+	payload = append(payload, utf16LEBOMString(value)...)
+	return id3Frame("USLT", payload)
+}
+
+func id3Frame(id string, payload []byte) []byte {
+	out := []byte(id)
+	var size [4]byte
+	binary.BigEndian.PutUint32(size[:], uint32(len(payload)))
+	out = append(out, size[:]...)
+	out = append(out, 0, 0)
+	out = append(out, payload...)
+	return out
+}
+
+func utf16LEBOMString(value string) []byte {
+	out := []byte{0xff, 0xfe}
+	for _, unit := range utf16.Encode([]rune(value)) {
+		out = append(out, byte(unit), byte(unit>>8))
+	}
+	return out
+}
+
+func syncsafeBytes(value int) []byte {
+	return []byte{byte(value >> 21 & 0x7f), byte(value >> 14 & 0x7f), byte(value >> 7 & 0x7f), byte(value & 0x7f)}
 }
