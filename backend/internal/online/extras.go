@@ -249,8 +249,12 @@ func (p *Jamendo) SearchAlbums(ctx context.Context, title, artist string) ([]Alb
 	endpoint := "https://api.jamendo.com/v3.0/albums/?" + q(map[string]string{"client_id": "9873ff31", "format": "json", "limit": "10", "namesearch": title, "artist_name": artist, "imagesize": "600"})
 	var resp struct {
 		Results []struct {
-			ID, Name, ArtistName, Image, ReleaseDate string `json:"id"`
-			Tracks                                   []any  `json:"tracks"`
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			ArtistName  string `json:"artist_name"`
+			Image       string `json:"image"`
+			ReleaseDate string `json:"releasedate"`
+			Tracks      []any  `json:"tracks"`
 		} `json:"results"`
 	}
 	if err := p.getJSON(ctx, endpoint, map[string]string{"User-Agent": defaultUA}, &resp); err != nil {
@@ -279,9 +283,13 @@ func (p *ITunes) SearchAlbums(ctx context.Context, title, artist string) ([]Albu
 	endpoint := "https://itunes.apple.com/search?" + q(map[string]string{"term": query(title, artist), "entity": "album", "limit": "10"})
 	var resp struct {
 		Results []struct {
-			CollectionID                                                              int    `json:"collectionId"`
-			CollectionName, ArtistName, ArtworkURL100, ReleaseDate, CollectionViewURL string `json:"collectionName"`
-			TrackCount                                                                int    `json:"trackCount"`
+			CollectionID      int    `json:"collectionId"`
+			CollectionName    string `json:"collectionName"`
+			ArtistName        string `json:"artistName"`
+			ArtworkURL100     string `json:"artworkUrl100"`
+			ReleaseDate       string `json:"releaseDate"`
+			CollectionViewURL string `json:"collectionViewUrl"`
+			TrackCount        int    `json:"trackCount"`
 		} `json:"results"`
 	}
 	if err := p.getJSON(ctx, endpoint, map[string]string{"User-Agent": defaultUA}, &resp); err != nil {
@@ -302,8 +310,9 @@ func (p *ITunes) SearchArtists(ctx context.Context, name string) ([]ArtistCandid
 	endpoint := "https://itunes.apple.com/search?" + q(map[string]string{"term": name, "entity": "musicArtist", "limit": "5"})
 	var resp struct {
 		Results []struct {
-			ArtistID                  int    `json:"artistId"`
-			ArtistName, ArtistLinkURL string `json:"artistName"`
+			ArtistID      int    `json:"artistId"`
+			ArtistName    string `json:"artistName"`
+			ArtistLinkURL string `json:"artistLinkUrl"`
 		} `json:"results"`
 	}
 	if err := p.getJSON(ctx, endpoint, map[string]string{"User-Agent": defaultUA}, &resp); err != nil {

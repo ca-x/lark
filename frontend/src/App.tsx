@@ -3584,7 +3584,19 @@ function CollectionView({
         <CollectionCover collection={collection} />
         <div>
           <p>{label}</p>
-          <h1>{collection.title}</h1>
+          <div className="collection-title-row">
+            <h1>{collection.title}</h1>
+            {collection.type === "album" ? (
+              <button
+                className="icon-button album-title-info-button"
+                onClick={() => setAlbumInfoOpen(true)}
+                aria-label={t("albumInfo")}
+                title={t("albumInfo")}
+              >
+                <Info />
+              </button>
+            ) : null}
+          </div>
           {onOpenCollectionArtist ? (
             <button
               className="artist-link hero-artist"
@@ -3609,15 +3621,6 @@ function CollectionView({
             >
               <SkipForward /> {t("insertNext")}
             </button>
-            {collection.type === "album" ? (
-              <button
-                onClick={() => setAlbumInfoOpen(true)}
-                aria-label={t("albumInfo")}
-                title={t("albumInfo")}
-              >
-                <Info /> {t("albumInfo")}
-              </button>
-            ) : null}
             {onFavoriteCollection ? (
               <button
                 className={collection.favorite ? "active" : ""}
@@ -3733,10 +3736,27 @@ function AlbumInfoDrawer({
   onClose: () => void;
 }) {
   const info = collection.onlineAlbumInfo;
-  const candidates =
-    info?.candidates
-      ?.filter((item) => item.id !== info.id || item.source !== info.source)
-      .slice(0, 5) ?? [];
+  const sources = useMemo(() => {
+    if (!info) return [];
+    const all = info.candidates?.length ? info.candidates : [info];
+    const seen = new Set<string>();
+    const unique: OnlineAlbumInfo[] = [];
+    [info, ...all].forEach((item) => {
+      const key = `${item.source || "unknown"}:${item.id || item.title}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      unique.push(item);
+    });
+    return unique;
+  }, [info]);
+  const [activeSourceKey, setActiveSourceKey] = useState("");
+  useEffect(() => {
+    if (!open || !sources.length) return;
+    const first = `${sources[0].source || "unknown"}:${sources[0].id || sources[0].title}`;
+    setActiveSourceKey((current) => (current && sources.some((item) => `${item.source || "unknown"}:${item.id || item.title}` === current) ? current : first));
+  }, [open, sources]);
+  const activeInfo = sources.find((item) => `${item.source || "unknown"}:${item.id || item.title}` === activeSourceKey) || sources[0] || info;
+  const hasInfo = Boolean(activeInfo && (activeInfo.title || activeInfo.description || activeInfo.cover || activeInfo.source));
   const stop = (event: MouseEvent) => event.stopPropagation();
   return (
     <div
@@ -3754,67 +3774,70 @@ function AlbumInfoDrawer({
         <div className="album-info-head">
           <div>
             <p>{t("onlineAlbumInfo")}</p>
-            <h3>{info?.title || collection.title}</h3>
+            <h3>{activeInfo?.title || collection.title}</h3>
           </div>
           <button className="icon-button" onClick={onClose} aria-label={t("close")}>
             <X />
           </button>
         </div>
-        {info && (info.title || info.description || info.cover || info.source) ? (
+        {hasInfo && activeInfo ? (
           <div className="album-info-body">
+            {sources.length > 1 ? (
+              <section className="album-info-source-panel" aria-label={t("source")}>
+                <div>
+                  <strong>{t("source")}</strong>
+                  <span>{sources.length}</span>
+                </div>
+                <div className="album-info-source-list">
+                  {sources.map((candidate, index) => {
+                    const key = `${candidate.source || "unknown"}:${candidate.id || candidate.title}`;
+                    return (
+                      <button
+                        key={key}
+                        className={key === activeSourceKey ? "active" : ""}
+                        onClick={() => setActiveSourceKey(key)}
+                      >
+                        <strong>{candidate.source || t("source")}</strong>
+                        <span>{candidate.artist || candidate.title || `${t("candidate")} ${index + 1}`}</span>
+                        <em>{t("candidate")} {index + 1}</em>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
             <div className="album-info-top">
               <div className="album-info-cover">
-                {info.cover ? <LazyCoverImage src={info.cover} /> : <Record weight="fill" />}
+                {activeInfo.cover ? <LazyCoverImage src={activeInfo.cover} /> : <Record weight="fill" />}
               </div>
               <div className="album-info-fields">
-                <InfoRow label={t("artist")} value={info.artist || collection.artistName || "—"} />
+                <InfoRow label={t("artist")} value={activeInfo.artist || collection.artistName || "—"} />
                 <InfoRow
                   label={t("releaseDate")}
-                  value={info.release_date || (info.year ? String(info.year) : "—")}
+                  value={activeInfo.release_date || (activeInfo.year ? String(activeInfo.year) : "—")}
                 />
                 <InfoRow
                   label={t("trackCount")}
-                  value={info.track_count ? String(info.track_count) : String(collection.songs.length)}
+                  value={activeInfo.track_count ? String(activeInfo.track_count) : String(collection.songs.length)}
                 />
-                <InfoRow label={t("source")} value={info.source || "—"} />
+                <InfoRow label={t("source")} value={activeInfo.source || "—"} />
               </div>
             </div>
-            {info.description ? (
+            {activeInfo.description ? (
               <section className="album-info-section">
                 <h4>{t("description")}</h4>
-                <p>{info.description}</p>
+                <p>{activeInfo.description}</p>
               </section>
             ) : null}
-            {info.link ? (
+            {activeInfo.link ? (
               <a
                 className="album-info-link"
-                href={info.link}
+                href={activeInfo.link}
                 target="_blank"
                 rel="noreferrer"
               >
                 {t("openSourcePage")}
               </a>
-            ) : null}
-            {candidates.length ? (
-              <section className="album-info-section">
-                <h4>{t("moreMatches")}</h4>
-                <div className="album-info-candidates">
-                  {candidates.map((candidate) => (
-                    <div key={`${candidate.source}:${candidate.id}`}>
-                      <strong>{candidate.title}</strong>
-                      <span>
-                        {[
-                          candidate.artist,
-                          candidate.year ? String(candidate.year) : "",
-                          candidate.source,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </section>
             ) : null}
           </div>
         ) : (

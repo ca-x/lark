@@ -243,7 +243,12 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .collection-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; }
 .collection-actions .primary { margin-top:0; }
 .collection-actions button:not(.primary) { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:12px 16px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); color:var(--text); }
+.collection-title-row { display:flex; align-items:flex-end; gap:10px; max-width:100%; margin:6px 0; }
+.collection-title-row h1 { min-width:0; margin:0; overflow-wrap:anywhere; }
 .collection-hero h1 { margin:6px 0; font-size:clamp(38px, 7vw, 72px); line-height:.95; letter-spacing:-.07em; }
+.collection-title-row .album-title-info-button { flex:0 0 auto; width:34px; min-width:34px; height:34px; min-height:34px; margin-bottom:4px; padding:0; border-radius:999px; color:color-mix(in srgb, var(--text) 58%, transparent); background:color-mix(in srgb, var(--panel2) 42%, transparent); border:1px solid color-mix(in srgb, var(--line) 56%, transparent); opacity:.78; }
+.collection-title-row .album-title-info-button:hover { opacity:1; color:var(--accent); border-color:color-mix(in srgb, var(--accent) 34%, var(--line)); background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
+.collection-title-row .album-title-info-button svg { width:18px; height:18px; }
 .collection-tabs { width:max-content; max-width:100%; display:flex; gap:6px; padding:6px; border:1px solid var(--line); border-radius:999px; background:var(--panel2); overflow-x:auto; scrollbar-width:none; }
 .collection-tabs::-webkit-scrollbar { display:none; }
 .collection-tabs button { flex:0 0 auto; min-height:38px; padding:8px 16px; border-radius:999px; color:var(--muted); }
@@ -1336,29 +1341,75 @@ body, button, input, select { font-family: var(--app-font); }
   font-weight: 800;
   text-decoration: none;
 }
-.album-info-candidates {
+.album-info-source-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  background: color-mix(in srgb, var(--panel2) 76%, transparent);
+}
+.album-info-source-panel > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.album-info-source-panel > div:first-child span {
+  min-width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.album-info-source-list {
+  max-height: min(28dvh, 260px);
+  overflow: auto;
   display: grid;
   gap: 8px;
+  padding-right: 2px;
 }
-.album-info-candidates > div {
+.album-info-source-list button {
   min-width: 0;
   display: grid;
-  gap: 3px;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 3px 10px;
+  text-align: left;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--panel);
   border: 1px solid var(--line);
 }
-.album-info-candidates strong,
-.album-info-candidates span {
+.album-info-source-list button:hover,
+.album-info-source-list button.active {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line));
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}
+.album-info-source-list strong,
+.album-info-source-list span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.album-info-candidates span {
+.album-info-source-list span {
   color: var(--muted);
   font-size: 12px;
+}
+.album-info-source-list em {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--accent);
+  font-size: 12px;
+  font-style: normal;
 }
 .album-info-empty {
   margin: 18px 20px;
@@ -1385,4 +1436,7 @@ body, button, input, select { font-family: var(--app-font); }
   .album-info-cover { width: 88px; border-radius: 18px; }
   .album-info-row { padding: 8px 10px; }
   .album-info-section p { max-height: 28dvh; }
+  .album-info-source-list { max-height: 22dvh; }
+  .collection-title-row { gap: 8px; }
+  .collection-title-row .album-title-info-button { width:32px; min-width:32px; height:32px; min-height:32px; margin-bottom:2px; }
 }

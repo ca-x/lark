@@ -60,7 +60,21 @@ func (b baseProvider) getJSON(ctx context.Context, endpoint string, headers map[
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(body, out)
+	return decodeLooseJSON(body, out)
+}
+
+func decodeLooseJSON(body []byte, out any) error {
+	if err := json.Unmarshal(body, out); err == nil {
+		return nil
+	}
+	loose := strings.TrimSpace(string(body))
+	if loose == "" {
+		return json.Unmarshal(body, out)
+	}
+	loose = strings.ReplaceAll(loose, "\\'", "__LARK_ESCAPED_APOSTROPHE__")
+	loose = strings.ReplaceAll(loose, "'", "\"")
+	loose = strings.ReplaceAll(loose, "__LARK_ESCAPED_APOSTROPHE__", "'")
+	return json.Unmarshal([]byte(loose), out)
 }
 
 func query(title, artist string) string {

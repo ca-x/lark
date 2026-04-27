@@ -2264,17 +2264,23 @@ func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName stri
 	out := []models.OnlineAlbumInfo{}
 	seen := map[string]bool{}
 	for _, provider := range s.online {
-		items, err := provider.SearchAlbums(ctx, title, artistName)
-		if err != nil {
-			continue
+		queries := []string{artistName}
+		if strings.TrimSpace(artistName) != "" {
+			queries = append(queries, "")
 		}
-		for _, item := range items {
-			key := item.Source + ":" + item.ID
-			if item.ID == "" || seen[key] {
+		for _, currentArtist := range queries {
+			items, err := provider.SearchAlbums(ctx, title, currentArtist)
+			if err != nil {
 				continue
 			}
-			seen[key] = true
-			out = append(out, mapOnlineAlbum(item))
+			for _, item := range items {
+				key := item.Source + ":" + item.ID
+				if item.ID == "" || seen[key] {
+					continue
+				}
+				seen[key] = true
+				out = append(out, mapOnlineAlbum(item))
+			}
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
