@@ -385,6 +385,14 @@ export default function App() {
   const resumeSeekRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
   const pendingAutoplayRef = useRef(false);
+  const currentRef = useRef<Song | null>(null);
+  const queueRef = useRef<Song[]>([]);
+  const playModeRef = useRef<PlayMode>("sequence");
+  const playingRef = useRef(false);
+  currentRef.current = current;
+  queueRef.current = queue;
+  playModeRef.current = playMode;
+  playingRef.current = playing;
   const t = useMemo(() => createT(settings.language), [settings.language]);
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
   const activeLyric = useMemo(() => {
@@ -467,13 +475,17 @@ export default function App() {
   }, [current, resumeMode]);
   const requestAudioPlay = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !current) return;
-    if (audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-      pendingAutoplayRef.current = true;
-      return;
-    }
-    pendingAutoplayRef.current = false;
-    void audio.play().catch((error) => {
+    const song = currentRef.current;
+    if (!audio || !song) return;
+    const requestedSongId = song.id;
+    pendingAutoplayRef.current = true;
+    void audio.play().then(() => {
+      if (currentRef.current?.id !== requestedSongId) return;
+      if (!pendingAutoplayRef.current && !playingRef.current) return;
+      pendingAutoplayRef.current = false;
+      setPlaying(true);
+    }).catch((error) => {
+      if (currentRef.current?.id !== requestedSongId) return;
       const name = error instanceof DOMException ? error.name : "";
       if (name === "AbortError" || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
         pendingAutoplayRef.current = true;
@@ -483,7 +495,7 @@ export default function App() {
       setPlaying(false);
       showMessage(t("playbackFailed"));
     });
-  }, [current, t]);
+  }, [t]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -491,8 +503,11 @@ export default function App() {
     audio.pause();
     audio.currentTime = 0;
     audio.load();
-    pendingAutoplayRef.current = playing;
-  }, [current?.id]);
+    if (playingRef.current || pendingAutoplayRef.current) {
+      pendingAutoplayRef.current = true;
+      window.requestAnimationFrame(requestAudioPlay);
+    }
+  }, [current?.id, requestAudioPlay]);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -684,6 +699,7 @@ export default function App() {
         audio.currentTime = 0;
       }
     }
+    pendingAutoplayRef.current = true;
     setCurrent(song);
     setQueue(list.length ? list : [song]);
     setDuration((value) => value || song.duration_seconds || 0);
@@ -696,15 +712,23 @@ export default function App() {
           ? mediaDuration
           : song.duration_seconds || 0,
       );
+      window.requestAnimationFrame(requestAudioPlay);
     }
     setPlaying(true);
     await api.markPlayed(song.id).catch(() => undefined);
   }
 
   function next(delta: 1 | -1, ended = false) {
-    if (!current || queue.length === 0) return;
+    const active = currentRef.current;
+    const activeQueue = queueRef.current.length
+      ? queueRef.current
+      : active
+        ? [active]
+        : [];
+    const mode = playModeRef.current;
+    if (!active || activeQueue.length === 0) return;
     if (ended) syncPlaybackProgress(true);
-    if (ended && playMode === "repeat-one") {
+    if (ended && mode === "repeat-one") {
       const audio = audioRef.current;
       if (audio) {
         audio.currentTime = 0;
@@ -713,24 +737,35 @@ export default function App() {
         setDuration(
           Number.isFinite(mediaDuration) && mediaDuration > 0
             ? mediaDuration
-            : current.duration_seconds || 0,
+            : active.duration_seconds || 0,
         );
-        void audio
-          .play()
-          .then(() => setPlaying(true))
-          .catch(() => setPlaying(false));
-      } else {
-        setPlaying(true);
       }
-      void api.markPlayed(current.id).catch(() => undefined);
+      pendingAutoplayRef.current = true;
+      setPlaying(true);
+      requestAudioPlay();
+      void api.markPlayed(active.id).catch(() => undefined);
       return;
     }
-    const idx = queue.findIndex((song) => song.id === current.id);
+    if (ended && activeQueue.length < 2) {
+      pendingAutoplayRef.current = false;
+      setPlaying(false);
+      setProgress(duration || active.duration_seconds || progress);
+      return;
+    }
+    const idx = activeQueue.findIndex((song) => song.id === active.id);
+    const baseIndex =
+      idx >= 0 ? idx : delta > 0 ? -1 : activeQueue.length;
     const target =
-      playMode === "shuffle" && queue.length > 1
-        ? queue[randomQueueIndex(queue.length, Math.max(0, idx))]
-        : queue[(idx + delta + queue.length) % queue.length];
-    if (target.id === current.id && audioRef.current) {
+      mode === "shuffle" && activeQueue.length > 1
+        ? activeQueue[randomQueueIndex(activeQueue.length, Math.max(0, idx))]
+        : activeQueue[(baseIndex + delta + activeQueue.length) % activeQueue.length];
+    if (ended && target.id === active.id) {
+      pendingAutoplayRef.current = false;
+      setPlaying(false);
+      setProgress(duration || active.duration_seconds || progress);
+      return;
+    }
+    if (target.id === active.id && audioRef.current) {
       audioRef.current.currentTime = 0;
       setProgress(0);
       const mediaDuration = audioRef.current.duration;
@@ -739,13 +774,12 @@ export default function App() {
           ? mediaDuration
           : target.duration_seconds || 0,
       );
-      void audioRef.current
-        .play()
-        .then(() => setPlaying(true))
-        .catch(() => setPlaying(false));
+      pendingAutoplayRef.current = true;
+      setPlaying(true);
+      requestAudioPlay();
       return;
     }
-    void playSong(target, queue);
+    void playSong(target, activeQueue);
   }
 
   function insertNextBatch(items: Song[]) {
@@ -1639,6 +1673,8 @@ export default function App() {
               setProgress(target);
               resumeSeekRef.current = 0;
             }
+            if (playingRef.current || pendingAutoplayRef.current)
+              requestAudioPlay();
           }}
           onDurationChange={(e) => {
             const d = e.currentTarget.duration;
@@ -1646,8 +1682,13 @@ export default function App() {
               Number.isFinite(d) && d > 0 ? d : current?.duration_seconds || 0,
             );
           }}
+          onLoadedData={() => {
+            if (playingRef.current || pendingAutoplayRef.current)
+              requestAudioPlay();
+          }}
           onCanPlay={() => {
-            if (playing || pendingAutoplayRef.current) requestAudioPlay();
+            if (playingRef.current || pendingAutoplayRef.current)
+              requestAudioPlay();
           }}
           onTimeUpdate={(e) => {
             setProgress(e.currentTarget.currentTime);
