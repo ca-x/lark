@@ -124,6 +124,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
 	e.POST("/api/library/upload", s.handleUpload, admin)
 	e.GET("/api/folders", s.handleFolders, auth)
+	e.GET("/api/folders/tree", s.handleFolderDirectory, auth)
 	e.GET("/api/folders/songs", s.handleFolderSongs, auth)
 	e.GET("/api/fonts", s.handleWebFonts, admin)
 	e.POST("/api/fonts", s.handleUploadWebFont, admin)
@@ -711,6 +712,14 @@ func (s *Server) handleFolders(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleFolderDirectory(c *echo.Context) error {
+	item, err := s.lib.FolderDirectory(c.Request().Context(), currentUserID(c), c.QueryParam("path"))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, item)
 }
 
 func (s *Server) handleFolderSongs(c *echo.Context) error {

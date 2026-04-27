@@ -41,6 +41,7 @@ export interface Album {
   artist_id: number;
   artist: string;
   album_artist: string;
+  year: number;
   favorite: boolean;
   song_count: number;
 }
@@ -62,6 +63,21 @@ export interface Playlist {
 export interface Folder {
   path: string;
   name: string;
+  song_count: number;
+  duration_seconds: number;
+  cover_song_id: number;
+}
+export interface FolderBreadcrumb {
+  path: string;
+  name: string;
+}
+export interface FolderDirectory {
+  path: string;
+  name: string;
+  parent_path: string;
+  breadcrumbs: FolderBreadcrumb[];
+  folders: Folder[];
+  songs: Song[];
   song_count: number;
   duration_seconds: number;
   cover_song_id: number;

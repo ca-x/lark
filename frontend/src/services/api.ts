@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, Folder, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont } from '../types'
+import type { Album, Artist, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -35,6 +35,7 @@ export const api = {
     return res.json() as Promise<Song[]>
   },
   folders: (limit = 0) => request<Folder[]>(`/api/folders?limit=${limit}`),
+  folderDirectory: (path = '.') => request<FolderDirectory>(`/api/folders/tree?path=${encodeURIComponent(path)}`),
   folderSongs: (path: string) => request<Song[]>(`/api/folders/songs?path=${encodeURIComponent(path)}`),
   albums: () => request<Album[]>('/api/albums'),
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),

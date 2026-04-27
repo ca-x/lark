@@ -523,6 +523,97 @@ func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Fold
 	return out, nil
 }
 
+func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath string) (*models.FolderDirectory, error) {
+	currentPath, err := s.resolveLibraryFolder(relPath)
+	if err != nil {
+		return nil, err
+	}
+	root, err := filepath.Abs(s.libraryDir)
+	if err != nil {
+		return nil, err
+	}
+	currentRel, ok := relativeFolderPath(root, currentPath)
+	if !ok {
+		return nil, fmt.Errorf("folder path escapes library")
+	}
+	items, err := s.client.Song.Query().
+		Order(ent.Asc(song.FieldPath)).
+		WithArtist().
+		WithAlbum().
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	currentClean := normalizeFolderRel(currentRel)
+	children := map[string]*models.Folder{}
+	childOrder := []string{}
+	directEntSongs := []*ent.Song{}
+	var songCount int
+	var duration float64
+	var coverID int
+
+	for _, item := range items {
+		itemRel, ok := relativeFolderPath(root, filepath.Dir(item.Path))
+		if !ok {
+			continue
+		}
+		itemClean := normalizeFolderRel(itemRel)
+		if !isFolderDescendantOrSame(currentClean, itemClean) {
+			continue
+		}
+		songCount++
+		duration += item.DurationSeconds
+		if coverID == 0 {
+			coverID = item.ID
+		}
+		if itemClean == currentClean {
+			directEntSongs = append(directEntSongs, item)
+			continue
+		}
+		childRel, ok := immediateChildFolder(currentClean, itemClean)
+		if !ok {
+			continue
+		}
+		child := children[childRel]
+		if child == nil {
+			child = &models.Folder{
+				Path:        displayFolderRel(childRel),
+				Name:        filepath.Base(filepath.FromSlash(childRel)),
+				CoverSongID: item.ID,
+			}
+			children[childRel] = child
+			childOrder = append(childOrder, childRel)
+		}
+		child.SongCount++
+		child.DurationSeconds += item.DurationSeconds
+	}
+
+	sort.SliceStable(childOrder, func(i, j int) bool {
+		return strings.ToLower(children[childOrder[i]].Name) < strings.ToLower(children[childOrder[j]].Name)
+	})
+	folders := make([]models.Folder, 0, len(childOrder))
+	for _, childRel := range childOrder {
+		folders = append(folders, *children[childRel])
+	}
+	directSongs, err := s.applySongUserState(ctx, userID, mapSongs(directEntSongs))
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.FolderDirectory{
+		Path:            displayFolderRel(currentClean),
+		Name:            s.folderDisplayName(root, currentClean),
+		ParentPath:      parentFolderRel(currentClean),
+		Breadcrumbs:     s.folderBreadcrumbs(root, currentClean),
+		Folders:         folders,
+		Songs:           directSongs,
+		SongCount:       songCount,
+		DurationSeconds: duration,
+		CoverSongID:     coverID,
+	}, nil
+}
+
 func (s *Service) FolderSongs(ctx context.Context, userID int, relPath string) ([]models.Song, error) {
 	folderPath, err := s.resolveLibraryFolder(relPath)
 	if err != nil {
@@ -546,6 +637,88 @@ func (s *Service) FolderSongs(ctx context.Context, userID int, relPath string) (
 		return nil, err
 	}
 	return out, nil
+}
+
+func normalizeFolderRel(rel string) string {
+	clean := filepath.ToSlash(filepath.Clean(strings.TrimSpace(rel)))
+	if clean == "" || clean == "." || clean == "/" {
+		return ""
+	}
+	return strings.Trim(clean, "/")
+}
+
+func displayFolderRel(rel string) string {
+	if rel == "" {
+		return "."
+	}
+	return rel
+}
+
+func isFolderDescendantOrSame(parent, child string) bool {
+	if parent == "" {
+		return true
+	}
+	return child == parent || strings.HasPrefix(child, parent+"/")
+}
+
+func immediateChildFolder(parent, child string) (string, bool) {
+	if child == parent {
+		return "", false
+	}
+	remainder := child
+	if parent != "" {
+		if !strings.HasPrefix(child, parent+"/") {
+			return "", false
+		}
+		remainder = strings.TrimPrefix(child, parent+"/")
+	}
+	first, _, _ := strings.Cut(remainder, "/")
+	if first == "" {
+		return "", false
+	}
+	if parent == "" {
+		return first, true
+	}
+	return parent + "/" + first, true
+}
+
+func parentFolderRel(rel string) string {
+	clean := normalizeFolderRel(rel)
+	if clean == "" {
+		return ""
+	}
+	parent := filepath.ToSlash(filepath.Dir(clean))
+	if parent == "." {
+		return "."
+	}
+	return parent
+}
+
+func (s *Service) folderDisplayName(root, rel string) string {
+	if normalizeFolderRel(rel) == "" {
+		return filepath.Base(root)
+	}
+	return filepath.Base(filepath.FromSlash(rel))
+}
+
+func (s *Service) folderBreadcrumbs(root, rel string) []models.FolderBreadcrumb {
+	clean := normalizeFolderRel(rel)
+	breadcrumbs := []models.FolderBreadcrumb{{
+		Path: ".",
+		Name: filepath.Base(root),
+	}}
+	if clean == "" {
+		return breadcrumbs
+	}
+	parts := strings.Split(clean, "/")
+	for i := range parts {
+		path := strings.Join(parts[:i+1], "/")
+		breadcrumbs = append(breadcrumbs, models.FolderBreadcrumb{
+			Path: path,
+			Name: parts[i],
+		})
+	}
+	return breadcrumbs
 }
 
 func (s *Service) resolveLibraryFolder(relPath string) (string, error) {
@@ -1648,7 +1821,13 @@ func mapAlbum(item *ent.Album) models.Album {
 		artistID = item.Edges.Artist.ID
 		artistName = item.Edges.Artist.Name
 	}
-	return models.Album{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumArtist: item.AlbumArtist, Favorite: item.Favorite, SongCount: len(item.Edges.Songs), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	year := 0
+	for _, song := range item.Edges.Songs {
+		if song.Year > 0 && (year == 0 || song.Year < year) {
+			year = song.Year
+		}
+	}
+	return models.Album{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumArtist: item.AlbumArtist, Year: year, Favorite: item.Favorite, SongCount: len(item.Edges.Songs), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func mapArtist(item *ent.Artist) models.Artist {

@@ -4,8 +4,11 @@ import {
   Disc,
   GearSix,
   Info,
+  ArrowUp,
   CaretDown,
+  CaretRight,
   ChatText,
+  FolderSimple,
   Heart,
   HeartStraight,
   House,
@@ -37,6 +40,7 @@ import type {
   Artist,
   AuthStatus,
   Folder,
+  FolderDirectory,
   HealthInfo,
   Language,
   LyricCandidate,
@@ -95,6 +99,7 @@ type Collection = {
   id?: number;
   title: string;
   subtitle: string;
+  loading?: boolean;
   favorite?: boolean;
   songs: Song[];
   albums?: Album[];
@@ -262,6 +267,7 @@ function albumsFromSongs(
       artist_id: song.artist_id || fallbackArtistId,
       artist: song.artist || fallbackArtistName,
       album_artist: song.artist || fallbackArtistName,
+      year: existing?.year || song.year || 0,
       favorite: false,
       song_count: (existing?.song_count ?? 0) + 1,
     });
@@ -433,6 +439,7 @@ export default function App() {
   const lyricFollowPausedUntil = useRef(0);
   const messageTimerRef = useRef<number | null>(null);
   const resumeSeekRef = useRef(0);
+  const collectionRequestRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
   const pendingAutoplayRef = useRef(false);
   const stallDowngradeTimerRef = useRef<number | null>(null);
@@ -1167,7 +1174,19 @@ export default function App() {
   }
 
   async function openPlaylist(playlist: Playlist) {
+    const requestId = ++collectionRequestRef.current;
+    setCollection({
+      type: "playlist",
+      id: playlist.id,
+      title: playlist.name,
+      subtitle: t("loading"),
+      loading: true,
+      favorite: playlist.favorite,
+      songs: [],
+    });
+    setView("collection");
     const items = await api.playlistSongs(playlist.id);
+    if (requestId !== collectionRequestRef.current) return;
     setCollection({
       type: "playlist",
       id: playlist.id,
@@ -1177,47 +1196,84 @@ export default function App() {
       songs: items,
       coverUrl: items[0] ? coverUrl(items[0]) : undefined,
     });
-    setView("collection");
   }
 
   async function openAlbum(album: Album) {
-    const items = await api.albumSongs(album.id);
+    const requestId = ++collectionRequestRef.current;
     setCollection({
       type: "album",
       id: album.id,
       title: album.title,
-      subtitle: `${album.artist} · ${items.length} ${t("count")}`,
+      subtitle: [
+        album.artist,
+        album.year ? String(album.year) : "",
+        t("loading"),
+      ].filter(Boolean).join(" · "),
+      loading: true,
+      favorite: album.favorite,
+      coverUrl: albumCoverUrl(album),
+      artistId: album.artist_id,
+      artistName: album.artist,
+      songs: [],
+    });
+    setView("collection");
+    const items = await api.albumSongs(album.id);
+    if (requestId !== collectionRequestRef.current) return;
+    setCollection({
+      type: "album",
+      id: album.id,
+      title: album.title,
+      subtitle: [
+        album.artist,
+        album.year ? String(album.year) : "",
+        `${items.length} ${t("count")}`,
+      ].filter(Boolean).join(" · "),
       favorite: album.favorite,
       songs: items,
       coverUrl: albumCoverUrl(album),
       artistId: album.artist_id,
       artistName: album.artist,
     });
-    setView("collection");
   }
 
   async function openArtistById(id: number, fallbackName = "") {
     if (!id) return;
-    const items = await api.artistSongs(id);
+    const requestId = ++collectionRequestRef.current;
     const artist = artists.find((item) => item.id === id);
-    const title =
-      artist?.name || fallbackName || items[0]?.artist || t("artists");
+    const title = artist?.name || fallbackName || t("artists");
     const artistAlbums = albums.filter((album) => album.artist_id === id);
     setCollection({
       type: "artist",
       id,
       title,
-      subtitle: `${items.length} ${t("count")}`,
+      subtitle: t("loading"),
+      loading: true,
       favorite: artist?.favorite ?? false,
-      songs: items,
-      albums: artistAlbums.length
-        ? artistAlbums
-        : albumsFromSongs(items, id, title),
+      songs: [],
+      albums: artistAlbums,
       coverUrl: `/api/artists/${id}/cover`,
       artistId: id,
       artistName: title,
     });
     setView("collection");
+    const items = await api.artistSongs(id);
+    if (requestId !== collectionRequestRef.current) return;
+    const resolvedTitle =
+      artist?.name || fallbackName || items[0]?.artist || t("artists");
+    setCollection({
+      type: "artist",
+      id,
+      title: resolvedTitle,
+      subtitle: `${items.length} ${t("count")}`,
+      favorite: artist?.favorite ?? false,
+      songs: items,
+      albums: artistAlbums.length
+        ? artistAlbums
+        : albumsFromSongs(items, id, resolvedTitle),
+      coverUrl: `/api/artists/${id}/cover`,
+      artistId: id,
+      artistName: resolvedTitle,
+    });
   }
 
   async function playAlbum(album: Album) {
@@ -1595,7 +1651,9 @@ export default function App() {
                 items={visibleAlbums.map((a) => ({
                   id: a.id,
                   title: a.title,
-                  subtitle: `${a.song_count} ${t("count")}`,
+                  subtitle: [a.year ? String(a.year) : "", `${a.song_count} ${t("count")}`]
+                    .filter(Boolean)
+                    .join(" · "),
                   meta: a.artist,
                   theme: settings.theme,
                   coverUrl: albumCoverUrl(a),
@@ -2874,7 +2932,9 @@ function FavoritesView({
           items={albums.map((album) => ({
             id: album.id,
             title: album.title,
-            subtitle: `${album.song_count} ${t("count")}`,
+            subtitle: [album.year ? String(album.year) : "", `${album.song_count} ${t("count")}`]
+              .filter(Boolean)
+              .join(" · "),
             meta: album.artist,
             theme,
             coverUrl: albumCoverUrl(album),
@@ -3158,32 +3218,40 @@ function CollectionView({
         </div>
       ) : null}
       {collection.type === "artist" && artistView === "albums" ? (
-        <div className="artist-album-grid">
-          {artistAlbums.map((album) => (
-            <article key={album.id} className="artist-album-card">
-              <button
-                className="cover plain-cover"
-                aria-label={`${t("play")} ${album.title}`}
-                onClick={() => onPlayAlbumCard?.(album)}
-              >
-                <LazyCoverImage src={albumCoverUrl(album)} />
-                <Record weight="fill" />
-                <span className="card-play" aria-hidden="true">
-                  <Play weight="fill" />
+        collection.loading ? (
+          <div className="empty collection-loading">{t("loading")}</div>
+        ) : (
+          <div className="artist-album-grid">
+            {artistAlbums.map((album) => (
+              <article key={album.id} className="artist-album-card">
+                <button
+                  className="cover plain-cover"
+                  aria-label={`${t("play")} ${album.title}`}
+                  onClick={() => onPlayAlbumCard?.(album)}
+                >
+                  <LazyCoverImage src={albumCoverUrl(album)} />
+                  <Record weight="fill" />
+                  <span className="card-play" aria-hidden="true">
+                    <Play weight="fill" />
+                  </span>
+                </button>
+                <button
+                  className="artist-album-title"
+                  onClick={() => onOpenAlbumCard?.(album)}
+                >
+                  {album.title}
+                </button>
+                <span>
+                  {[album.year ? String(album.year) : "", `${album.song_count} ${t("count")}`]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
-              </button>
-              <button
-                className="artist-album-title"
-                onClick={() => onOpenAlbumCard?.(album)}
-              >
-                {album.title}
-              </button>
-              <span>
-                {album.song_count} {t("count")}
-              </span>
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+          </div>
+        )
+      ) : collection.loading ? (
+        <div className="empty collection-loading">{t("loading")}</div>
       ) : (
         <SongTable
           songs={collection.songs}
@@ -3251,6 +3319,7 @@ function LibraryView({
   scanStatus: ScanStatus | null;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
+  const [tab, setTab] = useState<"songs" | "folders">("songs");
   const selectedSongs = songs.filter((song) => selected.has(song.id));
   const toggleSelected = (song: Song) => {
     setSelected((old) => {
@@ -3269,7 +3338,7 @@ function LibraryView({
       <div className="section-head library-actions">
         <h2>{t("library")}</h2>
         <div>
-          {selectedSongs.length ? (
+          {tab === "songs" && selectedSongs.length ? (
             <div className="selection-actions">
               <span>
                 {selectedSongs.length} {t("selected")}
@@ -3296,43 +3365,33 @@ function LibraryView({
         </div>
       </div>
       {scanStatus ? <ScanProgress status={scanStatus} t={t} /> : null}
-      {folders.length ? (
-        <section className="library-folder-panel">
-          <div className="section-head compact">
-            <div>
-              <h2>{t("folders")}</h2>
-              <p className="section-subtitle">{t("folderPlayHint")}</p>
-            </div>
-          </div>
-          <div className="folder-card-grid library-folder-grid">
-            {folders.map((folder) => (
-              <button
-                key={folder.path}
-                className="folder-card"
-                onClick={() => onPlayFolder(folder)}
-              >
-                <span
-                  className="folder-cover"
-                  style={
-                    folder.cover_song_id
-                      ? ({
-                          "--cover-url": `url(/api/songs/${folder.cover_song_id}/cover)`,
-                        } as React.CSSProperties)
-                      : undefined
-                  }
-                >
-                  <MusicNotes weight="fill" />
-                </span>
-                <strong>{folder.name}</strong>
-                <small>
-                  {folder.song_count} {t("count")} · {formatDuration(folder.duration_seconds)}
-                </small>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-      {songs.length ? (
+      <div className="collection-tabs library-tabs">
+        <button
+          className={tab === "songs" ? "active" : ""}
+          onClick={() => setTab("songs")}
+        >
+          {t("libraryList")} · {songs.length}
+        </button>
+        <button
+          className={tab === "folders" ? "active" : ""}
+          onClick={() => setTab("folders")}
+        >
+          {t("folderBrowser")} · {folders.length}
+        </button>
+      </div>
+      {tab === "folders" ? (
+        <FolderBrowser
+          current={current}
+          t={t}
+          onPlay={onPlay}
+          onFavorite={onFavorite}
+          onAdd={onAdd}
+          onInsertNext={onInsertNext}
+          onOpenAlbum={onOpenAlbum}
+          onOpenArtist={onOpenArtist}
+          onPlayFolder={onPlayFolder}
+        />
+      ) : songs.length ? (
         <SongTable
           songs={songs}
           current={current}
@@ -3349,6 +3408,186 @@ function LibraryView({
       ) : (
         <EmptyLibrary t={t} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
       )}
+    </section>
+  );
+}
+
+function FolderBrowser({
+  current,
+  t,
+  onPlay,
+  onFavorite,
+  onAdd,
+  onInsertNext,
+  onOpenAlbum,
+  onOpenArtist,
+  onPlayFolder,
+}: {
+  current: Song | null;
+  t: ReturnType<typeof createT>;
+  onPlay: (song: Song, list: Song[]) => void;
+  onFavorite: (song: Song) => void;
+  onAdd: (song: Song) => void;
+  onInsertNext: (songs: Song[]) => void;
+  onOpenAlbum: (song: Song) => void;
+  onOpenArtist: (song: Song) => void;
+  onPlayFolder: (folder: Folder) => void;
+}) {
+  const [path, setPath] = useState(".");
+  const [directory, setDirectory] = useState<FolderDirectory | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    void api
+      .folderDirectory(path)
+      .then((item) => {
+        if (!cancelled) setDirectory(item);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+
+  const currentFolder: Folder | null = directory
+    ? {
+        path: directory.path,
+        name: directory.name,
+        song_count: directory.song_count,
+        duration_seconds: directory.duration_seconds,
+        cover_song_id: directory.cover_song_id,
+      }
+    : null;
+
+  const insertFolderNext = async (folder: Folder) => {
+    const items = await api.folderSongs(folder.path);
+    if (items.length) onInsertNext(items);
+  };
+
+  return (
+    <section className="folder-browser">
+      <div className="folder-browser-head">
+        <div>
+          <p className="section-subtitle">{t("folderPlayHint")}</p>
+          <div className="folder-breadcrumbs">
+            {(directory?.breadcrumbs.length
+              ? directory.breadcrumbs
+              : [{ path: ".", name: t("folderBrowser") }]
+            ).map((crumb, index, items) => (
+              <span key={`${crumb.path}-${index}`}>
+                <button
+                  className={index === items.length - 1 ? "active" : ""}
+                  onClick={() => setPath(crumb.path || ".")}
+                >
+                  {crumb.name}
+                </button>
+                {index < items.length - 1 ? <CaretRight aria-hidden="true" /> : null}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="folder-browser-actions">
+          {directory?.parent_path ? (
+            <button onClick={() => setPath(directory.parent_path)}>
+              <ArrowUp /> {t("parentFolder")}
+            </button>
+          ) : null}
+          <button
+            disabled={!currentFolder || !currentFolder.song_count}
+            onClick={() => currentFolder && onPlayFolder(currentFolder)}
+          >
+            <Play weight="fill" /> {t("playFolder")}
+          </button>
+          <button
+            disabled={!currentFolder || !currentFolder.song_count}
+            onClick={() => currentFolder && void insertFolderNext(currentFolder)}
+          >
+            <SkipForward /> {t("insertFolderNext")}
+          </button>
+        </div>
+      </div>
+      {loading ? <div className="empty mini-empty">{t("loading")}</div> : null}
+      {error ? <div className="empty mini-empty">{error}</div> : null}
+      {!loading && directory ? (
+        <>
+          <div className="folder-browser-summary">
+            <strong>{directory.name}</strong>
+            <span>
+              {directory.song_count} {t("count")} · {formatDuration(directory.duration_seconds)}
+            </span>
+          </div>
+          {directory.folders.length ? (
+            <div className="folder-tree-list">
+              <h3>{t("subfolders")}</h3>
+              {directory.folders.map((folder) => (
+                <button
+                  key={folder.path}
+                  className="folder-tree-row"
+                  onClick={() => setPath(folder.path)}
+                >
+                  <span className="folder-tree-icon">
+                    <FolderSimple weight="fill" />
+                  </span>
+                  <span>
+                    <strong>{folder.name}</strong>
+                    <small>
+                      {folder.song_count} {t("count")} · {formatDuration(folder.duration_seconds)}
+                    </small>
+                  </span>
+                  <span className="folder-tree-actions">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={t("playFolder")}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onPlayFolder(folder);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onPlayFolder(folder);
+                        }
+                      }}
+                    >
+                      <Play weight="fill" />
+                    </span>
+                    <CaretRight />
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="folder-current-songs">
+            <h3>{t("currentFolderSongs")}</h3>
+            {directory.songs.length ? (
+              <SongTable
+                songs={directory.songs}
+                current={current}
+                t={t}
+                onPlay={onPlay}
+                onFavorite={onFavorite}
+                onAdd={onAdd}
+                onInsertNext={(song) => onInsertNext([song])}
+                onOpenAlbum={onOpenAlbum}
+                onOpenArtist={onOpenArtist}
+              />
+            ) : (
+              <div className="empty mini-empty">{t("emptyCollection")}</div>
+            )}
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }

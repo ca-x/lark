@@ -36,6 +36,7 @@ type Album struct {
 	ArtistID    int       `json:"artist_id"`
 	Artist      string    `json:"artist"`
 	AlbumArtist string    `json:"album_artist"`
+	Year        int       `json:"year"`
 	Favorite    bool      `json:"favorite"`
 	SongCount   int       `json:"song_count"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -90,7 +91,24 @@ type Folder struct {
 	Name            string  `json:"name"`
 	SongCount       int     `json:"song_count"`
 	DurationSeconds float64 `json:"duration_seconds"`
-	CoverSongID      int     `json:"cover_song_id"`
+	CoverSongID     int     `json:"cover_song_id"`
+}
+
+type FolderBreadcrumb struct {
+	Path string `json:"path"`
+	Name string `json:"name"`
+}
+
+type FolderDirectory struct {
+	Path            string             `json:"path"`
+	Name            string             `json:"name"`
+	ParentPath      string             `json:"parent_path"`
+	Breadcrumbs     []FolderBreadcrumb `json:"breadcrumbs"`
+	Folders         []Folder           `json:"folders"`
+	Songs           []Song             `json:"songs"`
+	SongCount       int                `json:"song_count"`
+	DurationSeconds float64            `json:"duration_seconds"`
+	CoverSongID     int                `json:"cover_song_id"`
 }
 
 type Lyrics struct {
