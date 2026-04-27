@@ -125,6 +125,28 @@ type LyricCandidate struct {
 	Artist string `json:"artist"`
 }
 
+type OnlineAlbumTrack struct {
+	Title           string `json:"title"`
+	Artist          string `json:"artist"`
+	DurationSeconds int    `json:"duration_seconds"`
+	TrackNumber     int    `json:"track_number"`
+}
+
+type OnlineAlbumInfo struct {
+	ID          string             `json:"id"`
+	Source      string             `json:"source"`
+	Title       string             `json:"title"`
+	Artist      string             `json:"artist"`
+	Cover       string             `json:"cover"`
+	ReleaseDate string             `json:"release_date"`
+	Year        int                `json:"year"`
+	Description string             `json:"description"`
+	TrackCount  int                `json:"track_count"`
+	Link        string             `json:"link"`
+	Tracks      []OnlineAlbumTrack `json:"tracks,omitempty"`
+	Candidates  []OnlineAlbumInfo  `json:"candidates,omitempty"`
+}
+
 type WebFont struct {
 	Name   string `json:"name"`
 	Family string `json:"family"`

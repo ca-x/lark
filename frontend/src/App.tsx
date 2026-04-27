@@ -1,4 +1,4 @@
-import type { ChangeEvent, ReactNode, UIEvent } from "react";
+import type { ChangeEvent, MouseEvent, ReactNode, UIEvent } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Disc,
@@ -63,6 +63,7 @@ import type {
   Theme,
   User,
   WebFont,
+  OnlineAlbumInfo,
 } from "./types";
 import { createT } from "./i18n";
 
@@ -129,6 +130,7 @@ type Collection = {
   coverUrl?: string;
   artistId?: number;
   artistName?: string;
+  onlineAlbumInfo?: OnlineAlbumInfo | null;
 };
 const themes: { id: Theme; label: ThemeLabel; mode: ThemeMode }[] = [
   { id: "deep-space", label: "deepSpace", mode: "dark" },
@@ -1566,7 +1568,10 @@ export default function App() {
     setCollection(nextCollection);
     setView("collection");
     try {
-      const items = await withTimeout(api.albumSongs(album.id));
+      const [items, onlineInfo] = await Promise.all([
+        withTimeout(api.albumSongs(album.id)),
+        withTimeout(api.albumOnlineInfo(album.id), 9000).catch(() => null),
+      ]);
       if (requestId !== collectionRequestRef.current) return;
       setCollection({
         type: "album",
@@ -1574,7 +1579,7 @@ export default function App() {
         title: album.title,
         subtitle: [
           album.artist,
-          album.year ? String(album.year) : "",
+          album.year || onlineInfo?.year ? String(album.year || onlineInfo?.year) : "",
           `${items.length} ${t("count")}`,
         ].filter(Boolean).join(" · "),
         favorite: album.favorite,
@@ -1582,6 +1587,7 @@ export default function App() {
         coverUrl: albumCoverUrl(album),
         artistId: album.artist_id,
         artistName: album.artist,
+        onlineAlbumInfo: onlineInfo,
       });
     } catch (error) {
       setCollectionLoadError(nextCollection, requestId, error);
@@ -3555,6 +3561,7 @@ function CollectionView({
   const resolvedBackLabel = backLabel || label;
   const hasResolvableSongs = collection.songs.length > 0 || Boolean(collection.id);
   const [artistView, setArtistView] = useState<"songs" | "albums">("songs");
+  const [albumInfoOpen, setAlbumInfoOpen] = useState(false);
   const artistAlbums = useMemo(
     () =>
       collection.albums?.length
@@ -3602,6 +3609,15 @@ function CollectionView({
             >
               <SkipForward /> {t("insertNext")}
             </button>
+            {collection.type === "album" ? (
+              <button
+                onClick={() => setAlbumInfoOpen(true)}
+                aria-label={t("albumInfo")}
+                title={t("albumInfo")}
+              >
+                <Info /> {t("albumInfo")}
+              </button>
+            ) : null}
             {onFavoriteCollection ? (
               <button
                 className={collection.favorite ? "active" : ""}
@@ -3692,7 +3708,129 @@ function CollectionView({
       ) : (
         <div className="empty collection-loading">{collection.error || t("emptyCollection")}</div>
       )}
+      {collection.type === "album" ? (
+        <AlbumInfoDrawer
+          open={albumInfoOpen}
+          collection={collection}
+          t={t}
+          onClose={() => setAlbumInfoOpen(false)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+
+function AlbumInfoDrawer({
+  open,
+  collection,
+  t,
+  onClose,
+}: {
+  open: boolean;
+  collection: Collection;
+  t: ReturnType<typeof createT>;
+  onClose: () => void;
+}) {
+  const info = collection.onlineAlbumInfo;
+  const candidates =
+    info?.candidates
+      ?.filter((item) => item.id !== info.id || item.source !== info.source)
+      .slice(0, 5) ?? [];
+  const stop = (event: MouseEvent) => event.stopPropagation();
+  return (
+    <div
+      className={`album-info-overlay ${open ? "open" : ""}`}
+      aria-hidden={!open}
+      onClick={onClose}
+    >
+      <aside
+        className="album-info-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("albumInfo")}
+        onClick={stop}
+      >
+        <div className="album-info-head">
+          <div>
+            <p>{t("onlineAlbumInfo")}</p>
+            <h3>{info?.title || collection.title}</h3>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label={t("close")}>
+            <X />
+          </button>
+        </div>
+        {info && (info.title || info.description || info.cover || info.source) ? (
+          <div className="album-info-body">
+            <div className="album-info-top">
+              <div className="album-info-cover">
+                {info.cover ? <LazyCoverImage src={info.cover} /> : <Record weight="fill" />}
+              </div>
+              <div className="album-info-fields">
+                <InfoRow label={t("artist")} value={info.artist || collection.artistName || "—"} />
+                <InfoRow
+                  label={t("releaseDate")}
+                  value={info.release_date || (info.year ? String(info.year) : "—")}
+                />
+                <InfoRow
+                  label={t("trackCount")}
+                  value={info.track_count ? String(info.track_count) : String(collection.songs.length)}
+                />
+                <InfoRow label={t("source")} value={info.source || "—"} />
+              </div>
+            </div>
+            {info.description ? (
+              <section className="album-info-section">
+                <h4>{t("description")}</h4>
+                <p>{info.description}</p>
+              </section>
+            ) : null}
+            {info.link ? (
+              <a
+                className="album-info-link"
+                href={info.link}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t("openSourcePage")}
+              </a>
+            ) : null}
+            {candidates.length ? (
+              <section className="album-info-section">
+                <h4>{t("moreMatches")}</h4>
+                <div className="album-info-candidates">
+                  {candidates.map((candidate) => (
+                    <div key={`${candidate.source}:${candidate.id}`}>
+                      <strong>{candidate.title}</strong>
+                      <span>
+                        {[
+                          candidate.artist,
+                          candidate.year ? String(candidate.year) : "",
+                          candidate.source,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </div>
+        ) : (
+          <div className="album-info-empty">{t("noAlbumInfo")}</div>
+        )}
+      </aside>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="album-info-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 

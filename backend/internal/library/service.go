@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"mime/multipart"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -34,6 +35,7 @@ import (
 	"lark/backend/ent/usersongfavorite"
 	"lark/backend/internal/models"
 	"lark/backend/internal/netease"
+	"lark/backend/internal/online"
 	"lark/backend/internal/qqmusic"
 )
 
@@ -51,6 +53,7 @@ type Service struct {
 	ffmpeg     string
 	netease    *netease.Client
 	qqmusic    *qqmusic.Client
+	online     []online.Provider
 	scanMu     sync.RWMutex
 	scanStatus models.ScanStatus
 }
@@ -83,7 +86,7 @@ type fileMetadata struct {
 }
 
 func New(client *ent.Client, dataDir, libraryDir, ffprobe, ffmpeg string, neteaseClient *netease.Client, qqClient *qqmusic.Client) *Service {
-	return &Service{client: client, dataDir: dataDir, libraryDir: libraryDir, ffprobe: ffprobe, ffmpeg: ffmpeg, netease: neteaseClient, qqmusic: qqClient}
+	return &Service{client: client, dataDir: dataDir, libraryDir: libraryDir, ffprobe: ffprobe, ffmpeg: ffmpeg, netease: neteaseClient, qqmusic: qqClient, online: online.Providers()}
 }
 
 func (s *Service) FFmpegBin() string { return s.ffmpeg }
@@ -770,7 +773,15 @@ func (s *Service) AlbumCover(ctx context.Context, id int) ([]byte, string, error
 	if err != nil {
 		return nil, "", err
 	}
-	return firstEmbeddedCover(items)
+	data, mimeType, err := firstEmbeddedCover(items)
+	if err != nil || len(data) > 0 {
+		return data, mimeType, err
+	}
+	info, err := s.OnlineAlbumInfo(ctx, id)
+	if err != nil || strings.TrimSpace(info.Cover) == "" {
+		return nil, "", err
+	}
+	return s.cachedRemoteImage(ctx, "album", strconv.Itoa(id), info.Cover)
 }
 
 func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, error) {
@@ -781,7 +792,75 @@ func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, erro
 	if err != nil {
 		return nil, "", err
 	}
-	return firstEmbeddedCover(items)
+	data, mimeType, err := firstEmbeddedCover(items)
+	if err != nil || len(data) > 0 {
+		return data, mimeType, err
+	}
+	a, err := s.client.Artist.Query().Where(artist.ID(id)).WithAlbums().Only(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	for _, candidate := range a.Edges.Albums {
+		infoItems := s.searchOnlineAlbums(ctx, candidate.Title, firstString(candidate.AlbumArtist, a.Name))
+		for _, info := range infoItems {
+			if strings.TrimSpace(info.Cover) == "" {
+				continue
+			}
+			return s.cachedRemoteImage(ctx, "artist", strconv.Itoa(id), info.Cover)
+		}
+	}
+	return nil, "", nil
+}
+
+func (s *Service) cachedRemoteImage(ctx context.Context, kind, key, remoteURL string) ([]byte, string, error) {
+	remoteURL = strings.TrimSpace(remoteURL)
+	if remoteURL == "" {
+		return nil, "", nil
+	}
+	cacheDir := filepath.Join(s.dataDir, "online-covers", kind)
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		return nil, "", err
+	}
+	safeKey := strings.NewReplacer("/", "_", "\\", "_", ":", "_").Replace(key)
+	for _, ext := range []string{".jpg", ".png", ".webp"} {
+		path := filepath.Join(cacheDir, safeKey+ext)
+		data, err := os.ReadFile(path)
+		if err == nil && len(data) > 0 {
+			return data, mime.TypeByExtension(ext), nil
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteURL, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 Lark Music Player")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return nil, "", fmt.Errorf("cover status %d", res.StatusCode)
+	}
+	contentType := res.Header.Get("Content-Type")
+	ext := ".jpg"
+	if strings.Contains(contentType, "png") {
+		ext = ".png"
+	} else if strings.Contains(contentType, "webp") {
+		ext = ".webp"
+	}
+	data, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
+	if err != nil {
+		return nil, "", err
+	}
+	if len(data) == 0 {
+		return nil, "", nil
+	}
+	_ = os.WriteFile(filepath.Join(cacheDir, safeKey+ext), data, 0o644)
+	if contentType == "" {
+		contentType = mime.TypeByExtension(ext)
+	}
+	return data, contentType, nil
 }
 
 func firstEmbeddedCover(items []*ent.Song) ([]byte, string, error) {
@@ -1021,6 +1100,17 @@ func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCa
 		items, _ := s.qqmusic.SearchCandidates(ctx, item.Title, artistName)
 		appendCandidates(items)
 	}
+	for _, provider := range s.online {
+		items, err := provider.SearchSongs(ctx, item.Title, artistName)
+		if err != nil {
+			continue
+		}
+		candidates := make([]models.LyricCandidate, 0, len(items))
+		for _, found := range items {
+			candidates = append(candidates, models.LyricCandidate{ID: found.ID, Source: provider.Name(), Title: found.Title, Artist: found.Artist})
+		}
+		appendCandidates(candidates)
+	}
 	return out, nil
 }
 
@@ -1087,6 +1177,19 @@ func (s *Service) matchOnlineLyrics(ctx context.Context, title, artist, preferre
 			}
 		}
 	}
+	for _, provider := range s.online {
+		found, err := provider.SearchSongs(ctx, title, artist)
+		if err != nil {
+			continue
+		}
+		for _, candidate := range found {
+			lyric, lyricErr := provider.Lyrics(ctx, candidate)
+			if lyricErr != nil || strings.TrimSpace(lyric) == "" {
+				continue
+			}
+			return lyric, candidate.ID, provider.Name(), nil
+		}
+	}
 	return "", "", "", nil
 }
 
@@ -1104,6 +1207,12 @@ func (s *Service) fetchLyricsBySource(ctx context.Context, source, sourceID stri
 		}
 		return s.qqmusic.Lyrics(ctx, sourceID)
 	default:
+		for _, provider := range s.online {
+			if provider.Name() != source {
+				continue
+			}
+			return provider.Lyrics(ctx, online.Song{Source: provider.Name(), ID: sourceID, Extra: map[string]string{"rid": sourceID, "hash": sourceID, "content_id": sourceID, "tsid": sourceID, "track_id": sourceID, "songid": strings.Split(sourceID, "|")[0]}})
+		}
 		return "", fmt.Errorf("unsupported lyric source")
 	}
 }
@@ -2122,3 +2231,108 @@ func mapPlaylist(item *ent.Playlist) models.Playlist {
 }
 
 func IsMissing(err error) bool { return errors.Is(err, os.ErrNotExist) || ent.IsNotFound(err) }
+
+func (s *Service) OnlineAlbumInfo(ctx context.Context, id int) (models.OnlineAlbumInfo, error) {
+	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs(func(q *ent.SongQuery) { q.WithArtist() }).Only(ctx)
+	if err != nil {
+		return models.OnlineAlbumInfo{}, err
+	}
+	artistName := strings.TrimSpace(a.AlbumArtist)
+	if artistName == "" && a.Edges.Artist != nil {
+		artistName = a.Edges.Artist.Name
+	}
+	if artistName == "" {
+		for _, item := range a.Edges.Songs {
+			if item.Edges.Artist != nil && strings.TrimSpace(item.Edges.Artist.Name) != "" {
+				artistName = item.Edges.Artist.Name
+				break
+			}
+		}
+	}
+	candidates := s.searchOnlineAlbums(ctx, a.Title, artistName)
+	if len(candidates) == 0 {
+		return models.OnlineAlbumInfo{}, nil
+	}
+	best := candidates[0]
+	best.Candidates = candidates
+	return best, nil
+}
+
+func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName string) []models.OnlineAlbumInfo {
+	ctx, cancel := context.WithTimeout(ctx, 9*time.Second)
+	defer cancel()
+	out := []models.OnlineAlbumInfo{}
+	seen := map[string]bool{}
+	for _, provider := range s.online {
+		items, err := provider.SearchAlbums(ctx, title, artistName)
+		if err != nil {
+			continue
+		}
+		for _, item := range items {
+			key := item.Source + ":" + item.ID
+			if item.ID == "" || seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, mapOnlineAlbum(item))
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return onlineAlbumScore(out[i], title, artistName) > onlineAlbumScore(out[j], title, artistName)
+	})
+	if len(out) > 12 {
+		out = out[:12]
+	}
+	return out
+}
+
+func mapOnlineAlbum(item online.AlbumCandidate) models.OnlineAlbumInfo {
+	tracks := make([]models.OnlineAlbumTrack, 0, len(item.Extra))
+	_ = tracks
+	return models.OnlineAlbumInfo{ID: item.ID, Source: item.Source, Title: item.Title, Artist: item.Artist, Cover: item.Cover, ReleaseDate: item.ReleaseDate, Year: item.Year, Description: item.Description, TrackCount: item.TrackCount, Link: item.Link}
+}
+
+func onlineAlbumScore(item models.OnlineAlbumInfo, title, artistName string) int {
+	score := 0
+	if normalizeCompareText(item.Title) == normalizeCompareText(title) {
+		score += 80
+	} else if strings.Contains(normalizeCompareText(item.Title), normalizeCompareText(title)) || strings.Contains(normalizeCompareText(title), normalizeCompareText(item.Title)) {
+		score += 35
+	}
+	if artistName != "" {
+		if normalizeCompareText(item.Artist) == normalizeCompareText(artistName) {
+			score += 60
+		} else if strings.Contains(normalizeCompareText(item.Artist), normalizeCompareText(artistName)) || strings.Contains(normalizeCompareText(artistName), normalizeCompareText(item.Artist)) {
+			score += 25
+		}
+	}
+	if item.Cover != "" {
+		score += 10
+	}
+	if item.Year > 0 {
+		score += 5
+	}
+	if item.Description != "" {
+		score += 3
+	}
+	return score
+}
+
+func normalizeCompareText(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	for _, token := range []string{"（", "(", "[", "【"} {
+		if idx := strings.Index(value, token); idx >= 0 {
+			value = value[:idx]
+		}
+	}
+	return strings.NewReplacer(" ", "", "-", "", "_", "", "·", "", "・", "", "'", "", "’", "").Replace(value)
+}
+
+func firstString(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
