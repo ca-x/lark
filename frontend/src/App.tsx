@@ -2443,6 +2443,7 @@ function HomeView({
                       }
                       onClick={() => onOpenAlbum(album)}
                     >
+                      <LazyCoverImage src={albumCoverUrl(album)} />
                       <Record weight="fill" />
                     </button>
                     <strong>{album.title}</strong>
@@ -2483,6 +2484,7 @@ function HomeView({
                       }
                       onClick={() => onOpenArtist(artist.id, artist.name)}
                     >
+                      <LazyCoverImage src={artistCoverUrl(artist)} />
                       <Record weight="fill" />
                     </button>
                     <strong>{artist.name}</strong>

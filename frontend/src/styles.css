@@ -528,7 +528,10 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .quick-shelves { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
 .mini-cards { display:grid; gap:8px; }
 .mini-card { position:relative; display:grid; grid-template-columns:48px minmax(0,1fr) 40px; grid-template-rows:auto auto; column-gap:10px; align-items:center; min-height:64px; padding:8px; border-radius:18px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 72%, transparent); }
-.mini-card-cover { grid-row:1 / span 2; width:48px; height:48px; min-width:48px; min-height:48px; border-radius:14px; display:grid; place-items:center; color:var(--bg); background:var(--cover-url), var(--cover); background-size:cover; background-position:center; overflow:hidden; }
+.mini-card-cover { position:relative; grid-row:1 / span 2; width:48px; height:48px; min-width:48px; min-height:48px; border-radius:14px; display:grid; place-items:center; color:var(--bg); background:var(--cover-url), var(--cover); background-size:cover; background-position:center; overflow:hidden; }
+.mini-card-cover .cover-image { z-index:1; }
+.mini-card-cover .cover-image[data-loaded='true'] ~ svg { opacity:0 !important; }
+.mini-card-cover svg { position:relative; z-index:2; transition:opacity .16s var(--ease); }
 .mini-card strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .mini-card > span, .mini-card > .artist-link { grid-column:2; color:var(--muted) !important; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .mini-play { grid-column:3; grid-row:1 / span 2; width:40px; height:40px; min-width:40px; min-height:40px; border-radius:999px; display:grid; place-items:center; color:var(--bg); background:var(--accent); box-shadow:0 10px 22px color-mix(in srgb, var(--accent) 22%, transparent); }
@@ -1054,10 +1057,14 @@ body, button, input, select { font-family: var(--app-font); }
 .cover-button .mini-art[data-playing='false'] { animation:none; filter:saturate(.92); }
 .cover-button .mini-art[data-has-cover='true']::before,
 .cover-button .mini-art[data-has-cover='true']::after,
+.home-view .mini-art[data-has-cover='true']::before,
+.home-view .mini-art[data-has-cover='true']::after,
 .full-lyrics-cover-button .mini-art[data-has-cover='true']::before,
 .full-lyrics-cover-button .mini-art[data-has-cover='true']::after,
 [data-theme] .cover-button .mini-art[data-has-cover='true']::before,
 [data-theme] .cover-button .mini-art[data-has-cover='true']::after,
+[data-theme] .home-view .mini-art[data-has-cover='true']::before,
+[data-theme] .home-view .mini-art[data-has-cover='true']::after,
 [data-theme] .full-lyrics-cover-button .mini-art[data-has-cover='true']::before,
 [data-theme] .full-lyrics-cover-button .mini-art[data-has-cover='true']::after {
   display:none !important;
