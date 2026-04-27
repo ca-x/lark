@@ -1099,3 +1099,24 @@ body, button, input, select { font-family: var(--app-font); }
 .artist-album-title { min-width:0; min-height:0; padding:0; border:0; border-radius:0; background:transparent; color:var(--text); font:inherit; font-weight:850; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .artist-album-title:hover { color:var(--accent); text-decoration:underline; }
 @media (max-width:720px) { .library-folder-panel { padding:12px; border-radius:20px; } .library-folder-grid { grid-template-columns:1fr 1fr; } }
+
+/* v0.2.13 vinyl deck and VU meter integration */
+.turntable { background:linear-gradient(145deg, #1a1008, color-mix(in srgb, var(--panel) 88%, #2e1e0a)); border:1px solid color-mix(in srgb, #c8a96e 18%, var(--line)); overflow:hidden; }
+.vinyl-stage { position:relative; width:240px; height:240px; transform:translateZ(0); }
+.vinyl-canvas { position:absolute; inset:0; width:240px; height:240px; border-radius:50%; display:block; filter:drop-shadow(0 18px 34px rgba(0,0,0,.46)); }
+.tonearm-svg { position:absolute; inset:0; z-index:3; overflow:visible; pointer-events:none; }
+.turntable-speed { position:absolute; right:16px; bottom:16px; z-index:4; padding:4px 8px; border-radius:7px; border:1px solid color-mix(in srgb, #c8a96e 34%, transparent); background:rgba(26,16,8,.72); color:#c8a96e; font-size:10px; font-weight:900; letter-spacing:.12em; }
+.turntable-status { left:16px; bottom:16px; z-index:4; }
+.turntable.decorative .vinyl-stage { transform:scale(1.42); opacity:.9; }
+.turntable.decorative .turntable-speed { display:none; }
+.wave-lane { min-width:0; min-height:42px; display:grid !important; grid-template-columns:minmax(0,1fr) 58px; align-items:end; gap:8px; }
+.wave-fallback { min-width:0; height:34px; display:flex; align-items:end; gap:3px; }
+.player-waveform > .wave-lane { width:100%; min-width:0; overflow:hidden; }
+.player-waveform .wave-lane > div:not(.wave-fallback):not(.vu-meter) { min-width:0; min-height:42px; overflow:hidden; }
+.vu-meter { height:34px; min-width:54px; display:flex !important; align-items:flex-end; justify-content:flex-end; gap:3px; padding:3px 4px; border-radius:9px; background:rgba(26,16,8,.38); border:1px solid color-mix(in srgb, var(--accent) 18%, transparent); }
+.vu-meter .vu-bar { position:relative; width:4px; height:100%; min-width:4px; border-radius:999px; overflow:hidden; background:color-mix(in srgb, var(--track) 82%, #000); }
+.vu-meter .vu-bar i { position:absolute; left:0; right:0; bottom:0; width:100%; min-width:0; height:22%; border-radius:999px; background:linear-gradient(to top, #4aa889 0 58%, #c8a96e 59% 78%, #d45a4c 79%); opacity:.92; animation:vu-meter-rise 620ms ease-in-out infinite alternate; animation-delay:calc(var(--i) * -74ms); box-shadow:none; transform-origin:bottom; }
+.vu-meter[data-playing='false'] .vu-bar i { height:10%; opacity:.38; animation-play-state:paused; }
+@keyframes vu-meter-rise { from { height:16%; } 45% { height:42%; } to { height:var(--peak, 78%); } }
+@media (max-width:720px) { .turntable-speed { right:12px; bottom:12px; } .vinyl-stage { width:220px; height:220px; transform:scale(.92); } .vinyl-canvas { width:240px; height:240px; } }
+@media (prefers-reduced-motion: reduce) { .vu-meter .vu-bar i { animation:none !important; } }

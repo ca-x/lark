@@ -1436,6 +1436,8 @@ export default function App() {
                 heroSong={heroSong}
                 current={current}
                 playing={playing}
+                progress={progress}
+                duration={playableDuration}
                 t={t}
                 onPlay={playSong}
                 onPlayAlbum={playAlbum}
@@ -2197,6 +2199,8 @@ function HomeView({
   heroSong,
   current,
   playing,
+  progress,
+  duration,
   t,
   onPlay,
   onPlayAlbum,
@@ -2215,6 +2219,8 @@ function HomeView({
   heroSong?: Song | null;
   current: Song | null;
   playing: boolean;
+  progress: number;
+  duration: number;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
   onPlayAlbum: (album: Album) => void;
@@ -2240,6 +2246,8 @@ function HomeView({
         <Turntable
           song={heroSong}
           playing={heroPlaying}
+          progress={heroPlaying ? progress : 0}
+          duration={heroPlaying ? duration : heroSong?.duration_seconds || 0}
         />
         <div>
           <p>{heroPlaying ? t("nowPlaying") : t("jumpBackIn")}</p>
@@ -2521,30 +2529,202 @@ function HomeView({
 function Turntable({
   song,
   playing,
+  progress = 0,
+  duration = 0,
   decorative = false,
 }: {
   song?: Song | null;
   playing: boolean;
+  progress?: number;
+  duration?: number;
   decorative?: boolean;
 }) {
-  const style = coverUrl(song)
-    ? ({ "--cover-url": `url(${coverUrl(song)})` } as React.CSSProperties)
-    : undefined;
+  const label = song?.title || "Lark Music";
+  const artist = song?.artist || "Local Library";
   return (
     <div
       className={decorative ? "turntable decorative" : "turntable"}
       data-playing={playing ? "true" : "false"}
-      style={style}
     >
-      <div className="vinyl-disc">
-        <Record weight="fill" />
-      </div>
-      <div className="tonearm">
-        <span />
-      </div>
+      <VinylCanvas
+        title={label}
+        artist={artist}
+        playing={playing}
+        progress={progress}
+        duration={duration || song?.duration_seconds || 0}
+      />
+      <div className="turntable-speed">33⅓ RPM</div>
       <div className="turntable-status">{playing ? "PLAY" : "PAUSE"}</div>
     </div>
   );
+}
+
+function VinylCanvas({
+  title,
+  artist,
+  playing,
+  progress,
+  duration,
+}: {
+  title: string;
+  artist: string;
+  playing: boolean;
+  progress: number;
+  duration: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const armRef = useRef<SVGSVGElement | null>(null);
+  const stateRef = useRef({ rotation: 0, last: 0, needle: 0 });
+  const inputRef = useRef({ title, artist, playing, progress, duration });
+
+  useEffect(() => {
+    inputRef.current = { title, artist, playing, progress, duration };
+  }, [title, artist, playing, progress, duration]);
+
+  useEffect(() => {
+    let frame = 0;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const drawFrame = (timestamp: number) => {
+      const canvas = canvasRef.current;
+      const arm = armRef.current;
+      if (!canvas || !arm) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const size = 240;
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      if (canvas.width !== size * dpr || canvas.height !== size * dpr) {
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        canvas.style.width = `${size}px`;
+        canvas.style.height = `${size}px`;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const state = stateRef.current;
+      const input = inputRef.current;
+      const dt = state.last ? Math.min(0.05, (timestamp - state.last) / 1000) : 0;
+      state.last = timestamp;
+      if (input.playing && !reduceMotion) {
+        state.rotation += dt * Math.PI * 2 * (33.333 / 60);
+      }
+      const pct = input.duration > 0 ? Math.min(1, Math.max(0, input.progress / input.duration)) : 0;
+      const targetNeedle = input.playing ? pct : 0;
+      state.needle += (targetNeedle - state.needle) * (input.playing ? 0.055 : 0.035);
+      drawVinylCanvas(ctx, state.rotation, input.title, input.artist);
+      drawTonearmSvg(arm, state.needle);
+      frame = window.requestAnimationFrame(drawFrame);
+    };
+    frame = window.requestAnimationFrame(drawFrame);
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  return (
+    <div className="vinyl-stage" aria-hidden="true">
+      <canvas ref={canvasRef} className="vinyl-canvas" width={240} height={240} />
+      <svg ref={armRef} className="tonearm-svg" width="240" height="240" viewBox="0 0 240 240" />
+    </div>
+  );
+}
+
+function drawVinylCanvas(ctx: CanvasRenderingContext2D, rotation: number, title: string, artist: string) {
+  const cx = 120;
+  const cy = 120;
+  const radius = 116;
+  ctx.clearRect(0, 0, 240, 240);
+
+  const body = ctx.createRadialGradient(cx - 28, cy - 32, 14, cx, cy, radius);
+  body.addColorStop(0, "#2a2826");
+  body.addColorStop(0.34, "#101010");
+  body.addColorStop(1, "#030303");
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = body;
+  ctx.fill();
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  for (let i = 0; i < 120; i += 1) {
+    const t = i / 120;
+    const grooveR = 34 + t * (radius - 46);
+    const alpha = 0.045 + 0.07 * Math.sin(i * 0.37 + rotation * 0.7);
+    ctx.beginPath();
+    ctx.arc(0, 0, grooveR, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(244,213,156,${alpha})`;
+    ctx.lineWidth = i % 8 === 0 ? 0.75 : 0.45;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation * 0.35);
+  ctx.beginPath();
+  ctx.arc(0, 0, 31, 0, Math.PI * 2);
+  ctx.fillStyle = "#2a1a06";
+  ctx.fill();
+  const label = ctx.createRadialGradient(-5, -7, 2, 0, 0, 29);
+  label.addColorStop(0, "#533514");
+  label.addColorStop(0.62, "#2a1a06");
+  label.addColorStop(1, "#160904");
+  ctx.beginPath();
+  ctx.arc(0, 0, 28, 0, Math.PI * 2);
+  ctx.fillStyle = label;
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(240,219,168,.92)";
+  ctx.font = "700 8px sans-serif";
+  ctx.fillText(title.slice(0, 17).toUpperCase(), 0, -7);
+  ctx.fillStyle = "rgba(200,169,110,.74)";
+  ctx.font = "600 7px sans-serif";
+  ctx.fillText(artist.slice(0, 19).toUpperCase(), 0, 6);
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5.8, 0, Math.PI * 2);
+  ctx.fillStyle = "#c8a96e";
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+  ctx.fillStyle = "#1a1008";
+  ctx.fill();
+
+  const sheen = ctx.createLinearGradient(38, 28, 182, 212);
+  sheen.addColorStop(0, "rgba(255,255,255,.18)");
+  sheen.addColorStop(0.18, "rgba(255,255,255,.03)");
+  sheen.addColorStop(0.55, "rgba(255,255,255,0)");
+  sheen.addColorStop(1, "rgba(255,220,150,.08)");
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = sheen;
+  ctx.fill();
+}
+
+function drawTonearmSvg(svg: SVGSVGElement, needleProgress: number) {
+  const rest = -28;
+  const play = 0;
+  const angle = ((rest + (play - rest) * needleProgress) * Math.PI) / 180;
+  const pivotX = 215;
+  const pivotY = 18;
+  const armLength = 188;
+  const endX = pivotX + Math.sin(angle) * armLength;
+  const endY = pivotY + Math.cos(angle) * armLength;
+  const cartX = endX + Math.sin(angle + 0.18) * 14;
+  const cartY = endY + Math.cos(angle + 0.18) * 14;
+  const tipX = cartX + Math.sin(angle - 0.15) * 12;
+  const tipY = cartY + Math.cos(angle - 0.15) * 12 - (needleProgress < 0.02 ? 4 : 0);
+  const midX = (pivotX + endX) / 2 - Math.cos(angle) * 6;
+  const midY = (pivotY + endY) / 2 + Math.sin(angle) * 6;
+  svg.innerHTML = `
+    <path d="M${pivotX} ${pivotY} Q${midX} ${midY} ${endX} ${endY}" stroke="#6f5436" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M${pivotX} ${pivotY} Q${midX} ${midY} ${endX} ${endY}" stroke="#d4b06f" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".72"/>
+    <line x1="${endX}" y1="${endY}" x2="${cartX}" y2="${cartY}" stroke="#9f7b3d" stroke-width="3" stroke-linecap="round"/>
+    <line x1="${cartX}" y1="${cartY}" x2="${tipX}" y2="${tipY}" stroke="#d8d8d8" stroke-width="1.4" stroke-linecap="round"/>
+    <circle cx="${tipX}" cy="${tipY}" r="1.8" fill="#f4f4f4"/>
+    <circle cx="${pivotX}" cy="${pivotY}" r="8" fill="#2e1e0a" stroke="#c8a96e" stroke-width="1.5"/>
+    <circle cx="${pivotX}" cy="${pivotY}" r="4" fill="#c8a96e"/>
+    <circle cx="${pivotX}" cy="${pivotY}" r="2" fill="#1a1008"/>
+  `;
 }
 
 function MiniCover({
@@ -2685,6 +2865,19 @@ function FavoritesView({
   );
 }
 
+
+function VUMeter({ playing }: { playing: boolean }) {
+  return (
+    <div className="vu-meter" data-playing={playing ? "true" : "false"} aria-hidden="true">
+      {Array.from({ length: 10 }, (_, index) => (
+        <span key={index} className="vu-bar" style={{ "--i": index, "--peak": `${Math.min(96, 32 + index * 7)}%` } as React.CSSProperties}>
+          <i />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function PlayerMood({
   theme,
   playing,
@@ -2732,38 +2925,41 @@ function PlayerMood({
       aria-hidden="true"
     >
       <span>{labels[theme]}</span>
-      {(!canRenderWave || !waveReady) && (
-        <div>
-          {Array.from({ length: 16 }, (_, index) => (
-            <i key={index} style={{ "--i": index } as React.CSSProperties} />
-          ))}
-        </div>
-      )}
-      {canRenderWave && audioEl ? (
-        <WavesurferPlayer
-          key={`${song?.id ?? "empty"}-${streamSrc}`}
-          media={audioEl}
-          url={streamSrc}
-          height={42}
-          fillParent
-          hideScrollbar
-          waveColor={colors.wave}
-          progressColor={colors.progress}
-          cursorColor={colors.cursor}
-          cursorWidth={2}
-          barWidth={2}
-          barGap={2}
-          barRadius={999}
-          normalize
-          interact
-          dragToSeek
-          onReady={() => setWaveReady(true)}
-          onError={() => {
-            setWaveReady(false);
-            setWaveFailed(true);
-          }}
-        />
-      ) : null}
+      <div className="wave-lane">
+        {(!canRenderWave || !waveReady) && (
+          <div className="wave-fallback">
+            {Array.from({ length: 16 }, (_, index) => (
+              <i key={index} style={{ "--i": index } as React.CSSProperties} />
+            ))}
+          </div>
+        )}
+        {canRenderWave && audioEl ? (
+          <WavesurferPlayer
+            key={`${song?.id ?? "empty"}-${streamSrc}`}
+            media={audioEl}
+            url={streamSrc}
+            height={42}
+            fillParent
+            hideScrollbar
+            waveColor={colors.wave}
+            progressColor={colors.progress}
+            cursorColor={colors.cursor}
+            cursorWidth={2}
+            barWidth={2}
+            barGap={2}
+            barRadius={999}
+            normalize
+            interact
+            dragToSeek
+            onReady={() => setWaveReady(true)}
+            onError={() => {
+              setWaveReady(false);
+              setWaveFailed(true);
+            }}
+          />
+        ) : null}
+        <VUMeter playing={playing && !lowBandwidth} />
+      </div>
       <em>{lowBandwidth || waveFailed ? "METER" : theme === "carbon-volt" ? "74%" : playing ? "LIVE" : "IDLE"}</em>
     </div>
   );
