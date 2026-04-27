@@ -93,7 +93,7 @@ func parseWAVInfoList(data []byte) fileMetadata {
 		if size < 0 || pos+size > len(data) {
 			break
 		}
-		value := cleanMetadataText(string(data[pos : pos+size]))
+		value := decodeWAVInfoText(data[pos : pos+size])
 		switch id {
 		case "INAM", "TITL":
 			meta.Title = value
@@ -110,6 +110,32 @@ func parseWAVInfoList(data []byte) fileMetadata {
 		}
 	}
 	return meta
+}
+
+func decodeWAVInfoText(raw []byte) string {
+	raw = trimRIFFString(raw)
+	if len(raw) == 0 {
+		return ""
+	}
+	if decoded, ok := tryDecodeUTF16(raw); ok {
+		return cleanDecodedMetadata(decoded)
+	}
+	if decoded, ok := tryDecodeUTF16WithoutBOM(raw); ok {
+		return cleanDecodedMetadata(decoded)
+	}
+	if decoded, err := decodeGB18030(raw); err == nil {
+		if cleaned := cleanDecodedMetadata(decoded); cleaned != "" {
+			return cleaned
+		}
+	}
+	return cleanMetadataText(string(raw))
+}
+
+func trimRIFFString(raw []byte) []byte {
+	for len(raw) > 0 && raw[len(raw)-1] == 0 {
+		raw = raw[:len(raw)-1]
+	}
+	return raw
 }
 
 func parseID3Metadata(data []byte) fileMetadata {

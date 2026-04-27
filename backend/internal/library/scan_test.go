@@ -269,6 +269,13 @@ func TestParseWAVInfoListDecodesRawGBKTags(t *testing.T) {
 	}
 }
 
+func TestDecodeWAVInfoTextForcesGB18030WhenPossible(t *testing.T) {
+	got := decodeWAVInfoText([]byte{0xd6, 0xd8, 0xc8, 0xbc, 0xb0, 0xae, 0xc1, 0xb5, 0x00})
+	if got != "重燃爱恋" {
+		t.Fatalf("expected forced GB18030 WAV INFO decode, got %q", got)
+	}
+}
+
 func TestParseID3MetadataFromWAVChunkDecodesUTF16TagsAndLyrics(t *testing.T) {
 	id3 := buildID3Tag(
 		id3TextFrame("TIT2", "寸寸相思寸寸心"),
