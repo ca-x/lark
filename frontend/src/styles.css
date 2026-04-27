@@ -1328,6 +1328,10 @@ body, button, input, select { font-family: var(--app-font); }
   line-height: 1.7;
   white-space: pre-wrap;
 }
+.album-info-note {
+  color: var(--muted) !important;
+  font-size: 13px;
+}
 .album-info-tracks > div {
   max-height: min(34dvh, 360px);
   overflow: auto;

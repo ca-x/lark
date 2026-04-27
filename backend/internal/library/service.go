@@ -2422,7 +2422,16 @@ func onlineAlbumScore(item models.OnlineAlbumInfo, title, artistName string) int
 		score += 5
 	}
 	if item.Description != "" {
-		score += 3
+		score += 30
+	}
+	if len(item.Tracks) > 0 {
+		score += 35
+		if len(item.Tracks) >= item.TrackCount && item.TrackCount > 0 {
+			score += 10
+		}
+	}
+	if item.TrackCount > 0 {
+		score += 8
 	}
 	return score
 }

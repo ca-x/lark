@@ -3778,7 +3778,20 @@ function AlbumInfoDrawer({
     setActiveSourceKey((current) => (current && sources.some((item) => `${item.source || "unknown"}:${item.id || item.title}` === current) ? current : first));
   }, [open, sources]);
   const activeInfo = sources.find((item) => `${item.source || "unknown"}:${item.id || item.title}` === activeSourceKey) || sources[0] || info;
-  const hasInfo = Boolean(activeInfo && (activeInfo.title || activeInfo.description || activeInfo.cover || activeInfo.source));
+  const visibleTracks = activeInfo?.tracks?.length
+    ? activeInfo.tracks.map((track) => ({
+      title: track.title,
+      artist: track.artist,
+      duration_seconds: track.duration_seconds,
+      track_number: track.track_number,
+    }))
+    : collection.songs.map((song, index) => ({
+      title: song.title,
+      artist: song.artist,
+      duration_seconds: Math.round(song.duration_seconds),
+      track_number: index + 1,
+    }));
+  const hasInfo = Boolean(activeInfo && (activeInfo.title || activeInfo.description || activeInfo.cover || activeInfo.source || visibleTracks.length));
   const stop = (event: MouseEvent) => event.stopPropagation();
   return (
     <div
@@ -3845,18 +3858,20 @@ function AlbumInfoDrawer({
                 <InfoRow label={t("source")} value={activeInfo.source || "—"} />
               </div>
             </div>
-            {activeInfo.description ? (
-              <section className="album-info-section">
-                <h4>{t("description")}</h4>
+            <section className="album-info-section">
+              <h4>{t("description")}</h4>
+              {activeInfo.description ? (
                 <p>{activeInfo.description}</p>
-              </section>
-            ) : null}
+              ) : (
+                <p className="album-info-note">{t("noAlbumDescription")}</p>
+              )}
+            </section>
 
-            {activeInfo.tracks?.length ? (
+            {visibleTracks.length ? (
               <section className="album-info-section album-info-tracks">
-                <h4>{t("songs")}</h4>
+                <h4>{activeInfo.tracks?.length ? t("songs") : t("localAlbumTracks")}</h4>
                 <div>
-                  {activeInfo.tracks.map((track, index) => (
+                  {visibleTracks.map((track, index) => (
                     <div key={`${track.track_number || index}-${track.title}`}>
                       <span>{track.track_number || index + 1}</span>
                       <strong>{track.title}</strong>

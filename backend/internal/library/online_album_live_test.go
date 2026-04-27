@@ -25,6 +25,9 @@ func TestSearchOnlineAlbumsLiveJayCatalog(t *testing.T) {
 			if len(items) == 0 {
 				t.Fatalf("expected live online album search to return candidates for %q / %q", tc.title, tc.artist)
 			}
+			if items[0].Description == "" && len(items[0].Tracks) == 0 {
+				t.Fatalf("expected default/best candidate to include visible text or tracks for %q, got %#v", tc.title, items[0])
+			}
 			matchedTitle := false
 			hasCover := false
 			hasRelatedInfo := false
