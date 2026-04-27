@@ -100,6 +100,7 @@ type Collection = {
   title: string;
   subtitle: string;
   loading?: boolean;
+  error?: string;
   favorite?: boolean;
   songs: Song[];
   albums?: Album[];
@@ -137,6 +138,25 @@ const SONG_ROW_HEIGHT = 64;
 const VIRTUAL_TABLE_THRESHOLD = 220;
 const VIRTUAL_OVERSCAN = 8;
 const CARD_GRID_BATCH = 72;
+const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs = COLLECTION_LOAD_TIMEOUT_MS): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error("request-timeout"));
+    }, timeoutMs);
+    promise
+      .then(resolve, reject)
+      .finally(() => window.clearTimeout(timer));
+  });
+}
+
+function friendlyLoadError(error: unknown, t: ReturnType<typeof createT>) {
+  if (error instanceof Error && error.message === "request-timeout") {
+    return t("loadTimeout");
+  }
+  return t("loadFailed");
+}
 
 function normalizeTheme(theme: string): Theme {
   return themes.some((item) => item.id === theme)
@@ -1173,9 +1193,95 @@ export default function App() {
     setPlaylists(await api.playlists());
   }
 
+  function isSameCollection(left: Collection, right: Collection | null): right is Collection {
+    return Boolean(right && left.type === right.type && left.id === right.id);
+  }
+
+  function collectionSubtitleForItems(target: Collection, items: Song[]) {
+    if (target.type === "album") {
+      return [
+        target.artistName,
+        items[0]?.year ? String(items[0].year) : "",
+        `${items.length} ${t("count")}`,
+      ].filter(Boolean).join(" · ");
+    }
+    return `${items.length} ${t("count")}`;
+  }
+
+  async function fetchCollectionSongs(target: Collection) {
+    if (!target.id) return [];
+    if (target.type === "playlist") return withTimeout(api.playlistSongs(target.id));
+    if (target.type === "album") return withTimeout(api.albumSongs(target.id));
+    return withTimeout(api.artistSongs(target.id));
+  }
+
+  async function resolveCollectionSongs(target: Collection) {
+    if (target.songs.length) return target.songs;
+    setCollection((old) =>
+      isSameCollection(target, old)
+        ? { ...old, loading: true, error: undefined }
+        : old,
+    );
+    try {
+      const items = await fetchCollectionSongs(target);
+      setCollection((old) =>
+        isSameCollection(target, old)
+          ? {
+              ...old,
+              loading: false,
+              error: undefined,
+              songs: items,
+              subtitle: collectionSubtitleForItems(old, items),
+              coverUrl: old.coverUrl || (items[0] ? coverUrl(items[0]) : undefined),
+              albums:
+                old.type === "artist" && (!old.albums || !old.albums.length)
+                  ? albumsFromSongs(items, old.artistId, old.artistName)
+                  : old.albums,
+            }
+          : old,
+      );
+      return items;
+    } catch (error) {
+      const message = friendlyLoadError(error, t);
+      setCollection((old) =>
+        isSameCollection(target, old)
+          ? { ...old, loading: false, error: message }
+          : old,
+      );
+      showMessage(message);
+      return [];
+    }
+  }
+
+  async function playCollection(target: Collection) {
+    const items = await resolveCollectionSongs(target);
+    if (items[0]) void playSong(items[0], items);
+  }
+
+  async function insertCollectionNext(target: Collection) {
+    const items = await resolveCollectionSongs(target);
+    if (items.length) insertNextBatch(items);
+  }
+
+  function setCollectionLoadError(target: Collection, requestId: number, error: unknown) {
+    if (requestId !== collectionRequestRef.current) return;
+    const message = friendlyLoadError(error, t);
+    setCollection((old) =>
+      isSameCollection(target, old)
+        ? {
+            ...old,
+            loading: false,
+            error: message,
+            subtitle: old.subtitle ? old.subtitle.replace(t("loading"), message) : message,
+          }
+        : old,
+    );
+    showMessage(message);
+  }
+
   async function openPlaylist(playlist: Playlist) {
     const requestId = ++collectionRequestRef.current;
-    setCollection({
+    const nextCollection: Collection = {
       type: "playlist",
       id: playlist.id,
       title: playlist.name,
@@ -1183,24 +1289,29 @@ export default function App() {
       loading: true,
       favorite: playlist.favorite,
       songs: [],
-    });
+    };
+    setCollection(nextCollection);
     setView("collection");
-    const items = await api.playlistSongs(playlist.id);
-    if (requestId !== collectionRequestRef.current) return;
-    setCollection({
-      type: "playlist",
-      id: playlist.id,
-      title: playlist.name,
-      subtitle: `${items.length} ${t("count")}`,
-      favorite: playlist.favorite,
-      songs: items,
-      coverUrl: items[0] ? coverUrl(items[0]) : undefined,
-    });
+    try {
+      const items = await withTimeout(api.playlistSongs(playlist.id));
+      if (requestId !== collectionRequestRef.current) return;
+      setCollection({
+        type: "playlist",
+        id: playlist.id,
+        title: playlist.name,
+        subtitle: `${items.length} ${t("count")}`,
+        favorite: playlist.favorite,
+        songs: items,
+        coverUrl: items[0] ? coverUrl(items[0]) : undefined,
+      });
+    } catch (error) {
+      setCollectionLoadError(nextCollection, requestId, error);
+    }
   }
 
   async function openAlbum(album: Album) {
     const requestId = ++collectionRequestRef.current;
-    setCollection({
+    const nextCollection: Collection = {
       type: "album",
       id: album.id,
       title: album.title,
@@ -1215,25 +1326,30 @@ export default function App() {
       artistId: album.artist_id,
       artistName: album.artist,
       songs: [],
-    });
+    };
+    setCollection(nextCollection);
     setView("collection");
-    const items = await api.albumSongs(album.id);
-    if (requestId !== collectionRequestRef.current) return;
-    setCollection({
-      type: "album",
-      id: album.id,
-      title: album.title,
-      subtitle: [
-        album.artist,
-        album.year ? String(album.year) : "",
-        `${items.length} ${t("count")}`,
-      ].filter(Boolean).join(" · "),
-      favorite: album.favorite,
-      songs: items,
-      coverUrl: albumCoverUrl(album),
-      artistId: album.artist_id,
-      artistName: album.artist,
-    });
+    try {
+      const items = await withTimeout(api.albumSongs(album.id));
+      if (requestId !== collectionRequestRef.current) return;
+      setCollection({
+        type: "album",
+        id: album.id,
+        title: album.title,
+        subtitle: [
+          album.artist,
+          album.year ? String(album.year) : "",
+          `${items.length} ${t("count")}`,
+        ].filter(Boolean).join(" · "),
+        favorite: album.favorite,
+        songs: items,
+        coverUrl: albumCoverUrl(album),
+        artistId: album.artist_id,
+        artistName: album.artist,
+      });
+    } catch (error) {
+      setCollectionLoadError(nextCollection, requestId, error);
+    }
   }
 
   async function openArtistById(id: number, fallbackName = "") {
@@ -1242,7 +1358,7 @@ export default function App() {
     const artist = artists.find((item) => item.id === id);
     const title = artist?.name || fallbackName || t("artists");
     const artistAlbums = albums.filter((album) => album.artist_id === id);
-    setCollection({
+    const nextCollection: Collection = {
       type: "artist",
       id,
       title,
@@ -1254,26 +1370,31 @@ export default function App() {
       coverUrl: `/api/artists/${id}/cover`,
       artistId: id,
       artistName: title,
-    });
+    };
+    setCollection(nextCollection);
     setView("collection");
-    const items = await api.artistSongs(id);
-    if (requestId !== collectionRequestRef.current) return;
-    const resolvedTitle =
-      artist?.name || fallbackName || items[0]?.artist || t("artists");
-    setCollection({
-      type: "artist",
-      id,
-      title: resolvedTitle,
-      subtitle: `${items.length} ${t("count")}`,
-      favorite: artist?.favorite ?? false,
-      songs: items,
-      albums: artistAlbums.length
-        ? artistAlbums
-        : albumsFromSongs(items, id, resolvedTitle),
-      coverUrl: `/api/artists/${id}/cover`,
-      artistId: id,
-      artistName: resolvedTitle,
-    });
+    try {
+      const items = await withTimeout(api.artistSongs(id));
+      if (requestId !== collectionRequestRef.current) return;
+      const resolvedTitle =
+        artist?.name || fallbackName || items[0]?.artist || t("artists");
+      setCollection({
+        type: "artist",
+        id,
+        title: resolvedTitle,
+        subtitle: `${items.length} ${t("count")}`,
+        favorite: artist?.favorite ?? false,
+        songs: items,
+        albums: artistAlbums.length
+          ? artistAlbums
+          : albumsFromSongs(items, id, resolvedTitle),
+        coverUrl: `/api/artists/${id}/cover`,
+        artistId: id,
+        artistName: resolvedTitle,
+      });
+    } catch (error) {
+      setCollectionLoadError(nextCollection, requestId, error);
+    }
   }
 
   async function playAlbum(album: Album) {
@@ -1567,14 +1688,12 @@ export default function App() {
                         : "artists",
                   )
                 }
-                onPlayAll={() =>
-                  collection.songs[0] &&
-                  void playSong(collection.songs[0], collection.songs)
-                }
+                onPlayAll={() => void playCollection(collection)}
                 onPlay={playSong}
                 onFavorite={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
+                onInsertCollection={() => void insertCollectionNext(collection)}
                 onFavoriteCollection={
                   collection.type === "album"
                     ? () => {
@@ -3123,6 +3242,7 @@ function CollectionView({
   onFavorite,
   onAdd,
   onInsertNext,
+  onInsertCollection,
   onFavoriteCollection,
   onOpenAlbum,
   onOpenAlbumCard,
@@ -3139,6 +3259,7 @@ function CollectionView({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  onInsertCollection: () => void;
   onFavoriteCollection?: () => void;
   onOpenAlbum?: (song: Song) => void;
   onOpenAlbumCard?: (album: Album) => void;
@@ -3147,6 +3268,7 @@ function CollectionView({
   onOpenCollectionArtist?: () => void;
 }) {
   const label = collectionLabel(collection.type, t);
+  const hasResolvableSongs = collection.songs.length > 0 || Boolean(collection.id);
   const [artistView, setArtistView] = useState<"songs" | "albums">("songs");
   const artistAlbums = useMemo(
     () =>
@@ -3178,14 +3300,14 @@ function CollectionView({
           <div className="collection-actions">
             <button
               className="primary"
-              disabled={!collection.songs.length}
+              disabled={!hasResolvableSongs}
               onClick={onPlayAll}
             >
               <Play weight="fill" /> {t("playAll")}
             </button>
             <button
-              disabled={!collection.songs.length}
-              onClick={() => onInsertNext(collection.songs)}
+              disabled={!hasResolvableSongs}
+              onClick={onInsertCollection}
             >
               <SkipForward /> {t("insertNext")}
             </button>
@@ -3217,10 +3339,18 @@ function CollectionView({
           </button>
         </div>
       ) : null}
+      {collection.loading ? (
+        <div className="collection-inline-status" role="status">
+          {t("loadingContent")}
+        </div>
+      ) : null}
+      {collection.error ? (
+        <div className="collection-inline-status error" role="alert">
+          {collection.error}
+        </div>
+      ) : null}
       {collection.type === "artist" && artistView === "albums" ? (
-        collection.loading ? (
-          <div className="empty collection-loading">{t("loading")}</div>
-        ) : (
+        artistAlbums.length ? (
           <div className="artist-album-grid">
             {artistAlbums.map((album) => (
               <article key={album.id} className="artist-album-card">
@@ -3249,10 +3379,12 @@ function CollectionView({
               </article>
             ))}
           </div>
+        ) : collection.loading ? (
+          <div className="empty collection-loading">{t("loading")}</div>
+        ) : (
+          <div className="empty collection-loading">{t("emptyCollection")}</div>
         )
-      ) : collection.loading ? (
-        <div className="empty collection-loading">{t("loading")}</div>
-      ) : (
+      ) : collection.songs.length ? (
         <SongTable
           songs={collection.songs}
           current={current}
@@ -3264,6 +3396,10 @@ function CollectionView({
           onOpenAlbum={onOpenAlbum}
           onOpenArtist={onOpenArtist}
         />
+      ) : collection.loading ? (
+        <div className="empty collection-loading">{t("loading")}</div>
+      ) : (
+        <div className="empty collection-loading">{collection.error || t("emptyCollection")}</div>
       )}
     </section>
   );
@@ -3442,13 +3578,12 @@ function FolderBrowser({
     let cancelled = false;
     setLoading(true);
     setError("");
-    void api
-      .folderDirectory(path)
+    void withTimeout(api.folderDirectory(path))
       .then((item) => {
         if (!cancelled) setDirectory(item);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setError(friendlyLoadError(err, t));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -3515,9 +3650,9 @@ function FolderBrowser({
           </button>
         </div>
       </div>
-      {loading ? <div className="empty mini-empty">{t("loading")}</div> : null}
-      {error ? <div className="empty mini-empty">{error}</div> : null}
-      {!loading && directory ? (
+      {loading ? <div className="collection-inline-status" role="status">{t("loadingContent")}</div> : null}
+      {error ? <div className="collection-inline-status error" role="alert">{error}</div> : null}
+      {directory ? (
         <>
           <div className="folder-browser-summary">
             <strong>{directory.name}</strong>

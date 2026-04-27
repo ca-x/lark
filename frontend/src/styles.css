@@ -1145,6 +1145,8 @@ body, button, input, select { font-family: var(--app-font); }
 .folder-tree-actions { display:inline-flex; align-items:center; gap:8px; color:var(--muted); }
 .folder-tree-actions [role='button'] { width:38px; height:38px; min-width:38px; min-height:38px; display:grid; place-items:center; border-radius:999px; color:var(--bg); background:var(--accent); }
 .collection-loading { padding:42px 18px; }
+.collection-inline-status { min-width:0; padding:10px 14px; border-radius:16px; border:1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); color:var(--muted); font-size:13px; line-height:1.35; }
+.collection-inline-status.error { border-color:color-mix(in srgb, #d45a4c 36%, var(--line)); background:color-mix(in srgb, #d45a4c 10%, var(--panel2)); color:var(--text); }
 @media (max-width:720px) {
   .folder-browser-head { padding:12px; border-radius:20px; display:grid; }
   .folder-browser-actions { justify-content:flex-start; }
