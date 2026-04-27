@@ -1296,12 +1296,12 @@ func (s *Service) Albums(ctx context.Context, userID int) ([]models.Album, error
 }
 
 func (s *Service) AlbumSongs(ctx context.Context, userID, id int) ([]models.Song, error) {
-	a, err := s.client.Album.Query().Where(album.ID(id)).WithSongs(func(q *ent.SongQuery) { q.WithArtist().WithAlbum() }).Only(ctx)
+	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs(func(q *ent.SongQuery) { q.WithArtist().WithAlbum() }).Only(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if a.Year == 0 {
-		s.scheduleAlbumYearRefresh(id)
+		_, _ = s.refreshAlbumYearFromOnline(ctx, id)
 	}
 	out := mapSongs(a.Edges.Songs)
 	return s.applySongUserState(ctx, userID, out)
@@ -2253,30 +2253,19 @@ func mapPlaylist(item *ent.Playlist) models.Playlist {
 
 func IsMissing(err error) bool { return errors.Is(err, os.ErrNotExist) || ent.IsNotFound(err) }
 
-func (s *Service) scheduleAlbumYearRefresh(id int) {
-	if s == nil || s.client == nil || len(s.online) == 0 {
-		return
-	}
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		_ = s.refreshAlbumYearFromOnline(ctx, id)
-	}()
-}
-
-func (s *Service) refreshAlbumYearFromOnline(ctx context.Context, id int) error {
+func (s *Service) refreshAlbumYearFromOnline(ctx context.Context, id int) (*ent.Album, error) {
 	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs(func(q *ent.SongQuery) { q.WithArtist() }).Only(ctx)
 	if err != nil || a.Year > 0 {
-		return err
+		return a, err
 	}
 	for _, item := range s.searchRemoteAlbums(ctx, a.Title, albumSearchArtistName(a)) {
 		if item.Year <= 0 {
 			continue
 		}
-		_, err := a.Update().SetYear(item.Year).Save(ctx)
-		return err
+		updated, err := a.Update().SetYear(item.Year).Save(ctx)
+		return updated, err
 	}
-	return nil
+	return a, nil
 }
 
 func albumSearchArtistName(a *ent.Album) string {

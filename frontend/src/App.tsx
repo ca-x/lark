@@ -1566,22 +1566,25 @@ export default function App() {
     setCollection(nextCollection);
     setView("collection");
     try {
-      const items = await withTimeout(api.albumSongs(album.id));
+      const items = await withTimeout(api.albumSongs(album.id), 20_000);
+      const refreshedAlbums = await api.albums().catch(() => null);
+      const refreshedAlbum = refreshedAlbums?.find((item) => item.id === album.id) ?? album;
+      if (refreshedAlbums) setAlbums(refreshedAlbums);
       if (requestId !== collectionRequestRef.current) return;
       setCollection({
         type: "album",
-        id: album.id,
-        title: album.title,
+        id: refreshedAlbum.id,
+        title: refreshedAlbum.title,
         subtitle: [
-          album.artist,
-          album.year ? String(album.year) : "",
+          refreshedAlbum.artist,
+          refreshedAlbum.year ? String(refreshedAlbum.year) : "",
           `${items.length} ${t("count")}`,
         ].filter(Boolean).join(" · "),
-        favorite: album.favorite,
+        favorite: refreshedAlbum.favorite,
         songs: items,
-        coverUrl: albumCoverUrl(album),
-        artistId: album.artist_id,
-        artistName: album.artist,
+        coverUrl: albumCoverUrl(refreshedAlbum),
+        artistId: refreshedAlbum.artist_id,
+        artistName: refreshedAlbum.artist,
       });
     } catch (error) {
       setCollectionLoadError(nextCollection, requestId, error);
