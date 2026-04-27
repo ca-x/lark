@@ -55,16 +55,10 @@ jobs:
 
       - name: Verify Go modules
         working-directory: backend
-        env:
-          GOPROXY: https://goproxy.cn,direct
-          GOSUMDB: off
         run: go mod verify
 
       - name: Test and vet backend
         working-directory: backend
-        env:
-          GOPROXY: https://goproxy.cn,direct
-          GOSUMDB: off
         run: |
           go test ./...
           go vet ./...
@@ -77,8 +71,6 @@ jobs:
         working-directory: backend
         env:
           CGO_ENABLED: 0
-          GOPROXY: https://goproxy.cn,direct
-          GOSUMDB: off
         run: |
           go build -trimpath \
             -ldflags="-s -w -X 'lark/backend/pkg/version.Version=${{ github.ref_name }}' -X 'lark/backend/pkg/version.BuildTime=${{ steps.buildmeta.outputs.build_time }}' -X 'lark/backend/pkg/version.GitCommit=${{ github.sha }}'" \

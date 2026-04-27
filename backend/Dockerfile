@@ -14,10 +14,10 @@ ARG VERSION=dev
 ARG GIT_COMMIT=unknown
 ARG BUILD_TIME=unknown
 COPY backend/go.mod backend/go.sum ./
-RUN GOSUMDB=off GOPROXY=https://goproxy.cn,direct go mod download
+RUN go mod download
 COPY backend/ ./
 COPY --from=frontend /build/backend/web/dist ./web/dist
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} GOSUMDB=off GOPROXY=https://goproxy.cn,direct go build -trimpath \
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -trimpath \
     -ldflags="-s -w \
       -X 'lark/backend/pkg/version.Version=${VERSION}' \
       -X 'lark/backend/pkg/version.GitCommit=${GIT_COMMIT}' \
