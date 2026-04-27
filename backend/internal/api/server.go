@@ -436,6 +436,21 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 	if ffmpeg == "" {
 		return echo.NewHTTPError(http.StatusUnsupportedMediaType, "ffmpeg is not configured for this audio format")
 	}
+	quality := 320
+	if requested := strings.TrimSpace(c.QueryParam("quality")); requested != "" {
+		parsed, err := strconv.Atoi(requested)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "quality must be a bitrate in kbps")
+		}
+		switch {
+		case parsed < 96:
+			quality = 96
+		case parsed > 320:
+			quality = 320
+		default:
+			quality = parsed
+		}
+	}
 	ctx, cancel := context.WithCancel(c.Request().Context())
 	defer cancel()
 	cmd := exec.CommandContext(ctx, ffmpeg,
@@ -444,7 +459,8 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 		"-vn",
 		"-map", "0:a:0",
 		"-acodec", "libmp3lame",
-		"-b:a", "320k",
+		"-b:a", fmt.Sprintf("%dk", quality),
+		"-flush_packets", "1",
 		"-f", "mp3",
 		"pipe:1",
 	)
@@ -465,7 +481,7 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 	}()
 	c.Response().Header().Set("Content-Type", "audio/mpeg")
 	c.Response().Header().Set("Cache-Control", "no-store")
-	c.Response().Header().Set("X-Lark-Transcoded", "ffmpeg-mp3-320k")
+	c.Response().Header().Set("X-Lark-Transcoded", fmt.Sprintf("ffmpeg-mp3-%dk", quality))
 	c.Response().WriteHeader(http.StatusOK)
 	_, copyErr := io.Copy(c.Response(), stdout)
 	return copyErr

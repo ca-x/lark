@@ -5,24 +5,25 @@ import {
   GearSix,
   Info,
   CaretDown,
+  ChatText,
   Heart,
+  HeartStraight,
   House,
-  ListBullets,
   MagnifyingGlass,
-  MicrophoneStage,
   MusicNotes,
   Pause,
   Play,
   Playlist as PlaylistIcon,
   Plus,
   CopySimple,
+  Queue,
   Record,
   Repeat,
   RepeatOnce,
   Shuffle,
   SkipBack,
   SkipForward,
-  SpeakerHigh,
+  SpeakerSimpleHigh,
   Timer,
   UploadSimple,
   UserCircle,
@@ -73,6 +74,7 @@ type View =
   | "about";
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
+type StreamMode = "auto" | "adaptive";
 type ThemeLabel =
   | "deepSpace"
   | "amberFilm"
@@ -182,6 +184,28 @@ function resumePosition(song?: Song | null) {
 
 function resumePreferenceKey(user?: User | null) {
   return `lark.resume-mode.${user?.id ?? "guest"}`;
+}
+
+function prefersLowBandwidthStream() {
+  const connection = (
+    navigator as Navigator & {
+      connection?: { effectiveType?: string; saveData?: boolean };
+    }
+  ).connection;
+  if (!connection) return false;
+  return (
+    connection.saveData === true ||
+    ["slow-2g", "2g", "3g"].includes(connection.effectiveType ?? "")
+  );
+}
+
+function streamUrl(song?: Song | null, mode: StreamMode = "auto") {
+  if (!song) return undefined;
+  const params = new URLSearchParams({
+    mode: mode === "adaptive" ? "transcode" : "auto",
+  });
+  if (mode === "adaptive") params.set("quality", "192");
+  return `/api/songs/${song.id}/stream?${params.toString()}`;
 }
 
 function sanitizeFontFamily(value?: string) {
@@ -372,6 +396,11 @@ export default function App() {
   const [resumeMode, setResumeMode] = useState<ResumeMode>("resume");
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [bufferedEnd, setBufferedEnd] = useState(0);
+  const [buffering, setBuffering] = useState(false);
+  const [streamMode, setStreamMode] = useState<StreamMode>(() =>
+    prefersLowBandwidthStream() ? "adaptive" : "auto",
+  );
   const [inlineLyrics, setInlineLyrics] = useState(false);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -463,6 +492,9 @@ export default function App() {
     resumeSeekRef.current = resume;
     setProgress(resume);
     setDuration(current.duration_seconds || 0);
+    setBufferedEnd(0);
+    setBuffering(false);
+    setStreamMode(prefersLowBandwidthStream() ? "adaptive" : "auto");
     setLyrics(null);
     setLyricCandidates([]);
     setLyricCandidatesOpen(false);
@@ -654,6 +686,22 @@ export default function App() {
     void api
       .saveProgress(current.id, currentProgress, currentDuration, completed)
       .catch(() => undefined);
+  }
+
+  function updateBuffered(media: HTMLAudioElement) {
+    const ranges = media.buffered;
+    if (!ranges.length) {
+      setBufferedEnd(0);
+      return;
+    }
+    const currentTime = media.currentTime;
+    for (let i = 0; i < ranges.length; i += 1) {
+      if (ranges.start(i) <= currentTime && currentTime <= ranges.end(i)) {
+        setBufferedEnd(ranges.end(i));
+        return;
+      }
+    }
+    setBufferedEnd(ranges.end(ranges.length - 1));
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
@@ -1129,6 +1177,12 @@ export default function App() {
         ? t("playModeShuffle")
         : t("playModeRepeatOne");
   const playableDuration = duration || current?.duration_seconds || 0;
+  const playedPercent = playableDuration
+    ? `${Math.min(100, Math.max(0, (progress / playableDuration) * 100))}%`
+    : "0%";
+  const bufferedPercent = playableDuration
+    ? `${Math.min(100, Math.max(0, (bufferedEnd / playableDuration) * 100))}%`
+    : "0%";
   const albumArtistOptions = useMemo(() => {
     const seen = new Map<number, string>();
     albums.forEach((album) => {
@@ -1145,9 +1199,18 @@ export default function App() {
     collection && view === "collection"
       ? collection.title
       : (nav.find((item) => item.id === view)?.label ?? t("brand"));
+  const currentAlbum =
+    current && current.album_id
+      ? albums.find((item) => item.id === current.album_id)
+      : undefined;
   const playerStyle = coverUrl(current)
     ? ({ "--cover-url": `url(${coverUrl(current)})` } as React.CSSProperties)
     : undefined;
+  const currentStreamUrl = streamUrl(current, streamMode);
+  const seekStyle = {
+    "--played": playedPercent,
+    "--buffered": bufferedPercent,
+  } as React.CSSProperties;
 
   if (authLoading) {
     return <AuthView mode="loading" settings={settings} error={authError} onSubmit={submitAuth} />;
@@ -1505,7 +1568,13 @@ export default function App() {
       ) : null}
 
       <footer className="player" style={playerStyle}>
-        <PlayerMood theme={settings.theme} playing={playing} song={current} audioEl={audioEl} />
+        <PlayerMood
+          theme={settings.theme}
+          playing={playing}
+          song={current}
+          audioEl={audioEl}
+          streamSrc={currentStreamUrl}
+        />
         <div className="now">
           <button
             className="cover-button"
@@ -1518,7 +1587,35 @@ export default function App() {
           <div>
             <strong>{current?.title ?? t("nowPlaying")}</strong>
             <span>
-              {current ? `${current.artist} · ${formatQuality(current)}` : "—"}
+              {current ? (
+                <>
+                  {current.artist_id ? (
+                    <button
+                      className="now-meta-link"
+                      onClick={() => void openArtistById(current.artist_id, current.artist)}
+                    >
+                      {current.artist}
+                    </button>
+                  ) : (
+                    current.artist
+                  )}
+                  {" · "}
+                  {currentAlbum ? (
+                    <button
+                      className="now-meta-link"
+                      onClick={() => void openAlbum(currentAlbum)}
+                    >
+                      {current.album}
+                    </button>
+                  ) : (
+                    current.album
+                  )}
+                  {" · "}
+                  {formatQuality(current)}
+                </>
+              ) : (
+                "—"
+              )}
             </span>
           </div>
           <span className="now-pulse" aria-hidden="true">
@@ -1527,10 +1624,11 @@ export default function App() {
             <i />
           </span>
           <button
+            className="player-favorite"
             disabled={!current}
             onClick={() => current && void toggleFavorite(current)}
           >
-            <Heart weight={current?.favorite ? "fill" : "regular"} />
+            <HeartStraight weight={current?.favorite ? "fill" : "regular"} />
           </button>
         </div>
         <div className="transport">
@@ -1561,6 +1659,7 @@ export default function App() {
             step="0.01"
             value={Math.min(progress, playableDuration || progress || 0)}
             disabled={!playableDuration}
+            style={seekStyle}
             onChange={(e) => {
               if (audioRef.current) {
                 const nextTime = Number(e.target.value);
@@ -1571,9 +1670,13 @@ export default function App() {
             }}
           />
           <span className={inlineLyrics ? "inline-lyrics-line" : ""}>
-            {inlineLyrics ? (
+            {buffering ? (
               <>
-                <MicrophoneStage weight="fill" /> {activeLyricText}
+                <Timer /> {t("buffering")}
+              </>
+            ) : inlineLyrics ? (
+              <>
+                <ChatText weight="fill" /> {activeLyricText}
               </>
             ) : (
               <>
@@ -1605,7 +1708,7 @@ export default function App() {
             aria-label={t("inlineLyrics")}
             onClick={() => setInlineLyrics((value) => !value)}
           >
-            <MicrophoneStage />
+            <ChatText />
           </button>
           <button
             className={queueOpen ? "queue-toggle active" : "queue-toggle"}
@@ -1613,7 +1716,7 @@ export default function App() {
             aria-label={t("queue")}
             onClick={() => setQueueOpen((value) => !value)}
           >
-            <ListBullets />
+            <Queue />
           </button>
           <SleepTimerControl
             value={sleepTimerMins}
@@ -1621,7 +1724,7 @@ export default function App() {
             onChange={setSleepTimerMins}
             t={t}
           />
-          <SpeakerHigh />
+          <SpeakerSimpleHigh />
           <input
             type="range"
             min="0"
@@ -1652,12 +1755,11 @@ export default function App() {
         )}
         <audio
           ref={setAudioNode}
-          preload="metadata"
+          preload="auto"
           data-song-id={current?.id ?? undefined}
-          src={
-            current ? `/api/songs/${current.id}/stream?mode=auto` : undefined
-          }
+          src={currentStreamUrl}
           onLoadedMetadata={(e) => {
+            updateBuffered(e.currentTarget);
             const d = e.currentTarget.duration;
             setDuration(
               Number.isFinite(d) && d > 0 ? d : current?.duration_seconds || 0,
@@ -1677,26 +1779,52 @@ export default function App() {
               requestAudioPlay();
           }}
           onDurationChange={(e) => {
+            updateBuffered(e.currentTarget);
             const d = e.currentTarget.duration;
             setDuration(
               Number.isFinite(d) && d > 0 ? d : current?.duration_seconds || 0,
             );
           }}
           onLoadedData={() => {
+            setBuffering(false);
             if (playingRef.current || pendingAutoplayRef.current)
               requestAudioPlay();
           }}
-          onCanPlay={() => {
+          onCanPlay={(event) => {
+            updateBuffered(event.currentTarget);
+            setBuffering(false);
             if (playingRef.current || pendingAutoplayRef.current)
               requestAudioPlay();
           }}
+          onPlaying={(event) => {
+            updateBuffered(event.currentTarget);
+            setBuffering(false);
+          }}
+          onProgress={(event) => updateBuffered(event.currentTarget)}
           onTimeUpdate={(e) => {
             setProgress(e.currentTarget.currentTime);
+            updateBuffered(e.currentTarget);
             syncPlaybackProgress(false);
           }}
-          onSeeking={(e) => setProgress(e.currentTarget.currentTime)}
+          onSeeking={(e) => {
+            setProgress(e.currentTarget.currentTime);
+            updateBuffered(e.currentTarget);
+          }}
+          onWaiting={() => {
+            if (playingRef.current || pendingAutoplayRef.current) setBuffering(true);
+          }}
+          onStalled={() => {
+            if (playingRef.current || pendingAutoplayRef.current) setBuffering(true);
+          }}
           onPause={() => syncPlaybackProgress(false)}
           onError={(event) => {
+            if (streamMode === "adaptive") {
+              resumeSeekRef.current = event.currentTarget.currentTime || progress;
+              pendingAutoplayRef.current = playingRef.current;
+              setStreamMode("auto");
+              setBuffering(false);
+              return;
+            }
             pendingAutoplayRef.current = false;
             event.currentTarget.pause();
             setPlaying(false);
@@ -1993,6 +2121,9 @@ function HomeView({
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
   const heroPlaying = playing && current?.id === heroSong?.id;
+  const heroAlbum = heroSong
+    ? albums.find((album) => album.id === heroSong.album_id)
+    : undefined;
   return (
     <section className="home-view">
       <section className="hero">
@@ -2003,9 +2134,31 @@ function HomeView({
         <div>
           <p>{heroPlaying ? t("nowPlaying") : t("jumpBackIn")}</p>
           <h1>{heroSong?.title ?? `${t("brand")} Music`}</h1>
-          <h2>
-            {heroSong ? `${heroSong.artist} · ${heroSong.album}` : t("noSongs")}
-          </h2>
+          {heroSong ? (
+            <h2 className="home-hero-meta">
+              <button
+                type="button"
+                className="hero-meta-link"
+                onClick={() => onOpenArtist(heroSong.artist_id, heroSong.artist)}
+              >
+                {heroSong.artist}
+              </button>
+              <span aria-hidden="true"> · </span>
+              {heroAlbum ? (
+                <button
+                  type="button"
+                  className="hero-meta-link"
+                  onClick={() => onOpenAlbum(heroAlbum)}
+                >
+                  {heroSong.album}
+                </button>
+              ) : (
+                <span>{heroSong.album}</span>
+              )}
+            </h2>
+          ) : (
+            <h2>{t("noSongs")}</h2>
+          )}
           <div className="hero-actions">
             <button
               className="primary"
@@ -2392,11 +2545,13 @@ function PlayerMood({
   playing,
   song,
   audioEl,
+  streamSrc,
 }: {
   theme: Theme;
   playing: boolean;
   song: Song | null;
   audioEl: HTMLAudioElement | null;
+  streamSrc?: string;
 }) {
   const labels: Record<Theme, string> = {
     "deep-space": "HI-FI ORBIT",
@@ -2411,20 +2566,37 @@ function PlayerMood({
     "dusk-amber": "19:42",
   };
   const colors = waveThemeColors(theme);
-  const canRenderWave = Boolean(song && audioEl);
+  const [waveReady, setWaveReady] = useState(false);
+  const [waveFailed, setWaveFailed] = useState(false);
+  useEffect(() => {
+    setWaveReady(false);
+    setWaveFailed(false);
+  }, [song?.id, streamSrc]);
+  const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed);
   return (
     <div
-      className={canRenderWave ? "player-mood player-waveform" : "player-mood"}
+      className={
+        canRenderWave && waveReady
+          ? "player-mood player-waveform"
+          : "player-mood player-waveform loading"
+      }
       data-theme-key={theme}
       data-playing={playing ? "true" : "false"}
       aria-hidden="true"
     >
       <span>{labels[theme]}</span>
+      {(!canRenderWave || !waveReady) && (
+        <div>
+          {Array.from({ length: 16 }, (_, index) => (
+            <i key={index} style={{ "--i": index } as React.CSSProperties} />
+          ))}
+        </div>
+      )}
       {canRenderWave && audioEl ? (
         <WavesurferPlayer
-          key={song?.id ?? "empty"}
+          key={`${song?.id ?? "empty"}-${streamSrc}`}
           media={audioEl}
-          url={song ? `/api/songs/${song.id}/stream?mode=auto` : undefined}
+          url={streamSrc}
           height={42}
           fillParent
           hideScrollbar
@@ -2438,15 +2610,14 @@ function PlayerMood({
           normalize
           interact
           dragToSeek
+          onReady={() => setWaveReady(true)}
+          onError={() => {
+            setWaveReady(false);
+            setWaveFailed(true);
+          }}
         />
-      ) : (
-        <div>
-          {Array.from({ length: 16 }, (_, index) => (
-            <i key={index} style={{ "--i": index } as React.CSSProperties} />
-          ))}
-        </div>
-      )}
-      <em>{theme === "carbon-volt" ? "74%" : playing ? "LIVE" : "IDLE"}</em>
+      ) : null}
+      <em>{waveFailed ? "METER" : theme === "carbon-volt" ? "74%" : playing ? "LIVE" : "IDLE"}</em>
     </div>
   );
 }

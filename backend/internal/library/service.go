@@ -552,10 +552,22 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 	if err != nil {
 		return models.Lyrics{}, err
 	}
-	if strings.TrimSpace(item.LyricsEmbedded) != "" {
-		return models.Lyrics{SongID: id, Source: "embedded", Lyrics: item.LyricsEmbedded}, nil
-	}
 	sourceID = strings.TrimSpace(sourceID)
+	if sourceID == "" || strings.EqualFold(sourceID, "embedded") {
+		includeSidecar := sourceID == ""
+		if lyric, source := s.preferredLocalLyrics(item, includeSidecar); lyric != "" {
+			if item.LyricsSource != source || strings.TrimSpace(item.LyricsEmbedded) != lyric {
+				_, _ = item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(source).Save(ctx)
+			}
+			return models.Lyrics{SongID: id, Source: source, Lyrics: lyric}, nil
+		}
+		if strings.EqualFold(sourceID, "embedded") {
+			return models.Lyrics{SongID: id, Source: "embedded:not-found", Lyrics: ""}, nil
+		}
+		if strings.TrimSpace(item.LyricsEmbedded) != "" && strings.TrimSpace(item.LyricsSource) != "" {
+			return models.Lyrics{SongID: id, Source: item.LyricsSource, Lyrics: item.LyricsEmbedded}, nil
+		}
+	}
 	if sourceID == "" {
 		sourceID = strings.TrimSpace(item.NeteaseID)
 	}
@@ -578,7 +590,46 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 		update.SetNeteaseID(matchedID)
 	}
 	_, _ = update.Save(ctx)
-	return models.Lyrics{SongID: id, Source: "online", Lyrics: lyric, Fetched: true}, nil
+	return models.Lyrics{SongID: id, Source: matchedSource, Lyrics: lyric, Fetched: true}, nil
+}
+
+func (s *Service) preferredLocalLyrics(item *ent.Song, includeSidecar bool) (string, string) {
+	if item == nil {
+		return "", ""
+	}
+	if includeSidecar {
+		if lyric := readSidecarLyrics(item.Path); lyric != "" {
+			return lyric, "file"
+		}
+	}
+	if item != nil && item.LyricsSource == "embedded" && strings.TrimSpace(item.LyricsEmbedded) != "" {
+		return strings.TrimSpace(item.LyricsEmbedded), "embedded"
+	}
+	if lyric := strings.TrimSpace(s.probe(item.Path).Lyrics); lyric != "" {
+		return lyric, "embedded"
+	}
+	return "", ""
+}
+
+func preferredEmbeddedLyrics(item *ent.Song, fileLyrics string) string {
+	if item != nil && item.LyricsSource == "embedded" && strings.TrimSpace(item.LyricsEmbedded) != "" {
+		return strings.TrimSpace(item.LyricsEmbedded)
+	}
+	return strings.TrimSpace(fileLyrics)
+}
+
+func readSidecarLyrics(audioPath string) string {
+	if strings.TrimSpace(audioPath) == "" {
+		return ""
+	}
+	base := strings.TrimSuffix(audioPath, filepath.Ext(audioPath))
+	for _, ext := range []string{".lrc", ".rlrc", ".elrc"} {
+		data, err := os.ReadFile(base + ext)
+		if err == nil && strings.TrimSpace(string(data)) != "" {
+			return strings.TrimSpace(string(data))
+		}
+	}
+	return ""
 }
 
 func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCandidate, error) {

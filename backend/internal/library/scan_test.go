@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"lark/backend/ent"
 )
 
 func TestShouldSkipSharedCenterScanDirBelowRoot(t *testing.T) {
@@ -52,5 +54,42 @@ func TestScanSkipsSharedCenterAndContinuesSiblings(t *testing.T) {
 	}
 	if result.CurrentDir != filepath.Join(root, "album") {
 		t.Fatalf("expected scan to continue into sibling album dir, got %q", result.CurrentDir)
+	}
+}
+
+func TestPreferredEmbeddedLyricsKeepsTaggedLyricsAheadOfOnlineCache(t *testing.T) {
+	item := &ent.Song{
+		LyricsEmbedded: "[00:00.00]online cache",
+		LyricsSource:   "netease",
+	}
+	got := preferredEmbeddedLyrics(item, "[00:00.00]from file tag")
+	if got != "[00:00.00]from file tag" {
+		t.Fatalf("expected file tag lyrics to win over online cache, got %q", got)
+	}
+}
+
+func TestPreferredEmbeddedLyricsTrustsStoredEmbeddedLyrics(t *testing.T) {
+	item := &ent.Song{
+		LyricsEmbedded: "[00:00.00]stored embedded",
+		LyricsSource:   "embedded",
+	}
+	got := preferredEmbeddedLyrics(item, "[00:00.00]from file tag")
+	if got != "[00:00.00]stored embedded" {
+		t.Fatalf("expected stored embedded lyrics to win, got %q", got)
+	}
+}
+
+func TestReadSidecarLyricsPrefersLRCNextToAudio(t *testing.T) {
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "track.flac")
+	if err := os.WriteFile(audioPath, []byte("audio"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "track.lrc"), []byte("[00:00.00]sidecar lyric\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := readSidecarLyrics(audioPath)
+	if got != "[00:00.00]sidecar lyric" {
+		t.Fatalf("expected sidecar lyric, got %q", got)
 	}
 }
