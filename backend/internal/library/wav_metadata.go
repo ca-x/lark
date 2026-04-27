@@ -123,12 +123,14 @@ func decodeWAVInfoText(raw []byte) string {
 	if decoded, ok := tryDecodeUTF16WithoutBOM(raw); ok {
 		return cleanDecodedMetadata(decoded)
 	}
-	if decoded, err := decodeGB18030(raw); err == nil {
-		if cleaned := cleanDecodedMetadata(decoded); cleaned != "" {
-			return cleaned
-		}
+	if decoded, ok := bestSimplifiedChineseDecode(raw); ok {
+		return decoded
 	}
-	return cleanMetadataText(string(raw))
+	text := cleanMetadataText(string(raw))
+	if metadataNeedsFilenameFallback(text) {
+		return ""
+	}
+	return text
 }
 
 func trimRIFFString(raw []byte) []byte {

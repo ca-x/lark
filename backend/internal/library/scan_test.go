@@ -276,6 +276,53 @@ func TestDecodeWAVInfoTextForcesGB18030WhenPossible(t *testing.T) {
 	}
 }
 
+func TestDecodeWAVInfoTextDecodesGB2312Subset(t *testing.T) {
+	got := decodeWAVInfoText([]byte{0xb2, 0xe2, 0xca, 0xd4, 0x00})
+	if got != "测试" {
+		t.Fatalf("expected GB2312-compatible WAV INFO decode, got %q", got)
+	}
+}
+
+func TestApplyMetadataFallbackReplacesUnreadableTags(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "重燃爱恋", "2002年的第一场雪-刀郎.wav")
+	meta := fileMetadata{
+		Title:  "������˼������",
+		Artist: "ۢ����",
+		Album:  "��ȼ���",
+	}
+	applyMetadataFallback(path, root, &meta)
+	if meta.Title != "2002年的第一场雪" {
+		t.Fatalf("expected unreadable title to fall back to filename, got %q", meta.Title)
+	}
+	if meta.Artist != "刀郎" {
+		t.Fatalf("expected unreadable artist to fall back to filename, got %q", meta.Artist)
+	}
+	if meta.Album != "重燃爱恋" {
+		t.Fatalf("expected unreadable album to fall back to folder, got %q", meta.Album)
+	}
+}
+
+func TestApplyMetadataFallbackParsesBracketedArtistFilename(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "(01) [李健] 为你而来.wav")
+	meta := fileMetadata{
+		Title:  "????",
+		Artist: "??",
+		Album:  "???? [??]",
+	}
+	applyMetadataFallback(path, root, &meta)
+	if meta.Title != "为你而来" {
+		t.Fatalf("expected bracketed filename title, got %q", meta.Title)
+	}
+	if meta.Artist != "李健" {
+		t.Fatalf("expected bracketed filename artist, got %q", meta.Artist)
+	}
+	if meta.Album != "Unknown Album" {
+		t.Fatalf("expected root-level placeholder album to fall back to unknown album, got %q", meta.Album)
+	}
+}
+
 func TestParseID3MetadataFromWAVChunkDecodesUTF16TagsAndLyrics(t *testing.T) {
 	id3 := buildID3Tag(
 		id3TextFrame("TIT2", "寸寸相思寸寸心"),

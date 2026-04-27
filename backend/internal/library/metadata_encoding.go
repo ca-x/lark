@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	textunicode "golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -102,9 +103,7 @@ func tryDecodeUTF16WithoutBOM(data []byte) (string, bool) {
 func legacyMetadataCandidates(raw []byte, current string) []string {
 	candidates := []string{}
 	if !utf8.Valid(raw) {
-		if decoded, err := decodeGB18030(raw); err == nil {
-			candidates = append(candidates, decoded)
-		}
+		candidates = append(candidates, decodeSimplifiedChineseCandidates(raw)...)
 	}
 	latin1 := make([]byte, 0, len(current))
 	latin1OK := true
@@ -116,9 +115,7 @@ func legacyMetadataCandidates(raw []byte, current string) []string {
 		latin1 = append(latin1, byte(r))
 	}
 	if latin1OK && len(latin1) > 0 {
-		if decoded, err := decodeGB18030(latin1); err == nil {
-			candidates = append(candidates, decoded)
-		}
+		candidates = append(candidates, decodeSimplifiedChineseCandidates(latin1)...)
 	}
 	return candidates
 }
@@ -129,6 +126,53 @@ func decodeGB18030(data []byte) (string, error) {
 		return "", err
 	}
 	return string(decoded), nil
+}
+
+func decodeSimplifiedChineseCandidates(data []byte) []string {
+	encodings := []struct {
+		name string
+		enc  encoding.Encoding
+	}{
+		{name: "gb18030", enc: simplifiedchinese.GB18030},
+		{name: "gbk", enc: simplifiedchinese.GBK},
+		// HZ-GB-2312 is the GB2312 variant exposed by x/text. Raw GB2312
+		// bytes are covered by GBK/GB18030 because they are supersets.
+		{name: "hz-gb2312", enc: simplifiedchinese.HZGB2312},
+	}
+	seen := map[string]bool{}
+	candidates := make([]string, 0, len(encodings))
+	for _, item := range encodings {
+		decoded, _, err := transform.Bytes(item.enc.NewDecoder(), data)
+		if err != nil {
+			continue
+		}
+		text := cleanDecodedMetadata(string(decoded))
+		if text == "" || seen[text] {
+			continue
+		}
+		seen[text] = true
+		candidates = append(candidates, text)
+	}
+	return candidates
+}
+
+func bestSimplifiedChineseDecode(data []byte) (string, bool) {
+	best := ""
+	bestScore := -1 << 30
+	for _, candidate := range decodeSimplifiedChineseCandidates(data) {
+		score := metadataTextScore(candidate)
+		if containsReplacement(candidate) {
+			score -= 1000
+		}
+		if containsCJK(candidate) {
+			score += 20
+		}
+		if score > bestScore {
+			best = candidate
+			bestScore = score
+		}
+	}
+	return best, best != ""
 }
 
 func cleanDecodedMetadata(value string) string {

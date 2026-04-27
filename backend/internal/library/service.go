@@ -1714,16 +1714,16 @@ type filenameMetadata struct {
 
 func applyMetadataFallback(path, libraryRoot string, meta *fileMetadata) {
 	fallback := parseFilenameMetadata(path, libraryRoot)
-	if meta.Title == "" {
+	if metadataNeedsFilenameFallback(meta.Title) {
 		meta.Title = fallback.Title
 	}
-	if meta.Artist == "" {
+	if metadataNeedsFilenameFallback(meta.Artist) {
 		meta.Artist = fallback.Artist
 	}
-	if meta.Album == "" {
+	if metadataNeedsFilenameFallback(meta.Album) {
 		meta.Album = fallback.Album
 	}
-	if meta.AlbumArtist == "" {
+	if metadataNeedsFilenameFallback(meta.AlbumArtist) {
 		meta.AlbumArtist = meta.Artist
 	}
 	if meta.Title == "" {
@@ -1737,9 +1737,27 @@ func applyMetadataFallback(path, libraryRoot string, meta *fileMetadata) {
 	}
 }
 
+func metadataNeedsFilenameFallback(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || containsReplacement(value) {
+		return true
+	}
+	if looksLikePlaceholderMojibake(value) {
+		return true
+	}
+	if metadataTextScore(value) < 0 {
+		return true
+	}
+	return false
+}
+
 func parseFilenameMetadata(path, libraryRoot string) filenameMetadata {
 	stem := cleanFilenameForMetadata(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)))
 	album := fallbackAlbumFromFolder(path, libraryRoot)
+	if parsed, ok := parseBracketedFilenameMetadata(stem); ok {
+		parsed.Album = album
+		return parsed
+	}
 	parts, spacedSeparator := splitFilenameMetadataParts(stem)
 	out := filenameMetadata{Title: stem, Album: album}
 	switch {
@@ -1757,6 +1775,25 @@ func parseFilenameMetadata(path, libraryRoot string) filenameMetadata {
 	out.Artist = cleanFilenameForMetadata(out.Artist)
 	out.Album = cleanFilenameForMetadata(out.Album)
 	return out
+}
+
+func parseBracketedFilenameMetadata(stem string) (filenameMetadata, bool) {
+	rest := strings.TrimSpace(stem)
+	if strings.HasPrefix(rest, "(") {
+		if end := strings.Index(rest, ")"); end > 0 && looksLikeTrackNumber(rest[1:end]) {
+			rest = strings.TrimSpace(rest[end+1:])
+		}
+	}
+	if strings.HasPrefix(rest, "[") {
+		if end := strings.Index(rest, "]"); end > 0 {
+			artist := cleanFilenameForMetadata(rest[1:end])
+			title := cleanFilenameForMetadata(rest[end+1:])
+			if artist != "" && title != "" {
+				return filenameMetadata{Title: title, Artist: artist}, true
+			}
+		}
+	}
+	return filenameMetadata{}, false
 }
 
 func fallbackAlbumFromFolder(path, libraryRoot string) string {
@@ -1830,6 +1867,7 @@ func stripParentheticalOfficial(value string) string {
 
 func looksLikeTrackNumber(value string) bool {
 	value = strings.TrimSpace(value)
+	value = strings.Split(value, "/")[0]
 	value = strings.TrimSuffix(value, ".")
 	value = strings.TrimLeft(value, "0")
 	if value == "" {
@@ -1837,6 +1875,21 @@ func looksLikeTrackNumber(value string) bool {
 	}
 	_, err := strconv.Atoi(value)
 	return err == nil
+}
+
+func looksLikePlaceholderMojibake(value string) bool {
+	meaningful := 0
+	placeholders := 0
+	for _, r := range value {
+		if r == ' ' || r == '-' || r == '_' || r == '[' || r == ']' || r == '(' || r == ')' || r == '/' {
+			continue
+		}
+		meaningful++
+		if r == '?' || r == '？' {
+			placeholders++
+		}
+	}
+	return meaningful > 0 && placeholders*2 >= meaningful
 }
 
 func normalizeTags(in map[string]string) map[string]string {
