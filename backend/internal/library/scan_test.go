@@ -160,3 +160,33 @@ func TestDailyScoreIsStableForSameDayAndUser(t *testing.T) {
 		t.Fatal("expected daily seed to change score")
 	}
 }
+
+func TestCleanMetadataTextDecodesGBKBytesFromWavInfo(t *testing.T) {
+	// Some WAV LIST/INFO writers store Chinese metadata as local ANSI/GBK bytes.
+	// Tag readers may expose those bytes as Latin-1-looking mojibake.
+	got := cleanMetadataText("²âÊÔ¸èÇú")
+	if got != "测试歌曲" {
+		t.Fatalf("expected GBK mojibake to decode, got %q", got)
+	}
+}
+
+func TestCleanMetadataTextKeepsNormalUnicode(t *testing.T) {
+	got := cleanMetadataText("Beyoncé – Déjà Vu")
+	if got != "Beyoncé – Déjà Vu" {
+		t.Fatalf("expected regular unicode to stay unchanged, got %q", got)
+	}
+}
+
+func TestCleanMetadataTextDecodesRawGBKBytesFromWavInfo(t *testing.T) {
+	got := cleanMetadataText(string([]byte{0xb2, 0xe2, 0xca, 0xd4, 0xb8, 0xe8, 0xc7, 0xfa}))
+	if got != "测试歌曲" {
+		t.Fatalf("expected raw GBK bytes to decode, got %q", got)
+	}
+}
+
+func TestCleanMetadataTextDecodesUTF16LEBOM(t *testing.T) {
+	got := cleanMetadataText(string([]byte{0xff, 0xfe, 0x4b, 0x6d, 0xd5, 0x8b, 0x00, 0x00}))
+	if got != "测试" {
+		t.Fatalf("expected UTF-16LE BOM to decode, got %q", got)
+	}
+}

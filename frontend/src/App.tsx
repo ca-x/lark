@@ -79,6 +79,7 @@ type View =
   | "about";
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
+type PlaybackStartMode = "resume" | "restart";
 type StreamMode = "auto" | "adaptive";
 const ADAPTIVE_STREAM_QUALITY = 128;
 const AUTO_DOWNGRADE_STALL_MS = 1200;
@@ -214,6 +215,12 @@ function resumePreferenceKey(user?: User | null) {
   return `lark.resume-mode.${user?.id ?? "guest"}`;
 }
 
+function storedResumeMode(user?: User | null): ResumeMode {
+  return window.localStorage.getItem(resumePreferenceKey(user)) === "restart"
+    ? "restart"
+    : "resume";
+}
+
 function prefersLowBandwidthStream() {
   const connection = (
     navigator as Navigator & {
@@ -249,6 +256,56 @@ function defaultStreamMode(song?: Song | null): StreamMode {
   if (song.bit_rate > 320_000 || song.size_bytes > 28 * 1024 * 1024)
     return "adaptive";
   return "auto";
+}
+
+type AudioOutputSnapshot = {
+  deviceIds: Set<string>;
+  labels: Set<string>;
+  headphoneLabels: Set<string>;
+  specificCount: number;
+  totalCount: number;
+};
+
+const HEADPHONE_OUTPUT_PATTERN =
+  /(headphone|headset|earphone|earbud|airpods?|beats|bluetooth|bt|buds|耳机|蓝牙|耳塞)/i;
+
+function audioOutputSnapshot(devices: MediaDeviceInfo[]): AudioOutputSnapshot {
+  const outputs = devices.filter((device) => device.kind === "audiooutput");
+  const specificOutputs = outputs.filter(
+    (device) => device.deviceId && !["default", "communications"].includes(device.deviceId),
+  );
+  const labels = new Set(
+    specificOutputs
+      .map((device) => device.label.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const headphoneLabels = new Set(
+    Array.from(labels).filter((label) => HEADPHONE_OUTPUT_PATTERN.test(label)),
+  );
+  return {
+    deviceIds: new Set(specificOutputs.map((device) => device.deviceId)),
+    labels,
+    headphoneLabels,
+    specificCount: specificOutputs.length,
+    totalCount: outputs.length,
+  };
+}
+
+function setHasLostItem(previous: Set<string>, next: Set<string>) {
+  for (const item of previous) {
+    if (!next.has(item)) return true;
+  }
+  return false;
+}
+
+function audioOutputDisconnected(previous: AudioOutputSnapshot, next: AudioOutputSnapshot) {
+  if (previous.headphoneLabels.size > 0) {
+    return setHasLostItem(previous.headphoneLabels, next.headphoneLabels);
+  }
+  if (previous.deviceIds.size > 0) {
+    return setHasLostItem(previous.deviceIds, next.deviceIds);
+  }
+  return previous.totalCount > 2 && next.totalCount < previous.totalCount;
 }
 
 function sanitizeFontFamily(value?: string) {
@@ -469,12 +526,16 @@ export default function App() {
   const playingRef = useRef(false);
   const streamModeRef = useRef<StreamMode>(streamMode);
   const streamOffsetRef = useRef(0);
+  const resumeModeRef = useRef<ResumeMode>(resumeMode);
+  const playbackStartModeRef = useRef<PlaybackStartMode>("resume");
+  const audioOutputSnapshotRef = useRef<AudioOutputSnapshot | null>(null);
   currentRef.current = current;
   queueRef.current = queue;
   playModeRef.current = playMode;
   playingRef.current = playing;
   streamModeRef.current = streamMode;
   streamOffsetRef.current = streamOffset;
+  resumeModeRef.current = resumeMode;
   const t = useMemo(() => createT(settings.language), [settings.language]);
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
   const activeLyric = useMemo(() => {
@@ -512,8 +573,9 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (!auth?.user) return;
-    const stored = window.localStorage.getItem(resumePreferenceKey(auth.user));
-    setResumeMode(stored === "restart" ? "restart" : "resume");
+    const nextResumeMode = storedResumeMode(auth.user);
+    resumeModeRef.current = nextResumeMode;
+    setResumeMode(nextResumeMode);
   }, [auth?.user?.id]);
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
@@ -541,7 +603,10 @@ export default function App() {
   }, [settings.theme, settings.language, settings.web_font_url, settings.web_font_family, t]);
   useEffect(() => {
     if (!current) return;
-    const resume = resumeMode === "resume" ? resumePosition(current) : 0;
+    const shouldResume =
+      playbackStartModeRef.current === "resume" && resumeModeRef.current === "resume";
+    const resume = shouldResume ? resumePosition(current) : 0;
+    playbackStartModeRef.current = "restart";
     const nextMode = defaultStreamMode(current);
     resumeSeekRef.current = resume;
     setProgress(resume);
@@ -559,7 +624,7 @@ export default function App() {
       .then(setLyrics)
       .catch(() => setLyrics(null))
       .finally(() => setLyricsLoading(false));
-  }, [current, resumeMode]);
+  }, [current?.id]);
   const requestAudioPlay = useCallback(() => {
     const audio = audioRef.current;
     const song = currentRef.current;
@@ -604,6 +669,60 @@ export default function App() {
       audioRef.current.pause();
     }
   }, [playing, current?.id, requestAudioPlay]);
+  useEffect(() => {
+    const mediaDevices = navigator.mediaDevices;
+    if (!mediaDevices?.enumerateDevices) return;
+    let cancelled = false;
+    let deviceChangeTimer: number | null = null;
+
+    const inspectAudioOutputs = async () => {
+      try {
+        const nextSnapshot = audioOutputSnapshot(await mediaDevices.enumerateDevices());
+        const previousSnapshot = audioOutputSnapshotRef.current;
+        if (
+          previousSnapshot &&
+          playingRef.current &&
+          audioOutputDisconnected(previousSnapshot, nextSnapshot)
+        ) {
+          pendingAutoplayRef.current = false;
+          setPlaying(false);
+          audioRef.current?.pause();
+          showMessage(t("audioOutputDisconnected"));
+        }
+        if (!cancelled) audioOutputSnapshotRef.current = nextSnapshot;
+      } catch {
+        if (!cancelled) audioOutputSnapshotRef.current = null;
+      }
+    };
+
+    const onDeviceChange = () => {
+      if (deviceChangeTimer != null) window.clearTimeout(deviceChangeTimer);
+      deviceChangeTimer = window.setTimeout(() => {
+        deviceChangeTimer = null;
+        void inspectAudioOutputs();
+      }, 350);
+    };
+
+    void inspectAudioOutputs();
+    mediaDevices.addEventListener?.("devicechange", onDeviceChange);
+    return () => {
+      cancelled = true;
+      if (deviceChangeTimer != null) window.clearTimeout(deviceChangeTimer);
+      mediaDevices.removeEventListener?.("devicechange", onDeviceChange);
+    };
+  }, [t]);
+
+  useEffect(() => {
+    if (!playing || !navigator.mediaDevices?.enumerateDevices) return;
+    void navigator.mediaDevices
+      .enumerateDevices()
+      .then((devices) => {
+        audioOutputSnapshotRef.current = audioOutputSnapshot(devices);
+      })
+      .catch(() => {
+        audioOutputSnapshotRef.current = null;
+      });
+  }, [playing, current?.id]);
   useEffect(() => {
     if (!sleepTimerMins) {
       setSleepLeft(0);
@@ -672,6 +791,10 @@ export default function App() {
       setAuth(status);
       void api.health().then(setHealth).catch(() => undefined);
       if (status.initialized && status.user) {
+        const nextResumeMode = storedResumeMode(status.user);
+        resumeModeRef.current = nextResumeMode;
+        setResumeMode(nextResumeMode);
+        playbackStartModeRef.current = "resume";
         await loadAppData();
       }
     } catch (error) {
@@ -830,6 +953,7 @@ export default function App() {
       : (songItems[0] ?? null);
     setStreamOffset(0);
     setStreamMode(defaultStreamMode(nextCurrent));
+    if (options.initializeQueue) playbackStartModeRef.current = "resume";
     setCurrent(nextCurrent);
     setCollection((old) => {
       if (!old) return old;
@@ -845,7 +969,11 @@ export default function App() {
     });
   }
 
-  async function playSong(song: Song, list = songs) {
+  async function playSong(
+    song: Song,
+    list = songs,
+    options: { startMode?: PlaybackStartMode } = {},
+  ) {
     const sameSong = current?.id === song.id;
     if (current && !sameSong) {
       syncPlaybackProgress(false);
@@ -855,6 +983,7 @@ export default function App() {
         audio.currentTime = 0;
       }
     }
+    playbackStartModeRef.current = options.startMode ?? "restart";
     pendingAutoplayRef.current = true;
     setBuffering(true);
     setStreamOffset(0);
@@ -1811,6 +1940,7 @@ export default function App() {
                 user={auth.user}
                 resumeMode={resumeMode}
                 onResumeModeChange={(mode) => {
+                  resumeModeRef.current = mode;
                   setResumeMode(mode);
                   window.localStorage.setItem(resumePreferenceKey(auth.user), mode);
                 }}

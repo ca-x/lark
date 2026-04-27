@@ -1605,15 +1605,15 @@ func (s *Service) probeTags(path string) fileMetadata {
 		return fileMetadata{}
 	}
 	meta := fileMetadata{
-		Title:       strings.TrimSpace(m.Title()),
-		Artist:      strings.TrimSpace(m.Artist()),
-		Album:       strings.TrimSpace(m.Album()),
-		AlbumArtist: strings.TrimSpace(m.AlbumArtist()),
+		Title:       cleanMetadataText(m.Title()),
+		Artist:      cleanMetadataText(m.Artist()),
+		Album:       cleanMetadataText(m.Album()),
+		AlbumArtist: cleanMetadataText(m.AlbumArtist()),
 		Year:        m.Year(),
-		Lyrics:      strings.TrimSpace(m.Lyrics()),
+		Lyrics:      cleanMetadataText(m.Lyrics()),
 	}
 	if meta.Artist == "" {
-		meta.Artist = strings.TrimSpace(m.Composer())
+		meta.Artist = cleanMetadataText(m.Composer())
 	}
 	return meta
 }
@@ -1621,7 +1621,7 @@ func (s *Service) probeTags(path string) fileMetadata {
 func normalizeTags(in map[string]string) map[string]string {
 	out := map[string]string{}
 	for k, v := range in {
-		out[strings.ToLower(strings.TrimSpace(k))] = strings.TrimSpace(v)
+		out[strings.ToLower(strings.TrimSpace(k))] = cleanMetadataText(v)
 	}
 	return out
 }
