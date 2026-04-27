@@ -2259,28 +2259,58 @@ func (s *Service) OnlineAlbumInfo(ctx context.Context, id int) (models.OnlineAlb
 }
 
 func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName string) []models.OnlineAlbumInfo {
-	ctx, cancel := context.WithTimeout(ctx, 9*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
-	out := []models.OnlineAlbumInfo{}
-	seen := map[string]bool{}
+	type providerResult struct {
+		items []online.AlbumCandidate
+	}
+	resultCh := make(chan providerResult, len(s.online))
+	var wg sync.WaitGroup
 	for _, provider := range s.online {
-		queries := []string{artistName}
-		if strings.TrimSpace(artistName) != "" {
-			queries = append(queries, "")
-		}
-		for _, currentArtist := range queries {
-			items, err := provider.SearchAlbums(ctx, title, currentArtist)
-			if err != nil {
-				continue
+		provider := provider
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			queries := []string{artistName}
+			if strings.TrimSpace(artistName) != "" {
+				queries = append(queries, "")
 			}
-			for _, item := range items {
-				key := item.Source + ":" + item.ID
-				if item.ID == "" || seen[key] {
+			itemsOut := []online.AlbumCandidate{}
+			seenProvider := map[string]bool{}
+			for _, currentArtist := range queries {
+				items, err := provider.SearchAlbums(ctx, title, currentArtist)
+				if err != nil {
 					continue
 				}
-				seen[key] = true
-				out = append(out, mapOnlineAlbum(item))
+				for _, item := range items {
+					key := item.Source + ":" + item.ID
+					if item.ID == "" || seenProvider[key] {
+						continue
+					}
+					seenProvider[key] = true
+					itemsOut = append(itemsOut, item)
+				}
 			}
+			select {
+			case resultCh <- providerResult{items: itemsOut}:
+			case <-ctx.Done():
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+	out := []models.OnlineAlbumInfo{}
+	seen := map[string]bool{}
+	for result := range resultCh {
+		for _, item := range result.items {
+			key := item.Source + ":" + item.ID
+			if item.ID == "" || seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, mapOnlineAlbum(item))
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {

@@ -131,6 +131,7 @@ type Collection = {
   artistId?: number;
   artistName?: string;
   onlineAlbumInfo?: OnlineAlbumInfo | null;
+  onlineAlbumInfoLoading?: boolean;
 };
 const themes: { id: Theme; label: ThemeLabel; mode: ThemeMode }[] = [
   { id: "deep-space", label: "deepSpace", mode: "dark" },
@@ -1567,11 +1568,9 @@ export default function App() {
     };
     setCollection(nextCollection);
     setView("collection");
+    const onlineInfoPromise = withTimeout(api.albumOnlineInfo(album.id), 20000).catch(() => null);
     try {
-      const [items, onlineInfo] = await Promise.all([
-        withTimeout(api.albumSongs(album.id)),
-        withTimeout(api.albumOnlineInfo(album.id), 9000).catch(() => null),
-      ]);
+      const items = await withTimeout(api.albumSongs(album.id));
       if (requestId !== collectionRequestRef.current) return;
       setCollection({
         type: "album",
@@ -1579,7 +1578,7 @@ export default function App() {
         title: album.title,
         subtitle: [
           album.artist,
-          album.year || onlineInfo?.year ? String(album.year || onlineInfo?.year) : "",
+          album.year ? String(album.year) : "",
           `${items.length} ${t("count")}`,
         ].filter(Boolean).join(" · "),
         favorite: album.favorite,
@@ -1587,10 +1586,27 @@ export default function App() {
         coverUrl: albumCoverUrl(album),
         artistId: album.artist_id,
         artistName: album.artist,
-        onlineAlbumInfo: onlineInfo,
+        onlineAlbumInfoLoading: true,
+      });
+      onlineInfoPromise.then((onlineInfo) => {
+        if (requestId !== collectionRequestRef.current) return;
+        setCollection((currentCollection) => {
+          if (!currentCollection || currentCollection.type !== "album" || currentCollection.id !== album.id) return currentCollection;
+          return {
+            ...currentCollection,
+            subtitle: [
+              album.artist,
+              album.year || onlineInfo?.year ? String(album.year || onlineInfo?.year) : "",
+              `${items.length} ${t("count")}`,
+            ].filter(Boolean).join(" · "),
+            onlineAlbumInfo: onlineInfo,
+            onlineAlbumInfoLoading: false,
+          };
+        });
       });
     } catch (error) {
       setCollectionLoadError(nextCollection, requestId, error);
+      onlineInfoPromise.then(() => undefined);
     }
   }
 
@@ -2797,7 +2813,10 @@ function HomeView({
 
         <section className="quick-panel">
           <div className="section-head compact">
-            <h2>{t("latestSongs")}</h2>
+            <div>
+              <h2>{t("latestSongs")}</h2>
+              <p className="section-subtitle">{t("latestSongsHint")}</p>
+            </div>
             {latestSongs[0] ? (
               <button onClick={() => onPlay(latestSongs[0], songs)}>
                 <Play weight="fill" /> {t("playAll")}
@@ -3715,6 +3734,7 @@ function CollectionView({
         <AlbumInfoDrawer
           open={albumInfoOpen}
           collection={collection}
+          loading={Boolean(collection.onlineAlbumInfoLoading)}
           t={t}
           onClose={() => setAlbumInfoOpen(false)}
         />
@@ -3727,11 +3747,13 @@ function CollectionView({
 function AlbumInfoDrawer({
   open,
   collection,
+  loading,
   t,
   onClose,
 }: {
   open: boolean;
   collection: Collection;
+  loading: boolean;
   t: ReturnType<typeof createT>;
   onClose: () => void;
 }) {
@@ -3840,6 +3862,8 @@ function AlbumInfoDrawer({
               </a>
             ) : null}
           </div>
+        ) : loading ? (
+          <div className="album-info-empty">{t("loading")}</div>
         ) : (
           <div className="album-info-empty">{t("noAlbumInfo")}</div>
         )}
