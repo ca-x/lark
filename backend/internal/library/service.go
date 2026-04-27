@@ -478,7 +478,7 @@ func minInt(a, b int) int {
 }
 
 func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Folder, error) {
-	if limit <= 0 || limit > 60 {
+	if limit < 0 {
 		limit = 12
 	}
 	items, err := s.client.Song.Query().Order(ent.Desc(song.FieldUpdatedAt), ent.Asc(song.FieldPath)).All(ctx)
@@ -509,9 +509,13 @@ func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Fold
 		folder.SongCount++
 		folder.DurationSeconds += item.DurationSeconds
 	}
-	out := make([]models.Folder, 0, minInt(limit, len(order)))
+	capacity := len(order)
+	if limit > 0 {
+		capacity = minInt(limit, len(order))
+	}
+	out := make([]models.Folder, 0, capacity)
 	for _, rel := range order {
-		if len(out) >= limit {
+		if limit > 0 && len(out) >= limit {
 			break
 		}
 		out = append(out, *grouped[rel])

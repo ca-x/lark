@@ -784,7 +784,7 @@ export default function App() {
         api.artists(),
         api.playlists(),
         api.dailyMix(24).catch(() => []),
-        api.folders(12).catch(() => []),
+        api.folders(0).catch(() => []),
       ]);
     setSongs(songItems);
     setDailyMix(dailyItems);
@@ -1430,7 +1430,6 @@ export default function App() {
               <HomeView
                 songs={songs}
                 dailyMix={dailyMix}
-                folders={folders}
                 albums={albums}
                 artists={artists}
                 playlists={playlists}
@@ -1446,7 +1445,6 @@ export default function App() {
                 onPlayPlaylist={playPlaylist}
                 onOpenPlaylist={openPlaylist}
                 onCreatePlaylist={createPlaylist}
-                onPlayFolder={playFolder}
               />
             )}
 
@@ -1474,6 +1472,7 @@ export default function App() {
             {view === "library" && (
               <LibraryView
                 songs={songs}
+                folders={folders}
                 current={current}
                 t={t}
                 onPlay={playSong}
@@ -1489,6 +1488,7 @@ export default function App() {
                 }
                 onScan={() => void scan()}
                 onUpload={upload}
+                onPlayFolder={playFolder}
                 scanStatus={scanStatus}
               />
             )}
@@ -1678,7 +1678,7 @@ export default function App() {
           song={current}
           audioEl={audioEl}
           streamSrc={currentStreamUrl}
-          lowBandwidth={streamMode === "adaptive" || buffering}
+          lowBandwidth={buffering}
         />
         <div className="now">
           <button
@@ -2191,7 +2191,6 @@ function AddToPlaylistDialog({
 function HomeView({
   songs,
   dailyMix,
-  folders,
   albums,
   artists,
   playlists,
@@ -2207,11 +2206,9 @@ function HomeView({
   onPlayPlaylist,
   onOpenPlaylist,
   onCreatePlaylist,
-  onPlayFolder,
 }: {
   songs: Song[];
   dailyMix: Song[];
-  folders: Folder[];
   albums: Album[];
   artists: Artist[];
   playlists: Playlist[];
@@ -2227,11 +2224,9 @@ function HomeView({
   onPlayPlaylist: (playlist: Playlist) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
   onCreatePlaylist: () => void;
-  onPlayFolder: (folder: Folder) => void;
 }) {
   const latestSongs = songs.slice(0, 5);
   const dailySongs = dailyMix.length ? dailyMix.slice(0, 5) : songs.slice(0, 5);
-  const featuredFolders = folders.slice(0, 4);
   const featuredAlbums = albums.slice(0, 4);
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
@@ -2375,76 +2370,38 @@ function HomeView({
         </section>
       </div>
 
-      {dailySongs.length || featuredFolders.length ? (
-        <section className="daily-folder-grid">
-          {dailySongs.length ? (
-            <div className="quick-panel daily-mix-panel">
-              <div className="section-head compact">
-                <div>
-                  <h2>{t("dailyMix")}</h2>
-                  <p className="section-subtitle">{t("dailyMixHint")}</p>
-                </div>
-                <button onClick={() => onPlay(dailySongs[0], dailyMix.length ? dailyMix : songs)}>
-                  <Play weight="fill" /> {t("playAll")}
+      {dailySongs.length ? (
+        <section className="daily-mix-grid">
+          <div className="quick-panel daily-mix-panel">
+            <div className="section-head compact">
+              <div>
+                <h2>{t("dailyMix")}</h2>
+                <p className="section-subtitle">{t("dailyMixHint")}</p>
+              </div>
+              <button onClick={() => onPlay(dailySongs[0], dailyMix.length ? dailyMix : songs)}>
+                <Play weight="fill" /> {t("playAll")}
+              </button>
+            </div>
+            <div className="quick-song-list">
+              {dailySongs.map((song) => (
+                <button
+                  key={song.id}
+                  className={song.id === current?.id ? "active" : ""}
+                  onClick={() => onPlay(song, dailyMix.length ? dailyMix : songs)}
+                >
+                  <MiniCover
+                    song={song}
+                    playing={playing && song.id === current?.id}
+                  />
+                  <span>
+                    <strong>{song.title}</strong>
+                    <small>{song.artist} · {song.album}</small>
+                  </span>
+                  <Play weight="fill" />
                 </button>
-              </div>
-              <div className="quick-song-list">
-                {dailySongs.map((song) => (
-                  <button
-                    key={song.id}
-                    className={song.id === current?.id ? "active" : ""}
-                    onClick={() => onPlay(song, dailyMix.length ? dailyMix : songs)}
-                  >
-                    <MiniCover
-                      song={song}
-                      playing={playing && song.id === current?.id}
-                    />
-                    <span>
-                      <strong>{song.title}</strong>
-                      <small>{song.artist} · {song.album}</small>
-                    </span>
-                    <Play weight="fill" />
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
-          ) : null}
-          {featuredFolders.length ? (
-            <div className="summary-panel folder-mix-panel">
-              <div className="section-head compact">
-                <div>
-                  <h2>{t("folders")}</h2>
-                  <p className="section-subtitle">{t("folderPlayHint")}</p>
-                </div>
-              </div>
-              <div className="folder-card-grid">
-                {featuredFolders.map((folder) => (
-                  <button
-                    key={folder.path}
-                    className="folder-card"
-                    onClick={() => onPlayFolder(folder)}
-                  >
-                    <span
-                      className="folder-cover"
-                      style={
-                        folder.cover_song_id
-                          ? ({
-                              "--cover-url": `url(/api/songs/${folder.cover_song_id}/cover)`,
-                            } as React.CSSProperties)
-                          : undefined
-                      }
-                    >
-                      <MusicNotes weight="fill" />
-                    </span>
-                    <strong>{folder.name}</strong>
-                    <small>
-                      {folder.song_count} {t("count")} · {formatDuration(folder.duration_seconds)}
-                    </small>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
+          </div>
         </section>
       ) : null}
 
@@ -2947,31 +2904,21 @@ function CollectionView({
             <article key={album.id} className="artist-album-card">
               <button
                 className="cover plain-cover"
-                onClick={() => onOpenAlbumCard?.(album)}
+                aria-label={`${t("play")} ${album.title}`}
+                onClick={() => onPlayAlbumCard?.(album)}
               >
                 <LazyCoverImage src={albumCoverUrl(album)} />
                 <Record weight="fill" />
-                <span
-                  className="card-play"
-                  role="button"
-                  tabIndex={0}
-                  aria-label={t("play")}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onPlayAlbumCard?.(album);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onPlayAlbumCard?.(album);
-                    }
-                  }}
-                >
+                <span className="card-play" aria-hidden="true">
                   <Play weight="fill" />
                 </span>
               </button>
-              <strong>{album.title}</strong>
+              <button
+                className="artist-album-title"
+                onClick={() => onOpenAlbumCard?.(album)}
+              >
+                {album.title}
+              </button>
               <span>
                 {album.song_count} {t("count")}
               </span>
@@ -2998,14 +2945,16 @@ function CollectionView({
 function CollectionCover({ collection }: { collection: Collection }) {
   const firstSong = collection.songs[0];
   const resolvedCover = collection.coverUrl || coverUrl(firstSong);
-  const style = resolvedCover
+  const isMediaCover = collection.type !== "playlist";
+  const style = !isMediaCover && resolvedCover
     ? ({ "--cover-url": `url(${resolvedCover})` } as React.CSSProperties)
     : undefined;
   return (
     <div
-      className={`cover collection-cover ${collection.type === "playlist" ? "" : "plain-cover"}`}
+      className={`cover collection-cover ${isMediaCover ? "plain-cover pure-media-cover" : ""}`}
       style={style}
     >
+      {isMediaCover && resolvedCover ? <LazyCoverImage src={resolvedCover} /> : null}
       <Record weight="fill" />
     </div>
   );
@@ -3013,6 +2962,7 @@ function CollectionCover({ collection }: { collection: Collection }) {
 
 function LibraryView({
   songs,
+  folders,
   current,
   t,
   onPlay,
@@ -3023,9 +2973,11 @@ function LibraryView({
   onOpenArtist,
   onScan,
   onUpload,
+  onPlayFolder,
   scanStatus,
 }: {
   songs: Song[];
+  folders: Folder[];
   current: Song | null;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list: Song[]) => void;
@@ -3036,6 +2988,7 @@ function LibraryView({
   onOpenArtist: (song: Song) => void;
   onScan: () => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+  onPlayFolder: (folder: Folder) => void;
   scanStatus: ScanStatus | null;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -3084,6 +3037,42 @@ function LibraryView({
         </div>
       </div>
       {scanStatus ? <ScanProgress status={scanStatus} t={t} /> : null}
+      {folders.length ? (
+        <section className="library-folder-panel">
+          <div className="section-head compact">
+            <div>
+              <h2>{t("folders")}</h2>
+              <p className="section-subtitle">{t("folderPlayHint")}</p>
+            </div>
+          </div>
+          <div className="folder-card-grid library-folder-grid">
+            {folders.map((folder) => (
+              <button
+                key={folder.path}
+                className="folder-card"
+                onClick={() => onPlayFolder(folder)}
+              >
+                <span
+                  className="folder-cover"
+                  style={
+                    folder.cover_song_id
+                      ? ({
+                          "--cover-url": `url(/api/songs/${folder.cover_song_id}/cover)`,
+                        } as React.CSSProperties)
+                      : undefined
+                  }
+                >
+                  <MusicNotes weight="fill" />
+                </span>
+                <strong>{folder.name}</strong>
+                <small>
+                  {folder.song_count} {t("count")} · {formatDuration(folder.duration_seconds)}
+                </small>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {songs.length ? (
         <SongTable
           songs={songs}

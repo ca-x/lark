@@ -34,7 +34,7 @@ export const api = {
     if (!res.ok) throw new Error(await res.text())
     return res.json() as Promise<Song[]>
   },
-  folders: (limit = 12) => request<Folder[]>(`/api/folders?limit=${limit}`),
+  folders: (limit = 0) => request<Folder[]>(`/api/folders?limit=${limit}`),
   folderSongs: (path: string) => request<Song[]>(`/api/folders/songs?path=${encodeURIComponent(path)}`),
   albums: () => request<Album[]>('/api/albums'),
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),
