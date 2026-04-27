@@ -777,11 +777,22 @@ func (s *Service) AlbumCover(ctx context.Context, id int) ([]byte, string, error
 	if err != nil || len(data) > 0 {
 		return data, mimeType, err
 	}
-	info, err := s.OnlineAlbumInfo(ctx, id)
-	if err != nil || strings.TrimSpace(info.Cover) == "" {
+	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs(func(q *ent.SongQuery) { q.WithArtist() }).Only(ctx)
+	if err != nil {
 		return nil, "", err
 	}
-	return s.cachedRemoteImage(ctx, "album", strconv.Itoa(id), info.Cover)
+	for _, info := range s.searchRemoteAlbums(ctx, a.Title, albumSearchArtistName(a)) {
+		if a.Year == 0 && info.Year > 0 {
+			if updated, updateErr := a.Update().SetYear(info.Year).Save(ctx); updateErr == nil {
+				a = updated
+			}
+		}
+		if strings.TrimSpace(info.Cover) == "" {
+			continue
+		}
+		return s.cachedRemoteImage(ctx, "album", strconv.Itoa(id), info.Cover)
+	}
+	return nil, "", nil
 }
 
 func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, error) {
@@ -801,7 +812,7 @@ func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, erro
 		return nil, "", err
 	}
 	for _, candidate := range a.Edges.Albums {
-		infoItems := s.searchOnlineAlbums(ctx, candidate.Title, firstString(candidate.AlbumArtist, a.Name))
+		infoItems := s.searchRemoteAlbums(ctx, candidate.Title, firstString(candidate.AlbumArtist, a.Name))
 		for _, info := range infoItems {
 			if strings.TrimSpace(info.Cover) == "" {
 				continue
@@ -1288,6 +1299,9 @@ func (s *Service) AlbumSongs(ctx context.Context, userID, id int) ([]models.Song
 	a, err := s.client.Album.Query().Where(album.ID(id)).WithSongs(func(q *ent.SongQuery) { q.WithArtist().WithAlbum() }).Only(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if a.Year == 0 {
+		s.scheduleAlbumYearRefresh(id)
 	}
 	out := mapSongs(a.Edges.Songs)
 	return s.applySongUserState(ctx, userID, out)
@@ -2239,10 +2253,35 @@ func mapPlaylist(item *ent.Playlist) models.Playlist {
 
 func IsMissing(err error) bool { return errors.Is(err, os.ErrNotExist) || ent.IsNotFound(err) }
 
-func (s *Service) OnlineAlbumInfo(ctx context.Context, id int) (models.OnlineAlbumInfo, error) {
+func (s *Service) scheduleAlbumYearRefresh(id int) {
+	if s == nil || s.client == nil || len(s.online) == 0 {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		_ = s.refreshAlbumYearFromOnline(ctx, id)
+	}()
+}
+
+func (s *Service) refreshAlbumYearFromOnline(ctx context.Context, id int) error {
 	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs(func(q *ent.SongQuery) { q.WithArtist() }).Only(ctx)
-	if err != nil {
-		return models.OnlineAlbumInfo{}, err
+	if err != nil || a.Year > 0 {
+		return err
+	}
+	for _, item := range s.searchRemoteAlbums(ctx, a.Title, albumSearchArtistName(a)) {
+		if item.Year <= 0 {
+			continue
+		}
+		_, err := a.Update().SetYear(item.Year).Save(ctx)
+		return err
+	}
+	return nil
+}
+
+func albumSearchArtistName(a *ent.Album) string {
+	if a == nil {
+		return ""
 	}
 	artistName := strings.TrimSpace(a.AlbumArtist)
 	if artistName == "" && a.Edges.Artist != nil {
@@ -2256,21 +2295,10 @@ func (s *Service) OnlineAlbumInfo(ctx context.Context, id int) (models.OnlineAlb
 			}
 		}
 	}
-	candidates := s.searchOnlineAlbums(ctx, a.Title, artistName)
-	if len(candidates) == 0 {
-		return models.OnlineAlbumInfo{}, nil
-	}
-	best := candidates[0]
-	if best.Year > 0 && a.Year == 0 {
-		if updated, updateErr := a.Update().SetYear(best.Year).Save(ctx); updateErr == nil {
-			a = updated
-		}
-	}
-	best.Candidates = candidates
-	return best, nil
+	return strings.TrimSpace(artistName)
 }
 
-func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName string) []models.OnlineAlbumInfo {
+func (s *Service) searchRemoteAlbums(ctx context.Context, title, artistName string) []online.AlbumInfo {
 	ctx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
 	type providerResult struct {
@@ -2302,12 +2330,7 @@ func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName stri
 					seenProvider[key] = true
 					info := online.AlbumInfo{AlbumCandidate: item}
 					if detail, detailErr := provider.AlbumInfo(ctx, item.ID); detailErr == nil {
-						mergeOnlineAlbumInfo(&info, detail)
-					}
-					if len(info.Tracks) == 0 {
-						if songs, songErr := provider.SearchSongs(ctx, info.Title, info.Artist); songErr == nil {
-							info.Tracks = tracksFromOnlineSongs(songs, item)
-						}
+						mergeRemoteAlbumInfo(&info, detail)
 					}
 					itemsOut = append(itemsOut, info)
 				}
@@ -2322,7 +2345,7 @@ func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName stri
 		wg.Wait()
 		close(resultCh)
 	}()
-	out := []models.OnlineAlbumInfo{}
+	out := []online.AlbumInfo{}
 	seen := map[string]bool{}
 	for result := range resultCh {
 		for _, item := range result.items {
@@ -2331,11 +2354,11 @@ func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName stri
 				continue
 			}
 			seen[key] = true
-			out = append(out, mapOnlineAlbum(item))
+			out = append(out, item)
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
-		return onlineAlbumScore(out[i], title, artistName) > onlineAlbumScore(out[j], title, artistName)
+		return remoteAlbumScore(out[i], title, artistName) > remoteAlbumScore(out[j], title, artistName)
 	})
 	if len(out) > 12 {
 		out = out[:12]
@@ -2343,35 +2366,7 @@ func (s *Service) searchOnlineAlbums(ctx context.Context, title, artistName stri
 	return out
 }
 
-func mapOnlineAlbum(item online.AlbumInfo) models.OnlineAlbumInfo {
-	tracks := make([]models.OnlineAlbumTrack, 0, len(item.Tracks))
-	for _, track := range item.Tracks {
-		tracks = append(tracks, models.OnlineAlbumTrack{Title: track.Title, Artist: track.Artist, DurationSeconds: track.DurationSec, TrackNumber: track.TrackNumber})
-	}
-	return models.OnlineAlbumInfo{ID: item.ID, Source: item.Source, Title: item.Title, Artist: item.Artist, Cover: item.Cover, ReleaseDate: item.ReleaseDate, Year: item.Year, Description: item.Description, TrackCount: item.TrackCount, Link: item.Link, Tracks: tracks}
-}
-
-func tracksFromOnlineSongs(songs []online.Song, album online.AlbumCandidate) []online.Track {
-	tracks := []online.Track{}
-	for _, song := range songs {
-		if album.ID != "" && song.AlbumID != "" && song.AlbumID != album.ID {
-			continue
-		}
-		if song.AlbumID == "" && !albumTitleMatchesOnline(album.Title, song.Album) {
-			continue
-		}
-		tracks = append(tracks, online.Track{Title: song.Title, Artist: song.Artist, DurationSec: song.Duration, TrackNumber: len(tracks) + 1})
-	}
-	return tracks
-}
-
-func albumTitleMatchesOnline(want, got string) bool {
-	want = normalizeCompareText(want)
-	got = normalizeCompareText(got)
-	return want != "" && got != "" && (want == got || strings.Contains(want, got) || strings.Contains(got, want))
-}
-
-func mergeOnlineAlbumInfo(base *online.AlbumInfo, detail online.AlbumInfo) {
+func mergeRemoteAlbumInfo(base *online.AlbumInfo, detail online.AlbumInfo) {
 	if strings.TrimSpace(detail.Title) != "" {
 		base.Title = detail.Title
 	}
@@ -2401,7 +2396,7 @@ func mergeOnlineAlbumInfo(base *online.AlbumInfo, detail online.AlbumInfo) {
 	}
 }
 
-func onlineAlbumScore(item models.OnlineAlbumInfo, title, artistName string) int {
+func remoteAlbumScore(item online.AlbumInfo, title, artistName string) int {
 	score := 0
 	if normalizeCompareText(item.Title) == normalizeCompareText(title) {
 		score += 80
@@ -2419,16 +2414,10 @@ func onlineAlbumScore(item models.OnlineAlbumInfo, title, artistName string) int
 		score += 10
 	}
 	if item.Year > 0 {
-		score += 5
+		score += 20
 	}
 	if item.Description != "" {
-		score += 30
-	}
-	if len(item.Tracks) > 0 {
-		score += 35
-		if len(item.Tracks) >= item.TrackCount && item.TrackCount > 0 {
-			score += 10
-		}
+		score += 5
 	}
 	if item.TrackCount > 0 {
 		score += 8

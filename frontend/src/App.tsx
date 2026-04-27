@@ -1,4 +1,4 @@
-import type { ChangeEvent, MouseEvent, ReactNode, UIEvent } from "react";
+import type { ChangeEvent, ReactNode, UIEvent } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Disc,
@@ -63,7 +63,6 @@ import type {
   Theme,
   User,
   WebFont,
-  OnlineAlbumInfo,
 } from "./types";
 import { createT } from "./i18n";
 
@@ -130,8 +129,6 @@ type Collection = {
   coverUrl?: string;
   artistId?: number;
   artistName?: string;
-  onlineAlbumInfo?: OnlineAlbumInfo | null;
-  onlineAlbumInfoLoading?: boolean;
 };
 const themes: { id: Theme; label: ThemeLabel; mode: ThemeMode }[] = [
   { id: "deep-space", label: "deepSpace", mode: "dark" },
@@ -1568,7 +1565,6 @@ export default function App() {
     };
     setCollection(nextCollection);
     setView("collection");
-    const onlineInfoPromise = withTimeout(api.albumOnlineInfo(album.id), 20000).catch(() => null);
     try {
       const items = await withTimeout(api.albumSongs(album.id));
       if (requestId !== collectionRequestRef.current) return;
@@ -1586,27 +1582,9 @@ export default function App() {
         coverUrl: albumCoverUrl(album),
         artistId: album.artist_id,
         artistName: album.artist,
-        onlineAlbumInfoLoading: true,
-      });
-      onlineInfoPromise.then((onlineInfo) => {
-        if (requestId !== collectionRequestRef.current) return;
-        setCollection((currentCollection) => {
-          if (!currentCollection || currentCollection.type !== "album" || currentCollection.id !== album.id) return currentCollection;
-          return {
-            ...currentCollection,
-            subtitle: [
-              album.artist,
-              album.year || onlineInfo?.year ? String(album.year || onlineInfo?.year) : "",
-              `${items.length} ${t("count")}`,
-            ].filter(Boolean).join(" · "),
-            onlineAlbumInfo: onlineInfo,
-            onlineAlbumInfoLoading: false,
-          };
-        });
       });
     } catch (error) {
       setCollectionLoadError(nextCollection, requestId, error);
-      onlineInfoPromise.then(() => undefined);
     }
   }
 
@@ -3580,7 +3558,6 @@ function CollectionView({
   const resolvedBackLabel = backLabel || label;
   const hasResolvableSongs = collection.songs.length > 0 || Boolean(collection.id);
   const [artistView, setArtistView] = useState<"songs" | "albums">("songs");
-  const [albumInfoOpen, setAlbumInfoOpen] = useState(false);
   const artistAlbums = useMemo(
     () =>
       collection.albums?.length
@@ -3605,16 +3582,6 @@ function CollectionView({
           <p>{label}</p>
           <div className="collection-title-row">
             <h1>{collection.title}</h1>
-            {collection.type === "album" ? (
-              <button
-                className="icon-button album-title-info-button"
-                onClick={() => setAlbumInfoOpen(true)}
-                aria-label={t("albumInfo")}
-                title={t("albumInfo")}
-              >
-                <Info />
-              </button>
-            ) : null}
           </div>
           {onOpenCollectionArtist ? (
             <button
@@ -3730,263 +3697,10 @@ function CollectionView({
       ) : (
         <div className="empty collection-loading">{collection.error || t("emptyCollection")}</div>
       )}
-      {collection.type === "album" ? (
-        <AlbumInfoDrawer
-          open={albumInfoOpen}
-          collection={collection}
-          loading={Boolean(collection.onlineAlbumInfoLoading)}
-          t={t}
-          onClose={() => setAlbumInfoOpen(false)}
-        />
-      ) : null}
     </section>
   );
 }
 
-
-function AlbumInfoDrawer({
-  open,
-  collection,
-  loading,
-  t,
-  onClose,
-}: {
-  open: boolean;
-  collection: Collection;
-  loading: boolean;
-  t: ReturnType<typeof createT>;
-  onClose: () => void;
-}) {
-  const info = collection.onlineAlbumInfo;
-  const sources = useMemo(() => {
-    if (!info) return [];
-    const all = info.candidates?.length ? info.candidates : [info];
-    const seen = new Set<string>();
-    const unique: OnlineAlbumInfo[] = [];
-    [info, ...all].forEach((item) => {
-      const key = `${item.source || "unknown"}:${item.id || item.title}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      unique.push(item);
-    });
-    return unique;
-  }, [info]);
-  const [activeSourceKey, setActiveSourceKey] = useState("");
-  useEffect(() => {
-    if (!open || !sources.length) return;
-    const first = `${sources[0].source || "unknown"}:${sources[0].id || sources[0].title}`;
-    setActiveSourceKey((current) => (current && sources.some((item) => `${item.source || "unknown"}:${item.id || item.title}` === current) ? current : first));
-  }, [open, sources]);
-  const activeInfo = sources.find((item) => `${item.source || "unknown"}:${item.id || item.title}` === activeSourceKey) || sources[0] || info;
-  const visibleTracks = activeInfo?.tracks?.length
-    ? activeInfo.tracks.map((track) => ({
-      title: track.title,
-      artist: track.artist,
-      duration_seconds: track.duration_seconds,
-      track_number: track.track_number,
-    }))
-    : collection.songs.map((song, index) => ({
-      title: song.title,
-      artist: song.artist,
-      duration_seconds: Math.round(song.duration_seconds),
-      track_number: index + 1,
-    }));
-  const displayTitle = activeInfo?.title || collection.title;
-  const displayArtist = activeInfo?.artist || collection.artistName || collection.subtitle || "—";
-  const displayYearOrDate = activeInfo?.release_date || (activeInfo?.year ? String(activeInfo.year) : "—");
-  const displayTrackCount = activeInfo?.track_count || visibleTracks.length || collection.songs.length;
-  const displayCover = activeInfo?.cover || collection.coverUrl;
-  const backgroundText = useMemo(() => cleanAlbumBackground(activeInfo?.description || ""), [activeInfo?.description]);
-  const backgroundPages = useMemo(() => paginateAlbumBackground(backgroundText), [backgroundText]);
-  const [backgroundPage, setBackgroundPage] = useState(0);
-  useEffect(() => {
-    setBackgroundPage(0);
-  }, [activeSourceKey, backgroundText, open]);
-  const currentBackgroundPage = backgroundPages[Math.min(backgroundPage, Math.max(0, backgroundPages.length - 1))] || "";
-  const hasInfo = Boolean(displayTitle || backgroundText || activeInfo?.source || visibleTracks.length);
-  const stop = (event: MouseEvent) => event.stopPropagation();
-  return (
-    <div
-      className={`album-info-overlay ${open ? "open" : ""}`}
-      aria-hidden={!open}
-      onClick={onClose}
-    >
-      <aside
-        className="album-info-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("albumInfo")}
-        onClick={stop}
-      >
-        <div className="album-info-head">
-          <div>
-            <p>{t("onlineAlbumInfo")}</p>
-            <h3>{displayTitle}</h3>
-          </div>
-          <button className="icon-button" onClick={onClose} aria-label={t("close")}>
-            <X />
-          </button>
-        </div>
-        {hasInfo ? (
-          <div className="album-info-body">
-            <div className="album-info-top">
-              <div className="album-info-fields">
-                <InfoRow label={t("artist")} value={displayArtist} />
-                <InfoRow label={t("releaseDate")} value={displayYearOrDate} />
-                <InfoRow label={t("trackCount")} value={displayTrackCount ? String(displayTrackCount) : "—"} />
-                <InfoRow label={t("source")} value={activeInfo?.source || t("localAlbumTracks")} />
-              </div>
-            </div>
-            <section
-              className="album-background-card"
-              style={displayCover ? ({ "--album-bg": `url(${displayCover})` } as React.CSSProperties) : undefined}
-            >
-              <div className="album-background-copy">
-                <div className="album-background-toolbar">
-                  <button
-                    className="album-page-arrow"
-                    onClick={() => setBackgroundPage((page) => Math.max(0, page - 1))}
-                    disabled={backgroundPage <= 0}
-                    aria-label={t("previous")}
-                    title={t("previous")}
-                  >
-                    <ArrowLeft />
-                  </button>
-                  <h4>
-                    {t("albumBackground")}
-                    <span>— {activeInfo?.source || t("localAlbumTracks")}</span>
-                  </h4>
-                  <button
-                    className="album-page-arrow"
-                    onClick={() => setBackgroundPage((page) => Math.min(backgroundPages.length - 1, page + 1))}
-                    disabled={backgroundPages.length <= 1 || backgroundPage >= backgroundPages.length - 1}
-                    aria-label={t("next")}
-                    title={t("next")}
-                  >
-                    <ArrowLeft className="flip-x" />
-                  </button>
-                </div>
-                {currentBackgroundPage ? (
-                  <div className="album-background-text">
-                    {currentBackgroundPage.split(/\n{2,}/).map((paragraph, index) => (
-                      <p key={`${index}-${paragraph.slice(0, 12)}`}>{paragraph}</p>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="album-info-note">{t("noAlbumDescription")}</p>
-                )}
-              </div>
-              {backgroundPages.length > 1 ? (
-                <div className="album-background-pager">
-                  <span>{Math.min(backgroundPage + 1, backgroundPages.length)} / {backgroundPages.length}</span>
-                </div>
-              ) : null}
-            </section>
-
-            {visibleTracks.length ? (
-              <section className="album-info-section album-info-tracks">
-                <h4>{activeInfo?.tracks?.length ? t("songs") : t("localAlbumTracks")}</h4>
-                <div>
-                  {visibleTracks.map((track, index) => (
-                    <div key={`${track.track_number || index}-${track.title}`}>
-                      <span>{track.track_number || index + 1}</span>
-                      <strong>{track.title}</strong>
-                      <em>{track.artist || displayArtist}</em>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-            {sources.length > 1 ? (
-              <section className="album-info-source-panel" aria-label={t("source")}>
-                <div>
-                  <strong>{t("source")}</strong>
-                  <span>{sources.length}</span>
-                </div>
-                <div className="album-info-source-list">
-                  {sources.map((candidate, index) => {
-                    const key = `${candidate.source || "unknown"}:${candidate.id || candidate.title}`;
-                    return (
-                      <button
-                        key={key}
-                        className={key === activeSourceKey ? "active" : ""}
-                        onClick={() => setActiveSourceKey(key)}
-                      >
-                        <strong>{candidate.source || t("source")}</strong>
-                        <span>{candidate.artist || candidate.title || `${t("candidate")} ${index + 1}`}</span>
-                        <em>{t("candidate")} {index + 1}</em>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-            {activeInfo?.link ? (
-              <a
-                className="album-info-link"
-                href={activeInfo.link}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t("openSourcePage")}
-              </a>
-            ) : null}
-          </div>
-        ) : loading ? (
-          <div className="album-info-empty">{t("loading")}</div>
-        ) : (
-          <div className="album-info-empty">{t("noAlbumInfo")}</div>
-        )}
-      </aside>
-    </div>
-  );
-}
-
-
-function cleanAlbumBackground(value: string) {
-  return value
-    .replace(/\\+\s*;?/g, "\n")
-    .replace(/\r\n?/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function paginateAlbumBackground(value: string, pageSize = 260) {
-  if (!value) return [];
-  const paragraphs = value.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
-  const pages: string[] = [];
-  let current = "";
-  paragraphs.forEach((paragraph) => {
-    if (!current) {
-      current = paragraph;
-      return;
-    }
-    if (current.length + paragraph.length + 2 <= pageSize) {
-      current += `\n\n${paragraph}`;
-      return;
-    }
-    pages.push(current);
-    current = paragraph;
-  });
-  if (current) pages.push(current);
-  return pages.flatMap((page) => {
-    if (page.length <= pageSize * 1.35) return [page];
-    const chunks: string[] = [];
-    for (let i = 0; i < page.length; i += pageSize) {
-      chunks.push(page.slice(i, i + pageSize).trim());
-    }
-    return chunks.filter(Boolean);
-  });
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="album-info-row">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
 
 function CollectionCover({ collection }: { collection: Collection }) {
   const firstSong = collection.songs[0];

@@ -56,27 +56,6 @@ export interface Album {
   song_count: number;
 }
 
-export interface OnlineAlbumTrack {
-  title: string;
-  artist: string;
-  duration_seconds: number;
-  track_number: number;
-}
-
-export interface OnlineAlbumInfo {
-  id: string;
-  source: string;
-  title: string;
-  artist: string;
-  cover: string;
-  release_date: string;
-  year: number;
-  description: string;
-  track_count: number;
-  link: string;
-  tracks?: OnlineAlbumTrack[];
-  candidates?: OnlineAlbumInfo[];
-}
 export interface Artist {
   id: number;
   name: string;
