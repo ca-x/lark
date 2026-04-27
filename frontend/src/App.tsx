@@ -36,7 +36,15 @@ import {
 } from "@phosphor-icons/react";
 import WavesurferPlayer from "@wavesurfer/react";
 import { api } from "./services/api";
-import { setLazycatImmersive, syncLazycatChrome } from "./services/lazycat";
+import {
+  hasClientMediaSession,
+  setClientActionHandler,
+  setClientMediaMetadata,
+  setClientPlaybackState,
+  setClientPositionState,
+  setLazycatImmersive,
+  syncLazycatChrome,
+} from "./services/lazycat";
 import type {
   Album,
   Artist,
@@ -778,11 +786,10 @@ export default function App() {
   }, [lyricsFullScreen]);
 
   useEffect(() => {
-    const session = navigator.mediaSession;
-    if (!session) return;
-    if (current && typeof MediaMetadata !== "undefined") {
+    if (!hasClientMediaSession()) return;
+    if (current) {
       const artwork = coverUrl(current);
-      session.metadata = new MediaMetadata({
+      setClientMediaMetadata({
         title: current.title || t("nowPlaying"),
         artist: current.artist || t("artist"),
         album: current.album || t("album"),
@@ -797,7 +804,7 @@ export default function App() {
           : [],
       });
     } else {
-      session.metadata = null;
+      setClientMediaMetadata(null);
     }
     const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
       play: () => setPlaying(true),
@@ -819,37 +826,24 @@ export default function App() {
       },
     };
     Object.entries(handlers).forEach(([action, handler]) => {
-      try {
-        session.setActionHandler(action as MediaSessionAction, handler ?? null);
-      } catch {
-        // Some WebViews expose only a subset of Media Session actions.
-      }
+      setClientActionHandler(action as MediaSessionAction, handler ?? null);
     });
     return () => {
       Object.keys(handlers).forEach((action) => {
-        try {
-          session.setActionHandler(action as MediaSessionAction, null);
-        } catch {
-          // Ignore unsupported actions during cleanup.
-        }
+        setClientActionHandler(action as MediaSessionAction, null);
       });
     };
   }, [current?.id, t]);
 
   useEffect(() => {
-    const session = navigator.mediaSession;
-    if (!session) return;
-    session.playbackState = playing ? "playing" : current ? "paused" : "none";
+    if (!hasClientMediaSession()) return;
+    setClientPlaybackState(playing ? "playing" : current ? "paused" : "none");
     if (!current || !duration) return;
-    try {
-      session.setPositionState({
-        duration,
-        playbackRate: audioRef.current?.playbackRate || 1,
-        position: Math.min(progress, duration),
-      });
-    } catch {
-      // Position state is best-effort across mobile WebViews.
-    }
+    setClientPositionState({
+      duration,
+      playbackRate: audioRef.current?.playbackRate || 1,
+      position: Math.min(progress, duration),
+    });
   }, [current?.id, duration, playing, progress]);
 
   useEffect(() => {

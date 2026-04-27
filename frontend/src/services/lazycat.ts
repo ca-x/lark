@@ -1,6 +1,17 @@
 import type { Theme } from "../types";
 
+type MediaAction = MediaSessionAction;
+type MediaHandler = MediaSessionActionHandler;
+
+type LazycatMediaSession = {
+  setMetadata?: (metadata: string) => unknown;
+  setPlaybackState?: (state: MediaSessionPlaybackState) => unknown;
+  setPositionState?: (state: string) => unknown;
+  setActionHandler?: (action: MediaAction) => unknown;
+};
+
 type LazycatWindow = Window & {
+  lzc_media_session?: LazycatMediaSession;
   lzc_window?: {
     SetStatusBarColor?: (color: string) => unknown;
     EnableWebviewResize?: (enable: boolean) => unknown;
@@ -17,6 +28,9 @@ type LazycatWindow = Window & {
     };
   };
 };
+
+const lazycatMediaHandlers = new Map<MediaAction, MediaHandler | null>();
+let lazycatMediaEventsBound = false;
 
 function lazycatWindow() {
   return window as LazycatWindow;
@@ -53,10 +67,28 @@ function toHexColor(value: string) {
     .replace(/^/, "#");
 }
 
+function bindLazycatMediaEvents() {
+  if (lazycatMediaEventsBound) return;
+  lazycatMediaEventsBound = true;
+  window.addEventListener("lzc_media_session_event", (event) => {
+    const customEvent = event as CustomEvent<{ eventType?: MediaAction; data?: unknown }>;
+    const action = customEvent.detail?.eventType;
+    if (!action) return;
+    const handler = lazycatMediaHandlers.get(action);
+    if (handler) {
+      handler({ action, ...(customEvent.detail?.data as object | undefined) } as MediaSessionActionDetails);
+    }
+  });
+}
+
+function lazycatMediaSession() {
+  return lazycatWindow().lzc_media_session;
+}
+
 export function syncLazycatChrome(theme: Theme) {
   ensureMeta("lzcapp-disable-dark", "true");
   ensureMeta("lzcapp-navigation-bar-scheme", "statusBarOnly");
-  ensureMeta("lzcapp-state-bar-scheme", "sink");
+  ensureMeta("lzcapp-state-bar-scheme", "default");
 
   const style = window.getComputedStyle(document.documentElement);
   const bg = toHexColor(style.getPropertyValue("--bg"));
@@ -85,4 +117,48 @@ export function setLazycatImmersive(immersive: boolean) {
       params: [!immersive],
     }),
   );
+}
+
+export function hasClientMediaSession() {
+  return Boolean(lazycatMediaSession() || navigator.mediaSession);
+}
+
+export function setClientMediaMetadata(options: MediaMetadataInit | null) {
+  const lazycat = lazycatMediaSession();
+  if (lazycat?.setMetadata && options) {
+    safeCall(() => lazycat.setMetadata?.(JSON.stringify(options)));
+    return;
+  }
+  if (!navigator.mediaSession) return;
+  navigator.mediaSession.metadata =
+    options && typeof MediaMetadata !== "undefined" ? new MediaMetadata(options) : null;
+}
+
+export function setClientPlaybackState(playbackState: MediaSessionPlaybackState) {
+  const lazycat = lazycatMediaSession();
+  if (lazycat?.setPlaybackState) {
+    safeCall(() => lazycat.setPlaybackState?.(playbackState));
+    return;
+  }
+  if (navigator.mediaSession) navigator.mediaSession.playbackState = playbackState;
+}
+
+export function setClientPositionState(options: MediaPositionState) {
+  const lazycat = lazycatMediaSession();
+  if (lazycat?.setPositionState) {
+    safeCall(() => lazycat.setPositionState?.(JSON.stringify(options)));
+    return;
+  }
+  safeCall(() => navigator.mediaSession?.setPositionState?.(options));
+}
+
+export function setClientActionHandler(action: MediaAction, handler: MediaHandler | null) {
+  const lazycat = lazycatMediaSession();
+  if (lazycat?.setActionHandler) {
+    bindLazycatMediaEvents();
+    lazycatMediaHandlers.set(action, handler);
+    safeCall(() => lazycat.setActionHandler?.(action));
+    return;
+  }
+  safeCall(() => navigator.mediaSession?.setActionHandler?.(action, handler));
 }
