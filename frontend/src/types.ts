@@ -4,11 +4,21 @@ export type Theme =
   | "neon-coral"
   | "arctic-aurora"
   | "carbon-volt"
+  | "apple-dark"
+  | "spotify-dark"
+  | "netease-dark"
+  | "winamp-dark"
+  | "foobar-dark"
   | "milk-porcelain"
   | "oat-latte"
   | "mint-soda"
   | "sakura-washi"
-  | "dusk-amber";
+  | "dusk-amber"
+  | "apple-light"
+  | "spotify-light"
+  | "netease-light"
+  | "winamp-light"
+  | "foobar-light";
 export type Language = "zh-CN" | "en-US";
 
 export interface Song {

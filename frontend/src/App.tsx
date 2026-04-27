@@ -89,11 +89,22 @@ type ThemeLabel =
   | "neonCoral"
   | "arcticAurora"
   | "carbonVolt"
+  | "appleDark"
+  | "spotifyDark"
+  | "neteaseDark"
+  | "winampDark"
+  | "foobarDark"
   | "milkPorcelain"
   | "oatLatte"
   | "mintSoda"
   | "sakuraWashi"
-  | "duskAmber";
+  | "duskAmber"
+  | "appleLight"
+  | "spotifyLight"
+  | "neteaseLight"
+  | "winampLight"
+  | "foobarLight";
+type ThemeMode = "dark" | "light";
 type SettingsTab = "profile" | "users" | "site";
 type Collection = {
   type: "playlist" | "album" | "artist";
@@ -109,24 +120,36 @@ type Collection = {
   artistId?: number;
   artistName?: string;
 };
-const themes: { id: Theme; label: ThemeLabel }[] = [
-  { id: "deep-space", label: "deepSpace" },
-  { id: "amber-film", label: "amberFilm" },
-  { id: "neon-coral", label: "neonCoral" },
-  { id: "arctic-aurora", label: "arcticAurora" },
-  { id: "carbon-volt", label: "carbonVolt" },
-  { id: "milk-porcelain", label: "milkPorcelain" },
-  { id: "oat-latte", label: "oatLatte" },
-  { id: "mint-soda", label: "mintSoda" },
-  { id: "sakura-washi", label: "sakuraWashi" },
-  { id: "dusk-amber", label: "duskAmber" },
+const themes: { id: Theme; label: ThemeLabel; mode: ThemeMode }[] = [
+  { id: "deep-space", label: "deepSpace", mode: "dark" },
+  { id: "amber-film", label: "amberFilm", mode: "dark" },
+  { id: "neon-coral", label: "neonCoral", mode: "dark" },
+  { id: "arctic-aurora", label: "arcticAurora", mode: "dark" },
+  { id: "carbon-volt", label: "carbonVolt", mode: "dark" },
+  { id: "apple-dark", label: "appleDark", mode: "dark" },
+  { id: "spotify-dark", label: "spotifyDark", mode: "dark" },
+  { id: "netease-dark", label: "neteaseDark", mode: "dark" },
+  { id: "winamp-dark", label: "winampDark", mode: "dark" },
+  { id: "foobar-dark", label: "foobarDark", mode: "dark" },
+  { id: "milk-porcelain", label: "milkPorcelain", mode: "light" },
+  { id: "oat-latte", label: "oatLatte", mode: "light" },
+  { id: "mint-soda", label: "mintSoda", mode: "light" },
+  { id: "sakura-washi", label: "sakuraWashi", mode: "light" },
+  { id: "dusk-amber", label: "duskAmber", mode: "light" },
+  { id: "apple-light", label: "appleLight", mode: "light" },
+  { id: "spotify-light", label: "spotifyLight", mode: "light" },
+  { id: "netease-light", label: "neteaseLight", mode: "light" },
+  { id: "winamp-light", label: "winampLight", mode: "light" },
+  { id: "foobar-light", label: "foobarLight", mode: "light" },
 ];
 const themeAliases: Record<string, Theme> = {
-  spotify: "deep-space",
-  apple: "arctic-aurora",
+  spotify: "spotify-dark",
+  apple: "apple-dark",
   vinyl: "amber-film",
   roon: "deep-space",
-  netease: "neon-coral",
+  netease: "netease-dark",
+  winamp: "winamp-dark",
+  foobar: "foobar-dark",
   midnight: "deep-space",
   paper: "amber-film",
   porcelain: "milk-porcelain",
@@ -3249,11 +3272,21 @@ function PlayerMood({
     "neon-coral": "SPECTRUM",
     "arctic-aurora": "AURORA",
     "carbon-volt": "BPM 128",
+    "apple-dark": "LOSSLESS",
+    "spotify-dark": "LIVE",
+    "netease-dark": "CLOUD",
+    "winamp-dark": "CLASSIC",
+    "foobar-dark": "BITRATE",
     "milk-porcelain": "MINIMAL",
     "oat-latte": "WAVEFORM",
     "mint-soda": "FRESH",
     "sakura-washi": "WASHI",
     "dusk-amber": "19:42",
+    "apple-light": "LOSSLESS",
+    "spotify-light": "LIVE",
+    "netease-light": "CLOUD",
+    "winamp-light": "CLASSIC",
+    "foobar-light": "BITRATE",
   };
   const colors = waveThemeColors(theme);
   const waveformPeaks = useMemo(
@@ -3327,11 +3360,21 @@ function waveThemeColors(theme: Theme) {
     "neon-coral": { wave: "rgba(192,80,112,.35)", progress: "#d45080", cursor: "#f5d0e0" },
     "arctic-aurora": { wave: "rgba(58,144,184,.35)", progress: "#3a9ac8", cursor: "#c8e8f5" },
     "carbon-volt": { wave: "rgba(53,160,80,.32)", progress: "#35a850", cursor: "#b8f0c8" },
+    "apple-dark": { wave: "rgba(252,60,68,.34)", progress: "#FC3C44", cursor: "#FFFFFF" },
+    "spotify-dark": { wave: "rgba(29,185,84,.34)", progress: "#1DB954", cursor: "#FFFFFF" },
+    "netease-dark": { wave: "rgba(194,12,12,.34)", progress: "#C20C0C", cursor: "#FFFFFF" },
+    "winamp-dark": { wave: "rgba(0,255,0,.32)", progress: "#00FF00", cursor: "#FFFF00" },
+    "foobar-dark": { wave: "rgba(0,122,204,.34)", progress: "#007ACC", cursor: "#D4D4D4" },
     "milk-porcelain": { wave: "rgba(154,149,142,.35)", progress: "#2c2a27", cursor: "#7a7670" },
     "oat-latte": { wave: "rgba(158,125,94,.35)", progress: "#3d2b1f", cursor: "#c4894a" },
     "mint-soda": { wave: "rgba(106,158,131,.35)", progress: "#1f8c5e", cursor: "#5aad84" },
     "sakura-washi": { wave: "rgba(158,104,120,.34)", progress: "#b04060", cursor: "#e8b0c0" },
     "dusk-amber": { wave: "rgba(158,112,64,.34)", progress: "#c46020", cursor: "#f0b050" },
+    "apple-light": { wave: "rgba(252,60,68,.30)", progress: "#FC3C44", cursor: "#E0343B" },
+    "spotify-light": { wave: "rgba(29,185,84,.30)", progress: "#1DB954", cursor: "#169C45" },
+    "netease-light": { wave: "rgba(194,12,12,.30)", progress: "#C20C0C", cursor: "#A00A0A" },
+    "winamp-light": { wave: "rgba(32,144,192,.30)", progress: "#2090C0", cursor: "#005080" },
+    "foobar-light": { wave: "rgba(0,122,204,.30)", progress: "#007ACC", cursor: "#005FA3" },
   };
   return map[theme];
 }
@@ -4365,8 +4408,8 @@ function SettingsPanel({
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
   t: ReturnType<typeof createT>;
 }) {
-  const darkThemes = themes.slice(0, 5);
-  const lightThemes = themes.slice(5);
+  const darkThemes = themes.filter((theme) => theme.mode === "dark");
+  const lightThemes = themes.filter((theme) => theme.mode === "light");
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [nickname, setNickname] = useState(user.nickname || user.username);
