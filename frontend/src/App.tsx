@@ -3791,7 +3791,19 @@ function AlbumInfoDrawer({
       duration_seconds: Math.round(song.duration_seconds),
       track_number: index + 1,
     }));
-  const hasInfo = Boolean(activeInfo && (activeInfo.title || activeInfo.description || activeInfo.cover || activeInfo.source || visibleTracks.length));
+  const displayTitle = activeInfo?.title || collection.title;
+  const displayArtist = activeInfo?.artist || collection.artistName || collection.subtitle || "—";
+  const displayYearOrDate = activeInfo?.release_date || (activeInfo?.year ? String(activeInfo.year) : "—");
+  const displayTrackCount = activeInfo?.track_count || visibleTracks.length || collection.songs.length;
+  const displayCover = activeInfo?.cover || collection.coverUrl;
+  const backgroundText = useMemo(() => cleanAlbumBackground(activeInfo?.description || ""), [activeInfo?.description]);
+  const backgroundPages = useMemo(() => paginateAlbumBackground(backgroundText), [backgroundText]);
+  const [backgroundPage, setBackgroundPage] = useState(0);
+  useEffect(() => {
+    setBackgroundPage(0);
+  }, [activeSourceKey, backgroundText, open]);
+  const currentBackgroundPage = backgroundPages[Math.min(backgroundPage, Math.max(0, backgroundPages.length - 1))] || "";
+  const hasInfo = Boolean(displayTitle || backgroundText || activeInfo?.source || visibleTracks.length);
   const stop = (event: MouseEvent) => event.stopPropagation();
   return (
     <div
@@ -3809,14 +3821,82 @@ function AlbumInfoDrawer({
         <div className="album-info-head">
           <div>
             <p>{t("onlineAlbumInfo")}</p>
-            <h3>{activeInfo?.title || collection.title}</h3>
+            <h3>{displayTitle}</h3>
           </div>
           <button className="icon-button" onClick={onClose} aria-label={t("close")}>
             <X />
           </button>
         </div>
-        {hasInfo && activeInfo ? (
+        {hasInfo ? (
           <div className="album-info-body">
+            <div className="album-info-top">
+              <div className="album-info-fields">
+                <InfoRow label={t("artist")} value={displayArtist} />
+                <InfoRow label={t("releaseDate")} value={displayYearOrDate} />
+                <InfoRow label={t("trackCount")} value={displayTrackCount ? String(displayTrackCount) : "—"} />
+                <InfoRow label={t("source")} value={activeInfo?.source || t("localAlbumTracks")} />
+              </div>
+            </div>
+            <section
+              className="album-background-card"
+              style={displayCover ? ({ "--album-bg": `url(${displayCover})` } as React.CSSProperties) : undefined}
+            >
+              <div className="album-background-copy">
+                <div className="album-background-toolbar">
+                  <button
+                    className="album-page-arrow"
+                    onClick={() => setBackgroundPage((page) => Math.max(0, page - 1))}
+                    disabled={backgroundPage <= 0}
+                    aria-label={t("previous")}
+                    title={t("previous")}
+                  >
+                    <ArrowLeft />
+                  </button>
+                  <h4>
+                    {t("albumBackground")}
+                    <span>— {activeInfo?.source || t("localAlbumTracks")}</span>
+                  </h4>
+                  <button
+                    className="album-page-arrow"
+                    onClick={() => setBackgroundPage((page) => Math.min(backgroundPages.length - 1, page + 1))}
+                    disabled={backgroundPages.length <= 1 || backgroundPage >= backgroundPages.length - 1}
+                    aria-label={t("next")}
+                    title={t("next")}
+                  >
+                    <ArrowLeft className="flip-x" />
+                  </button>
+                </div>
+                {currentBackgroundPage ? (
+                  <div className="album-background-text">
+                    {currentBackgroundPage.split(/\n{2,}/).map((paragraph, index) => (
+                      <p key={`${index}-${paragraph.slice(0, 12)}`}>{paragraph}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="album-info-note">{t("noAlbumDescription")}</p>
+                )}
+              </div>
+              {backgroundPages.length > 1 ? (
+                <div className="album-background-pager">
+                  <span>{Math.min(backgroundPage + 1, backgroundPages.length)} / {backgroundPages.length}</span>
+                </div>
+              ) : null}
+            </section>
+
+            {visibleTracks.length ? (
+              <section className="album-info-section album-info-tracks">
+                <h4>{activeInfo?.tracks?.length ? t("songs") : t("localAlbumTracks")}</h4>
+                <div>
+                  {visibleTracks.map((track, index) => (
+                    <div key={`${track.track_number || index}-${track.title}`}>
+                      <span>{track.track_number || index + 1}</span>
+                      <strong>{track.title}</strong>
+                      <em>{track.artist || displayArtist}</em>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
             {sources.length > 1 ? (
               <section className="album-info-source-panel" aria-label={t("source")}>
                 <div>
@@ -3841,47 +3921,7 @@ function AlbumInfoDrawer({
                 </div>
               </section>
             ) : null}
-            <div className="album-info-top">
-              <div className="album-info-cover">
-                {activeInfo.cover ? <LazyCoverImage src={activeInfo.cover} /> : <Record weight="fill" />}
-              </div>
-              <div className="album-info-fields">
-                <InfoRow label={t("artist")} value={activeInfo.artist || collection.artistName || "—"} />
-                <InfoRow
-                  label={t("releaseDate")}
-                  value={activeInfo.release_date || (activeInfo.year ? String(activeInfo.year) : "—")}
-                />
-                <InfoRow
-                  label={t("trackCount")}
-                  value={activeInfo.track_count ? String(activeInfo.track_count) : String(collection.songs.length)}
-                />
-                <InfoRow label={t("source")} value={activeInfo.source || "—"} />
-              </div>
-            </div>
-            <section className="album-info-section">
-              <h4>{t("description")}</h4>
-              {activeInfo.description ? (
-                <p>{activeInfo.description}</p>
-              ) : (
-                <p className="album-info-note">{t("noAlbumDescription")}</p>
-              )}
-            </section>
-
-            {visibleTracks.length ? (
-              <section className="album-info-section album-info-tracks">
-                <h4>{activeInfo.tracks?.length ? t("songs") : t("localAlbumTracks")}</h4>
-                <div>
-                  {visibleTracks.map((track, index) => (
-                    <div key={`${track.track_number || index}-${track.title}`}>
-                      <span>{track.track_number || index + 1}</span>
-                      <strong>{track.title}</strong>
-                      <em>{track.artist || activeInfo.artist || collection.artistName || "—"}</em>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-            {activeInfo.link ? (
+            {activeInfo?.link ? (
               <a
                 className="album-info-link"
                 href={activeInfo.link}
@@ -3900,6 +3940,43 @@ function AlbumInfoDrawer({
       </aside>
     </div>
   );
+}
+
+
+function cleanAlbumBackground(value: string) {
+  return value
+    .replace(/\\+\s*;?/g, "\n")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function paginateAlbumBackground(value: string, pageSize = 260) {
+  if (!value) return [];
+  const paragraphs = value.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean);
+  const pages: string[] = [];
+  let current = "";
+  paragraphs.forEach((paragraph) => {
+    if (!current) {
+      current = paragraph;
+      return;
+    }
+    if (current.length + paragraph.length + 2 <= pageSize) {
+      current += `\n\n${paragraph}`;
+      return;
+    }
+    pages.push(current);
+    current = paragraph;
+  });
+  if (current) pages.push(current);
+  return pages.flatMap((page) => {
+    if (page.length <= pageSize * 1.35) return [page];
+    const chunks: string[] = [];
+    for (let i = 0; i < page.length; i += pageSize) {
+      chunks.push(page.slice(i, i + pageSize).trim());
+    }
+    return chunks.filter(Boolean);
+  });
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
