@@ -36,6 +36,7 @@ import {
 } from "@phosphor-icons/react";
 import WavesurferPlayer from "@wavesurfer/react";
 import { api } from "./services/api";
+import { setLazycatImmersive, syncLazycatChrome } from "./services/lazycat";
 import type {
   Album,
   Artist,
@@ -541,6 +542,8 @@ export default function App() {
   const lyricFollowPausedUntil = useRef(0);
   const messageTimerRef = useRef<number | null>(null);
   const resumeSeekRef = useRef(0);
+  const progressRef = useRef(0);
+  const durationRef = useRef(0);
   const collectionRequestRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
   const pendingAutoplayRef = useRef(false);
@@ -555,6 +558,8 @@ export default function App() {
   const playbackStartModeRef = useRef<PlaybackStartMode>("resume");
   const audioOutputSnapshotRef = useRef<AudioOutputSnapshot | null>(null);
   currentRef.current = current;
+  progressRef.current = progress;
+  durationRef.current = duration || current?.duration_seconds || 0;
   queueRef.current = queue;
   playModeRef.current = playMode;
   playingRef.current = playing;
@@ -606,6 +611,7 @@ export default function App() {
     document.documentElement.dataset.theme = settings.theme;
     document.documentElement.lang = settings.language;
     document.title = `${t("brand")} Music`;
+    window.requestAnimationFrame(() => syncLazycatChrome(settings.theme));
     const fontFamily = sanitizeFontFamily(settings.web_font_family);
     const fontURL = sanitizeUploadedFontURL(settings.web_font_url);
     const fontStyleId = "lark-web-font";
@@ -765,6 +771,86 @@ export default function App() {
     }, 1000);
     return () => window.clearInterval(timer);
   }, [sleepTimerMins]);
+
+  useEffect(() => {
+    setLazycatImmersive(lyricsFullScreen);
+    return () => setLazycatImmersive(false);
+  }, [lyricsFullScreen]);
+
+  useEffect(() => {
+    const session = navigator.mediaSession;
+    if (!session) return;
+    if (current && typeof MediaMetadata !== "undefined") {
+      const artwork = coverUrl(current);
+      session.metadata = new MediaMetadata({
+        title: current.title || t("nowPlaying"),
+        artist: current.artist || t("artist"),
+        album: current.album || t("album"),
+        artwork: artwork
+          ? [
+              {
+                src: new URL(artwork, window.location.origin).toString(),
+                sizes: "512x512",
+                type: "image/jpeg",
+              },
+            ]
+          : [],
+      });
+    } else {
+      session.metadata = null;
+    }
+    const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
+      play: () => setPlaying(true),
+      pause: () => setPlaying(false),
+      stop: () => setPlaying(false),
+      previoustrack: () => next(-1),
+      nexttrack: () => next(1),
+      seekbackward: (details) =>
+        seekTo(Math.max(0, progressRef.current - (details.seekOffset || 10))),
+      seekforward: (details) =>
+        seekTo(
+          Math.min(
+            durationRef.current || progressRef.current + 10,
+            progressRef.current + (details.seekOffset || 10),
+          ),
+        ),
+      seekto: (details) => {
+        if (typeof details.seekTime === "number") seekTo(details.seekTime);
+      },
+    };
+    Object.entries(handlers).forEach(([action, handler]) => {
+      try {
+        session.setActionHandler(action as MediaSessionAction, handler ?? null);
+      } catch {
+        // Some WebViews expose only a subset of Media Session actions.
+      }
+    });
+    return () => {
+      Object.keys(handlers).forEach((action) => {
+        try {
+          session.setActionHandler(action as MediaSessionAction, null);
+        } catch {
+          // Ignore unsupported actions during cleanup.
+        }
+      });
+    };
+  }, [current?.id, t]);
+
+  useEffect(() => {
+    const session = navigator.mediaSession;
+    if (!session) return;
+    session.playbackState = playing ? "playing" : current ? "paused" : "none";
+    if (!current || !duration) return;
+    try {
+      session.setPositionState({
+        duration,
+        playbackRate: audioRef.current?.playbackRate || 1,
+        position: Math.min(progress, duration),
+      });
+    } catch {
+      // Position state is best-effort across mobile WebViews.
+    }
+  }, [current?.id, duration, playing, progress]);
 
   useEffect(() => {
     return () => {

@@ -8,6 +8,7 @@
   --player-h: 116px;
   --nav-h: 74px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --lzc-safe-right: calc(var(--lzc-client-safearea-view-right, 0px) + var(--lzc-client-safearea-view-width, 0px));
   --cover-url: linear-gradient(135deg, transparent, transparent);
   --ease: cubic-bezier(.2,.8,.2,1);
   --vu-low: #4aa889;
@@ -62,7 +63,7 @@ nav button svg { width:22px; height:22px; flex:0 0 auto; }
 nav button.active, nav button:hover { color:var(--text); background:color-mix(in srgb, var(--accent) 18%, var(--panel2)); }
 nav button:active, .media-card:active, .cover-button:active { transform:scale(.98); }
 .main { grid-column:2; grid-row:1; overflow:auto; min-width:0; padding:24px; scroll-padding-bottom:24px; }
-.topbar { display:grid; grid-template-columns:minmax(160px, auto) minmax(260px, 520px); gap:16px; align-items:center; position:sticky; top:-24px; z-index:5; padding:0 0 18px; background:linear-gradient(var(--panel) 72%, transparent); }
+.topbar { display:grid; grid-template-columns:minmax(160px, auto) minmax(260px, 520px); gap:16px; align-items:center; position:sticky; top:-24px; z-index:5; padding:0 max(0px, var(--lzc-safe-right)) 18px 0; background:linear-gradient(var(--panel) 72%, transparent); }
 .top-title span { color:var(--muted); font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
 .top-title h1 { margin:2px 0 0; font-size:clamp(26px, 3vw, 42px); line-height:1; letter-spacing:-.06em; }
 .top-title.compact { min-height:44px; display:flex; align-items:center; }
