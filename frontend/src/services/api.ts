@@ -59,11 +59,16 @@ export const api = {
   folderDirectory: (path = '.') => request<FolderDirectory>(`/api/folders/tree?path=${encodeURIComponent(path)}`),
   folderSongs: (path: string) => request<Song[]>(`/api/folders/songs?path=${encodeURIComponent(path)}`),
   albums: (limit = 0) => request<Album[]>(`/api/albums${limit > 0 ? `?limit=${limit}` : ''}`),
-  albumsPage: (page = 1, limit = 100) => request<AlbumPage>(`/api/albums/page?page=${page}&limit=${limit}`),
+  albumsPage: (page = 1, limit = 100, artistId = 0) => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (artistId > 0) params.set('artist_id', String(artistId))
+    return request<AlbumPage>(`/api/albums/page?${params.toString()}`)
+  },
   album: (id: number) => request<Album>(`/api/albums/${id}`),
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),
   artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
   artistsPage: (page = 1, limit = 100) => request<ArtistPage>(`/api/artists/page?page=${page}&limit=${limit}`),
+  searchArtists: (q = '', limit = 20) => request<Artist[]>(`/api/artists/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   artistSongs: (id: number) => request<Song[]>(`/api/artists/${id}/songs`),
   favoriteArtist: (id: number) => request<Artist>(`/api/artists/${id}/favorite`, { method: 'POST' }),
   favoriteAlbum: (id: number) => request<Album>(`/api/albums/${id}/favorite`, { method: 'POST' }),

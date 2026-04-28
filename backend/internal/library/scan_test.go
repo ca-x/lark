@@ -156,7 +156,7 @@ func TestCleanupMissingLibraryEntriesRemovesEmptyAlbumsWithoutMissingSongs(t *te
 	if err := service.cleanupMissingLibraryEntries(ctx, nil, map[string]bool{}); err != nil {
 		t.Fatal(err)
 	}
-	page, err := service.AlbumsPage(ctx, 0, 10, 0)
+	page, err := service.AlbumsPage(ctx, 0, 10, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,6 +335,14 @@ func TestCleanMetadataTextDecodesUTF8ReadAsLatin1(t *testing.T) {
 	got := cleanMetadataText(string(mojibake))
 	if got != "你好，世界" {
 		t.Fatalf("expected UTF-8 mojibake to decode, got %q", got)
+	}
+}
+
+func TestCleanMetadataTextDecodesMixedGBKLyricMojibake(t *testing.T) {
+	got := cleanMetadataText("[00:01.00]ÄãºÃ love 你\n[00:02.00]goodbye")
+	want := "[00:01.00]你好 love 你\n[00:02.00]goodbye"
+	if got != want {
+		t.Fatalf("expected mixed GBK lyric mojibake to decode, got %q", got)
 	}
 }
 

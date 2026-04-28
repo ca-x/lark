@@ -87,6 +87,17 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .section-head h2 { margin:0; font-size:clamp(24px, 3vw, 34px); letter-spacing:-.04em; }
 .filter-pill { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:6px 8px 6px 14px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); color:var(--muted); }
 .filter-pill select { min-height:32px; max-width:min(260px, 54vw); border:0; border-radius:999px; padding:6px 10px; color:var(--text); background:var(--panel); }
+.artist-filter-combobox { position:relative; min-width:min(360px, 72vw); z-index:20; }
+.artist-filter-combobox label { display:grid; gap:5px; color:var(--muted); font-size:12px; font-weight:800; }
+.artist-filter-combobox label > div { min-height:42px; display:grid; grid-template-columns:20px minmax(0,1fr) auto; align-items:center; gap:8px; padding:0 8px 0 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel2); }
+.artist-filter-combobox input { min-width:0; border:0; outline:0; background:transparent; color:var(--text); font:inherit; }
+.artist-filter-clear { width:30px; min-width:30px !important; height:30px; min-height:30px !important; padding:0 !important; border-radius:999px !important; }
+.artist-filter-options { position:absolute; top:calc(100% + 8px); right:0; width:min(360px, calc(100vw - 28px)); max-height:min(320px, 52dvh); overflow:auto; display:grid; gap:6px; padding:8px; border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius:18px; background:color-mix(in srgb, var(--panel) 98%, var(--bg)); box-shadow:var(--shadow); }
+.artist-filter-options > button { min-width:0; min-height:48px; display:grid; justify-items:start; gap:2px; padding:8px 10px; border-radius:14px; color:var(--text); background:transparent; text-align:left; }
+.artist-filter-options > button:hover, .artist-filter-options > button.active { background:color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
+.artist-filter-options strong, .artist-filter-options small { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.artist-filter-options small, .artist-filter-options > span { color:var(--muted); }
+.artist-filter-options > span { padding:10px; }
 .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(172px,1fr)); gap:16px; align-items:start; }
 .media-card { min-height:0; text-align:left; padding:14px; border-radius:22px; background:var(--panel2); border:1px solid var(--line); display:grid; gap:10px; contain:layout paint; transition:border-color .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease); }
 .media-card:hover, .media-card:focus-within { border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); box-shadow:0 12px 34px color-mix(in srgb, var(--accent) 10%, transparent); }
@@ -521,6 +532,8 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   .full-lyrics-lines { padding:max(24px, 25vh) 4vw max(32px, 30vh); font-size:clamp(24px, 8vw, 38px); align-content:start; }
   .filter-pill { width:100%; justify-content:space-between; border-radius:16px; }
   .filter-pill select { max-width:58vw; }
+  .artist-filter-combobox { width:100%; min-width:0; }
+  .artist-filter-options { left:0; right:0; width:auto; max-height:45dvh; }
   .collection-tabs { width:100%; border-radius:18px; }
   .collection-tabs button { flex:1 0 auto; }
   .artist-album-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }

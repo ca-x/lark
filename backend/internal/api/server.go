@@ -185,6 +185,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.GET("/api/albums/:id/songs", s.handleAlbumSongs, auth)
 	e.GET("/api/artists", s.handleArtists, auth)
 	e.GET("/api/artists/page", s.handleArtistsPage, auth)
+	e.GET("/api/artists/search", s.handleSearchArtists, auth)
 	e.GET("/api/artists/:id/cover", s.handleArtistCover, auth)
 	e.GET("/api/artists/:id/songs", s.handleArtistSongs, auth)
 	e.POST("/api/albums/:id/favorite", s.handleToggleAlbumFavorite, auth)
@@ -892,7 +893,7 @@ func (s *Server) handleAlbums(c *echo.Context) error {
 }
 
 func (s *Server) handleAlbumsPage(c *echo.Context) error {
-	items, err := s.lib.AlbumsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c))
+	items, err := s.lib.AlbumsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c), queryInt(c, "artist_id", 0))
 	if err != nil {
 		return mapError(err)
 	}
@@ -944,6 +945,14 @@ func (s *Server) handleArtists(c *echo.Context) error {
 
 func (s *Server) handleArtistsPage(c *echo.Context) error {
 	items, err := s.lib.ArtistsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleSearchArtists(c *echo.Context) error {
+	items, err := s.lib.SearchArtists(c.Request().Context(), currentUserID(c), c.QueryParam("q"), queryInt(c, "limit", 20))
 	if err != nil {
 		return mapError(err)
 	}

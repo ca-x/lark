@@ -118,6 +118,7 @@ func legacyMetadataCandidates(raw []byte, current string) []string {
 		candidates = append(candidates, decodeUTF8FromLatin1Mojibake(latin1)...)
 		candidates = append(candidates, decodeSimplifiedChineseCandidates(latin1)...)
 	}
+	candidates = append(candidates, decodeMixedLegacyMojibake(current)...)
 	return candidates
 }
 
@@ -130,6 +131,68 @@ func decodeUTF8FromLatin1Mojibake(data []byte) []string {
 		return nil
 	}
 	return []string{text}
+}
+
+func decodeMixedLegacyMojibake(current string) []string {
+	var out strings.Builder
+	var segment []byte
+	changed := false
+	flush := func() {
+		if len(segment) == 0 {
+			return
+		}
+		original := string(segment)
+		best := original
+		bestScore := metadataTextScore(original)
+		hasHighByte := false
+		for _, b := range segment {
+			if b >= 0x80 {
+				hasHighByte = true
+				break
+			}
+		}
+		if hasHighByte {
+			for _, candidate := range append(decodeUTF8FromLatin1Mojibake(segment), decodeSimplifiedChineseCandidates(segment)...) {
+				score := metadataTextScore(candidate)
+				if containsCJK(candidate) && !containsReplacement(candidate) && score > bestScore {
+					best = candidate
+					bestScore = score
+				}
+			}
+		}
+		if best != original {
+			if leading := leadingWhitespace(original); leading != "" && !strings.HasPrefix(best, leading) {
+				best = leading + best
+			}
+			if trailing := trailingWhitespace(original); trailing != "" && !strings.HasSuffix(best, trailing) {
+				best += trailing
+			}
+			changed = true
+		}
+		out.WriteString(best)
+		segment = segment[:0]
+	}
+	for _, r := range current {
+		if r <= 0xff {
+			segment = append(segment, byte(r))
+			continue
+		}
+		flush()
+		out.WriteRune(r)
+	}
+	flush()
+	if !changed {
+		return nil
+	}
+	return []string{out.String()}
+}
+
+func leadingWhitespace(value string) string {
+	return value[:len(value)-len(strings.TrimLeft(value, " \t\r\n"))]
+}
+
+func trailingWhitespace(value string) string {
+	return value[len(strings.TrimRight(value, " \t\r\n")):]
 }
 
 func decodeGB18030(data []byte) (string, error) {

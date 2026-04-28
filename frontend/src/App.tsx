@@ -756,6 +756,9 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
   const [query, setQuery] = useState("");
   const [albumArtistFilter, setAlbumArtistFilter] = useState(0);
+  const [albumArtistQuery, setAlbumArtistQuery] = useState("");
+  const [albumArtistSuggestions, setAlbumArtistSuggestions] = useState<Artist[]>([]);
+  const [albumArtistLoading, setAlbumArtistLoading] = useState(false);
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [lyricCandidates, setLyricCandidates] = useState<LyricCandidate[]>([]);
@@ -1570,7 +1573,7 @@ export default function App() {
         api.songsPage(query, libraryPage, libraryPageSize),
         api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
         api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => []),
-        api.albumsPage(albumPage, gridPageSize),
+        api.albumsPage(albumPage, gridPageSize, albumArtistFilter),
         api.artistsPage(artistPage, gridPageSize),
         api.playlistsPage(playlistPage, gridPageSize),
         api.dailyMix(24).catch(() => []),
@@ -1652,16 +1655,69 @@ export default function App() {
     }
   }
 
-  async function loadAlbumPage(page: number) {
+  async function loadAlbumPage(page: number, artistId = albumArtistFilter) {
     const nextPage = Math.max(1, page);
     setAlbumPageLoading(true);
     try {
-      const pageItem = await api.albumsPage(nextPage, gridPageSize);
+      const pageItem = await api.albumsPage(nextPage, gridPageSize, artistId);
       setAlbumPage(pageItem.page);
       setAlbumPageData(pageItem);
       setAlbums(pageItem.items);
     } finally {
       setAlbumPageLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const term = albumArtistQuery.trim();
+    if (view !== "albums" || term.length < 1) {
+      setAlbumArtistSuggestions([]);
+      setAlbumArtistLoading(false);
+      return;
+    }
+    let alive = true;
+    setAlbumArtistLoading(true);
+    const timer = window.setTimeout(() => {
+      api.searchArtists(term, 20)
+        .then((items) => {
+          if (!alive) return;
+          setAlbumArtistSuggestions(items.filter((item) => item.album_count > 0));
+        })
+        .catch(() => {
+          if (alive) setAlbumArtistSuggestions([]);
+        })
+        .finally(() => {
+          if (alive) setAlbumArtistLoading(false);
+        });
+    }, 180);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [albumArtistQuery, view]);
+
+  function selectAlbumArtistFilter(artistItem: Artist) {
+    setAlbumArtistFilter(artistItem.id);
+    setAlbumArtistQuery(artistItem.name);
+    setAlbumArtistSuggestions([]);
+    void loadAlbumPage(1, artistItem.id);
+  }
+
+  function clearAlbumArtistFilter() {
+    const hadFilter = albumArtistFilter > 0 || albumArtistQuery.trim() !== "";
+    setAlbumArtistFilter(0);
+    setAlbumArtistQuery("");
+    setAlbumArtistSuggestions([]);
+    if (hadFilter) void loadAlbumPage(1, 0);
+  }
+
+  function updateAlbumArtistQuery(value: string) {
+    setAlbumArtistQuery(value);
+    if (albumArtistFilter > 0 && value.trim() === "") {
+      clearAlbumArtistFilter();
+    } else if (albumArtistFilter > 0) {
+      setAlbumArtistFilter(0);
+      void loadAlbumPage(1, 0);
     }
   }
 
@@ -2531,18 +2587,6 @@ export default function App() {
   const bufferedPercent = playableDuration
     ? `${Math.min(100, Math.max(0, (bufferedEnd / playableDuration) * 100))}%`
     : "0%";
-  const albumArtistOptions = useMemo(() => {
-    const seen = new Map<number, string>();
-    albums.forEach((album) => {
-      if (album.artist_id) seen.set(album.artist_id, album.artist || t("artist"));
-    });
-    return Array.from(seen.entries()).sort((a, b) =>
-      a[1].localeCompare(b[1], settings.language),
-    );
-  }, [albums, settings.language, t]);
-  const visibleAlbums = albumArtistFilter
-    ? albums.filter((album) => album.artist_id === albumArtistFilter)
-    : albums;
   const screenTitle =
     collection && view === "collection"
       ? collection.title
@@ -2940,22 +2984,57 @@ export default function App() {
                   title={t("albums")}
                   variant="album"
                   action={
-                    <label className="filter-pill">
-                      <span>{t("filterByArtist")}</span>
-                      <select
-                        value={albumArtistFilter}
-                        onChange={(event) => setAlbumArtistFilter(Number(event.target.value))}
-                      >
-                        <option value={0}>{t("allArtists")}</option>
-                        {albumArtistOptions.map(([id, name]) => (
-                          <option key={id} value={id}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <div className="artist-filter-combobox">
+                      <label>
+                        <span>{t("filterByArtist")}</span>
+                        <div>
+                          <MagnifyingGlass aria-hidden="true" />
+                          <input
+                            value={albumArtistQuery}
+                            placeholder={t("searchArtist")}
+                            aria-label={t("filterByArtist")}
+                            autoComplete="off"
+                            onChange={(event) => updateAlbumArtistQuery(event.target.value)}
+                          />
+                          {albumArtistQuery ? (
+                            <button
+                              type="button"
+                              className="artist-filter-clear"
+                              onClick={clearAlbumArtistFilter}
+                              aria-label={t("clearFilter")}
+                            >
+                              <X />
+                            </button>
+                          ) : null}
+                        </div>
+                      </label>
+                      {albumArtistQuery.trim() ? (
+                        <div className="artist-filter-options" role="listbox">
+                          {albumArtistLoading ? (
+                            <span>{t("loading")}</span>
+                          ) : albumArtistSuggestions.length ? (
+                            albumArtistSuggestions.map((artistItem) => (
+                              <button
+                                type="button"
+                                key={artistItem.id}
+                                className={artistItem.id === albumArtistFilter ? "active" : ""}
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => selectAlbumArtistFilter(artistItem)}
+                              >
+                                <strong>{artistItem.name}</strong>
+                                <small>
+                                  {artistItem.album_count} {t("album")} · {artistItem.song_count} {t("count")}
+                                </small>
+                              </button>
+                            ))
+                          ) : (
+                            <span>{t("noResults")}</span>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
                   }
-                  items={visibleAlbums.map((a) => ({
+                  items={albums.map((a) => ({
                     id: a.id,
                     title: a.title,
                     subtitle: [a.year ? String(a.year) : "", `${a.song_count} ${t("count")}`]
@@ -6727,7 +6806,7 @@ function PaginationControls({
     const isDesktop = () => root.clientWidth > 720;
     const onScroll = () => {
       revealControls();
-      if (!isDesktop() || scrollLockRef.current || loading) return;
+      if (scrollLockRef.current || loading) return;
       const scrollTop = root.scrollTop;
       const delta = scrollTop - lastScrollTopRef.current;
       lastScrollTopRef.current = scrollTop;
@@ -6735,7 +6814,7 @@ function PaginationControls({
       const maxScrollTop = Math.max(0, root.scrollHeight - root.clientHeight);
       if (delta > 0 && canNext && maxScrollTop - scrollTop <= 36) {
         void changePage(currentPage + 1, "top");
-      } else if (delta < 0 && canPrevious && scrollTop <= 6) {
+      } else if (isDesktop() && delta < 0 && canPrevious && scrollTop <= 6) {
         void changePage(currentPage - 1, "bottom");
       }
     };

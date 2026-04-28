@@ -2068,7 +2068,7 @@ func (s *Service) RemoveSongFromPlaylist(ctx context.Context, userID, playlistID
 }
 
 func (s *Service) Albums(ctx context.Context, userID, limit int) ([]models.Album, error) {
-	page, err := s.AlbumsPage(ctx, userID, limit, 0)
+	page, err := s.AlbumsPage(ctx, userID, limit, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -2087,20 +2087,24 @@ func (s *Service) Album(ctx context.Context, userID, id int) (models.Album, erro
 	return items[0], nil
 }
 
-func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset int) (models.AlbumPage, error) {
+func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset, artistID int) (models.AlbumPage, error) {
 	limit, offset = normalizePage(limit, offset)
-	key := cacheKey("albums-page", userID, limit, offset)
+	key := cacheKey("albums-page", userID, limit, offset, artistID)
 	var cached models.AlbumPage
 	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 		return models.AlbumPage{}, err
 	} else if ok {
 		return cached, nil
 	}
-	total, err := s.client.Album.Query().Where(album.HasSongs()).Count(ctx)
+	predicates := []predicate.Album{album.HasSongs()}
+	if artistID > 0 {
+		predicates = append(predicates, album.HasArtistWith(artist.ID(artistID)))
+	}
+	total, err := s.client.Album.Query().Where(predicates...).Count(ctx)
 	if err != nil {
 		return models.AlbumPage{}, err
 	}
-	query := s.client.Album.Query().Where(album.HasSongs()).WithArtist().Order(ent.Desc(album.FieldUpdatedAt)).Limit(limit)
+	query := s.client.Album.Query().Where(predicates...).WithArtist().Order(ent.Desc(album.FieldUpdatedAt)).Limit(limit)
 	if offset > 0 {
 		query = query.Offset(offset)
 	}
@@ -2143,6 +2147,34 @@ func (s *Service) Artists(ctx context.Context, userID, limit int) ([]models.Arti
 		return nil, err
 	}
 	return page.Items, nil
+}
+
+func (s *Service) SearchArtists(ctx context.Context, userID int, term string, limit int) ([]models.Artist, error) {
+	term = strings.TrimSpace(term)
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	query := s.client.Artist.Query().Order(ent.Asc(artist.FieldName)).Limit(limit)
+	if term != "" {
+		query = query.Where(artist.NameContainsFold(term))
+	}
+	items, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	songCounts, err := s.artistSongCounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	albumCounts, err := s.artistAlbumCounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.Artist, 0, len(items))
+	for _, a := range items {
+		out = append(out, mapArtistWithCounts(a, songCounts[a.ID], albumCounts[a.ID]))
+	}
+	return s.applyArtistUserState(ctx, userID, out)
 }
 
 func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (models.ArtistPage, error) {
