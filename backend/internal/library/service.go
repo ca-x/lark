@@ -3,6 +3,8 @@ package library
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1030,7 +1032,7 @@ func (s *Service) SongCover(ctx context.Context, id int) ([]byte, string, error)
 	if err != nil {
 		return nil, "", err
 	}
-	return coverFromFile(item.Path)
+	return s.cachedEmbeddedCover(item)
 }
 
 func (s *Service) AlbumCover(ctx context.Context, id int) ([]byte, string, error) {
@@ -1041,7 +1043,7 @@ func (s *Service) AlbumCover(ctx context.Context, id int) ([]byte, string, error
 	if err != nil {
 		return nil, "", err
 	}
-	data, mimeType, err := firstEmbeddedCover(items)
+	data, mimeType, err := s.firstEmbeddedCover(items)
 	if err != nil || len(data) > 0 {
 		return data, mimeType, err
 	}
@@ -1071,7 +1073,7 @@ func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, erro
 	if err != nil {
 		return nil, "", err
 	}
-	data, mimeType, err := firstEmbeddedCover(items)
+	data, mimeType, err := s.firstEmbeddedCover(items)
 	if err != nil || len(data) > 0 {
 		return data, mimeType, err
 	}
@@ -1142,9 +1144,9 @@ func (s *Service) cachedRemoteImage(ctx context.Context, kind, key, remoteURL st
 	return data, contentType, nil
 }
 
-func firstEmbeddedCover(items []*ent.Song) ([]byte, string, error) {
+func (s *Service) firstEmbeddedCover(items []*ent.Song) ([]byte, string, error) {
 	for _, item := range items {
-		data, mimeType, err := coverFromFile(item.Path)
+		data, mimeType, err := s.cachedEmbeddedCover(item)
 		if err != nil {
 			continue
 		}
@@ -1153,6 +1155,67 @@ func firstEmbeddedCover(items []*ent.Song) ([]byte, string, error) {
 		}
 	}
 	return nil, "", nil
+}
+
+func (s *Service) cachedEmbeddedCover(item *ent.Song) ([]byte, string, error) {
+	if item == nil || strings.TrimSpace(item.Path) == "" {
+		return nil, "", nil
+	}
+	abs, err := filepath.Abs(item.Path)
+	if err != nil {
+		return nil, "", err
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return nil, "", err
+	}
+	seed := fmt.Sprintf("%s:%d:%d", abs, info.Size(), info.ModTime().UnixNano())
+	sum := sha1.Sum([]byte(seed))
+	base := hex.EncodeToString(sum[:])
+	cacheDir := filepath.Join(s.dataDir, "covers", "songs")
+	for _, ext := range []string{".jpg", ".png", ".webp", ".bin"} {
+		path := filepath.Join(cacheDir, base+ext)
+		data, err := os.ReadFile(path)
+		if err == nil && len(data) > 0 {
+			return data, coverMimeByExt(ext), nil
+		}
+	}
+	data, mimeType, err := coverFromFile(abs)
+	if err != nil || len(data) == 0 {
+		return data, mimeType, err
+	}
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		return nil, "", err
+	}
+	ext := coverExtByMime(mimeType)
+	_ = os.WriteFile(filepath.Join(cacheDir, base+ext), data, 0o644)
+	return data, mimeType, nil
+}
+
+func coverExtByMime(mimeType string) string {
+	switch strings.ToLower(strings.TrimSpace(mimeType)) {
+	case "image/jpeg", "image/jpg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/webp":
+		return ".webp"
+	default:
+		return ".bin"
+	}
+}
+
+func coverMimeByExt(ext string) string {
+	switch strings.ToLower(ext) {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".webp":
+		return "image/webp"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 func coverFromFile(path string) ([]byte, string, error) {

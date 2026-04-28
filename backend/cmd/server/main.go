@@ -41,18 +41,33 @@ func main() {
 		log.Fatal(err)
 	}
 	server := api.New(client, lib, cfg.FrontendOrigin)
+	serverErr := make(chan error, 1)
 	go func() {
-		if err := server.Start(":" + cfg.Port); err != nil {
-			log.Printf("server stopped: %v", err)
-		}
+		serverErr <- server.Start(":" + cfg.Port)
 	}()
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
-	<-quit
+	select {
+	case sig := <-quit:
+		log.Printf("received %s, shutting down", sig)
+	case err := <-serverErr:
+		if err != nil {
+			log.Fatalf("server stopped: %v", err)
+		}
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
 		log.Printf("shutdown error: %v", err)
+	}
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			log.Printf("server stopped: %v", err)
+		}
+	case <-ctx.Done():
+		log.Printf("server did not stop before shutdown deadline: %v", ctx.Err())
 	}
 }
 

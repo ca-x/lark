@@ -320,7 +320,8 @@ func (p *LRCLib) SearchSongs(ctx context.Context, title, artist string) ([]Song,
 }
 func (p *LRCLib) Lyrics(ctx context.Context, song Song) (string, error) {
 	var r struct {
-		SyncedLyrics, PlainLyrics string `json:"syncedLyrics"`
+		SyncedLyrics string `json:"syncedLyrics"`
+		PlainLyrics  string `json:"plainLyrics"`
 	}
 	endpoint := "https://lrclib.net/api/get/" + url.PathEscape(song.ID)
 	if err := p.getJSON(ctx, endpoint, map[string]string{"User-Agent": "Lark Music Player (https://github.com/ca-x/lark)"}, &r); err != nil {
@@ -365,7 +366,8 @@ func (p *Kuwo) Lyrics(ctx context.Context, song Song) (string, error) {
 	var resp struct {
 		Data struct {
 			Lrclist []struct {
-				Time, LineLyric string `json:"time"`
+				Time      string `json:"time"`
+				LineLyric string `json:"lineLyric"`
 			} `json:"lrclist"`
 		} `json:"data"`
 	}

@@ -459,9 +459,9 @@ func radioPlaylistEntries(ctx context.Context, playlistURL string) []radioPlayli
 	reader := io.LimitReader(res.Body, 4<<20)
 	var entries []radioPlaylistEntry
 	if isPLS {
-		entries = parseRadioPLS(reader, baseURL)
+		entries = parseRadioPLS(ctx, reader, baseURL)
 	} else {
-		entries = parseRadioM3U(reader, baseURL)
+		entries = parseRadioM3U(ctx, reader, baseURL)
 	}
 	if len(entries) > 200 {
 		return entries[:200]
@@ -469,7 +469,7 @@ func radioPlaylistEntries(ctx context.Context, playlistURL string) []radioPlayli
 	return entries
 }
 
-func parseRadioPLS(r io.Reader, baseURL *url.URL) []radioPlaylistEntry {
+func parseRadioPLS(ctx context.Context, r io.Reader, baseURL *url.URL) []radioPlaylistEntry {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64<<10), 1<<20)
 	titles := map[int]string{}
@@ -515,7 +515,7 @@ func parseRadioPLS(r io.Reader, baseURL *url.URL) []radioPlaylistEntry {
 	for _, idx := range order {
 		entryURL := resolveRadioPlaylistEntryURL(files[idx], baseURL)
 		if validStreamLikeURL(entryURL) {
-			entries = append(entries, radioPlaylistEntry{Name: stripPLSMirrorSuffix(titles[idx]), URL: resolvePlaylistURL(context.Background(), entryURL)})
+			entries = append(entries, radioPlaylistEntry{Name: stripPLSMirrorSuffix(titles[idx]), URL: resolvePlaylistURL(ctx, entryURL)})
 		}
 	}
 	if allRadioPlaylistEntriesAreStreams(entries) && len(entries) > 1 {
@@ -544,7 +544,7 @@ func stripPLSMirrorSuffix(value string) string {
 	return value
 }
 
-func parseRadioM3U(r io.Reader, baseURL *url.URL) []radioPlaylistEntry {
+func parseRadioM3U(ctx context.Context, r io.Reader, baseURL *url.URL) []radioPlaylistEntry {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64<<10), 1<<20)
 	var entries []radioPlaylistEntry
@@ -571,7 +571,7 @@ func parseRadioM3U(r io.Reader, baseURL *url.URL) []radioPlaylistEntry {
 		}
 		entryURL := resolveRadioPlaylistEntryURL(line, baseURL)
 		if validStreamLikeURL(entryURL) {
-			entries = append(entries, radioPlaylistEntry{Name: title, URL: resolvePlaylistURL(context.Background(), entryURL)})
+			entries = append(entries, radioPlaylistEntry{Name: title, URL: resolvePlaylistURL(ctx, entryURL)})
 			title = ""
 		}
 	}

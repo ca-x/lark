@@ -28,11 +28,16 @@ import (
 )
 
 type Server struct {
-	echo   *echo.Echo
-	client *ent.Client
-	lib    *library.Service
-	mcp    http.Handler
-	cancel context.CancelFunc
+	echo                  *echo.Echo
+	client                *ent.Client
+	lib                   *library.Service
+	mcp                   http.Handler
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	transcodeCacheLocks   sync.Map
+	transcodeCacheWarmers sync.Map
+	transcodeWarmersMu    sync.Mutex
+	transcodeWarmersWG    sync.WaitGroup
 }
 
 type playlistRequest struct {
@@ -44,8 +49,6 @@ type playlistRequest struct {
 const sessionCookieName = "lark_session"
 
 const transcodeChunkSize = 512 * 1024
-
-var transcodeCacheLocks sync.Map
 
 type authRequest struct {
 	Username string `json:"username"`
@@ -191,6 +194,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 
 func (s *Server) Start(addr string) error {
 	ctx, cancel := context.WithCancel(context.Background())
+	s.ctx = ctx
 	s.cancel = cancel
 	return echo.StartConfig{Address: addr, HideBanner: true, GracefulTimeout: 10}.Start(ctx, s.echo)
 }
@@ -199,7 +203,19 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.cancel != nil {
 		s.cancel()
 	}
-	return nil
+	s.transcodeWarmersMu.Lock()
+	s.transcodeWarmersMu.Unlock()
+	done := make(chan struct{})
+	go func() {
+		s.transcodeWarmersWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (s *Server) handleHealth(c *echo.Context) error {
@@ -511,7 +527,7 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 			http.ServeFile(c.Response(), c.Request(), cachePath)
 			return nil
 		}
-		go s.warmTranscodeCache(ffmpeg, sourcePath, quality)
+		s.startTranscodeCacheWarm(ffmpeg, sourcePath, quality)
 	}
 	return s.pipeTranscodedAudio(c, ffmpeg, sourcePath, quality, start)
 }
@@ -576,10 +592,38 @@ func (s *Server) pipeTranscodedAudio(c *echo.Context, ffmpeg, sourcePath string,
 	return copyErr
 }
 
-func (s *Server) warmTranscodeCache(ffmpeg, sourcePath string, quality int) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-	defer cancel()
-	_, _ = s.ensureTranscodeCache(ctx, ffmpeg, sourcePath, quality)
+func (s *Server) startTranscodeCacheWarm(ffmpeg, sourcePath string, quality int) {
+	parent := s.ctx
+	if parent == nil {
+		parent = context.Background()
+	}
+	select {
+	case <-parent.Done():
+		return
+	default:
+	}
+	cachePath, err := s.transcodeCachePath(sourcePath, quality)
+	if err != nil {
+		return
+	}
+	s.transcodeWarmersMu.Lock()
+	defer s.transcodeWarmersMu.Unlock()
+	select {
+	case <-parent.Done():
+		return
+	default:
+	}
+	if _, loaded := s.transcodeCacheWarmers.LoadOrStore(cachePath, struct{}{}); loaded {
+		return
+	}
+	s.transcodeWarmersWG.Add(1)
+	go func() {
+		defer s.transcodeWarmersWG.Done()
+		defer s.transcodeCacheWarmers.Delete(cachePath)
+		ctx, cancel := context.WithTimeout(parent, 30*time.Minute)
+		defer cancel()
+		_, _ = s.ensureTranscodeCache(ctx, ffmpeg, sourcePath, quality)
+	}()
 }
 
 func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath string, quality int) (string, error) {
@@ -587,7 +631,7 @@ func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath st
 	if err != nil {
 		return "", mapError(err)
 	}
-	lockValue, _ := transcodeCacheLocks.LoadOrStore(cachePath, &sync.Mutex{})
+	lockValue, _ := s.transcodeCacheLocks.LoadOrStore(cachePath, &sync.Mutex{})
 	lock := lockValue.(*sync.Mutex)
 	lock.Lock()
 	defer lock.Unlock()

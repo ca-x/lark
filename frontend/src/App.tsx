@@ -349,6 +349,11 @@ function prefersLowBandwidthStream() {
   );
 }
 
+function prefersLowMemoryVisuals() {
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  return Boolean(nav.deviceMemory && nav.deviceMemory <= 4);
+}
+
 function streamUrl(song?: Song | null, mode: StreamMode = "auto", start = 0) {
   if (!song) return undefined;
   const params = new URLSearchParams({
@@ -659,6 +664,7 @@ export default function App() {
   const messageTimerRef = useRef<number | null>(null);
   const resumeSeekRef = useRef(0);
   const progressRef = useRef(0);
+  const lastProgressPaintRef = useRef(0);
   const durationRef = useRef(0);
   const collectionRequestRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
@@ -820,6 +826,19 @@ export default function App() {
     if (trebleFilterRef.current) trebleFilterRef.current.gain.value = clampEqGain(trebleGain);
     if (playingRef.current && ctx?.state === "suspended") void ctx.resume().catch(() => undefined);
   }, [audioEl, eqEnabled, eqBands, bassGain, trebleGain, ensureEqualizerGraph]);
+
+  useEffect(() => {
+    return () => {
+      audioSourceRef.current?.disconnect();
+      bassFilterRef.current?.disconnect();
+      trebleFilterRef.current?.disconnect();
+      eqFiltersRef.current.forEach((filter) => filter.disconnect());
+      void audioContextRef.current?.close().catch(() => undefined);
+      audioContextRef.current = null;
+      audioSourceRef.current = null;
+      eqAudioNodeRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!auth?.user) return;
@@ -2768,7 +2787,7 @@ export default function App() {
         </div>
         <audio
           ref={setAudioNode}
-          preload="auto"
+          preload="metadata"
           data-song-id={current?.id ?? undefined}
           data-radio-id={currentRadio?.id ?? undefined}
           src={currentStreamUrl}
@@ -2832,7 +2851,13 @@ export default function App() {
           }}
           onProgress={(event) => updateBuffered(event.currentTarget)}
           onTimeUpdate={(e) => {
-            setProgress(streamOffsetRef.current + e.currentTarget.currentTime);
+            const nextProgress = streamOffsetRef.current + e.currentTarget.currentTime;
+            progressRef.current = nextProgress;
+            const now = performance.now();
+            if (now - lastProgressPaintRef.current >= 250) {
+              lastProgressPaintRef.current = now;
+              setProgress(nextProgress);
+            }
             updateBuffered(e.currentTarget);
             if (bufferedAhead(e.currentTarget) > 1.5) setBuffering(false);
             syncPlaybackProgress(false);
@@ -3031,6 +3056,45 @@ function AuthView({
   );
 }
 
+function useDialogLifecycle<T extends HTMLElement>(onClose: () => void) {
+  const dialogRef = useRef<T | null>(null);
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    const focusSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const focusFirst = () => {
+      const target = dialog?.querySelector<HTMLElement>("[autofocus]") ?? dialog?.querySelector<HTMLElement>(focusSelector);
+      target?.focus();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(focusSelector)).filter((node) => !node.hasAttribute("disabled") && node.tabIndex !== -1);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.requestAnimationFrame(focusFirst);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [onClose]);
+  return dialogRef;
+}
+
 function PlaylistDialog({
   t,
   submitting,
@@ -3045,6 +3109,7 @@ function PlaylistDialog({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const trimmedName = name.trim();
+  const dialogRef = useDialogLifecycle<HTMLFormElement>(onCancel);
   return (
     <div className="modal-layer" role="presentation">
       <button
@@ -3054,6 +3119,7 @@ function PlaylistDialog({
         onClick={onCancel}
       />
       <form
+        ref={dialogRef}
         className="modal-card playlist-dialog"
         role="dialog"
         aria-modal="true"
@@ -3117,10 +3183,11 @@ function AddToPlaylistDialog({
   onCreate: () => void;
 }) {
   const [selected, setSelected] = useState(playlists[0]?.id ?? 0);
+  const dialogRef = useDialogLifecycle<HTMLDivElement>(onCancel);
   return (
     <div className="modal-layer" role="presentation">
       <button className="modal-scrim" type="button" aria-label={t("close")} onClick={onCancel} />
-      <div className="modal-card playlist-picker" role="dialog" aria-modal="true" aria-labelledby="playlist-picker-title">
+      <div ref={dialogRef} className="modal-card playlist-picker" role="dialog" aria-modal="true" aria-labelledby="playlist-picker-title">
         <div className="modal-card-head">
           <div>
             <p>{t("addToPlaylist")}</p>
@@ -3768,7 +3835,7 @@ function PlayerMood({
     setWaveReady(false);
     setWaveFailed(false);
   }, [song?.id, radio?.id, radio?.url]);
-  const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed && !lowBandwidth);
+  const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed && !lowBandwidth && !prefersLowMemoryVisuals());
   if (radio) {
     return (
       <div className="player-mood player-waveform radio-waveform-mood loading" data-theme-key={theme} data-playing={playing ? "true" : "false"}>
