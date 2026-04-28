@@ -1790,3 +1790,54 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   font:900 10px ui-monospace,SFMono-Regular,Menlo,monospace;
   letter-spacing:.12em;
 }
+
+/* v0.3.16: keep daily recommendations within the album+artist shelf width and align queue rows. */
+.daily-mix-grid {
+  width:calc(66.666% - 5px);
+  max-width:calc(66.666% - 5px);
+}
+.queue-list button > div {
+  display:flex;
+  align-items:center;
+  align-content:center;
+  gap:8px;
+  min-height:30px;
+  overflow:hidden;
+}
+.queue-list strong,
+.queue-list small {
+  display:block;
+  min-width:0;
+  line-height:1.2;
+}
+.queue-list strong { flex:0 1 auto; }
+.queue-list small { flex:1 1 auto; }
+.queue-list small::before {
+  content:'·';
+  margin-right:8px;
+  color:color-mix(in srgb, var(--muted) 72%, transparent);
+}
+@media (max-width:1180px) {
+  .daily-mix-grid { width:100%; max-width:100%; }
+}
+@media (max-width:560px) {
+  .queue-list button > div { flex-direction:column; align-items:flex-start; gap:2px; }
+  .queue-list small::before { content:''; margin:0; }
+}
+
+/* Mobile guard for v0.3.16 queue refinements: avoid cramped title/artist rows on very narrow screens. */
+@media (max-width:420px) {
+  .queue-list button {
+    grid-template-columns:28px minmax(0,1fr);
+    gap:8px;
+  }
+  .queue-list button > div,
+  .queue-list button > em {
+    grid-column:2;
+  }
+  .queue-list button > em {
+    justify-self:start;
+    margin-top:-2px;
+    color:color-mix(in srgb, var(--muted) 78%, transparent);
+  }
+}
