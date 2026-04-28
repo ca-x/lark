@@ -67,6 +67,8 @@ export const api = {
   radioSources: () => request<RadioSource[]>('/api/radio/sources'),
   addRadioSource: (name: string, url: string) => request<RadioSource>('/api/radio/sources', { method: 'POST', body: JSON.stringify({ name, url }) }),
   deleteRadioSource: (id: string) => request<void>(`/api/radio/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  radioFavorites: () => request<RadioStation[]>('/api/radio/favorites'),
+  favoriteRadioStation: (station: RadioStation) => request<RadioStation>('/api/radio/favorite', { method: 'POST', body: JSON.stringify(station) }),
   topRadioStations: (limit = 30, offset = 0) => request<RadioStation[]>(`/api/radio/top?limit=${limit}&offset=${offset}`),
   searchRadioStations: (q: string, limit = 30) => request<RadioStation[]>(`/api/radio/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   settings: () => request<Settings>('/api/settings'),

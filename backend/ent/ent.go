@@ -17,6 +17,7 @@ import (
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
 	"lark/backend/ent/userartistfavorite"
+	"lark/backend/ent/userradiofavorite"
 	"lark/backend/ent/usersongfavorite"
 	"reflect"
 	"sync"
@@ -95,6 +96,7 @@ func checkColumn(t, c string) error {
 			user.Table:               user.ValidColumn,
 			useralbumfavorite.Table:  useralbumfavorite.ValidColumn,
 			userartistfavorite.Table: userartistfavorite.ValidColumn,
+			userradiofavorite.Table:  userradiofavorite.ValidColumn,
 			usersongfavorite.Table:   usersongfavorite.ValidColumn,
 		})
 	})

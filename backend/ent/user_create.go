@@ -13,6 +13,7 @@ import (
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
 	"lark/backend/ent/userartistfavorite"
+	"lark/backend/ent/userradiofavorite"
 	"lark/backend/ent/usersongfavorite"
 	"time"
 
@@ -225,6 +226,21 @@ func (_c *UserCreate) AddArtistFavorites(v ...*UserArtistFavorite) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddArtistFavoriteIDs(ids...)
+}
+
+// AddRadioFavoriteIDs adds the "radio_favorites" edge to the UserRadioFavorite entity by IDs.
+func (_c *UserCreate) AddRadioFavoriteIDs(ids ...int) *UserCreate {
+	_c.mutation.AddRadioFavoriteIDs(ids...)
+	return _c
+}
+
+// AddRadioFavorites adds the "radio_favorites" edges to the UserRadioFavorite entity.
+func (_c *UserCreate) AddRadioFavorites(v ...*UserRadioFavorite) *UserCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddRadioFavoriteIDs(ids...)
 }
 
 // AddPlayHistoryIDs adds the "play_history" edge to the PlayHistory entity by IDs.
@@ -497,6 +513,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.RadioFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RadioFavoritesTable,
+			Columns: []string{user.RadioFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userradiofavorite.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

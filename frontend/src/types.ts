@@ -163,6 +163,7 @@ export interface RadioSource {
   group_name: string;
   stream_url: string;
   builtin: boolean;
+  favorite: boolean;
 }
 
 export interface NetworkSource {
@@ -196,6 +197,9 @@ export interface RadioStation {
   id: string;
   name: string;
   url: string;
+  source_url: string;
+  group_name: string;
+  stream_url: string;
   country: string;
   tags: string;
   codec: string;
@@ -203,6 +207,7 @@ export interface RadioStation {
   votes: number;
   homepage: string;
   favicon: string;
+  favorite: boolean;
 }
 
 export interface WebFont {

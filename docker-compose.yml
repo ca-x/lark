@@ -10,6 +10,16 @@ services:
       LARK_LIBRARY_DIR: ${LARK_LIBRARY_DIR:-/app/data/music}
       LARK_DB_PATH: /app/data/lark.db
       LARK_FRONTEND_ORIGIN: ${LARK_FRONTEND_ORIGIN:-*}
+      # Cache defaults to the built-in Badger KV. To use Redis, set LARK_REDIS_ADDR or
+      # LARK_REDIS_URL (or explicitly set LARK_CACHE_BACKEND=redis) and provide a Redis service.
+      LARK_CACHE_BACKEND: ${LARK_CACHE_BACKEND:-}
+      LARK_CACHE_TTL_SECONDS: ${LARK_CACHE_TTL_SECONDS:-120}
+      LARK_CACHE_DIR: /app/data/cache/badger
+      LARK_REDIS_URL: ${LARK_REDIS_URL:-}
+      LARK_REDIS_ADDR: ${LARK_REDIS_ADDR:-}
+      LARK_REDIS_PASSWORD: ${LARK_REDIS_PASSWORD:-}
+      LARK_REDIS_DB: ${LARK_REDIS_DB:-}
+      LARK_REDIS_KEY_PREFIX: ${LARK_REDIS_KEY_PREFIX:-}
       # Optional first-run bootstrap. These are only used when the database has no users.
       LARK_ADMIN_USERNAME: ${LARK_ADMIN_USERNAME:-}
       LARK_ADMIN_PASSWORD: ${LARK_ADMIN_PASSWORD:-}
@@ -19,5 +29,23 @@ services:
     volumes:
       - lark_data:/app/data
 
+  # Optional Redis cache. It is disabled by default; start it with:
+  #   LARK_REDIS_ADDR=redis:6379 docker compose --profile redis up -d
+  # or use an external Redis by setting LARK_REDIS_URL / LARK_REDIS_ADDR without this service.
+  redis:
+    image: redis:7-alpine
+    container_name: lark-redis
+    restart: unless-stopped
+    profiles: ["redis"]
+    command: redis-server --appendonly yes --save 60 1
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - lark_redis:/data
+
 volumes:
   lark_data:
+  lark_redis:

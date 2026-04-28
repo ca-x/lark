@@ -140,6 +140,18 @@ func (f UserArtistFavoriteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserArtistFavoriteMutation", m)
 }
 
+// The UserRadioFavoriteFunc type is an adapter to allow the use of ordinary
+// function as UserRadioFavorite mutator.
+type UserRadioFavoriteFunc func(context.Context, *ent.UserRadioFavoriteMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserRadioFavoriteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserRadioFavoriteMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserRadioFavoriteMutation", m)
+}
+
 // The UserSongFavoriteFunc type is an adapter to allow the use of ordinary
 // function as UserSongFavorite mutator.
 type UserSongFavoriteFunc func(context.Context, *ent.UserSongFavoriteMutation) (ent.Value, error)

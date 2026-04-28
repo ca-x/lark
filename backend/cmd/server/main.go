@@ -98,6 +98,10 @@ func openCacheStore(cfg config.Config) (kv.Store, error) {
 	switch cfg.CacheBackend {
 	case "", "badger":
 		return kv.OpenBadger(cfg.CacheDir)
+	case "redis":
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return kv.OpenRedis(ctx, kv.RedisOptions{URL: cfg.RedisURL, Addr: cfg.RedisAddr, Password: cfg.RedisPassword, DB: cfg.RedisDB, KeyPrefix: cfg.RedisKeyPrefix})
 	case "memory":
 		return kv.NewMemoryStore(), nil
 	case "none", "noop", "off", "disabled":

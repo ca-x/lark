@@ -18,6 +18,8 @@ import (
 
 	"lark/backend/ent"
 	"lark/backend/ent/appsetting"
+	"lark/backend/ent/user"
+	"lark/backend/ent/userradiofavorite"
 	"lark/backend/internal/models"
 )
 
@@ -46,7 +48,7 @@ type radioBrowserStation struct {
 	Favicon     string `json:"favicon"`
 }
 
-func (s *Service) TopRadioStations(ctx context.Context, offset, limit int) ([]models.RadioStation, error) {
+func (s *Service) TopRadioStations(ctx context.Context, userID, offset, limit int) ([]models.RadioStation, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 30
 	}
@@ -54,19 +56,27 @@ func (s *Service) TopRadioStations(ctx context.Context, offset, limit int) ([]mo
 		offset = 0
 	}
 	endpoint := fmt.Sprintf("%s/stations/topvote/%d?offset=%d&hidebroken=true", radioBrowserBase, limit, offset)
-	return fetchRadioStations(ctx, endpoint)
+	items, err := fetchRadioStations(ctx, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	return s.markRadioStationFavorites(ctx, userID, items)
 }
 
-func (s *Service) SearchRadioStations(ctx context.Context, query string, limit int) ([]models.RadioStation, error) {
+func (s *Service) SearchRadioStations(ctx context.Context, userID int, query string, limit int) ([]models.RadioStation, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
-		return s.TopRadioStations(ctx, 0, limit)
+		return s.TopRadioStations(ctx, userID, 0, limit)
 	}
 	if limit <= 0 || limit > 100 {
 		limit = 30
 	}
 	endpoint := fmt.Sprintf("%s/stations/byname/%s?limit=%d&order=votes&reverse=true&hidebroken=true", radioBrowserBase, url.PathEscape(query), limit)
-	return fetchRadioStations(ctx, endpoint)
+	items, err := fetchRadioStations(ctx, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	return s.markRadioStationFavorites(ctx, userID, items)
 }
 
 func fetchRadioStations(ctx context.Context, endpoint string) ([]models.RadioStation, error) {
@@ -103,22 +113,23 @@ func fetchRadioStations(ctx context.Context, endpoint string) ([]models.RadioSta
 			id = radioID(streamURL)
 		}
 		out = append(out, models.RadioStation{
-			ID:       id,
-			Name:     name,
-			URL:      streamURL,
-			Country:  strings.TrimSpace(item.Country),
-			Tags:     strings.TrimSpace(item.Tags),
-			Codec:    strings.TrimSpace(item.Codec),
-			Bitrate:  item.Bitrate,
-			Votes:    item.Votes,
-			Homepage: strings.TrimSpace(item.Homepage),
-			Favicon:  strings.TrimSpace(item.Favicon),
+			ID:        id,
+			Name:      name,
+			URL:       streamURL,
+			StreamURL: streamURL,
+			Country:   strings.TrimSpace(item.Country),
+			Tags:      strings.TrimSpace(item.Tags),
+			Codec:     strings.TrimSpace(item.Codec),
+			Bitrate:   item.Bitrate,
+			Votes:     item.Votes,
+			Homepage:  strings.TrimSpace(item.Homepage),
+			Favicon:   strings.TrimSpace(item.Favicon),
 		})
 	}
 	return out, nil
 }
 
-func (s *Service) RadioSources(ctx context.Context) ([]models.RadioSource, error) {
+func (s *Service) RadioSources(ctx context.Context, userID int) ([]models.RadioSource, error) {
 	items := defaultRadioSources(ctx)
 	stored, err := s.storedRadioSources(ctx)
 	if err != nil {
@@ -145,7 +156,7 @@ func (s *Service) RadioSources(ctx context.Context) ([]models.RadioSource, error
 		seen[item.ID] = true
 		seen[item.URL] = true
 	}
-	return items, nil
+	return s.markRadioSourceFavorites(ctx, userID, items)
 }
 
 func (s *Service) RadioSource(ctx context.Context, id string) (models.RadioSource, error) {
@@ -153,7 +164,7 @@ func (s *Service) RadioSource(ctx context.Context, id string) (models.RadioSourc
 	if id == "" {
 		return models.RadioSource{}, errors.New("radio source not found")
 	}
-	items, err := s.RadioSources(ctx)
+	items, err := s.RadioSources(ctx, 0)
 	if err != nil {
 		return models.RadioSource{}, err
 	}
@@ -163,6 +174,58 @@ func (s *Service) RadioSource(ctx context.Context, id string) (models.RadioSourc
 		}
 	}
 	return models.RadioSource{}, errors.New("radio source not found")
+}
+
+func (s *Service) RadioFavorites(ctx context.Context, userID int) ([]models.RadioStation, error) {
+	items, err := s.client.UserRadioFavorite.Query().
+		Where(userradiofavorite.HasUserWith(user.ID(userID))).
+		Order(ent.Desc(userradiofavorite.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.RadioStation, 0, len(items))
+	for _, item := range items {
+		out = append(out, radioFavoriteToStation(item))
+	}
+	return out, nil
+}
+
+func (s *Service) ToggleRadioFavorite(ctx context.Context, userID int, station models.RadioStation) (models.RadioStation, error) {
+	station, err := s.normalizeRadioFavorite(ctx, station)
+	if err != nil {
+		return models.RadioStation{}, err
+	}
+	existing, err := s.client.UserRadioFavorite.Query().
+		Where(userradiofavorite.HasUserWith(user.ID(userID)), userradiofavorite.StationID(station.ID)).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return models.RadioStation{}, err
+	}
+	if ent.IsNotFound(err) {
+		_, err = s.client.UserRadioFavorite.Create().
+			SetUserID(userID).
+			SetStationID(station.ID).
+			SetName(station.Name).
+			SetURL(station.URL).
+			SetSourceURL(station.SourceURL).
+			SetGroupName(station.GroupName).
+			SetCountry(station.Country).
+			SetTags(station.Tags).
+			SetCodec(station.Codec).
+			SetBitrate(station.Bitrate).
+			SetHomepage(station.Homepage).
+			SetFavicon(station.Favicon).
+			Save(ctx)
+		station.Favorite = true
+	} else {
+		err = s.client.UserRadioFavorite.DeleteOneID(existing.ID).Exec(ctx)
+		station.Favorite = false
+	}
+	if err != nil {
+		return models.RadioStation{}, err
+	}
+	return station, nil
 }
 
 func (s *Service) AddRadioSource(ctx context.Context, name, sourceURL string) (models.RadioSource, error) {
@@ -248,6 +311,7 @@ func (s *Service) DeleteRadioSource(ctx context.Context, id string) error {
 	}
 	out := items[:0]
 	removed := false
+	removedIDs := make([]string, 0, 1)
 	for _, item := range items {
 		itemSourceURL := strings.TrimSpace(item.SourceURL)
 		if itemSourceURL == "" {
@@ -255,6 +319,7 @@ func (s *Service) DeleteRadioSource(ctx context.Context, id string) error {
 		}
 		if item.ID == id || (deleteSourceURL != "" && strings.EqualFold(itemSourceURL, deleteSourceURL)) {
 			removed = true
+			removedIDs = append(removedIDs, item.ID)
 			continue
 		}
 		out = append(out, item)
@@ -262,7 +327,13 @@ func (s *Service) DeleteRadioSource(ctx context.Context, id string) error {
 	if !removed {
 		return errors.New("radio source not found")
 	}
-	return s.saveRadioSources(ctx, out)
+	if err := s.saveRadioSources(ctx, out); err != nil {
+		return err
+	}
+	if len(removedIDs) > 0 {
+		_, _ = s.client.UserRadioFavorite.Delete().Where(userradiofavorite.StationIDIn(removedIDs...)).Exec(ctx)
+	}
+	return nil
 }
 
 func (s *Service) storedRadioSources(ctx context.Context) ([]models.RadioSource, error) {
@@ -313,6 +384,111 @@ func (s *Service) saveRadioSources(ctx context.Context, items []models.RadioSour
 		return err
 	}
 	return s.setSetting(ctx, radioSourcesSettingKey, string(data))
+}
+
+func (s *Service) markRadioSourceFavorites(ctx context.Context, userID int, items []models.RadioSource) ([]models.RadioSource, error) {
+	favorites, err := s.radioFavoriteIDSet(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range items {
+		items[i].Favorite = favorites[items[i].ID]
+	}
+	return items, nil
+}
+
+func (s *Service) markRadioStationFavorites(ctx context.Context, userID int, items []models.RadioStation) ([]models.RadioStation, error) {
+	favorites, err := s.radioFavoriteIDSet(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range items {
+		items[i].StreamURL = strings.TrimSpace(firstString(items[i].StreamURL, items[i].URL))
+		items[i].Favorite = favorites[radioStationID(items[i])]
+	}
+	return items, nil
+}
+
+func (s *Service) radioFavoriteIDSet(ctx context.Context, userID int) (map[string]bool, error) {
+	out := map[string]bool{}
+	if userID <= 0 {
+		return out, nil
+	}
+	items, err := s.client.UserRadioFavorite.Query().
+		Where(userradiofavorite.HasUserWith(user.ID(userID))).
+		Select(userradiofavorite.FieldStationID).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		out[item.StationID] = true
+	}
+	return out, nil
+}
+
+func (s *Service) normalizeRadioFavorite(ctx context.Context, station models.RadioStation) (models.RadioStation, error) {
+	station.Name = strings.TrimSpace(station.Name)
+	station.URL = strings.TrimSpace(firstString(station.StreamURL, station.URL))
+	station.URL = s.resolveLocalRadioURL(ctx, station.URL)
+	station.SourceURL = strings.TrimSpace(station.SourceURL)
+	station.GroupName = strings.TrimSpace(station.GroupName)
+	station.StreamURL = station.URL
+	if station.ID = strings.TrimSpace(station.ID); station.ID == "" {
+		station.ID = radioID(station.URL)
+	}
+	if station.ID == "" || station.Name == "" {
+		return models.RadioStation{}, errors.New("radio station name is required")
+	}
+	if !validStreamLikeURL(station.URL) {
+		return models.RadioStation{}, errors.New("valid http(s) radio stream url is required")
+	}
+	return station, nil
+}
+
+func (s *Service) resolveLocalRadioURL(ctx context.Context, value string) string {
+	value = strings.TrimSpace(value)
+	if strings.HasPrefix(value, "/api/radio/stream") {
+		if parsed, err := url.Parse(value); err == nil {
+			if raw := strings.TrimSpace(parsed.Query().Get("url")); raw != "" {
+				return raw
+			}
+		}
+	}
+	if strings.HasPrefix(value, "/api/radio/sources/") && strings.HasSuffix(value, "/stream") {
+		id := strings.TrimSuffix(strings.TrimPrefix(value, "/api/radio/sources/"), "/stream")
+		if id != "" {
+			if source, err := s.RadioSource(ctx, id); err == nil && source.URL != "" {
+				return source.URL
+			}
+		}
+	}
+	return value
+}
+
+func radioFavoriteToStation(item *ent.UserRadioFavorite) models.RadioStation {
+	return models.RadioStation{
+		ID:        item.StationID,
+		Name:      item.Name,
+		URL:       item.URL,
+		SourceURL: item.SourceURL,
+		GroupName: item.GroupName,
+		StreamURL: item.URL,
+		Country:   item.Country,
+		Tags:      item.Tags,
+		Codec:     item.Codec,
+		Bitrate:   item.Bitrate,
+		Homepage:  item.Homepage,
+		Favicon:   item.Favicon,
+		Favorite:  true,
+	}
+}
+
+func radioStationID(station models.RadioStation) string {
+	if id := strings.TrimSpace(station.ID); id != "" {
+		return id
+	}
+	return radioID(firstString(station.StreamURL, station.URL))
 }
 
 func defaultRadioSource(ctx context.Context) models.RadioSource {

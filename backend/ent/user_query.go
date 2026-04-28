@@ -14,6 +14,7 @@ import (
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
 	"lark/backend/ent/userartistfavorite"
+	"lark/backend/ent/userradiofavorite"
 	"lark/backend/ent/usersongfavorite"
 	"math"
 
@@ -36,6 +37,7 @@ type UserQuery struct {
 	withSongFavorites      *UserSongFavoriteQuery
 	withAlbumFavorites     *UserAlbumFavoriteQuery
 	withArtistFavorites    *UserArtistFavoriteQuery
+	withRadioFavorites     *UserRadioFavoriteQuery
 	withPlayHistory        *PlayHistoryQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -198,6 +200,28 @@ func (_q *UserQuery) QueryArtistFavorites() *UserArtistFavoriteQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(userartistfavorite.Table, userartistfavorite.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.ArtistFavoritesTable, user.ArtistFavoritesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryRadioFavorites chains the current query on the "radio_favorites" edge.
+func (_q *UserQuery) QueryRadioFavorites() *UserRadioFavoriteQuery {
+	query := (&UserRadioFavoriteClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(userradiofavorite.Table, userradiofavorite.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.RadioFavoritesTable, user.RadioFavoritesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -425,6 +449,7 @@ func (_q *UserQuery) Clone() *UserQuery {
 		withSongFavorites:      _q.withSongFavorites.Clone(),
 		withAlbumFavorites:     _q.withAlbumFavorites.Clone(),
 		withArtistFavorites:    _q.withArtistFavorites.Clone(),
+		withRadioFavorites:     _q.withRadioFavorites.Clone(),
 		withPlayHistory:        _q.withPlayHistory.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
@@ -495,6 +520,17 @@ func (_q *UserQuery) WithArtistFavorites(opts ...func(*UserArtistFavoriteQuery))
 		opt(query)
 	}
 	_q.withArtistFavorites = query
+	return _q
+}
+
+// WithRadioFavorites tells the query-builder to eager-load the nodes that are connected to
+// the "radio_favorites" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithRadioFavorites(opts ...func(*UserRadioFavoriteQuery)) *UserQuery {
+	query := (&UserRadioFavoriteClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withRadioFavorites = query
 	return _q
 }
 
@@ -587,13 +623,14 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [7]bool{
+		loadedTypes = [8]bool{
 			_q.withSessions != nil,
 			_q.withLibraryDirectories != nil,
 			_q.withPlaylists != nil,
 			_q.withSongFavorites != nil,
 			_q.withAlbumFavorites != nil,
 			_q.withArtistFavorites != nil,
+			_q.withRadioFavorites != nil,
 			_q.withPlayHistory != nil,
 		}
 	)
@@ -654,6 +691,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadArtistFavorites(ctx, query, nodes,
 			func(n *User) { n.Edges.ArtistFavorites = []*UserArtistFavorite{} },
 			func(n *User, e *UserArtistFavorite) { n.Edges.ArtistFavorites = append(n.Edges.ArtistFavorites, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withRadioFavorites; query != nil {
+		if err := _q.loadRadioFavorites(ctx, query, nodes,
+			func(n *User) { n.Edges.RadioFavorites = []*UserRadioFavorite{} },
+			func(n *User, e *UserRadioFavorite) { n.Edges.RadioFavorites = append(n.Edges.RadioFavorites, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -848,6 +892,37 @@ func (_q *UserQuery) loadArtistFavorites(ctx context.Context, query *UserArtistF
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_artist_favorites" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadRadioFavorites(ctx context.Context, query *UserRadioFavoriteQuery, nodes []*User, init func(*User), assign func(*User, *UserRadioFavorite)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.UserRadioFavorite(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.RadioFavoritesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.user_radio_favorites
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_radio_favorites" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_radio_favorites" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

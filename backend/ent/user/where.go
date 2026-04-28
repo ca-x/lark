@@ -773,6 +773,29 @@ func HasArtistFavoritesWith(preds ...predicate.UserArtistFavorite) predicate.Use
 	})
 }
 
+// HasRadioFavorites applies the HasEdge predicate on the "radio_favorites" edge.
+func HasRadioFavorites() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, RadioFavoritesTable, RadioFavoritesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasRadioFavoritesWith applies the HasEdge predicate on the "radio_favorites" edge with a given conditions (other predicates).
+func HasRadioFavoritesWith(preds ...predicate.UserRadioFavorite) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newRadioFavoritesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasPlayHistory applies the HasEdge predicate on the "play_history" edge.
 func HasPlayHistory() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

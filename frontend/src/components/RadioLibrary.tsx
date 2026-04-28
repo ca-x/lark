@@ -214,7 +214,7 @@ export function RadioView({
               />
             </label>
             <button onClick={onSearch} disabled={loading || !query.trim()}>
-              <MagnifyingGlass /> {loading ? t("loading") : t("search")}
+              <MagnifyingGlass /> {loading ? t("loading") : t("searchAction")}
             </button>
           </div>
 

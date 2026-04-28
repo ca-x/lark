@@ -55,11 +55,13 @@ type UserEdges struct {
 	AlbumFavorites []*UserAlbumFavorite `json:"album_favorites,omitempty"`
 	// ArtistFavorites holds the value of the artist_favorites edge.
 	ArtistFavorites []*UserArtistFavorite `json:"artist_favorites,omitempty"`
+	// RadioFavorites holds the value of the radio_favorites edge.
+	RadioFavorites []*UserRadioFavorite `json:"radio_favorites,omitempty"`
 	// PlayHistory holds the value of the play_history edge.
 	PlayHistory []*PlayHistory `json:"play_history,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [7]bool
+	loadedTypes [8]bool
 }
 
 // SessionsOrErr returns the Sessions value or an error if the edge
@@ -116,10 +118,19 @@ func (e UserEdges) ArtistFavoritesOrErr() ([]*UserArtistFavorite, error) {
 	return nil, &NotLoadedError{edge: "artist_favorites"}
 }
 
+// RadioFavoritesOrErr returns the RadioFavorites value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) RadioFavoritesOrErr() ([]*UserRadioFavorite, error) {
+	if e.loadedTypes[6] {
+		return e.RadioFavorites, nil
+	}
+	return nil, &NotLoadedError{edge: "radio_favorites"}
+}
+
 // PlayHistoryOrErr returns the PlayHistory value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PlayHistoryOrErr() ([]*PlayHistory, error) {
-	if e.loadedTypes[6] {
+	if e.loadedTypes[7] {
 		return e.PlayHistory, nil
 	}
 	return nil, &NotLoadedError{edge: "play_history"}
@@ -252,6 +263,11 @@ func (_m *User) QueryAlbumFavorites() *UserAlbumFavoriteQuery {
 // QueryArtistFavorites queries the "artist_favorites" edge of the User entity.
 func (_m *User) QueryArtistFavorites() *UserArtistFavoriteQuery {
 	return NewUserClient(_m.config).QueryArtistFavorites(_m)
+}
+
+// QueryRadioFavorites queries the "radio_favorites" edge of the User entity.
+func (_m *User) QueryRadioFavorites() *UserRadioFavoriteQuery {
+	return NewUserClient(_m.config).QueryRadioFavorites(_m)
 }
 
 // QueryPlayHistory queries the "play_history" edge of the User entity.

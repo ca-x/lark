@@ -330,6 +330,44 @@ var (
 			},
 		},
 	}
+	// UserRadioFavoritesColumns holds the columns for the "user_radio_favorites" table.
+	UserRadioFavoritesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "station_id", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "url", Type: field.TypeString},
+		{Name: "source_url", Type: field.TypeString, Default: ""},
+		{Name: "group_name", Type: field.TypeString, Default: ""},
+		{Name: "country", Type: field.TypeString, Default: ""},
+		{Name: "tags", Type: field.TypeString, Default: ""},
+		{Name: "codec", Type: field.TypeString, Default: ""},
+		{Name: "bitrate", Type: field.TypeInt, Default: 0},
+		{Name: "homepage", Type: field.TypeString, Default: ""},
+		{Name: "favicon", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "user_radio_favorites", Type: field.TypeInt},
+	}
+	// UserRadioFavoritesTable holds the schema information for the "user_radio_favorites" table.
+	UserRadioFavoritesTable = &schema.Table{
+		Name:       "user_radio_favorites",
+		Columns:    UserRadioFavoritesColumns,
+		PrimaryKey: []*schema.Column{UserRadioFavoritesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_radio_favorites_users_radio_favorites",
+				Columns:    []*schema.Column{UserRadioFavoritesColumns[13]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "userradiofavorite_station_id_user_radio_favorites",
+				Unique:  true,
+				Columns: []*schema.Column{UserRadioFavoritesColumns[1], UserRadioFavoritesColumns[13]},
+			},
+		},
+	}
 	// UserSongFavoritesColumns holds the columns for the "user_song_favorites" table.
 	UserSongFavoritesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -402,6 +440,7 @@ var (
 		UsersTable,
 		UserAlbumFavoritesTable,
 		UserArtistFavoritesTable,
+		UserRadioFavoritesTable,
 		UserSongFavoritesTable,
 		PlaylistSongsTable,
 	}
@@ -420,6 +459,7 @@ func init() {
 	UserAlbumFavoritesTable.ForeignKeys[1].RefTable = UsersTable
 	UserArtistFavoritesTable.ForeignKeys[0].RefTable = ArtistsTable
 	UserArtistFavoritesTable.ForeignKeys[1].RefTable = UsersTable
+	UserRadioFavoritesTable.ForeignKeys[0].RefTable = UsersTable
 	UserSongFavoritesTable.ForeignKeys[0].RefTable = SongsTable
 	UserSongFavoritesTable.ForeignKeys[1].RefTable = UsersTable
 	PlaylistSongsTable.ForeignKeys[0].RefTable = PlaylistsTable

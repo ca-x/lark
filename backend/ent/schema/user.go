@@ -32,6 +32,7 @@ func (User) Edges() []ent.Edge {
 		edge.To("song_favorites", UserSongFavorite.Type),
 		edge.To("album_favorites", UserAlbumFavorite.Type),
 		edge.To("artist_favorites", UserArtistFavorite.Type),
+		edge.To("radio_favorites", UserRadioFavorite.Type),
 		edge.To("play_history", PlayHistory.Type),
 	}
 }

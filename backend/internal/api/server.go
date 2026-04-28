@@ -160,6 +160,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.GET("/api/radio/sources", s.handleRadioSources, auth)
 	e.POST("/api/radio/sources", s.handleAddRadioSource, admin)
 	e.DELETE("/api/radio/sources/:id", s.handleDeleteRadioSource, admin)
+	e.GET("/api/radio/favorites", s.handleRadioFavorites, auth)
+	e.POST("/api/radio/favorite", s.handleToggleRadioFavorite, auth)
 	e.GET("/api/radio/sources/:id/stream", s.handleRadioSourceStream, auth)
 	e.GET("/api/radio/stream", s.handleRadioStream, auth)
 	e.GET("/api/radio/top", s.handleTopRadioStations, auth)
@@ -1185,7 +1187,7 @@ func (s *Server) handleNetworkTrackStream(c *echo.Context) error {
 }
 
 func (s *Server) handleRadioSources(c *echo.Context) error {
-	items, err := s.lib.RadioSources(c.Request().Context())
+	items, err := s.lib.RadioSources(c.Request().Context(), currentUserID(c))
 	if err != nil {
 		return mapError(err)
 	}
@@ -1209,6 +1211,26 @@ func (s *Server) handleDeleteRadioSource(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) handleRadioFavorites(c *echo.Context) error {
+	items, err := s.lib.RadioFavorites(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleToggleRadioFavorite(c *echo.Context) error {
+	var req models.RadioStation
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	item, err := s.lib.ToggleRadioFavorite(c.Request().Context(), currentUserID(c), req)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, item)
 }
 
 func (s *Server) handleRadioStream(c *echo.Context) error {
@@ -1296,7 +1318,7 @@ func (s *Server) pipeRemoteRadio(c *echo.Context, ffmpeg, streamURL string, qual
 func (s *Server) handleTopRadioStations(c *echo.Context) error {
 	offset, _ := strconv.Atoi(c.QueryParam("offset"))
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	items, err := s.lib.TopRadioStations(c.Request().Context(), offset, limit)
+	items, err := s.lib.TopRadioStations(c.Request().Context(), currentUserID(c), offset, limit)
 	if err != nil {
 		return mapError(err)
 	}
@@ -1305,7 +1327,7 @@ func (s *Server) handleTopRadioStations(c *echo.Context) error {
 
 func (s *Server) handleSearchRadioStations(c *echo.Context) error {
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	items, err := s.lib.SearchRadioStations(c.Request().Context(), c.QueryParam("q"), limit)
+	items, err := s.lib.SearchRadioStations(c.Request().Context(), currentUserID(c), c.QueryParam("q"), limit)
 	if err != nil {
 		return mapError(err)
 	}

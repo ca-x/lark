@@ -101,6 +101,14 @@ Default server settings:
 | `LARK_ADMIN_NICKNAME` | empty | Optional nickname for the auto-created admin |
 | `FFMPEG_BIN` | `ffmpeg` | Optional transcoder binary |
 | `FFPROBE_BIN` | `ffprobe` | Optional metadata probe binary |
+| `LARK_CACHE_BACKEND` | `badger` | Cache backend: `badger`, `redis`, `memory`, or `none`. If unset and Redis env vars are present, Redis is selected automatically. |
+| `LARK_CACHE_TTL_SECONDS` | `120` | TTL for cached library list/query responses |
+| `LARK_CACHE_DIR` | `./data/cache/badger` | Badger cache directory when using the built-in KV backend |
+| `LARK_REDIS_URL` | empty | Optional Redis URL, e.g. `redis://:password@redis:6379/0`. Takes precedence over host/password/db settings. |
+| `LARK_REDIS_ADDR` | empty | Redis address. Setting this env var enables Redis when `LARK_CACHE_BACKEND` is unset; if Redis is explicitly selected without an address, runtime falls back to `localhost:6379`. |
+| `LARK_REDIS_PASSWORD` | empty | Redis password |
+| `LARK_REDIS_DB` | empty | Redis database number; runtime fallback is `0` when Redis is selected |
+| `LARK_REDIS_KEY_PREFIX` | empty | Prefix for Lark cache keys in Redis; runtime fallback is `lark:cache:` when Redis is selected |
 
 Release builds inject `lark/backend/pkg/version` values with Go `-ldflags`; the Web settings page displays the running version, commit, and build time from `/api/health`.
 
@@ -143,6 +151,29 @@ The default compose file stores app data and uploaded music in the `lark_data` v
 ```bash
 LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d
 ```
+
+### Cache backend
+
+By default Lark uses the built-in Badger KV cache under `LARK_CACHE_DIR`; no external service is required. Redis is only used when you explicitly configure Redis-related environment variables or set `LARK_CACHE_BACKEND=redis`.
+
+Use an external Redis:
+
+```bash
+LARK_REDIS_URL='redis://:password@redis.example.com:6379/0' docker compose up -d
+# or
+LARK_REDIS_ADDR='redis.example.com:6379' \
+LARK_REDIS_PASSWORD='password' \
+LARK_REDIS_DB=0 \
+docker compose up -d
+```
+
+Run the optional Redis service bundled in `docker-compose.yml`:
+
+```bash
+LARK_REDIS_ADDR=redis:6379 docker compose --profile redis up -d
+```
+
+If no `LARK_REDIS_*` variable is set, compose starts only Lark and keeps using the built-in Badger KV cache.
 
 Then open:
 

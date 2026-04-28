@@ -101,6 +101,14 @@ go run ./cmd/server
 | `LARK_ADMIN_NICKNAME` | 空 | 自动创建管理员的可选昵称 |
 | `FFMPEG_BIN` | `ffmpeg` | 可选转码工具 |
 | `FFPROBE_BIN` | `ffprobe` | 可选元数据探测工具 |
+| `LARK_CACHE_BACKEND` | `badger` | 缓存后端：`badger`、`redis`、`memory` 或 `none`。未设置时如果检测到 Redis 环境变量，会自动使用 Redis。 |
+| `LARK_CACHE_TTL_SECONDS` | `120` | 曲库列表/查询响应的缓存 TTL |
+| `LARK_CACHE_DIR` | `./data/cache/badger` | 使用内置 KV 后端时的 Badger 缓存目录 |
+| `LARK_REDIS_URL` | 空 | 可选 Redis URL，例如 `redis://:password@redis:6379/0`，优先级高于地址/密码/DB 配置。 |
+| `LARK_REDIS_ADDR` | 空 | Redis 地址。设置该环境变量且未显式指定缓存后端时，会启用 Redis；如果显式选择 Redis 但未配置地址，运行时回退到 `localhost:6379`。 |
+| `LARK_REDIS_PASSWORD` | 空 | Redis 密码 |
+| `LARK_REDIS_DB` | 空 | Redis 数据库编号；启用 Redis 后运行时默认 `0` |
+| `LARK_REDIS_KEY_PREFIX` | 空 | Redis 中百灵缓存 key 的前缀；启用 Redis 后运行时默认 `lark:cache:` |
 
 发布构建会通过 Go `-ldflags` 注入 `lark/backend/pkg/version` 的版本、提交和构建时间；Web 设置页会从 `/api/health` 显示当前运行版本。
 
@@ -143,6 +151,29 @@ docker compose up -d
 ```bash
 LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d
 ```
+
+### 缓存后端
+
+默认情况下百灵使用内置 Badger KV 缓存，数据位于 `LARK_CACHE_DIR`，不需要任何外部服务。只有当你显式配置 Redis 相关环境变量，或设置 `LARK_CACHE_BACKEND=redis` 时，才会启用 Redis。
+
+使用外部 Redis：
+
+```bash
+LARK_REDIS_URL='redis://:password@redis.example.com:6379/0' docker compose up -d
+# 或
+LARK_REDIS_ADDR='redis.example.com:6379' \
+LARK_REDIS_PASSWORD='password' \
+LARK_REDIS_DB=0 \
+docker compose up -d
+```
+
+启动 `docker-compose.yml` 中附带的可选 Redis 服务：
+
+```bash
+LARK_REDIS_ADDR=redis:6379 docker compose --profile redis up -d
+```
+
+如果没有设置任何 `LARK_REDIS_*` 变量，compose 只会启动百灵服务，并继续使用内置 Badger KV 缓存。
 
 然后访问：
 

@@ -14,6 +14,7 @@ import (
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
 	"lark/backend/ent/userartistfavorite"
+	"lark/backend/ent/userradiofavorite"
 	"lark/backend/ent/usersongfavorite"
 	"time"
 
@@ -243,6 +244,21 @@ func (_u *UserUpdate) AddArtistFavorites(v ...*UserArtistFavorite) *UserUpdate {
 	return _u.AddArtistFavoriteIDs(ids...)
 }
 
+// AddRadioFavoriteIDs adds the "radio_favorites" edge to the UserRadioFavorite entity by IDs.
+func (_u *UserUpdate) AddRadioFavoriteIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddRadioFavoriteIDs(ids...)
+	return _u
+}
+
+// AddRadioFavorites adds the "radio_favorites" edges to the UserRadioFavorite entity.
+func (_u *UserUpdate) AddRadioFavorites(v ...*UserRadioFavorite) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRadioFavoriteIDs(ids...)
+}
+
 // AddPlayHistoryIDs adds the "play_history" edge to the PlayHistory entity by IDs.
 func (_u *UserUpdate) AddPlayHistoryIDs(ids ...int) *UserUpdate {
 	_u.mutation.AddPlayHistoryIDs(ids...)
@@ -387,6 +403,27 @@ func (_u *UserUpdate) RemoveArtistFavorites(v ...*UserArtistFavorite) *UserUpdat
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveArtistFavoriteIDs(ids...)
+}
+
+// ClearRadioFavorites clears all "radio_favorites" edges to the UserRadioFavorite entity.
+func (_u *UserUpdate) ClearRadioFavorites() *UserUpdate {
+	_u.mutation.ClearRadioFavorites()
+	return _u
+}
+
+// RemoveRadioFavoriteIDs removes the "radio_favorites" edge to UserRadioFavorite entities by IDs.
+func (_u *UserUpdate) RemoveRadioFavoriteIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemoveRadioFavoriteIDs(ids...)
+	return _u
+}
+
+// RemoveRadioFavorites removes "radio_favorites" edges to UserRadioFavorite entities.
+func (_u *UserUpdate) RemoveRadioFavorites(v ...*UserRadioFavorite) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRadioFavoriteIDs(ids...)
 }
 
 // ClearPlayHistory clears all "play_history" edges to the PlayHistory entity.
@@ -770,6 +807,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.RadioFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RadioFavoritesTable,
+			Columns: []string{user.RadioFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userradiofavorite.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRadioFavoritesIDs(); len(nodes) > 0 && !_u.mutation.RadioFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RadioFavoritesTable,
+			Columns: []string{user.RadioFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userradiofavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RadioFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RadioFavoritesTable,
+			Columns: []string{user.RadioFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userradiofavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.PlayHistoryCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1043,6 +1125,21 @@ func (_u *UserUpdateOne) AddArtistFavorites(v ...*UserArtistFavorite) *UserUpdat
 	return _u.AddArtistFavoriteIDs(ids...)
 }
 
+// AddRadioFavoriteIDs adds the "radio_favorites" edge to the UserRadioFavorite entity by IDs.
+func (_u *UserUpdateOne) AddRadioFavoriteIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddRadioFavoriteIDs(ids...)
+	return _u
+}
+
+// AddRadioFavorites adds the "radio_favorites" edges to the UserRadioFavorite entity.
+func (_u *UserUpdateOne) AddRadioFavorites(v ...*UserRadioFavorite) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddRadioFavoriteIDs(ids...)
+}
+
 // AddPlayHistoryIDs adds the "play_history" edge to the PlayHistory entity by IDs.
 func (_u *UserUpdateOne) AddPlayHistoryIDs(ids ...int) *UserUpdateOne {
 	_u.mutation.AddPlayHistoryIDs(ids...)
@@ -1187,6 +1284,27 @@ func (_u *UserUpdateOne) RemoveArtistFavorites(v ...*UserArtistFavorite) *UserUp
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveArtistFavoriteIDs(ids...)
+}
+
+// ClearRadioFavorites clears all "radio_favorites" edges to the UserRadioFavorite entity.
+func (_u *UserUpdateOne) ClearRadioFavorites() *UserUpdateOne {
+	_u.mutation.ClearRadioFavorites()
+	return _u
+}
+
+// RemoveRadioFavoriteIDs removes the "radio_favorites" edge to UserRadioFavorite entities by IDs.
+func (_u *UserUpdateOne) RemoveRadioFavoriteIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemoveRadioFavoriteIDs(ids...)
+	return _u
+}
+
+// RemoveRadioFavorites removes "radio_favorites" edges to UserRadioFavorite entities.
+func (_u *UserUpdateOne) RemoveRadioFavorites(v ...*UserRadioFavorite) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveRadioFavoriteIDs(ids...)
 }
 
 // ClearPlayHistory clears all "play_history" edges to the PlayHistory entity.
@@ -1593,6 +1711,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userartistfavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.RadioFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RadioFavoritesTable,
+			Columns: []string{user.RadioFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userradiofavorite.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedRadioFavoritesIDs(); len(nodes) > 0 && !_u.mutation.RadioFavoritesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RadioFavoritesTable,
+			Columns: []string{user.RadioFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userradiofavorite.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RadioFavoritesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.RadioFavoritesTable,
+			Columns: []string{user.RadioFavoritesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userradiofavorite.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

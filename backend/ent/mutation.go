@@ -18,6 +18,7 @@ import (
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
 	"lark/backend/ent/userartistfavorite"
+	"lark/backend/ent/userradiofavorite"
 	"lark/backend/ent/usersongfavorite"
 	"sync"
 	"time"
@@ -46,6 +47,7 @@ const (
 	TypeUser               = "User"
 	TypeUserAlbumFavorite  = "UserAlbumFavorite"
 	TypeUserArtistFavorite = "UserArtistFavorite"
+	TypeUserRadioFavorite  = "UserRadioFavorite"
 	TypeUserSongFavorite   = "UserSongFavorite"
 )
 
@@ -6657,6 +6659,9 @@ type UserMutation struct {
 	artist_favorites           map[int]struct{}
 	removedartist_favorites    map[int]struct{}
 	clearedartist_favorites    bool
+	radio_favorites            map[int]struct{}
+	removedradio_favorites     map[int]struct{}
+	clearedradio_favorites     bool
 	play_history               map[int]struct{}
 	removedplay_history        map[int]struct{}
 	clearedplay_history        bool
@@ -7411,6 +7416,60 @@ func (m *UserMutation) ResetArtistFavorites() {
 	m.removedartist_favorites = nil
 }
 
+// AddRadioFavoriteIDs adds the "radio_favorites" edge to the UserRadioFavorite entity by ids.
+func (m *UserMutation) AddRadioFavoriteIDs(ids ...int) {
+	if m.radio_favorites == nil {
+		m.radio_favorites = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.radio_favorites[ids[i]] = struct{}{}
+	}
+}
+
+// ClearRadioFavorites clears the "radio_favorites" edge to the UserRadioFavorite entity.
+func (m *UserMutation) ClearRadioFavorites() {
+	m.clearedradio_favorites = true
+}
+
+// RadioFavoritesCleared reports if the "radio_favorites" edge to the UserRadioFavorite entity was cleared.
+func (m *UserMutation) RadioFavoritesCleared() bool {
+	return m.clearedradio_favorites
+}
+
+// RemoveRadioFavoriteIDs removes the "radio_favorites" edge to the UserRadioFavorite entity by IDs.
+func (m *UserMutation) RemoveRadioFavoriteIDs(ids ...int) {
+	if m.removedradio_favorites == nil {
+		m.removedradio_favorites = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.radio_favorites, ids[i])
+		m.removedradio_favorites[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedRadioFavorites returns the removed IDs of the "radio_favorites" edge to the UserRadioFavorite entity.
+func (m *UserMutation) RemovedRadioFavoritesIDs() (ids []int) {
+	for id := range m.removedradio_favorites {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// RadioFavoritesIDs returns the "radio_favorites" edge IDs in the mutation.
+func (m *UserMutation) RadioFavoritesIDs() (ids []int) {
+	for id := range m.radio_favorites {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetRadioFavorites resets all changes to the "radio_favorites" edge.
+func (m *UserMutation) ResetRadioFavorites() {
+	m.radio_favorites = nil
+	m.clearedradio_favorites = false
+	m.removedradio_favorites = nil
+}
+
 // AddPlayHistoryIDs adds the "play_history" edge to the PlayHistory entity by ids.
 func (m *UserMutation) AddPlayHistoryIDs(ids ...int) {
 	if m.play_history == nil {
@@ -7734,7 +7793,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 8)
 	if m.sessions != nil {
 		edges = append(edges, user.EdgeSessions)
 	}
@@ -7752,6 +7811,9 @@ func (m *UserMutation) AddedEdges() []string {
 	}
 	if m.artist_favorites != nil {
 		edges = append(edges, user.EdgeArtistFavorites)
+	}
+	if m.radio_favorites != nil {
+		edges = append(edges, user.EdgeRadioFavorites)
 	}
 	if m.play_history != nil {
 		edges = append(edges, user.EdgePlayHistory)
@@ -7799,6 +7861,12 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeRadioFavorites:
+		ids := make([]ent.Value, 0, len(m.radio_favorites))
+		for id := range m.radio_favorites {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgePlayHistory:
 		ids := make([]ent.Value, 0, len(m.play_history))
 		for id := range m.play_history {
@@ -7811,7 +7879,7 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 8)
 	if m.removedsessions != nil {
 		edges = append(edges, user.EdgeSessions)
 	}
@@ -7829,6 +7897,9 @@ func (m *UserMutation) RemovedEdges() []string {
 	}
 	if m.removedartist_favorites != nil {
 		edges = append(edges, user.EdgeArtistFavorites)
+	}
+	if m.removedradio_favorites != nil {
+		edges = append(edges, user.EdgeRadioFavorites)
 	}
 	if m.removedplay_history != nil {
 		edges = append(edges, user.EdgePlayHistory)
@@ -7876,6 +7947,12 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeRadioFavorites:
+		ids := make([]ent.Value, 0, len(m.removedradio_favorites))
+		for id := range m.removedradio_favorites {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgePlayHistory:
 		ids := make([]ent.Value, 0, len(m.removedplay_history))
 		for id := range m.removedplay_history {
@@ -7888,7 +7965,7 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 7)
+	edges := make([]string, 0, 8)
 	if m.clearedsessions {
 		edges = append(edges, user.EdgeSessions)
 	}
@@ -7906,6 +7983,9 @@ func (m *UserMutation) ClearedEdges() []string {
 	}
 	if m.clearedartist_favorites {
 		edges = append(edges, user.EdgeArtistFavorites)
+	}
+	if m.clearedradio_favorites {
+		edges = append(edges, user.EdgeRadioFavorites)
 	}
 	if m.clearedplay_history {
 		edges = append(edges, user.EdgePlayHistory)
@@ -7929,6 +8009,8 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedalbum_favorites
 	case user.EdgeArtistFavorites:
 		return m.clearedartist_favorites
+	case user.EdgeRadioFavorites:
+		return m.clearedradio_favorites
 	case user.EdgePlayHistory:
 		return m.clearedplay_history
 	}
@@ -7964,6 +8046,9 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	case user.EdgeArtistFavorites:
 		m.ResetArtistFavorites()
+		return nil
+	case user.EdgeRadioFavorites:
+		m.ResetRadioFavorites()
 		return nil
 	case user.EdgePlayHistory:
 		m.ResetPlayHistory()
@@ -8874,6 +8959,1029 @@ func (m *UserArtistFavoriteMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown UserArtistFavorite edge %s", name)
+}
+
+// UserRadioFavoriteMutation represents an operation that mutates the UserRadioFavorite nodes in the graph.
+type UserRadioFavoriteMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	station_id    *string
+	name          *string
+	url           *string
+	source_url    *string
+	group_name    *string
+	country       *string
+	tags          *string
+	codec         *string
+	bitrate       *int
+	addbitrate    *int
+	homepage      *string
+	favicon       *string
+	created_at    *time.Time
+	clearedFields map[string]struct{}
+	user          *int
+	cleareduser   bool
+	done          bool
+	oldValue      func(context.Context) (*UserRadioFavorite, error)
+	predicates    []predicate.UserRadioFavorite
+}
+
+var _ ent.Mutation = (*UserRadioFavoriteMutation)(nil)
+
+// userradiofavoriteOption allows management of the mutation configuration using functional options.
+type userradiofavoriteOption func(*UserRadioFavoriteMutation)
+
+// newUserRadioFavoriteMutation creates new mutation for the UserRadioFavorite entity.
+func newUserRadioFavoriteMutation(c config, op Op, opts ...userradiofavoriteOption) *UserRadioFavoriteMutation {
+	m := &UserRadioFavoriteMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserRadioFavorite,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserRadioFavoriteID sets the ID field of the mutation.
+func withUserRadioFavoriteID(id int) userradiofavoriteOption {
+	return func(m *UserRadioFavoriteMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserRadioFavorite
+		)
+		m.oldValue = func(ctx context.Context) (*UserRadioFavorite, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserRadioFavorite.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserRadioFavorite sets the old UserRadioFavorite of the mutation.
+func withUserRadioFavorite(node *UserRadioFavorite) userradiofavoriteOption {
+	return func(m *UserRadioFavoriteMutation) {
+		m.oldValue = func(context.Context) (*UserRadioFavorite, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserRadioFavoriteMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserRadioFavoriteMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserRadioFavoriteMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserRadioFavoriteMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserRadioFavorite.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetStationID sets the "station_id" field.
+func (m *UserRadioFavoriteMutation) SetStationID(s string) {
+	m.station_id = &s
+}
+
+// StationID returns the value of the "station_id" field in the mutation.
+func (m *UserRadioFavoriteMutation) StationID() (r string, exists bool) {
+	v := m.station_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStationID returns the old "station_id" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldStationID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStationID: %w", err)
+	}
+	return oldValue.StationID, nil
+}
+
+// ResetStationID resets all changes to the "station_id" field.
+func (m *UserRadioFavoriteMutation) ResetStationID() {
+	m.station_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *UserRadioFavoriteMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *UserRadioFavoriteMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *UserRadioFavoriteMutation) ResetName() {
+	m.name = nil
+}
+
+// SetURL sets the "url" field.
+func (m *UserRadioFavoriteMutation) SetURL(s string) {
+	m.url = &s
+}
+
+// URL returns the value of the "url" field in the mutation.
+func (m *UserRadioFavoriteMutation) URL() (r string, exists bool) {
+	v := m.url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldURL returns the old "url" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldURL: %w", err)
+	}
+	return oldValue.URL, nil
+}
+
+// ResetURL resets all changes to the "url" field.
+func (m *UserRadioFavoriteMutation) ResetURL() {
+	m.url = nil
+}
+
+// SetSourceURL sets the "source_url" field.
+func (m *UserRadioFavoriteMutation) SetSourceURL(s string) {
+	m.source_url = &s
+}
+
+// SourceURL returns the value of the "source_url" field in the mutation.
+func (m *UserRadioFavoriteMutation) SourceURL() (r string, exists bool) {
+	v := m.source_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceURL returns the old "source_url" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldSourceURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceURL: %w", err)
+	}
+	return oldValue.SourceURL, nil
+}
+
+// ResetSourceURL resets all changes to the "source_url" field.
+func (m *UserRadioFavoriteMutation) ResetSourceURL() {
+	m.source_url = nil
+}
+
+// SetGroupName sets the "group_name" field.
+func (m *UserRadioFavoriteMutation) SetGroupName(s string) {
+	m.group_name = &s
+}
+
+// GroupName returns the value of the "group_name" field in the mutation.
+func (m *UserRadioFavoriteMutation) GroupName() (r string, exists bool) {
+	v := m.group_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupName returns the old "group_name" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldGroupName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupName: %w", err)
+	}
+	return oldValue.GroupName, nil
+}
+
+// ResetGroupName resets all changes to the "group_name" field.
+func (m *UserRadioFavoriteMutation) ResetGroupName() {
+	m.group_name = nil
+}
+
+// SetCountry sets the "country" field.
+func (m *UserRadioFavoriteMutation) SetCountry(s string) {
+	m.country = &s
+}
+
+// Country returns the value of the "country" field in the mutation.
+func (m *UserRadioFavoriteMutation) Country() (r string, exists bool) {
+	v := m.country
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCountry returns the old "country" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldCountry(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCountry is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCountry requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCountry: %w", err)
+	}
+	return oldValue.Country, nil
+}
+
+// ResetCountry resets all changes to the "country" field.
+func (m *UserRadioFavoriteMutation) ResetCountry() {
+	m.country = nil
+}
+
+// SetTags sets the "tags" field.
+func (m *UserRadioFavoriteMutation) SetTags(s string) {
+	m.tags = &s
+}
+
+// Tags returns the value of the "tags" field in the mutation.
+func (m *UserRadioFavoriteMutation) Tags() (r string, exists bool) {
+	v := m.tags
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTags returns the old "tags" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldTags(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTags is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTags requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTags: %w", err)
+	}
+	return oldValue.Tags, nil
+}
+
+// ResetTags resets all changes to the "tags" field.
+func (m *UserRadioFavoriteMutation) ResetTags() {
+	m.tags = nil
+}
+
+// SetCodec sets the "codec" field.
+func (m *UserRadioFavoriteMutation) SetCodec(s string) {
+	m.codec = &s
+}
+
+// Codec returns the value of the "codec" field in the mutation.
+func (m *UserRadioFavoriteMutation) Codec() (r string, exists bool) {
+	v := m.codec
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCodec returns the old "codec" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldCodec(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCodec is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCodec requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCodec: %w", err)
+	}
+	return oldValue.Codec, nil
+}
+
+// ResetCodec resets all changes to the "codec" field.
+func (m *UserRadioFavoriteMutation) ResetCodec() {
+	m.codec = nil
+}
+
+// SetBitrate sets the "bitrate" field.
+func (m *UserRadioFavoriteMutation) SetBitrate(i int) {
+	m.bitrate = &i
+	m.addbitrate = nil
+}
+
+// Bitrate returns the value of the "bitrate" field in the mutation.
+func (m *UserRadioFavoriteMutation) Bitrate() (r int, exists bool) {
+	v := m.bitrate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBitrate returns the old "bitrate" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldBitrate(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBitrate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBitrate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBitrate: %w", err)
+	}
+	return oldValue.Bitrate, nil
+}
+
+// AddBitrate adds i to the "bitrate" field.
+func (m *UserRadioFavoriteMutation) AddBitrate(i int) {
+	if m.addbitrate != nil {
+		*m.addbitrate += i
+	} else {
+		m.addbitrate = &i
+	}
+}
+
+// AddedBitrate returns the value that was added to the "bitrate" field in this mutation.
+func (m *UserRadioFavoriteMutation) AddedBitrate() (r int, exists bool) {
+	v := m.addbitrate
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBitrate resets all changes to the "bitrate" field.
+func (m *UserRadioFavoriteMutation) ResetBitrate() {
+	m.bitrate = nil
+	m.addbitrate = nil
+}
+
+// SetHomepage sets the "homepage" field.
+func (m *UserRadioFavoriteMutation) SetHomepage(s string) {
+	m.homepage = &s
+}
+
+// Homepage returns the value of the "homepage" field in the mutation.
+func (m *UserRadioFavoriteMutation) Homepage() (r string, exists bool) {
+	v := m.homepage
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHomepage returns the old "homepage" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldHomepage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHomepage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHomepage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHomepage: %w", err)
+	}
+	return oldValue.Homepage, nil
+}
+
+// ResetHomepage resets all changes to the "homepage" field.
+func (m *UserRadioFavoriteMutation) ResetHomepage() {
+	m.homepage = nil
+}
+
+// SetFavicon sets the "favicon" field.
+func (m *UserRadioFavoriteMutation) SetFavicon(s string) {
+	m.favicon = &s
+}
+
+// Favicon returns the value of the "favicon" field in the mutation.
+func (m *UserRadioFavoriteMutation) Favicon() (r string, exists bool) {
+	v := m.favicon
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFavicon returns the old "favicon" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldFavicon(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFavicon is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFavicon requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFavicon: %w", err)
+	}
+	return oldValue.Favicon, nil
+}
+
+// ResetFavicon resets all changes to the "favicon" field.
+func (m *UserRadioFavoriteMutation) ResetFavicon() {
+	m.favicon = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserRadioFavoriteMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserRadioFavoriteMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserRadioFavorite entity.
+// If the UserRadioFavorite object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserRadioFavoriteMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserRadioFavoriteMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUserID sets the "user" edge to the User entity by id.
+func (m *UserRadioFavoriteMutation) SetUserID(id int) {
+	m.user = &id
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (m *UserRadioFavoriteMutation) ClearUser() {
+	m.cleareduser = true
+}
+
+// UserCleared reports if the "user" edge to the User entity was cleared.
+func (m *UserRadioFavoriteMutation) UserCleared() bool {
+	return m.cleareduser
+}
+
+// UserID returns the "user" edge ID in the mutation.
+func (m *UserRadioFavoriteMutation) UserID() (id int, exists bool) {
+	if m.user != nil {
+		return *m.user, true
+	}
+	return
+}
+
+// UserIDs returns the "user" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// UserID instead. It exists only for internal usage by the builders.
+func (m *UserRadioFavoriteMutation) UserIDs() (ids []int) {
+	if id := m.user; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetUser resets all changes to the "user" edge.
+func (m *UserRadioFavoriteMutation) ResetUser() {
+	m.user = nil
+	m.cleareduser = false
+}
+
+// Where appends a list predicates to the UserRadioFavoriteMutation builder.
+func (m *UserRadioFavoriteMutation) Where(ps ...predicate.UserRadioFavorite) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserRadioFavoriteMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserRadioFavoriteMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserRadioFavorite, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserRadioFavoriteMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserRadioFavoriteMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserRadioFavorite).
+func (m *UserRadioFavoriteMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserRadioFavoriteMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.station_id != nil {
+		fields = append(fields, userradiofavorite.FieldStationID)
+	}
+	if m.name != nil {
+		fields = append(fields, userradiofavorite.FieldName)
+	}
+	if m.url != nil {
+		fields = append(fields, userradiofavorite.FieldURL)
+	}
+	if m.source_url != nil {
+		fields = append(fields, userradiofavorite.FieldSourceURL)
+	}
+	if m.group_name != nil {
+		fields = append(fields, userradiofavorite.FieldGroupName)
+	}
+	if m.country != nil {
+		fields = append(fields, userradiofavorite.FieldCountry)
+	}
+	if m.tags != nil {
+		fields = append(fields, userradiofavorite.FieldTags)
+	}
+	if m.codec != nil {
+		fields = append(fields, userradiofavorite.FieldCodec)
+	}
+	if m.bitrate != nil {
+		fields = append(fields, userradiofavorite.FieldBitrate)
+	}
+	if m.homepage != nil {
+		fields = append(fields, userradiofavorite.FieldHomepage)
+	}
+	if m.favicon != nil {
+		fields = append(fields, userradiofavorite.FieldFavicon)
+	}
+	if m.created_at != nil {
+		fields = append(fields, userradiofavorite.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserRadioFavoriteMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case userradiofavorite.FieldStationID:
+		return m.StationID()
+	case userradiofavorite.FieldName:
+		return m.Name()
+	case userradiofavorite.FieldURL:
+		return m.URL()
+	case userradiofavorite.FieldSourceURL:
+		return m.SourceURL()
+	case userradiofavorite.FieldGroupName:
+		return m.GroupName()
+	case userradiofavorite.FieldCountry:
+		return m.Country()
+	case userradiofavorite.FieldTags:
+		return m.Tags()
+	case userradiofavorite.FieldCodec:
+		return m.Codec()
+	case userradiofavorite.FieldBitrate:
+		return m.Bitrate()
+	case userradiofavorite.FieldHomepage:
+		return m.Homepage()
+	case userradiofavorite.FieldFavicon:
+		return m.Favicon()
+	case userradiofavorite.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserRadioFavoriteMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case userradiofavorite.FieldStationID:
+		return m.OldStationID(ctx)
+	case userradiofavorite.FieldName:
+		return m.OldName(ctx)
+	case userradiofavorite.FieldURL:
+		return m.OldURL(ctx)
+	case userradiofavorite.FieldSourceURL:
+		return m.OldSourceURL(ctx)
+	case userradiofavorite.FieldGroupName:
+		return m.OldGroupName(ctx)
+	case userradiofavorite.FieldCountry:
+		return m.OldCountry(ctx)
+	case userradiofavorite.FieldTags:
+		return m.OldTags(ctx)
+	case userradiofavorite.FieldCodec:
+		return m.OldCodec(ctx)
+	case userradiofavorite.FieldBitrate:
+		return m.OldBitrate(ctx)
+	case userradiofavorite.FieldHomepage:
+		return m.OldHomepage(ctx)
+	case userradiofavorite.FieldFavicon:
+		return m.OldFavicon(ctx)
+	case userradiofavorite.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserRadioFavorite field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserRadioFavoriteMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case userradiofavorite.FieldStationID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStationID(v)
+		return nil
+	case userradiofavorite.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case userradiofavorite.FieldURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetURL(v)
+		return nil
+	case userradiofavorite.FieldSourceURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceURL(v)
+		return nil
+	case userradiofavorite.FieldGroupName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupName(v)
+		return nil
+	case userradiofavorite.FieldCountry:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCountry(v)
+		return nil
+	case userradiofavorite.FieldTags:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTags(v)
+		return nil
+	case userradiofavorite.FieldCodec:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCodec(v)
+		return nil
+	case userradiofavorite.FieldBitrate:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBitrate(v)
+		return nil
+	case userradiofavorite.FieldHomepage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHomepage(v)
+		return nil
+	case userradiofavorite.FieldFavicon:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFavicon(v)
+		return nil
+	case userradiofavorite.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserRadioFavorite field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserRadioFavoriteMutation) AddedFields() []string {
+	var fields []string
+	if m.addbitrate != nil {
+		fields = append(fields, userradiofavorite.FieldBitrate)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserRadioFavoriteMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case userradiofavorite.FieldBitrate:
+		return m.AddedBitrate()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserRadioFavoriteMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case userradiofavorite.FieldBitrate:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBitrate(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserRadioFavorite numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserRadioFavoriteMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserRadioFavoriteMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserRadioFavoriteMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown UserRadioFavorite nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserRadioFavoriteMutation) ResetField(name string) error {
+	switch name {
+	case userradiofavorite.FieldStationID:
+		m.ResetStationID()
+		return nil
+	case userradiofavorite.FieldName:
+		m.ResetName()
+		return nil
+	case userradiofavorite.FieldURL:
+		m.ResetURL()
+		return nil
+	case userradiofavorite.FieldSourceURL:
+		m.ResetSourceURL()
+		return nil
+	case userradiofavorite.FieldGroupName:
+		m.ResetGroupName()
+		return nil
+	case userradiofavorite.FieldCountry:
+		m.ResetCountry()
+		return nil
+	case userradiofavorite.FieldTags:
+		m.ResetTags()
+		return nil
+	case userradiofavorite.FieldCodec:
+		m.ResetCodec()
+		return nil
+	case userradiofavorite.FieldBitrate:
+		m.ResetBitrate()
+		return nil
+	case userradiofavorite.FieldHomepage:
+		m.ResetHomepage()
+		return nil
+	case userradiofavorite.FieldFavicon:
+		m.ResetFavicon()
+		return nil
+	case userradiofavorite.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserRadioFavorite field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserRadioFavoriteMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.user != nil {
+		edges = append(edges, userradiofavorite.EdgeUser)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserRadioFavoriteMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case userradiofavorite.EdgeUser:
+		if id := m.user; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserRadioFavoriteMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserRadioFavoriteMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserRadioFavoriteMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleareduser {
+		edges = append(edges, userradiofavorite.EdgeUser)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserRadioFavoriteMutation) EdgeCleared(name string) bool {
+	switch name {
+	case userradiofavorite.EdgeUser:
+		return m.cleareduser
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserRadioFavoriteMutation) ClearEdge(name string) error {
+	switch name {
+	case userradiofavorite.EdgeUser:
+		m.ClearUser()
+		return nil
+	}
+	return fmt.Errorf("unknown UserRadioFavorite unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserRadioFavoriteMutation) ResetEdge(name string) error {
+	switch name {
+	case userradiofavorite.EdgeUser:
+		m.ResetUser()
+		return nil
+	}
+	return fmt.Errorf("unknown UserRadioFavorite edge %s", name)
 }
 
 // UserSongFavoriteMutation represents an operation that mutates the UserSongFavorite nodes in the graph.

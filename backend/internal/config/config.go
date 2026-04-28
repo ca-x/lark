@@ -21,6 +21,11 @@ type Config struct {
 	CacheBackend   string
 	CacheDir       string
 	CacheTTL       int
+	RedisURL       string
+	RedisAddr      string
+	RedisPassword  string
+	RedisDB        int
+	RedisKeyPrefix string
 	AdminUsername  string
 	AdminPassword  string
 	AdminNickname  string
@@ -31,6 +36,13 @@ func Load() (Config, error) {
 	libraryDir := getEnv("LARK_LIBRARY_DIR", filepath.Join(dataDir, "music"))
 	databasePath := getEnv("LARK_DB_PATH", filepath.Join(dataDir, "lark.db"))
 	cacheDir := getEnv("LARK_CACHE_DIR", filepath.Join(dataDir, "cache", "badger"))
+	cacheBackend := strings.ToLower(strings.TrimSpace(os.Getenv("LARK_CACHE_BACKEND")))
+	if cacheBackend == "" && redisCacheConfigured() {
+		cacheBackend = "redis"
+	}
+	if cacheBackend == "" {
+		cacheBackend = "badger"
+	}
 	cfg := Config{
 		Port:           getEnv("LARK_PORT", "8080"),
 		DataDir:        dataDir,
@@ -41,9 +53,14 @@ func Load() (Config, error) {
 		FrontendOrigin: getEnv("LARK_FRONTEND_ORIGIN", "*"),
 		FFmpegBin:      strings.TrimSpace(getEnv("FFMPEG_BIN", "ffmpeg")),
 		FFprobeBin:     strings.TrimSpace(getEnv("FFPROBE_BIN", "ffprobe")),
-		CacheBackend:   strings.ToLower(strings.TrimSpace(getEnv("LARK_CACHE_BACKEND", "badger"))),
+		CacheBackend:   cacheBackend,
 		CacheDir:       cacheDir,
 		CacheTTL:       GetEnvInt("LARK_CACHE_TTL_SECONDS", 120),
+		RedisURL:       strings.TrimSpace(os.Getenv("LARK_REDIS_URL")),
+		RedisAddr:      strings.TrimSpace(getEnv("LARK_REDIS_ADDR", "localhost:6379")),
+		RedisPassword:  os.Getenv("LARK_REDIS_PASSWORD"),
+		RedisDB:        GetEnvInt("LARK_REDIS_DB", 0),
+		RedisKeyPrefix: strings.TrimSpace(getEnv("LARK_REDIS_KEY_PREFIX", "lark:cache:")),
 		AdminUsername:  strings.TrimSpace(os.Getenv("LARK_ADMIN_USERNAME")),
 		AdminPassword:  os.Getenv("LARK_ADMIN_PASSWORD"),
 		AdminNickname:  strings.TrimSpace(os.Getenv("LARK_ADMIN_NICKNAME")),
@@ -91,4 +108,13 @@ func cacheRuntimeDir(cfg Config) string {
 		return cfg.CacheDir
 	}
 	return ""
+}
+
+func redisCacheConfigured() bool {
+	for _, key := range []string{"LARK_REDIS_URL", "LARK_REDIS_ADDR", "LARK_REDIS_PASSWORD", "LARK_REDIS_DB", "LARK_REDIS_KEY_PREFIX"} {
+		if strings.TrimSpace(os.Getenv(key)) != "" {
+			return true
+		}
+	}
+	return false
 }

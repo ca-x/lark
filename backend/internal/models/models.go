@@ -195,19 +195,24 @@ type RadioSource struct {
 	GroupName string `json:"group_name"`
 	StreamURL string `json:"stream_url"`
 	Builtin   bool   `json:"builtin"`
+	Favorite  bool   `json:"favorite"`
 }
 
 type RadioStation struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	URL      string `json:"url"`
-	Country  string `json:"country"`
-	Tags     string `json:"tags"`
-	Codec    string `json:"codec"`
-	Bitrate  int    `json:"bitrate"`
-	Votes    int    `json:"votes"`
-	Homepage string `json:"homepage"`
-	Favicon  string `json:"favicon"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	URL       string `json:"url"`
+	SourceURL string `json:"source_url"`
+	GroupName string `json:"group_name"`
+	StreamURL string `json:"stream_url"`
+	Country   string `json:"country"`
+	Tags      string `json:"tags"`
+	Codec     string `json:"codec"`
+	Bitrate   int    `json:"bitrate"`
+	Votes     int    `json:"votes"`
+	Homepage  string `json:"homepage"`
+	Favicon   string `json:"favicon"`
+	Favorite  bool   `json:"favorite"`
 }
 
 type ScanStatus struct {

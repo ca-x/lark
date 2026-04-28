@@ -276,15 +276,38 @@ function radioPlaybackURL(streamURL: string) {
   return `/api/radio/stream?url=${encodeURIComponent(trimmed)}`;
 }
 
+function radioRawURL(station: RadioStation) {
+  const direct = station.stream_url?.trim();
+  if (direct) return direct;
+  const value = station.url?.trim();
+  if (!value) return "";
+  if (value.startsWith("/api/radio/stream")) {
+    const parsed = new URL(value, window.location.origin);
+    return parsed.searchParams.get("url") || value;
+  }
+  return value;
+}
+
 function radioStationToPlayable(station: RadioStation): RadioStation {
-  return { ...station, url: radioPlaybackURL(station.url) };
+  const rawURL = radioRawURL(station);
+  return {
+    ...station,
+    source_url: station.source_url || "",
+    group_name: station.group_name || "",
+    stream_url: rawURL,
+    url: radioPlaybackURL(station.url),
+    favorite: Boolean(station.favorite),
+  };
 }
 
 function radioSourceToStation(source: RadioSource): RadioStation {
   return {
     id: source.id,
     name: source.name,
-    url: radioPlaybackURL(source.stream_url || source.url),
+    url: source.stream_url || source.url,
+    source_url: source.source_url || "",
+    group_name: source.group_name || "",
+    stream_url: source.url,
     country: "",
     tags: source.group_name || source.source_url || "",
     codec: "",
@@ -292,7 +315,14 @@ function radioSourceToStation(source: RadioSource): RadioStation {
     votes: 0,
     homepage: "",
     favicon: "",
+    favorite: Boolean(source.favorite),
   };
+}
+
+function sameRadioStation(left?: RadioStation | null, right?: RadioStation | null) {
+  if (!left || !right) return false;
+  if (left.id && right.id && left.id === right.id) return true;
+  return radioRawURL(left) === radioRawURL(right);
 }
 
 function albumCoverUrl(album?: Album | null) {
@@ -613,6 +643,7 @@ export default function App() {
   const [networkSources, setNetworkSources] = useState<NetworkSource[]>([]);
   const [radioSources, setRadioSources] = useState<RadioSource[]>([]);
   const [radioStations, setRadioStations] = useState<RadioStation[]>([]);
+  const [radioFavorites, setRadioFavorites] = useState<RadioStation[]>([]);
   const [radioQueue, setRadioQueue] = useState<RadioStation[]>([]);
   const [radioLoading, setRadioLoading] = useState(false);
   const [radioQuery, setRadioQuery] = useState("");
@@ -1359,7 +1390,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, libraryDirectoryItems, librarySourceItems, networkSourceItems, radioSourceItems, radioStationItems] =
+    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, libraryDirectoryItems, librarySourceItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
       await Promise.all([
         api.songs(query, STARTUP_SONG_LIMIT),
         api.albums(STARTUP_ALBUM_LIMIT),
@@ -1372,6 +1403,7 @@ export default function App() {
         api.networkSources().catch(() => []),
         api.radioSources().catch(() => []),
         api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
+        api.radioFavorites().catch(() => []),
       ]);
     setSongs(songItems);
     setDailyMix(dailyItems);
@@ -1380,7 +1412,8 @@ export default function App() {
     setLibrarySources(librarySourceItems);
     setNetworkSources(networkSourceItems);
     setRadioSources(radioSourceItems);
-    setRadioStations(radioStationItems);
+    setRadioStations(radioStationItems.map(radioStationToPlayable));
+    setRadioFavorites(radioFavoriteItems.map(radioStationToPlayable));
     setAlbums(albumItems);
     setArtists(artistItems);
     setPlaylists(playlistItems);
@@ -1830,6 +1863,34 @@ export default function App() {
       old?.type === "artist" && old.id === updated.id
         ? { ...old, favorite: updated.favorite, title: updated.name }
         : old,
+    );
+  }
+
+  async function toggleRadioFavorite(station: RadioStation) {
+    const rawURL = radioRawURL(station);
+    const payload = {
+      ...station,
+      url: rawURL,
+      stream_url: rawURL,
+    };
+    const updated = radioStationToPlayable(await api.favoriteRadioStation(payload));
+    const replaceStation = (item: RadioStation) =>
+      sameRadioStation(item, updated) ? { ...item, favorite: updated.favorite } : item;
+    setRadioStations((old) => old.map(replaceStation));
+    setRadioQueue((old) => old.map(replaceStation));
+    setRadioSources((old) =>
+      old.map((source) =>
+        source.id === updated.id || source.url === radioRawURL(updated)
+          ? { ...source, favorite: updated.favorite }
+          : source,
+      ),
+    );
+    setRadioFavorites((old) => {
+      const without = old.filter((item) => !sameRadioStation(item, updated));
+      return updated.favorite ? [updated, ...without] : without;
+    });
+    setCurrentRadio((old) =>
+      sameRadioStation(old, updated) ? { ...updated, url: old?.url || updated.url } : old,
     );
   }
 
@@ -2379,7 +2440,10 @@ export default function App() {
                 songs={favoriteSongs}
                 albums={favoriteAlbums}
                 artists={favoriteArtists}
+                radios={radioFavorites}
                 current={current}
+                currentRadio={currentRadio}
+                playing={playing}
                 t={t}
                 theme={settings.theme}
                 onPlay={playSong}
@@ -2392,6 +2456,8 @@ export default function App() {
                 onOpenArtist={(artist) => void openArtistById(artist.id, artist.name)}
                 onPlayArtist={(artist) => void playArtist(artist)}
                 onFavoriteArtist={(artist) => void toggleArtistFavorite(artist)}
+                onPlayRadio={(station) => playRadio(station, radioFavorites)}
+                onFavoriteRadio={(station) => void toggleRadioFavorite(station)}
               />
             )}
 
@@ -2741,10 +2807,13 @@ export default function App() {
           </span>
           <button
             className="player-favorite"
-            disabled={!current}
-            onClick={() => current && void toggleFavorite(current)}
+            disabled={!current && !currentRadio}
+            onClick={() => {
+              if (currentRadio) void toggleRadioFavorite(currentRadio);
+              else if (current) void toggleFavorite(current);
+            }}
           >
-            <HeartStraight weight={current?.favorite ? "fill" : "regular"} />
+            <HeartStraight weight={(currentRadio?.favorite || current?.favorite) ? "fill" : "regular"} />
           </button>
         </div>
         <div className="transport">
@@ -3743,7 +3812,10 @@ function FavoritesView({
   songs,
   albums,
   artists,
+  radios,
   current,
+  currentRadio,
+  playing,
   t,
   theme,
   onPlay,
@@ -3756,11 +3828,16 @@ function FavoritesView({
   onOpenArtist,
   onPlayArtist,
   onFavoriteArtist,
+  onPlayRadio,
+  onFavoriteRadio,
 }: {
   songs: Song[];
   albums: Album[];
   artists: Artist[];
+  radios: RadioStation[];
   current: Song | null;
+  currentRadio: RadioStation | null;
+  playing: boolean;
   t: ReturnType<typeof createT>;
   theme: Theme;
   onPlay: (song: Song, list: Song[]) => void;
@@ -3773,9 +3850,11 @@ function FavoritesView({
   onOpenArtist: (artist: Artist) => void;
   onPlayArtist: (artist: Artist) => void;
   onFavoriteArtist: (artist: Artist) => void;
+  onPlayRadio: (station: RadioStation) => void;
+  onFavoriteRadio: (station: RadioStation) => void;
 }) {
-  const [tab, setTab] = useState<"songs" | "albums" | "artists">("songs");
-  const hasAny = songs.length || albums.length || artists.length;
+  const [tab, setTab] = useState<"songs" | "albums" | "artists" | "radios">("songs");
+  const hasAny = songs.length || albums.length || artists.length || radios.length;
   return (
     <section className="favorites-view">
       <div className="section-head">
@@ -3802,6 +3881,12 @@ function FavoritesView({
           onClick={() => setTab("artists")}
         >
           {t("artists")} · {artists.length}
+        </button>
+        <button
+          className={tab === "radios" ? "active" : ""}
+          onClick={() => setTab("radios")}
+        >
+          {t("onlineRadio")} · {radios.length}
         </button>
       </div>
       {!hasAny ? (
@@ -3836,7 +3921,7 @@ function FavoritesView({
             onFavorite: () => onFavoriteAlbum(album),
           }))}
         />
-      ) : (
+      ) : tab === "artists" ? (
         <CardGrid
           t={t}
           title={t("artists")}
@@ -3853,7 +3938,60 @@ function FavoritesView({
             onFavorite: () => onFavoriteArtist(artist),
           }))}
         />
+      ) : (
+        <RadioFavoritesList
+          stations={radios}
+          currentRadio={currentRadio}
+          playing={playing}
+          t={t}
+          onPlay={onPlayRadio}
+          onFavorite={onFavoriteRadio}
+        />
       )}
+    </section>
+  );
+}
+
+function RadioFavoritesList({
+  stations,
+  currentRadio,
+  playing,
+  t,
+  onPlay,
+  onFavorite,
+}: {
+  stations: RadioStation[];
+  currentRadio: RadioStation | null;
+  playing: boolean;
+  t: ReturnType<typeof createT>;
+  onPlay: (station: RadioStation) => void;
+  onFavorite: (station: RadioStation) => void;
+}) {
+  if (!stations.length) return <div className="empty">{t("emptyFavorites")}</div>;
+  return (
+    <section className="radio-station-list favorite-radio-list">
+      {stations.map((station, index) => {
+        const active = sameRadioStation(station, currentRadio);
+        return (
+          <article key={`${station.id || "radio"}-${radioRawURL(station)}-${index}`} className={active ? "radio-station active" : "radio-station"}>
+            <button className="station-play" onClick={() => onPlay(station)}>
+              {active && playing ? <Pause weight="fill" /> : <Play weight="fill" />}
+            </button>
+            <RadioMiniLogo station={station} playing={active && playing} />
+            <div>
+              <strong>{station.name || t("onlineRadio")}</strong>
+              <span>
+                {[station.group_name || station.country, station.codec || station.tags, station.bitrate ? `${station.bitrate}kbps` : ""]
+                  .filter(Boolean)
+                  .join(" · ") || t("liveRadio")}
+              </span>
+            </div>
+            <button className="player-favorite" aria-label={t("favorites")} onClick={() => onFavorite(station)}>
+              <HeartStraight weight="fill" />
+            </button>
+          </article>
+        );
+      })}
     </section>
   );
 }

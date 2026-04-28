@@ -39,5 +39,8 @@ type UserAlbumFavorite func(*sql.Selector)
 // UserArtistFavorite is the predicate function for userartistfavorite builders.
 type UserArtistFavorite func(*sql.Selector)
 
+// UserRadioFavorite is the predicate function for userradiofavorite builders.
+type UserRadioFavorite func(*sql.Selector)
+
 // UserSongFavorite is the predicate function for usersongfavorite builders.
 type UserSongFavorite func(*sql.Selector)

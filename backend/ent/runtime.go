@@ -15,6 +15,7 @@ import (
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
 	"lark/backend/ent/userartistfavorite"
+	"lark/backend/ent/userradiofavorite"
 	"lark/backend/ent/usersongfavorite"
 	"time"
 )
@@ -301,6 +302,56 @@ func init() {
 	userartistfavoriteDescCreatedAt := userartistfavoriteFields[0].Descriptor()
 	// userartistfavorite.DefaultCreatedAt holds the default value on creation for the created_at field.
 	userartistfavorite.DefaultCreatedAt = userartistfavoriteDescCreatedAt.Default.(func() time.Time)
+	userradiofavoriteFields := schema.UserRadioFavorite{}.Fields()
+	_ = userradiofavoriteFields
+	// userradiofavoriteDescStationID is the schema descriptor for station_id field.
+	userradiofavoriteDescStationID := userradiofavoriteFields[0].Descriptor()
+	// userradiofavorite.StationIDValidator is a validator for the "station_id" field. It is called by the builders before save.
+	userradiofavorite.StationIDValidator = userradiofavoriteDescStationID.Validators[0].(func(string) error)
+	// userradiofavoriteDescName is the schema descriptor for name field.
+	userradiofavoriteDescName := userradiofavoriteFields[1].Descriptor()
+	// userradiofavorite.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	userradiofavorite.NameValidator = userradiofavoriteDescName.Validators[0].(func(string) error)
+	// userradiofavoriteDescURL is the schema descriptor for url field.
+	userradiofavoriteDescURL := userradiofavoriteFields[2].Descriptor()
+	// userradiofavorite.URLValidator is a validator for the "url" field. It is called by the builders before save.
+	userradiofavorite.URLValidator = userradiofavoriteDescURL.Validators[0].(func(string) error)
+	// userradiofavoriteDescSourceURL is the schema descriptor for source_url field.
+	userradiofavoriteDescSourceURL := userradiofavoriteFields[3].Descriptor()
+	// userradiofavorite.DefaultSourceURL holds the default value on creation for the source_url field.
+	userradiofavorite.DefaultSourceURL = userradiofavoriteDescSourceURL.Default.(string)
+	// userradiofavoriteDescGroupName is the schema descriptor for group_name field.
+	userradiofavoriteDescGroupName := userradiofavoriteFields[4].Descriptor()
+	// userradiofavorite.DefaultGroupName holds the default value on creation for the group_name field.
+	userradiofavorite.DefaultGroupName = userradiofavoriteDescGroupName.Default.(string)
+	// userradiofavoriteDescCountry is the schema descriptor for country field.
+	userradiofavoriteDescCountry := userradiofavoriteFields[5].Descriptor()
+	// userradiofavorite.DefaultCountry holds the default value on creation for the country field.
+	userradiofavorite.DefaultCountry = userradiofavoriteDescCountry.Default.(string)
+	// userradiofavoriteDescTags is the schema descriptor for tags field.
+	userradiofavoriteDescTags := userradiofavoriteFields[6].Descriptor()
+	// userradiofavorite.DefaultTags holds the default value on creation for the tags field.
+	userradiofavorite.DefaultTags = userradiofavoriteDescTags.Default.(string)
+	// userradiofavoriteDescCodec is the schema descriptor for codec field.
+	userradiofavoriteDescCodec := userradiofavoriteFields[7].Descriptor()
+	// userradiofavorite.DefaultCodec holds the default value on creation for the codec field.
+	userradiofavorite.DefaultCodec = userradiofavoriteDescCodec.Default.(string)
+	// userradiofavoriteDescBitrate is the schema descriptor for bitrate field.
+	userradiofavoriteDescBitrate := userradiofavoriteFields[8].Descriptor()
+	// userradiofavorite.DefaultBitrate holds the default value on creation for the bitrate field.
+	userradiofavorite.DefaultBitrate = userradiofavoriteDescBitrate.Default.(int)
+	// userradiofavoriteDescHomepage is the schema descriptor for homepage field.
+	userradiofavoriteDescHomepage := userradiofavoriteFields[9].Descriptor()
+	// userradiofavorite.DefaultHomepage holds the default value on creation for the homepage field.
+	userradiofavorite.DefaultHomepage = userradiofavoriteDescHomepage.Default.(string)
+	// userradiofavoriteDescFavicon is the schema descriptor for favicon field.
+	userradiofavoriteDescFavicon := userradiofavoriteFields[10].Descriptor()
+	// userradiofavorite.DefaultFavicon holds the default value on creation for the favicon field.
+	userradiofavorite.DefaultFavicon = userradiofavoriteDescFavicon.Default.(string)
+	// userradiofavoriteDescCreatedAt is the schema descriptor for created_at field.
+	userradiofavoriteDescCreatedAt := userradiofavoriteFields[11].Descriptor()
+	// userradiofavorite.DefaultCreatedAt holds the default value on creation for the created_at field.
+	userradiofavorite.DefaultCreatedAt = userradiofavoriteDescCreatedAt.Default.(func() time.Time)
 	usersongfavoriteFields := schema.UserSongFavorite{}.Fields()
 	_ = usersongfavoriteFields
 	// usersongfavoriteDescCreatedAt is the schema descriptor for created_at field.

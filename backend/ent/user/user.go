@@ -44,6 +44,8 @@ const (
 	EdgeAlbumFavorites = "album_favorites"
 	// EdgeArtistFavorites holds the string denoting the artist_favorites edge name in mutations.
 	EdgeArtistFavorites = "artist_favorites"
+	// EdgeRadioFavorites holds the string denoting the radio_favorites edge name in mutations.
+	EdgeRadioFavorites = "radio_favorites"
 	// EdgePlayHistory holds the string denoting the play_history edge name in mutations.
 	EdgePlayHistory = "play_history"
 	// Table holds the table name of the user in the database.
@@ -90,6 +92,13 @@ const (
 	ArtistFavoritesInverseTable = "user_artist_favorites"
 	// ArtistFavoritesColumn is the table column denoting the artist_favorites relation/edge.
 	ArtistFavoritesColumn = "user_artist_favorites"
+	// RadioFavoritesTable is the table that holds the radio_favorites relation/edge.
+	RadioFavoritesTable = "user_radio_favorites"
+	// RadioFavoritesInverseTable is the table name for the UserRadioFavorite entity.
+	// It exists in this package in order to avoid circular dependency with the "userradiofavorite" package.
+	RadioFavoritesInverseTable = "user_radio_favorites"
+	// RadioFavoritesColumn is the table column denoting the radio_favorites relation/edge.
+	RadioFavoritesColumn = "user_radio_favorites"
 	// PlayHistoryTable is the table that holds the play_history relation/edge.
 	PlayHistoryTable = "play_histories"
 	// PlayHistoryInverseTable is the table name for the PlayHistory entity.
@@ -283,6 +292,20 @@ func ByArtistFavorites(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByRadioFavoritesCount orders the results by radio_favorites count.
+func ByRadioFavoritesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newRadioFavoritesStep(), opts...)
+	}
+}
+
+// ByRadioFavorites orders the results by radio_favorites terms.
+func ByRadioFavorites(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newRadioFavoritesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByPlayHistoryCount orders the results by play_history count.
 func ByPlayHistoryCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -336,6 +359,13 @@ func newArtistFavoritesStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(ArtistFavoritesInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, ArtistFavoritesTable, ArtistFavoritesColumn),
+	)
+}
+func newRadioFavoritesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(RadioFavoritesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, RadioFavoritesTable, RadioFavoritesColumn),
 	)
 }
 func newPlayHistoryStep() *sqlgraph.Step {
