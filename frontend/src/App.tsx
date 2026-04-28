@@ -72,9 +72,11 @@ import type {
 } from "./types";
 import { createT } from "./i18n";
 import { RadioReceiver } from "./components/RadioPlayer";
+import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
+import { radioGroupName } from "./components/radio";
 import { VinylTurntable } from "./components/VinylPlayer";
 import { EqualizerPanel } from "./components/EqualizerPanel";
-import { EQ_FREQUENCIES, EQ_STORAGE_KEY, clampEqGain, storedEqualizer } from "./components/equalizer";
+import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
 
 const defaultSettings: Settings = {
   language: "zh-CN",
@@ -284,27 +286,6 @@ function radioSourceToStation(source: RadioSource): RadioStation {
     homepage: "",
     favicon: "",
   };
-}
-
-function radioGroupName(source: RadioSource) {
-  return source.group_name || source.source_url || source.name || source.url || "Radio";
-}
-
-function radioSourceGroups(sources: RadioSource[]) {
-  const groups: Array<{ name: string; sources: RadioSource[] }> = [];
-  const index = new Map<string, number>();
-  for (const source of sources) {
-    const name = radioGroupName(source);
-    const key = name.toLowerCase();
-    const groupIndex = index.get(key);
-    if (groupIndex === undefined) {
-      index.set(key, groups.length);
-      groups.push({ name, sources: [source] });
-    } else {
-      groups[groupIndex].sources.push(source);
-    }
-  }
-  return groups;
 }
 
 function albumCoverUrl(album?: Album | null) {
@@ -605,8 +586,10 @@ export default function App() {
   const [networkSources, setNetworkSources] = useState<NetworkSource[]>([]);
   const [radioSources, setRadioSources] = useState<RadioSource[]>([]);
   const [radioStations, setRadioStations] = useState<RadioStation[]>([]);
+  const [radioQueue, setRadioQueue] = useState<RadioStation[]>([]);
   const [radioLoading, setRadioLoading] = useState(false);
   const [radioQuery, setRadioQuery] = useState("");
+  const [selectedRadioGroup, setSelectedRadioGroup] = useState("");
   const [currentRadio, setCurrentRadio] = useState<RadioStation | null>(null);
   const [currentNetworkTrack, setCurrentNetworkTrack] = useState<NetworkTrack | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -644,9 +627,12 @@ export default function App() {
   const [buffering, setBuffering] = useState(false);
   const [volume, setVolume] = useState(0.85);
   const initialEq = useMemo(storedEqualizer, []);
+  const initialTone = useMemo(storedToneControls, []);
   const [eqEnabled, setEqEnabled] = useState(initialEq.enabled);
   const [eqBands, setEqBands] = useState<number[]>(initialEq.bands);
   const [eqPanelOpen, setEqPanelOpen] = useState(false);
+  const [bassGain, setBassGain] = useState(initialTone.bass);
+  const [trebleGain, setTrebleGain] = useState(initialTone.treble);
   const [streamMode, setStreamMode] = useState<StreamMode>(() =>
     prefersLowBandwidthStream() ? "adaptive" : "auto",
   );
@@ -657,6 +643,8 @@ export default function App() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const eqFiltersRef = useRef<BiquadFilterNode[]>([]);
+  const bassFilterRef = useRef<BiquadFilterNode | null>(null);
+  const trebleFilterRef = useRef<BiquadFilterNode | null>(null);
   const eqAudioNodeRef = useRef<HTMLAudioElement | null>(null);
   const setAudioNode = useCallback((node: HTMLAudioElement | null) => {
     audioRef.current = node;
@@ -740,11 +728,17 @@ export default function App() {
       return audioContextRef.current;
     }
     audioSourceRef.current?.disconnect();
+    bassFilterRef.current?.disconnect();
+    trebleFilterRef.current?.disconnect();
     eqFiltersRef.current.forEach((filter) => filter.disconnect());
     const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextCtor) return null;
     const ctx = new AudioContextCtor();
     const source = ctx.createMediaElementSource(audio);
+    const bass = ctx.createBiquadFilter();
+    bass.type = "lowshelf";
+    bass.frequency.value = 80;
+    bass.gain.value = 0;
     const filters = EQ_FREQUENCIES.map((frequency) => {
       const filter = ctx.createBiquadFilter();
       filter.type = "peaking";
@@ -753,13 +747,21 @@ export default function App() {
       filter.gain.value = 0;
       return filter;
     });
-    source.connect(filters[0]);
+    const treble = ctx.createBiquadFilter();
+    treble.type = "highshelf";
+    treble.frequency.value = 8000;
+    treble.gain.value = 0;
+    source.connect(bass);
+    bass.connect(filters[0]);
     filters.forEach((filter, index) => {
-      const next = filters[index + 1] || ctx.destination;
+      const next = filters[index + 1] || treble;
       filter.connect(next);
     });
+    treble.connect(ctx.destination);
     audioContextRef.current = ctx;
     audioSourceRef.current = source;
+    bassFilterRef.current = bass;
+    trebleFilterRef.current = treble;
     eqFiltersRef.current = filters;
     eqAudioNodeRef.current = audio;
     return ctx;
@@ -774,6 +776,14 @@ export default function App() {
     setEqBands(EQ_FREQUENCIES.map(() => 0));
   }, []);
 
+  const updateBassGain = useCallback((value: number) => {
+    setBassGain(clampEqGain(value));
+  }, []);
+
+  const updateTrebleGain = useCallback((value: number) => {
+    setTrebleGain(clampEqGain(value));
+  }, []);
+
   const updateEqBand = useCallback((index: number, value: number) => {
     setEqBands((bands) => bands.map((band, bandIndex) => (bandIndex === index ? clampEqGain(value) : band)));
   }, []);
@@ -786,18 +796,27 @@ export default function App() {
   }, [eqEnabled, eqBands]);
 
   useEffect(() => {
-    if (!eqEnabled) {
+    window.localStorage.setItem(TONE_STORAGE_KEY, JSON.stringify({ bass: bassGain, treble: trebleGain }));
+  }, [bassGain, trebleGain]);
+
+  useEffect(() => {
+    const toneActive = Math.abs(bassGain) >= 0.1 || Math.abs(trebleGain) >= 0.1;
+    if (!eqEnabled && !toneActive) {
       eqFiltersRef.current.forEach((filter) => {
         filter.gain.value = 0;
       });
+      if (bassFilterRef.current) bassFilterRef.current.gain.value = 0;
+      if (trebleFilterRef.current) trebleFilterRef.current.gain.value = 0;
       return;
     }
     const ctx = ensureEqualizerGraph();
     eqFiltersRef.current.forEach((filter, index) => {
-      filter.gain.value = clampEqGain(eqBands[index] ?? 0);
+      filter.gain.value = eqEnabled ? clampEqGain(eqBands[index] ?? 0) : 0;
     });
+    if (bassFilterRef.current) bassFilterRef.current.gain.value = clampEqGain(bassGain);
+    if (trebleFilterRef.current) trebleFilterRef.current.gain.value = clampEqGain(trebleGain);
     if (playingRef.current && ctx?.state === "suspended") void ctx.resume().catch(() => undefined);
-  }, [audioEl, eqEnabled, eqBands, ensureEqualizerGraph]);
+  }, [audioEl, eqEnabled, eqBands, bassGain, trebleGain, ensureEqualizerGraph]);
 
   useEffect(() => {
     if (!auth?.user) return;
@@ -1171,6 +1190,7 @@ export default function App() {
     setRadioSources([]);
     setRadioStations([]);
     setCurrentRadio(null);
+    setRadioQueue([]);
     setCurrentNetworkTrack(null);
     setAlbums([]);
     setArtists([]);
@@ -1342,6 +1362,7 @@ export default function App() {
     setStreamOffset(0);
     setStreamMode(defaultStreamMode(song));
     setCurrentRadio(null);
+    setRadioQueue([]);
     setCurrentNetworkTrack(null);
     setCurrent(song);
     setQueue(queueWithCurrent(list.length ? list : [song], song));
@@ -1361,7 +1382,7 @@ export default function App() {
     await api.markPlayed(song.id).catch(() => undefined);
   }
 
-  function playRadio(station: RadioStation) {
+  function playRadio(station: RadioStation, list?: RadioStation[]) {
     if (!station?.url) return;
     if (current) syncPlaybackProgress(false);
     const audio = audioRef.current;
@@ -1372,7 +1393,9 @@ export default function App() {
     pendingAutoplayRef.current = true;
     setBuffering(true);
     setCurrent(null);
-    setCurrentRadio(radioStationToPlayable(station));
+    const playableStation = radioStationToPlayable(station);
+    setCurrentRadio(playableStation);
+    setRadioQueue((list?.length ? list : [station]).map(radioStationToPlayable));
     setCurrentNetworkTrack(null);
     setLyrics(null);
     setLyricCandidates([]);
@@ -1396,6 +1419,7 @@ export default function App() {
     setBuffering(true);
     setCurrent(null);
     setCurrentRadio(null);
+    setRadioQueue([]);
     setCurrentNetworkTrack(track);
     setLyrics(null);
     setLyricCandidates([]);
@@ -1441,7 +1465,7 @@ export default function App() {
         return;
       }
       const activeRadio = currentRadioRef.current;
-      const radioList = radioStations.length ? radioStations : radioSources.map(radioSourceToStation);
+      const radioList = radioQueue.length ? radioQueue : radioStations.length ? radioStations : radioSources.map(radioSourceToStation);
       const currentIndex = radioList.findIndex((station) => station.url === activeRadio.url || station.id === activeRadio.id);
       if (radioList.length > 1) {
         const nextIndex = currentIndex >= 0
@@ -2074,7 +2098,6 @@ export default function App() {
   const topbarHasScreenTitle = !([
     "favorites",
     "library",
-    "radio",
     "playlists",
     "albums",
     "artists",
@@ -2187,17 +2210,19 @@ export default function App() {
                 <span>{topbarHasScreenTitle ? t("brand") : t("playingFrom")}</span>
                 {topbarHasScreenTitle ? <h1>{screenTitle}</h1> : null}
               </div>
-              <label className="search">
-                <MagnifyingGlass />
-                <input
-                  value={query}
-                  placeholder={t("search")}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void api.songs(query).then(setSongs);
-                  }}
-                />
-              </label>
+              {view !== "radio" ? (
+                <label className="search">
+                  <MagnifyingGlass />
+                  <input
+                    value={query}
+                    placeholder={t("search")}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void api.songs(query).then(setSongs);
+                    }}
+                  />
+                </label>
+              ) : null}
               {view !== "settings" ? (
                 <UserMenu
                   user={auth.user}
@@ -2227,10 +2252,14 @@ export default function App() {
                 progress={progress}
                 duration={playableDuration}
                 volume={volume}
+                bassGain={bassGain}
+                trebleGain={trebleGain}
                 t={t}
                 onPlay={playSong}
                 onTogglePlayback={() => setPlaying((value) => !value)}
                 onVolume={updateVolume}
+                onBass={updateBassGain}
+                onTreble={updateTrebleGain}
                 onSeek={seekTo}
                 onPlayAlbum={playAlbum}
                 onOpenAlbum={openAlbum}
@@ -2286,11 +2315,16 @@ export default function App() {
                 onScan={() => void scan()}
                 onUpload={upload}
                 onPlayFolder={playFolder}
-                onOpenRadio={() => {
+                onOpenRadio={(source) => {
                   setView("radio");
+                  if (source) setSelectedRadioGroup(radioGroupName(source));
                   if (!radioStations.length) void loadRadioStations();
                 }}
-                onPlayRadio={(source) => playRadio(radioSourceToStation(source))}
+                onPlayRadio={(source, groupSources) => {
+                  const queue = (groupSources?.length ? groupSources : [source]).map(radioSourceToStation);
+                  setSelectedRadioGroup(radioGroupName(source));
+                  playRadio(radioSourceToStation(source), queue);
+                }}
                 onNetworkSourcesChange={setNetworkSources}
                 onPlayNetworkTrack={playNetworkTrack}
                 scanStatus={scanStatus}
@@ -2303,11 +2337,17 @@ export default function App() {
                 setQuery={setRadioQuery}
                 sources={radioSources}
                 stations={radioStations}
+                selectedGroup={selectedRadioGroup}
+                setSelectedGroup={setSelectedRadioGroup}
                 currentRadio={currentRadio}
                 playing={playing}
                 loading={radioLoading}
-                onPlayStation={playRadio}
-                onPlaySource={(source) => playRadio(radioSourceToStation(source))}
+                onPlayStation={(station) => playRadio(station, radioStations)}
+                onPlaySource={(source, groupSources) => {
+                  const queue = (groupSources?.length ? groupSources : [source]).map(radioSourceToStation);
+                  setSelectedRadioGroup(radioGroupName(source));
+                  playRadio(radioSourceToStation(source), queue);
+                }}
                 onSearch={() => void loadRadioStations()}
                 onAddSource={(name, url) => void addRadioSource(name, url)}
                 onDeleteSource={(id) => void deleteRadioSource(id)}
@@ -2717,16 +2757,19 @@ export default function App() {
           />
         </div>
         {eqPanelOpen ? (
-          <EqualizerPanel
-            t={t}
-            enabled={eqEnabled}
-            bands={eqBands}
-            onToggle={() => setEqEnabled((value) => !value)}
-            onChange={updateEqBand}
-            onReset={resetEqualizer}
-            onApplyPreset={(presetBands) => setEqBands(presetBands)}
-            onClose={() => setEqPanelOpen(false)}
-          />
+          <div className="eq-layer">
+            <button className="eq-scrim" type="button" aria-label={t("close")} onClick={() => setEqPanelOpen(false)} />
+            <EqualizerPanel
+              t={t}
+              enabled={eqEnabled}
+              bands={eqBands}
+              onToggle={() => setEqEnabled((value) => !value)}
+              onChange={updateEqBand}
+              onReset={resetEqualizer}
+              onApplyPreset={(presetBands) => setEqBands(presetBands)}
+              onClose={() => setEqPanelOpen(false)}
+            />
+          </div>
         ) : null}
         {queueOpen && (
           <div className="queue-layer">
@@ -3108,10 +3151,14 @@ function HomeView({
   progress,
   duration,
   volume,
+  bassGain,
+  trebleGain,
   t,
   onPlay,
   onTogglePlayback,
   onVolume,
+  onBass,
+  onTreble,
   onSeek,
   onPlayAlbum,
   onOpenAlbum,
@@ -3133,10 +3180,14 @@ function HomeView({
   progress: number;
   duration: number;
   volume: number;
+  bassGain: number;
+  trebleGain: number;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
   onTogglePlayback: () => void;
   onVolume: (value: number) => void;
+  onBass: (value: number) => void;
+  onTreble: (value: number) => void;
   onSeek: (seconds: number) => void;
   onPlayAlbum: (album: Album) => void;
   onOpenAlbum: (album: Album) => void;
@@ -3177,8 +3228,12 @@ function HomeView({
             title={displaySong?.title}
             artist={displaySong?.artist}
             volume={volume}
+            bassGain={bassGain}
+            trebleGain={trebleGain}
             onToggle={heroActive ? onTogglePlayback : displaySong ? () => onPlay(displaySong) : undefined}
             onVolume={onVolume}
+            onBass={onBass}
+            onTreble={onTreble}
             onSeek={heroActive ? onSeek : undefined}
           />
         )}
@@ -3677,17 +3732,21 @@ function PlayerMood({
   const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed && !lowBandwidth);
   if (radio) {
     return (
-      <div className="player-mood radio-station-card" data-playing={playing ? "true" : "false"} aria-hidden="true">
-        <div className="radio-station-logo">
-          {radio.favicon ? <img src={radio.favicon} alt="" /> : <Record weight="fill" />}
-        </div>
-        <div className="radio-station-info">
-          <strong>{radio.name || "Radio"}</strong>
-          <span>{[radio.country, radio.codec || radio.tags, radio.bitrate ? `${radio.bitrate}kbps` : ""].filter(Boolean).join(" · ") || "LIVE"}</span>
-        </div>
-        <div className="live-badge"><i />LIVE</div>
-        <div className="radio-card-wave" data-playing={playing ? "true" : "false"}>
-          {Array.from({ length: 6 }, (_, index) => <i key={index} />)}
+      <div className="player-mood player-waveform radio-waveform-mood loading" data-theme-key={theme} data-playing={playing ? "true" : "false"} aria-hidden="true">
+        <span>LIVE</span>
+        <div className="wave-lane">
+          <div className="wave-fallback">
+            {Array.from({ length: 16 }, (_, index) => (
+              <i key={index} style={{ "--i": index } as React.CSSProperties} />
+            ))}
+          </div>
+          <div className="vu-meter compact-radio-vu" data-playing={playing ? "true" : "false"}>
+            {Array.from({ length: 8 }, (_, index) => (
+              <span key={index} className="vu-bar" style={{ "--i": index, "--peak": `${Math.min(90, 30 + index * 8)}%` } as React.CSSProperties}>
+                <i />
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -4039,8 +4098,8 @@ function LibraryView({
   onScan: () => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onPlayFolder: (folder: Folder) => void;
-  onOpenRadio: () => void;
-  onPlayRadio: (source: RadioSource) => void;
+  onOpenRadio: (source?: RadioSource) => void;
+  onPlayRadio: (source: RadioSource, groupSources?: RadioSource[]) => void;
   onNetworkSourcesChange: (sources: NetworkSource[]) => void;
   onPlayNetworkTrack: (track: NetworkTrack) => void;
   scanStatus: ScanStatus | null;
@@ -4353,192 +4412,6 @@ function NetworkLibrarySources({
     </div>
   );
 }
-
-function LibraryRadioSources({
-  sources,
-  t,
-  onOpenRadio,
-  onPlayRadio,
-}: {
-  sources: RadioSource[];
-  t: ReturnType<typeof createT>;
-  onOpenRadio: () => void;
-  onPlayRadio: (source: RadioSource) => void;
-}) {
-  const groups = useMemo(() => radioSourceGroups(sources), [sources]);
-  return (
-    <div className="source-grid radio-group-grid">
-      {groups.map((group) => {
-        const first = group.sources[0];
-        return (
-          <article key={group.name} className="source-card radio-source-card">
-            <span>{first?.builtin ? t("defaultSource") : t("customSource")}</span>
-            <strong>{group.name}</strong>
-            <p>{group.sources.length > 1 ? `${group.sources.length} ${t("liveRadio")}` : first?.name}</p>
-            <div>
-              <button className="primary" onClick={() => first && onPlayRadio(first)} disabled={!first}>
-                <Play weight="fill" /> {t("playRadio")}
-              </button>
-              <button onClick={onOpenRadio}>{t("browseRadio")}</button>
-            </div>
-          </article>
-        );
-      })}
-    </div>
-  );
-}
-
-
-function RadioView({
-  t,
-  query,
-  setQuery,
-  sources,
-  stations,
-  currentRadio,
-  playing,
-  loading,
-  onPlayStation,
-  onPlaySource,
-  onSearch,
-  onAddSource,
-  onDeleteSource,
-}: {
-  t: ReturnType<typeof createT>;
-  query: string;
-  setQuery: (value: string) => void;
-  sources: RadioSource[];
-  stations: RadioStation[];
-  currentRadio: RadioStation | null;
-  playing: boolean;
-  loading: boolean;
-  onPlayStation: (station: RadioStation) => void;
-  onPlaySource: (source: RadioSource) => void;
-  onSearch: () => void;
-  onAddSource: (name: string, url: string) => void;
-  onDeleteSource: (id: string) => void;
-}) {
-  const [name, setName] = useState("");
-  const [url, setURL] = useState("");
-  const sourceGroups = useMemo(() => radioSourceGroups(sources), [sources]);
-  const [selectedGroup, setSelectedGroup] = useState("");
-  const activeGroup = sourceGroups.find((group) => group.name === selectedGroup) || sourceGroups[0];
-  useEffect(() => {
-    if (!sourceGroups.length) return;
-    if (!sourceGroups.some((group) => group.name === selectedGroup)) {
-      setSelectedGroup(sourceGroups[0].name);
-    }
-  }, [sourceGroups, selectedGroup]);
-  const submitSource = () => {
-    if (!name.trim() || !url.trim()) return;
-    onAddSource(name, url);
-    setName("");
-    setURL("");
-  };
-  return (
-    <section className="radio-view">
-      <div className="section-head library-actions">
-        <div>
-          <h2>{t("onlineRadio")}</h2>
-          <p className="section-subtitle">{t("radioPageHint")}</p>
-        </div>
-        <label className="search radio-search">
-          <MagnifyingGlass />
-          <input
-            value={query}
-            placeholder={t("searchRadio")}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") onSearch();
-            }}
-          />
-        </label>
-      </div>
-
-      <div className="radio-layout">
-        <aside className="radio-sources-panel">
-          <div className="section-head compact">
-            <h3>{t("radioSources")}</h3>
-          </div>
-          <div className="radio-group-tabs" role="tablist" aria-label={t("radioSources")}>
-            {sourceGroups.map((group) => (
-              <button
-                key={group.name}
-                type="button"
-                className={activeGroup?.name === group.name ? "active" : ""}
-                onClick={() => setSelectedGroup(group.name)}
-              >
-                <strong>{group.name}</strong>
-                <small>{group.sources.length}</small>
-              </button>
-            ))}
-          </div>
-          <div className="radio-source-list">
-            {(activeGroup?.sources ?? []).map((source) => (
-              <article key={source.id} className="radio-source-row">
-                <button onClick={() => onPlaySource(source)}>
-                  <Play weight="fill" />
-                  <span>
-                    <strong>{source.name}</strong>
-                    <small>{source.builtin ? t("defaultSource") : (source.source_url || source.url)}</small>
-                  </span>
-                </button>
-                {!source.builtin ? (
-                  <button className="icon-danger" aria-label={t("deleteSource")} onClick={() => onDeleteSource(source.id)}>
-                    <X />
-                  </button>
-                ) : null}
-              </article>
-            ))}
-          </div>
-          <div className="radio-source-form">
-            <strong>{t("addRadioSource")}</strong>
-            <input value={name} placeholder={t("sourceName")} onChange={(event) => setName(event.target.value)} />
-            <input value={url} placeholder="https://…/stream.pls" onChange={(event) => setURL(event.target.value)} />
-            <button onClick={submitSource} disabled={!name.trim() || !url.trim()}>
-              <Plus /> {t("addRadioSource")}
-            </button>
-          </div>
-        </aside>
-
-        <section className="radio-browser-panel">
-          <div className="section-head compact">
-            <div>
-              <h3>{t("radioBrowser")}</h3>
-              <p className="section-subtitle">{t("radioBrowserHint")}</p>
-            </div>
-            <button onClick={onSearch} disabled={loading}>
-              <MagnifyingGlass /> {loading ? t("loading") : t("search")}
-            </button>
-          </div>
-          <div className="radio-station-list" aria-busy={loading}>
-            {stations.map((station) => {
-              const active = currentRadio?.url === station.url;
-              return (
-                <article key={`${station.id}-${station.url}`} className={active ? "radio-station active" : "radio-station"}>
-                  <button className="station-play" onClick={() => onPlayStation(station)}>
-                    {active && playing ? <Pause weight="fill" /> : <Play weight="fill" />}
-                  </button>
-                  <div>
-                    <strong>{station.name}</strong>
-                    <small>
-                      {[station.country, station.codec, station.bitrate ? `${station.bitrate}kbps` : "", station.tags]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </small>
-                  </div>
-                  <span>{station.votes ? `${station.votes} ${t("votes")}` : t("liveRadio")}</span>
-                </article>
-              );
-            })}
-            {!stations.length && !loading ? <div className="empty">{t("emptyCollection")}</div> : null}
-          </div>
-        </section>
-      </div>
-    </section>
-  );
-}
-
 
 function FolderBrowser({
   current,

@@ -37,3 +37,25 @@ export function storedEqualizer() {
     return defaultEqualizer();
   }
 }
+
+
+export const TONE_STORAGE_KEY = "lark:tone:v1";
+
+export function defaultToneControls() {
+  return { bass: 0, treble: 0 };
+}
+
+export function storedToneControls() {
+  if (typeof window === "undefined") return defaultToneControls();
+  try {
+    const raw = window.localStorage.getItem(TONE_STORAGE_KEY);
+    if (!raw) return defaultToneControls();
+    const parsed = JSON.parse(raw) as { bass?: unknown; treble?: unknown };
+    return {
+      bass: clampEqGain(Number(parsed.bass ?? 0)),
+      treble: clampEqGain(Number(parsed.treble ?? 0)),
+    };
+  } catch {
+    return defaultToneControls();
+  }
+}

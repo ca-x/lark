@@ -1558,3 +1558,51 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   input[type=range].vslider { width:104px; }
   .band-label, .band-val { font-size:10px; }
 }
+
+/* v0.3.11 radio/EQ polish: fixed-size EQ controls and unified radio browsing. */
+.eq-power, .eq-close, .eq-head button.eq-power, .eq-head button.eq-close { flex:0 0 30px; width:30px; min-width:30px; max-width:30px; height:30px; min-height:30px; max-height:30px; padding:0; aspect-ratio:1 / 1; box-sizing:border-box; }
+.eq-power svg, .eq-close svg { flex:0 0 15px; display:block; }
+.eq-top-actions { flex:0 0 auto; }
+.radio-waveform-mood { overflow:hidden; }
+.radio-waveform-mood > span { color:#e24b4a; letter-spacing:.16em; }
+.compact-radio-vu { min-width:56px; width:56px; }
+.radio-source-head { align-items:center; gap:10px; }
+.radio-source-head > button, .compact-action { flex:0 0 auto; min-height:38px; border-radius:999px; padding:8px 12px; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.inline-radio-search { width:min(260px, 34vw); }
+.radio-layout { grid-template-columns:minmax(300px, 380px) minmax(0, 1fr); }
+.radio-sources-panel { position:relative; overflow:hidden; }
+.radio-sources-panel::before { content:''; position:absolute; inset:0 0 auto; height:3px; background:linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent2) 72%, var(--accent))); opacity:.72; pointer-events:none; }
+.radio-source-list { max-height:min(52vh, 540px); overflow:auto; padding-right:2px; }
+.radio-source-row > button:first-child { min-height:52px; }
+.radio-browser-panel .section-head.compact { grid-template-columns:minmax(0,1fr) auto auto; }
+@media (max-width:980px) {
+  .radio-layout { grid-template-columns:1fr; }
+  .inline-radio-search { width:100%; }
+  .radio-browser-panel .section-head.compact { grid-template-columns:1fr; }
+}
+@media (max-width:720px) {
+  .compact-radio-vu { display:none; }
+  .radio-source-head > button { min-width:42px; min-height:42px; }
+  .compact-action { width:100%; justify-content:center; }
+}
+.eq-layer { position:fixed; inset:0; z-index:80; display:flex; align-items:flex-end; justify-content:flex-end; padding:0 20px calc(var(--player-h, 96px) + 14px); pointer-events:none; }
+.eq-scrim { position:absolute; inset:0; z-index:0; border:0; background:rgba(0,0,0,.32); backdrop-filter:blur(1.5px); pointer-events:auto; }
+.eq-layer .eq-popover { position:relative; right:auto; bottom:auto; z-index:1; pointer-events:auto; }
+@media (max-width:720px) { .eq-layer { justify-content:center; padding:0 8px calc(var(--player-h, 172px) + 8px); } }
+/* Keep EQ controls above every page/list/player layer. */
+.eq-layer { z-index:9999; }
+.eq-layer .eq-popover { z-index:10000; }
+
+/* Functional vinyl bass / treble controls. */
+.vinyl-component { --vinyl-bass:#ba7517; --vinyl-treble:#3f8fd8; --vinyl-tone-track:color-mix(in srgb, var(--vinyl-muted) 24%, var(--vinyl-border)); }
+.vinyl-tone-unit { position:relative; display:grid; justify-items:center; gap:4px; color:var(--vinyl-muted); font:800 9px ui-monospace,SFMono-Regular,Menlo,monospace; min-width:54px; }
+.vinyl-tone-knob { position:relative; width:54px; height:54px; display:block; cursor:ns-resize; touch-action:none; }
+.vinyl-tone-knob svg { position:absolute; inset:0; width:100%; height:100%; filter:drop-shadow(1px 2px 0 rgba(0,0,0,.24)); }
+.vinyl-tone-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; line-height:1; }
+.vinyl-tone-center strong { color:var(--text); font-size:12px; font-variant-numeric:tabular-nums; }
+.vinyl-tone-center small { color:var(--vinyl-muted); font-size:7px; margin-top:1px; }
+.vinyl-tone-name { color:var(--vinyl-muted); letter-spacing:.08em; }
+.vinyl-tone-unit > small { color:color-mix(in srgb, var(--vinyl-muted) 78%, var(--bg)); font-size:8px; }
+.vinyl-tone-knob input { position:absolute; inset:0; opacity:0; cursor:ns-resize; }
+.vinyl-tone-unit.bass .vinyl-tone-center strong { color:var(--vinyl-bass); }
+.vinyl-tone-unit.treble .vinyl-tone-center strong { color:var(--vinyl-treble); }

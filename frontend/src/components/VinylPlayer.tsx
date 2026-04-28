@@ -11,8 +11,12 @@ export function VinylTurntable({
   title = "Lark",
   artist = "Sonora",
   volume = 0.85,
+  bassGain = 0,
+  trebleGain = 0,
   onToggle,
   onVolume,
+  onBass,
+  onTreble,
   onSeek,
 }: {
   cover?: string;
@@ -23,8 +27,12 @@ export function VinylTurntable({
   title?: string;
   artist?: string;
   volume?: number;
+  bassGain?: number;
+  trebleGain?: number;
   onToggle?: () => void;
   onVolume?: (value: number) => void;
+  onBass?: (value: number) => void;
+  onTreble?: (value: number) => void;
   onSeek?: (seconds: number) => void;
 }) {
   const [rpm, setRpm] = useState<"33" | "45" | "78">("33");
@@ -73,7 +81,8 @@ export function VinylTurntable({
                   onChange={(event) => onVolume?.(Number(event.target.value))}
                 />
               </label>
-              <span><i />BASS</span><span><i />TREBLE</span>
+              <ToneKnob name="BASS" subtitle="80 Hz" value={bassGain} tone="bass" onChange={onBass} />
+              <ToneKnob name="TREBLE" subtitle="8 kHz" value={trebleGain} tone="treble" onChange={onTreble} />
             </div>
             <div className="vinyl-mini-transport">
               <button type="button" aria-label="Previous" disabled><SkipBack weight="fill" /></button>
@@ -98,6 +107,66 @@ export function VinylTurntable({
       </div>
       <div className="turntable-status">{playing ? "PLAY" : "PAUSE"}</div>
     </div>
+  );
+}
+
+function ToneKnob({
+  name,
+  subtitle,
+  value,
+  tone,
+  onChange,
+}: {
+  name: string;
+  subtitle: string;
+  value: number;
+  tone: "bass" | "treble";
+  onChange?: (value: number) => void;
+}) {
+  const clamped = Math.max(-12, Math.min(12, Number.isFinite(value) ? value : 0));
+  const pct = (clamped + 12) / 24;
+  const angle = -135 + pct * 270;
+  const needle = (radius: number) => {
+    const rad = (angle - 90) * Math.PI / 180;
+    return {
+      x: 38 + radius * Math.cos(rad),
+      y: 38 + radius * Math.sin(rad),
+    };
+  };
+  const inner = needle(15);
+  const outer = needle(24);
+  const dash = Math.max(0, Math.min(157, pct * 157));
+  const label = `${name} ${clamped > 0 ? "+" : ""}${clamped.toFixed(clamped % 1 ? 1 : 0)} dB`;
+  return (
+    <label className={`vinyl-tone-unit ${tone}`} aria-label={label}>
+      <span className="vinyl-tone-knob">
+        <svg viewBox="0 0 76 76" aria-hidden="true">
+          <circle cx="38" cy="38" r="30" fill="none" stroke="var(--vinyl-tone-track)" strokeWidth="4" strokeLinecap="round" strokeDasharray="157 220" strokeDashoffset="-31" pathLength="220" />
+          <circle cx="38" cy="38" r="30" fill="none" stroke={`var(--vinyl-${tone})`} strokeWidth="4" strokeLinecap="round" strokeDasharray={`${dash} 220`} strokeDashoffset="-31" pathLength="220" />
+          <circle cx="38" cy="38" r="22" fill="var(--vinyl-screen)" stroke="var(--vinyl-tone-track)" strokeWidth="1" />
+          <line x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke={`var(--vinyl-${tone})`} strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+        <span className="vinyl-tone-center">
+          <strong>{clamped > 0 ? "+" : ""}{clamped.toFixed(clamped % 1 ? 1 : 0)}</strong>
+          <small>dB</small>
+        </span>
+        <input
+          aria-label={label}
+          type="range"
+          min="-12"
+          max="12"
+          step="0.5"
+          value={clamped}
+          onChange={(event) => onChange?.(Number(event.target.value))}
+          onWheel={(event) => {
+            event.preventDefault();
+            onChange?.(clamped + (event.deltaY < 0 ? 0.5 : -0.5));
+          }}
+        />
+      </span>
+      <span className="vinyl-tone-name">{name}</span>
+      <small>{subtitle}</small>
+    </label>
   );
 }
 
