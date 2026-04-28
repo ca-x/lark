@@ -136,7 +136,7 @@ function measurePageSizing(container: HTMLElement): PageSizing {
   const width = container.clientWidth || window.innerWidth;
   const height = container.clientHeight || window.innerHeight;
   const narrow = width <= 720;
-  const contentHeight = Math.max(320, height - (narrow ? 156 : 148));
+  const contentHeight = Math.max(320, height - (narrow ? 156 : 116));
   const songRows = clampPageSize(
     Math.floor(contentHeight / SONG_ROW_HEIGHT),
     MIN_PAGE_SIZE,
@@ -145,7 +145,11 @@ function measurePageSizing(container: HTMLElement): PageSizing {
   const cardMinWidth = narrow ? 150 : 172;
   const cardGap = narrow ? 10 : 16;
   const columns = Math.max(1, Math.floor((width + cardGap) / (cardMinWidth + cardGap)));
-  const cardHeight = narrow ? 218 : 248;
+  const columnWidth = Math.max(
+    cardMinWidth,
+    (width - cardGap * Math.max(0, columns - 1)) / columns,
+  );
+  const cardHeight = narrow ? 218 : columnWidth + 72;
   const rows = Math.max(1, Math.floor(contentHeight / cardHeight));
   const maxFullRows = Math.max(1, Math.floor(MAX_GRID_PAGE_SIZE / columns));
   const minFullRows = Math.max(1, Math.ceil(MIN_PAGE_SIZE / columns));
@@ -1338,19 +1342,35 @@ export default function App() {
   useLayoutEffect(() => {
     const node = mainRef.current;
     if (!node) return;
+    let frame = 0;
+    let fallbackTimer = 0;
     const update = () => {
       const next = measurePageSizing(node);
       setPageSizing((old) =>
         old.songs === next.songs && old.cards === next.cards ? old : next,
       );
     };
+    const scheduleUpdate = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(update);
+    };
     update();
+    scheduleUpdate();
+    fallbackTimer = window.setTimeout(update, 180);
     const resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(node);
-    window.addEventListener("orientationchange", update);
+    window.addEventListener("resize", scheduleUpdate);
+    window.addEventListener("orientationchange", scheduleUpdate);
+    document.addEventListener("fullscreenchange", scheduleUpdate);
+    window.visualViewport?.addEventListener("resize", scheduleUpdate);
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      if (fallbackTimer) window.clearTimeout(fallbackTimer);
       resizeObserver.disconnect();
-      window.removeEventListener("orientationchange", update);
+      window.removeEventListener("resize", scheduleUpdate);
+      window.removeEventListener("orientationchange", scheduleUpdate);
+      document.removeEventListener("fullscreenchange", scheduleUpdate);
+      window.visualViewport?.removeEventListener("resize", scheduleUpdate);
     };
   }, [lyricsFullScreen, mobilePlayerExpanded]);
 
@@ -6704,6 +6724,7 @@ function PaginationControls({
     const root = scrollRoot();
     if (!root || total <= limit || total < 10) return;
     lastScrollTopRef.current = root.scrollTop;
+    const isDesktop = () => root.clientWidth > 720;
     const onScroll = () => {
       revealControls();
       if (scrollLockRef.current || loading) return;
@@ -6718,9 +6739,23 @@ function PaginationControls({
         void changePage(currentPage - 1, "bottom");
       }
     };
+    const onWheel = (event: WheelEvent) => {
+      if (!isDesktop() || scrollLockRef.current || loading || Math.abs(event.deltaY) < 20) return;
+      const maxScrollTop = Math.max(0, root.scrollHeight - root.clientHeight);
+      if (maxScrollTop > 6) return;
+      if (event.deltaY > 0 && canNext) {
+        event.preventDefault();
+        void changePage(currentPage + 1, "top");
+      } else if (event.deltaY < 0 && canPrevious) {
+        event.preventDefault();
+        void changePage(currentPage - 1, "bottom");
+      }
+    };
     root.addEventListener("scroll", onScroll, { passive: true });
+    root.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       root.removeEventListener("scroll", onScroll);
+      root.removeEventListener("wheel", onWheel);
     };
   }, [canNext, canPrevious, currentPage, loading, limit, total]);
 
