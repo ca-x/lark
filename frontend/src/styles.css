@@ -1776,3 +1776,17 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   color:#f4d28a;
   background:linear-gradient(180deg,#6c4513,#241503);
 }
+
+/* v0.3.15: keep loading identity visible and simplify vinyl tone reset affordance. */
+.loading-wordmark,
+.loading-tagline { opacity:1; animation:none; transform:none; }
+.vinyl-bottom-actions .vinyl-reset-button {
+  width:auto;
+  min-width:58px;
+  height:30px;
+  min-height:30px;
+  padding:0 12px;
+  border-radius:7px;
+  font:900 10px ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.12em;
+}

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowCounterClockwise, Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 type VinylPlayMode = "sequence" | "shuffle" | "repeat-one";
 
@@ -103,8 +103,8 @@ export function VinylTurntable({
                   onChange={(event) => onVolume?.(Number(event.target.value))}
                 />
               </label>
-              <ToneKnob name="BASS" subtitle="80 Hz" value={bassGain} tone="bass" onChange={onBass} onReset={() => onBass?.(0)} />
-              <ToneKnob name="TREBLE" subtitle="8 kHz" value={trebleGain} tone="treble" onChange={onTreble} onReset={() => onTreble?.(0)} />
+              <ToneKnob name="BASS" subtitle="80 Hz" value={bassGain} tone="bass" onChange={onBass} />
+              <ToneKnob name="TREBLE" subtitle="8 kHz" value={trebleGain} tone="treble" onChange={onTreble} />
             </div>
             <div className="vinyl-mini-transport">
               <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
@@ -129,8 +129,8 @@ export function VinylTurntable({
           <span className={playing ? "vinyl-led on" : "vinyl-led"} />
           <strong>Sonora</strong>
           <div className="vinyl-bottom-actions">
-            <button type="button" aria-label={resetToneLabel} title={resetToneLabel} onClick={onResetTone ?? (() => { onBass?.(0); onTreble?.(0); })}>
-              <ArrowCounterClockwise />
+            <button className="vinyl-reset-button" type="button" aria-label={resetToneLabel} title={resetToneLabel} onClick={onResetTone ?? (() => { onBass?.(0); onTreble?.(0); })}>
+              RESET
             </button>
             <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} onClick={onCyclePlayMode} disabled={!onCyclePlayMode}>
               {playMode === "shuffle" ? <Shuffle /> : playMode === "repeat-one" ? <RepeatOnce /> : <Repeat />}
@@ -149,14 +149,12 @@ function ToneKnob({
   value,
   tone,
   onChange,
-  onReset,
 }: {
   name: string;
   subtitle: string;
   value: number;
   tone: "bass" | "treble";
   onChange?: (value: number) => void;
-  onReset?: () => void;
 }) {
   const clamped = Math.max(-12, Math.min(12, Number.isFinite(value) ? value : 0));
   const pct = (clamped + 12) / 24;
@@ -173,7 +171,7 @@ function ToneKnob({
   const dash = Math.max(0, Math.min(157, pct * 157));
   const label = `${name} ${clamped > 0 ? "+" : ""}${clamped.toFixed(clamped % 1 ? 1 : 0)} dB`;
   return (
-    <div className={`vinyl-tone-unit ${tone}`} aria-label={label} onDoubleClick={onReset}>
+    <div className={`vinyl-tone-unit ${tone}`} aria-label={label}>
       <span className="vinyl-tone-knob">
         <svg viewBox="0 0 76 76" aria-hidden="true">
           <circle cx="38" cy="38" r="30" fill="none" stroke="var(--vinyl-tone-track)" strokeWidth="4" strokeLinecap="round" strokeDasharray="157 220" strokeDashoffset="-31" pathLength="220" />
@@ -199,9 +197,6 @@ function ToneKnob({
           }}
         />
       </span>
-      <button className="vinyl-tone-reset" type="button" aria-label={`Reset ${name}`} title={`Reset ${name}`} onClick={(event) => { event.preventDefault(); onReset?.(); }}>
-        <ArrowCounterClockwise />
-      </button>
       <span className="vinyl-tone-name">{name}</span>
       <small>{subtitle}</small>
     </div>
