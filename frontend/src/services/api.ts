@@ -17,7 +17,13 @@ export const api = {
   updateProfile: (nickname: string, avatar_data_url: string) => request<AuthStatus['user']>('/api/me', { method: 'PUT', body: JSON.stringify({ nickname, avatar_data_url }) }),
   users: () => request<User[]>('/api/users'),
   saveProgress: (id: number, progress_seconds: number, duration_seconds: number, completed = false) => request<void>(`/api/songs/${id}/progress`, { method: 'PUT', body: JSON.stringify({ progress_seconds, duration_seconds, completed }) }),
-  songs: (q = '') => request<Song[]>(`/api/songs${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  songs: (q = '', limit = 0) => {
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    if (limit > 0) params.set('limit', String(limit))
+    const qs = params.toString()
+    return request<Song[]>(`/api/songs${qs ? `?${qs}` : ''}`)
+  },
   dailyMix: (limit = 24) => request<Song[]>(`/api/daily-mix?limit=${limit}`),
   song: (id: number) => request<Song>(`/api/songs/${id}`),
   favoriteSong: (id: number) => request<Song>(`/api/songs/${id}/favorite`, { method: 'POST' }),
@@ -37,13 +43,13 @@ export const api = {
   folders: (limit = 0) => request<Folder[]>(`/api/folders?limit=${limit}`),
   folderDirectory: (path = '.') => request<FolderDirectory>(`/api/folders/tree?path=${encodeURIComponent(path)}`),
   folderSongs: (path: string) => request<Song[]>(`/api/folders/songs?path=${encodeURIComponent(path)}`),
-  albums: () => request<Album[]>('/api/albums'),
+  albums: (limit = 0) => request<Album[]>(`/api/albums${limit > 0 ? `?limit=${limit}` : ''}`),
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),
-  artists: () => request<Artist[]>('/api/artists'),
+  artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
   artistSongs: (id: number) => request<Song[]>(`/api/artists/${id}/songs`),
   favoriteArtist: (id: number) => request<Artist>(`/api/artists/${id}/favorite`, { method: 'POST' }),
   favoriteAlbum: (id: number) => request<Album>(`/api/albums/${id}/favorite`, { method: 'POST' }),
-  playlists: () => request<Playlist[]>('/api/playlists'),
+  playlists: (limit = 0) => request<Playlist[]>(`/api/playlists${limit > 0 ? `?limit=${limit}` : ''}`),
   createPlaylist: (name: string, description = '', cover_theme = 'deep-space') => request<Playlist>('/api/playlists', { method: 'POST', body: JSON.stringify({ name, description, cover_theme }) }),
   playlistSongs: (id: number) => request<Song[]>(`/api/playlists/${id}/songs`),
   addToPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'POST' }),

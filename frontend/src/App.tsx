@@ -109,6 +109,11 @@ type StreamMode = "auto" | "adaptive";
 const ADAPTIVE_STREAM_QUALITY = 128;
 const AUTO_DOWNGRADE_STALL_MS = 1200;
 const RADIO_STATION_LIMIT = 30;
+const STARTUP_SONG_LIMIT = 300;
+const STARTUP_ALBUM_LIMIT = 300;
+const STARTUP_ARTIST_LIMIT = 300;
+const STARTUP_PLAYLIST_LIMIT = 100;
+const STARTUP_FOLDER_LIMIT = 80;
 type ThemeLabel =
   | "deepSpace"
   | "amberFilm"
@@ -1319,12 +1324,12 @@ export default function App() {
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
     const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, libraryDirectoryItems, librarySourceItems, networkSourceItems, radioSourceItems, radioStationItems] =
       await Promise.all([
-        api.songs(query),
-        api.albums(),
-        api.artists(),
-        api.playlists(),
+        api.songs(query, STARTUP_SONG_LIMIT),
+        api.albums(STARTUP_ALBUM_LIMIT),
+        api.artists(STARTUP_ARTIST_LIMIT),
+        api.playlists(STARTUP_PLAYLIST_LIMIT),
         api.dailyMix(24).catch(() => []),
-        api.folders(0).catch(() => []),
+        api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
         api.libraryDirectories().catch(() => []),
         api.librarySources().catch(() => []),
         api.networkSources().catch(() => []),
@@ -1342,9 +1347,10 @@ export default function App() {
     setAlbums(albumItems);
     setArtists(artistItems);
     setPlaylists(playlistItems);
-    setQueue((old) =>
-      options.initializeQueue || old.length === 0 ? songItems : old,
-    );
+    setQueue((old) => {
+      if (!options.initializeQueue && old.length > 0) return old;
+      return dailyItems.length > 0 ? dailyItems : songItems;
+    });
     const nextCurrent = current
       ? (songItems.find((item) => item.id === current.id) ?? null)
       : (songItems[0] ?? null);
@@ -1965,7 +1971,7 @@ export default function App() {
     setView("collection");
     try {
       const items = await withTimeout(api.albumSongs(album.id), 20_000);
-      const refreshedAlbums = await api.albums().catch(() => null);
+      const refreshedAlbums = await api.albums(STARTUP_ALBUM_LIMIT).catch(() => null);
       const refreshedAlbum = refreshedAlbums?.find((item) => item.id === album.id) ?? album;
       if (refreshedAlbums) setAlbums(refreshedAlbums);
       if (requestId !== collectionRequestRef.current) return;
@@ -2184,7 +2190,7 @@ export default function App() {
               onClick={() => {
                 setLyricsFullScreen(false);
                 setView(item.id);
-                if (item.id === "library") void api.songs(query).then(setSongs);
+                if (item.id === "library") void api.songs(query, STARTUP_SONG_LIMIT).then(setSongs);
               }}
             >
               {item.icon}
@@ -2242,7 +2248,7 @@ export default function App() {
                     placeholder={t("search")}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") void api.songs(query).then(setSongs);
+                      if (e.key === "Enter") void api.songs(query, STARTUP_SONG_LIMIT).then(setSongs);
                     }}
                   />
                 </label>

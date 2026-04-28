@@ -18,8 +18,12 @@ type mcpTokenRequest struct {
 	Token string `json:"token"`
 }
 
-type listArtistsInput struct{}
-type listAlbumsInput struct{}
+type listArtistsInput struct {
+	Limit int `json:"limit,omitempty" jsonschema:"Maximum number of artists to return. Defaults to 200 and is capped at 500."`
+}
+type listAlbumsInput struct {
+	Limit int `json:"limit,omitempty" jsonschema:"Maximum number of albums to return. Defaults to 200 and is capped at 500."`
+}
 
 type searchSongsInput struct {
 	Query string `json:"query" jsonschema:"Search text. Match song title, file name, or audio format. Use an empty string only when you intentionally want recent library songs."`
@@ -135,8 +139,8 @@ func (s *Server) buildMCPServer(userID int) *mcp.Server {
 		Name:        "list_artists",
 		Title:       "List library artists",
 		Description: "Return every artist in the shared Lark music library, with song_count, album_count, and favorite=true when this MCP token user has favorited the artist. Use this before opening artist pages, filtering albums by artist, or managing favorite artists.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ listArtistsInput) (*mcp.CallToolResult, mcpArtistsOutput, error) {
-		items, err := s.lib.Artists(ctx, userID)
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input listArtistsInput) (*mcp.CallToolResult, mcpArtistsOutput, error) {
+		items, err := s.lib.Artists(ctx, userID, normalizeMCPLimit(input.Limit, 200, 500))
 		if err != nil {
 			return nil, mcpArtistsOutput{}, err
 		}
@@ -148,8 +152,8 @@ func (s *Server) buildMCPServer(userID int) *mcp.Server {
 		Name:        "list_albums",
 		Title:       "List library albums",
 		Description: "Return every album in the shared Lark music library, including album id, title, artist, album_artist, song_count, and this user's album favorite state. Use album_id with favorite_album or the web album song API when the user asks about an album.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ listAlbumsInput) (*mcp.CallToolResult, mcpAlbumsOutput, error) {
-		items, err := s.lib.Albums(ctx, userID)
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input listAlbumsInput) (*mcp.CallToolResult, mcpAlbumsOutput, error) {
+		items, err := s.lib.Albums(ctx, userID, normalizeMCPLimit(input.Limit, 200, 500))
 		if err != nil {
 			return nil, mcpAlbumsOutput{}, err
 		}
@@ -286,7 +290,7 @@ func (s *Server) mcpFavorites(ctx context.Context, userID int, favoriteType stri
 		out.Songs = items
 	}
 	if favoriteType == "all" || favoriteType == "albums" {
-		items, err := s.lib.Albums(ctx, userID)
+		items, err := s.lib.Albums(ctx, userID, 500)
 		if err != nil {
 			return out, err
 		}
@@ -297,7 +301,7 @@ func (s *Server) mcpFavorites(ctx context.Context, userID int, favoriteType stri
 		}
 	}
 	if favoriteType == "all" || favoriteType == "artists" {
-		items, err := s.lib.Artists(ctx, userID)
+		items, err := s.lib.Artists(ctx, userID, 500)
 		if err != nil {
 			return out, err
 		}

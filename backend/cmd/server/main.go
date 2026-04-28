@@ -13,6 +13,7 @@ import (
 	"lark/backend/ent/migrate"
 	"lark/backend/internal/api"
 	"lark/backend/internal/config"
+	"lark/backend/internal/kv"
 	"lark/backend/internal/library"
 	"lark/backend/internal/netease"
 	"lark/backend/internal/qqmusic"
@@ -36,7 +37,12 @@ func main() {
 	if err := client.Schema.Create(context.Background(), migrate.WithForeignKeys(true)); err != nil {
 		log.Fatal(err)
 	}
-	lib := library.New(client, cfg.DataDir, cfg.LibraryDir, cfg.FFprobeBin, cfg.FFmpegBin, netease.New(), qqmusic.New())
+	cacheStore, err := openCacheStore(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cacheStore.Close()
+	lib := library.New(client, cfg.DataDir, cfg.LibraryDir, cfg.FFprobeBin, cfg.FFmpegBin, netease.New(), qqmusic.New(), library.WithCache(cacheStore, time.Duration(cfg.CacheTTL)*time.Second))
 	if err := ensureInitialAdminFromEnv(context.Background(), lib, cfg); err != nil {
 		log.Fatal(err)
 	}
@@ -86,4 +92,17 @@ func ensureInitialAdminFromEnv(ctx context.Context, lib *library.Service, cfg co
 		log.Printf("created initial admin from environment: %s", user.Username)
 	}
 	return nil
+}
+
+func openCacheStore(cfg config.Config) (kv.Store, error) {
+	switch cfg.CacheBackend {
+	case "", "badger":
+		return kv.OpenBadger(cfg.CacheDir)
+	case "memory":
+		return kv.NewMemoryStore(), nil
+	case "none", "noop", "off", "disabled":
+		return kv.NoopStore{}, nil
+	default:
+		return nil, errors.New("unsupported LARK_CACHE_BACKEND: " + cfg.CacheBackend)
+	}
 }

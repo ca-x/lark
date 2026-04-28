@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"lark/backend/ent"
@@ -551,6 +552,29 @@ func transcodeQuality(raw string) (int, error) {
 	return quality, nil
 }
 
+func prepareExternalCommand(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		terminateExternalCommand(cmd)
+		return nil
+	}
+	cmd.WaitDelay = 5 * time.Second
+}
+
+func terminateExternalCommand(cmd *exec.Cmd) {
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+		return
+	}
+	if cmd.SysProcAttr != nil && cmd.SysProcAttr.Setpgid {
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		return
+	}
+	_ = cmd.Process.Kill()
+}
+
 func (s *Server) pipeTranscodedAudio(c *echo.Context, ffmpeg, sourcePath string, quality int, start float64) error {
 	ctx, cancel := context.WithCancel(c.Request().Context())
 	defer cancel()
@@ -569,6 +593,7 @@ func (s *Server) pipeTranscodedAudio(c *echo.Context, ffmpeg, sourcePath string,
 		"pipe:1",
 	)
 	cmd := exec.CommandContext(ctx, ffmpeg, args...)
+	prepareExternalCommand(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return mapError(err)
@@ -579,9 +604,7 @@ func (s *Server) pipeTranscodedAudio(c *echo.Context, ffmpeg, sourcePath string,
 	}
 	defer func() {
 		_ = stdout.Close()
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
+		terminateExternalCommand(cmd)
 		_ = cmd.Wait()
 	}()
 	c.Response().Header().Set("Content-Type", "audio/mpeg")
@@ -655,6 +678,7 @@ func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath st
 		"-f", "mp3",
 		tmpPath,
 	)
+	prepareExternalCommand(cmd)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return "", echo.NewHTTPError(http.StatusUnsupportedMediaType, "unable to build playback cache: "+err.Error())
@@ -813,7 +837,7 @@ func (s *Server) handleFolderSongs(c *echo.Context) error {
 }
 
 func (s *Server) handleAlbums(c *echo.Context) error {
-	items, err := s.lib.Albums(c.Request().Context(), currentUserID(c))
+	items, err := s.lib.Albums(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 0))
 	if err != nil {
 		return mapError(err)
 	}
@@ -844,7 +868,7 @@ func (s *Server) handleToggleAlbumFavorite(c *echo.Context) error {
 }
 
 func (s *Server) handleArtists(c *echo.Context) error {
-	items, err := s.lib.Artists(c.Request().Context(), currentUserID(c))
+	items, err := s.lib.Artists(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 0))
 	if err != nil {
 		return mapError(err)
 	}
@@ -876,7 +900,7 @@ func (s *Server) handleArtistSongs(c *echo.Context) error {
 }
 
 func (s *Server) handlePlaylists(c *echo.Context) error {
-	items, err := s.lib.Playlists(c.Request().Context(), currentUserID(c))
+	items, err := s.lib.Playlists(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 0))
 	if err != nil {
 		return mapError(err)
 	}
@@ -1247,6 +1271,7 @@ func (s *Server) pipeRemoteRadio(c *echo.Context, ffmpeg, streamURL string, qual
 		"pipe:1",
 	}
 	cmd := exec.CommandContext(ctx, ffmpeg, args...)
+	prepareExternalCommand(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return mapError(err)
@@ -1257,9 +1282,7 @@ func (s *Server) pipeRemoteRadio(c *echo.Context, ffmpeg, streamURL string, qual
 	}
 	defer func() {
 		_ = stdout.Close()
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
+		terminateExternalCommand(cmd)
 		_ = cmd.Wait()
 	}()
 	c.Response().Header().Set("Content-Type", "audio/mpeg")

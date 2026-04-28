@@ -18,6 +18,9 @@ type Config struct {
 	FrontendOrigin string
 	FFmpegBin      string
 	FFprobeBin     string
+	CacheBackend   string
+	CacheDir       string
+	CacheTTL       int
 	AdminUsername  string
 	AdminPassword  string
 	AdminNickname  string
@@ -27,6 +30,7 @@ func Load() (Config, error) {
 	dataDir := getEnv("LARK_DATA_DIR", "./data")
 	libraryDir := getEnv("LARK_LIBRARY_DIR", filepath.Join(dataDir, "music"))
 	databasePath := getEnv("LARK_DB_PATH", filepath.Join(dataDir, "lark.db"))
+	cacheDir := getEnv("LARK_CACHE_DIR", filepath.Join(dataDir, "cache", "badger"))
 	cfg := Config{
 		Port:           getEnv("LARK_PORT", "8080"),
 		DataDir:        dataDir,
@@ -37,6 +41,9 @@ func Load() (Config, error) {
 		FrontendOrigin: getEnv("LARK_FRONTEND_ORIGIN", "*"),
 		FFmpegBin:      strings.TrimSpace(getEnv("FFMPEG_BIN", "ffmpeg")),
 		FFprobeBin:     strings.TrimSpace(getEnv("FFPROBE_BIN", "ffprobe")),
+		CacheBackend:   strings.ToLower(strings.TrimSpace(getEnv("LARK_CACHE_BACKEND", "badger"))),
+		CacheDir:       cacheDir,
+		CacheTTL:       GetEnvInt("LARK_CACHE_TTL_SECONDS", 120),
 		AdminUsername:  strings.TrimSpace(os.Getenv("LARK_ADMIN_USERNAME")),
 		AdminPassword:  os.Getenv("LARK_ADMIN_PASSWORD"),
 		AdminNickname:  strings.TrimSpace(os.Getenv("LARK_ADMIN_NICKNAME")),
@@ -45,7 +52,7 @@ func Load() (Config, error) {
 }
 
 func EnsureRuntimeDirs(cfg Config) error {
-	for _, dir := range []string{cfg.DataDir, cfg.LibraryDir, filepath.Dir(cfg.DatabasePath)} {
+	for _, dir := range []string{cfg.DataDir, cfg.LibraryDir, filepath.Dir(cfg.DatabasePath), cacheRuntimeDir(cfg)} {
 		if strings.TrimSpace(dir) == "" {
 			continue
 		}
@@ -77,4 +84,11 @@ func GetEnvInt(key string, fallback int) int {
 		return fallback
 	}
 	return parsed
+}
+
+func cacheRuntimeDir(cfg Config) string {
+	if strings.EqualFold(cfg.CacheBackend, "badger") {
+		return cfg.CacheDir
+	}
+	return ""
 }

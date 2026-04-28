@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/dhowden/tag"
@@ -37,6 +38,7 @@ import (
 	"lark/backend/ent/useralbumfavorite"
 	"lark/backend/ent/userartistfavorite"
 	"lark/backend/ent/usersongfavorite"
+	"lark/backend/internal/kv"
 	"lark/backend/internal/models"
 	"lark/backend/internal/netease"
 	"lark/backend/internal/online"
@@ -58,6 +60,8 @@ type Service struct {
 	netease    *netease.Client
 	qqmusic    *qqmusic.Client
 	online     []online.Provider
+	cache      kv.Store
+	cacheTTL   time.Duration
 	scanMu     sync.RWMutex
 	scanStatus models.ScanStatus
 }
@@ -89,8 +93,28 @@ type fileMetadata struct {
 	Lyrics      string
 }
 
-func New(client *ent.Client, dataDir, libraryDir, ffprobe, ffmpeg string, neteaseClient *netease.Client, qqClient *qqmusic.Client) *Service {
-	return &Service{client: client, dataDir: dataDir, libraryDir: libraryDir, ffprobe: ffprobe, ffmpeg: ffmpeg, netease: neteaseClient, qqmusic: qqClient, online: online.Providers()}
+type Option func(*Service)
+
+func WithCache(store kv.Store, ttl time.Duration) Option {
+	return func(s *Service) {
+		s.cache = store
+		if ttl > 0 {
+			s.cacheTTL = ttl
+		}
+	}
+}
+
+func New(client *ent.Client, dataDir, libraryDir, ffprobe, ffmpeg string, neteaseClient *netease.Client, qqClient *qqmusic.Client, opts ...Option) *Service {
+	svc := &Service{client: client, dataDir: dataDir, libraryDir: libraryDir, ffprobe: ffprobe, ffmpeg: ffmpeg, netease: neteaseClient, qqmusic: qqClient, online: online.Providers(), cache: kv.NoopStore{}, cacheTTL: 2 * time.Minute}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(svc)
+		}
+	}
+	if svc.cache == nil {
+		svc.cache = kv.NoopStore{}
+	}
+	return svc
 }
 
 func (s *Service) FFmpegBin() string { return s.ffmpeg }
@@ -334,7 +358,7 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 				seen[abs] = true
 			}
 			result.Scanned++
-			added, err := s.ImportFile(ctx, path)
+			added, err := s.importFile(ctx, path, false)
 			if err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", path, err))
 				s.updateScanProgress(path, result.CurrentDir, &result)
@@ -359,6 +383,7 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 	if err := s.cleanupMissingLibraryEntries(ctx, rootPaths, seen); err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("cleanup missing library entries: %v", err))
 	}
+	s.invalidateLibraryCache(ctx)
 	return result, nil
 }
 
@@ -486,6 +511,10 @@ func cloneScanStatus(status models.ScanStatus) models.ScanStatus {
 }
 
 func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
+	return s.importFile(ctx, path, true)
+}
+
+func (s *Service) importFile(ctx context.Context, path string, invalidate bool) (bool, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return false, err
@@ -497,7 +526,7 @@ func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
 	if info.IsDir() || !IsSupported(abs) {
 		return false, fmt.Errorf("unsupported audio file")
 	}
-	meta := s.probe(abs)
+	meta := s.probe(ctx, abs)
 	applyMetadataFallback(abs, s.libraryDir, &meta)
 	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(abs)), ".")
 	mimeType := mime.TypeByExtension(filepath.Ext(abs))
@@ -534,6 +563,9 @@ func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
 			SetArtist(artistEntity).
 			SetAlbum(albumEntity).
 			Save(ctx)
+		if err == nil && invalidate {
+			s.invalidateLibraryCache(ctx)
+		}
 		return true, err
 	}
 	_, err = existing.Update().
@@ -552,13 +584,27 @@ func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
 		SetArtist(artistEntity).
 		SetAlbum(albumEntity).
 		Save(ctx)
+	if err == nil && invalidate {
+		s.invalidateLibraryCache(ctx)
+	}
 	return false, err
 }
 
 func (s *Service) Songs(ctx context.Context, userID int, q string, favorites bool, limit int) ([]models.Song, error) {
+	term := strings.TrimSpace(q)
+	cacheable := limit > 0 && limit <= 500
+	key := ""
+	if cacheable {
+		key = cacheKey("songs", userID, term, favorites, limit)
+		var cached []models.Song
+		if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
+			return nil, err
+		} else if ok {
+			return cached, nil
+		}
+	}
 	query := s.client.Song.Query().WithArtist().WithAlbum().Order(ent.Desc(song.FieldUpdatedAt))
-	if strings.TrimSpace(q) != "" {
-		term := strings.TrimSpace(q)
+	if term != "" {
 		query = query.Where(song.Or(song.TitleContainsFold(term), song.FileNameContainsFold(term), song.FormatContainsFold(term)))
 	}
 	if favorites {
@@ -571,8 +617,14 @@ func (s *Service) Songs(ctx context.Context, userID int, q string, favorites boo
 	if err != nil {
 		return nil, err
 	}
-	out := mapSongs(items)
-	return s.applySongUserState(ctx, userID, out)
+	out, err := s.applySongUserState(ctx, userID, mapSongs(items))
+	if err != nil {
+		return nil, err
+	}
+	if cacheable {
+		_ = s.cacheSetJSON(ctx, key, out)
+	}
+	return out, nil
 }
 
 func (s *Service) Song(ctx context.Context, userID, id int) (models.Song, error) {
@@ -591,6 +643,13 @@ func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Son
 	if limit <= 0 || limit > 50 {
 		limit = 24
 	}
+	key := cacheKey("daily-mix", time.Now().Format("2006-01-02"), userID, limit)
+	var cached []models.Song
+	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
+		return nil, err
+	} else if ok {
+		return cached, nil
+	}
 	items, err := s.client.Song.Query().WithArtist().WithAlbum().Order(ent.Asc(song.FieldID)).All(ctx)
 	if err != nil {
 		return nil, err
@@ -600,6 +659,7 @@ func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Son
 		return nil, err
 	}
 	if len(out) <= limit {
+		_ = s.cacheSetJSON(ctx, key, out)
 		return out, nil
 	}
 	today := time.Now().Format("2006-01-02")
@@ -627,6 +687,7 @@ func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Son
 		selected = append(selected, scored[pick].song)
 		scored = append(scored[:pick], scored[pick+1:]...)
 	}
+	_ = s.cacheSetJSON(ctx, key, selected)
 	return selected, nil
 }
 
@@ -672,9 +733,63 @@ func minInt(a, b int) int {
 	return b
 }
 
+const libraryCachePrefix = "library:v1:"
+
+func cacheKey(parts ...any) string {
+	var b strings.Builder
+	b.WriteString(libraryCachePrefix)
+	for i, part := range parts {
+		if i > 0 {
+			b.WriteByte(':')
+		}
+		b.WriteString(url.QueryEscape(fmt.Sprint(part)))
+	}
+	return b.String()
+}
+
+func (s *Service) cacheGetJSON(ctx context.Context, key string, out any) (bool, error) {
+	if s.cache == nil {
+		return false, nil
+	}
+	data, ok, err := s.cache.Get(ctx, key)
+	if err != nil || !ok {
+		return false, err
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		_ = s.cache.Delete(ctx, key)
+		return false, nil
+	}
+	return true, nil
+}
+
+func (s *Service) cacheSetJSON(ctx context.Context, key string, value any) error {
+	if s.cache == nil {
+		return nil
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return s.cache.Set(ctx, key, data, s.cacheTTL)
+}
+
+func (s *Service) invalidateLibraryCache(ctx context.Context) {
+	if s.cache == nil {
+		return
+	}
+	_ = s.cache.DeletePrefix(ctx, libraryCachePrefix)
+}
+
 func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Folder, error) {
 	if limit < 0 {
 		limit = 12
+	}
+	key := cacheKey("folders", userID, limit)
+	var cached []models.Folder
+	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
+		return nil, err
+	} else if ok {
+		return cached, nil
 	}
 	items, err := s.client.Song.Query().Order(ent.Desc(song.FieldUpdatedAt), ent.Asc(song.FieldPath)).All(ctx)
 	if err != nil {
@@ -716,6 +831,7 @@ func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Fold
 		}
 		out = append(out, *grouped[rel])
 	}
+	_ = s.cacheSetJSON(ctx, key, out)
 	return out, nil
 }
 
@@ -1266,6 +1382,7 @@ func (s *Service) ToggleSongFavorite(ctx context.Context, userID, id int) (model
 	if err != nil {
 		return models.Song{}, err
 	}
+	s.invalidateLibraryCache(ctx)
 	return s.Song(ctx, userID, id)
 }
 
@@ -1281,7 +1398,11 @@ func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
 		Save(ctx); err != nil {
 		return err
 	}
-	return s.client.Song.UpdateOneID(id).AddPlayCount(1).SetLastPlayedAt(time.Now()).Exec(ctx)
+	if err := s.client.Song.UpdateOneID(id).AddPlayCount(1).SetLastPlayedAt(time.Now()).Exec(ctx); err != nil {
+		return err
+	}
+	s.invalidateLibraryCache(ctx)
+	return nil
 }
 
 func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, progressSeconds, durationSeconds float64, completed bool) error {
@@ -1336,7 +1457,7 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 	sourceID = strings.TrimSpace(sourceID)
 	if sourceID == "" || strings.EqualFold(sourceID, "embedded") {
 		includeSidecar := sourceID == ""
-		if lyric, source := s.preferredLocalLyrics(item, includeSidecar); lyric != "" {
+		if lyric, source := s.preferredLocalLyrics(ctx, item, includeSidecar); lyric != "" {
 			if item.LyricsSource != source || strings.TrimSpace(item.LyricsEmbedded) != lyric {
 				_, _ = item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(source).Save(ctx)
 			}
@@ -1375,7 +1496,7 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 	return models.Lyrics{SongID: id, Source: matchedSource, Lyrics: lyric, Fetched: true}, nil
 }
 
-func (s *Service) preferredLocalLyrics(item *ent.Song, includeSidecar bool) (string, string) {
+func (s *Service) preferredLocalLyrics(ctx context.Context, item *ent.Song, includeSidecar bool) (string, string) {
 	if item == nil {
 		return "", ""
 	}
@@ -1387,7 +1508,7 @@ func (s *Service) preferredLocalLyrics(item *ent.Song, includeSidecar bool) (str
 	if item != nil && item.LyricsSource == "embedded" && strings.TrimSpace(item.LyricsEmbedded) != "" {
 		return strings.TrimSpace(item.LyricsEmbedded), "embedded"
 	}
-	if lyric := strings.TrimSpace(s.probe(item.Path).Lyrics); lyric != "" {
+	if lyric := strings.TrimSpace(s.probe(ctx, item.Path).Lyrics); lyric != "" {
 		return lyric, "embedded"
 	}
 	return "", ""
@@ -1561,15 +1682,88 @@ func (s *Service) fetchLyricsBySource(ctx context.Context, source, sourceID stri
 	}
 }
 
-func (s *Service) Playlists(ctx context.Context, userID int) ([]models.Playlist, error) {
-	items, err := s.client.Playlist.Query().Where(playlist.HasOwnerWith(user.ID(userID))).WithSongs().Order(ent.Desc(playlist.FieldUpdatedAt)).All(ctx)
+type albumSongCountRow struct {
+	AlbumID *int `json:"album_songs"`
+	Count   int  `json:"count"`
+}
+
+type artistSongCountRow struct {
+	ArtistID *int `json:"artist_songs"`
+	Count    int  `json:"count"`
+}
+
+type artistAlbumCountRow struct {
+	ArtistID *int `json:"artist_albums"`
+	Count    int  `json:"count"`
+}
+
+func (s *Service) albumSongCounts(ctx context.Context) (map[int]int, error) {
+	rows := []albumSongCountRow{}
+	if err := s.client.Song.Query().GroupBy(song.AlbumColumn).Aggregate(ent.Count()).Scan(ctx, &rows); err != nil {
+		return nil, err
+	}
+	counts := make(map[int]int, len(rows))
+	for _, row := range rows {
+		if row.AlbumID != nil && *row.AlbumID > 0 {
+			counts[*row.AlbumID] = row.Count
+		}
+	}
+	return counts, nil
+}
+
+func (s *Service) artistSongCounts(ctx context.Context) (map[int]int, error) {
+	rows := []artistSongCountRow{}
+	if err := s.client.Song.Query().GroupBy(song.ArtistColumn).Aggregate(ent.Count()).Scan(ctx, &rows); err != nil {
+		return nil, err
+	}
+	counts := make(map[int]int, len(rows))
+	for _, row := range rows {
+		if row.ArtistID != nil && *row.ArtistID > 0 {
+			counts[*row.ArtistID] = row.Count
+		}
+	}
+	return counts, nil
+}
+
+func (s *Service) artistAlbumCounts(ctx context.Context) (map[int]int, error) {
+	rows := []artistAlbumCountRow{}
+	if err := s.client.Album.Query().GroupBy(album.ArtistColumn).Aggregate(ent.Count()).Scan(ctx, &rows); err != nil {
+		return nil, err
+	}
+	counts := make(map[int]int, len(rows))
+	for _, row := range rows {
+		if row.ArtistID != nil && *row.ArtistID > 0 {
+			counts[*row.ArtistID] = row.Count
+		}
+	}
+	return counts, nil
+}
+
+func (s *Service) Playlists(ctx context.Context, userID, limit int) ([]models.Playlist, error) {
+	key := cacheKey("playlists", userID, limit)
+	var cached []models.Playlist
+	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
+		return nil, err
+	} else if ok {
+		return cached, nil
+	}
+	query := s.client.Playlist.Query().Where(playlist.HasOwnerWith(user.ID(userID))).Order(ent.Desc(playlist.FieldUpdatedAt))
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	items, err := query.All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]models.Playlist, 0, len(items))
 	for _, p := range items {
-		out = append(out, mapPlaylist(p))
+		count, err := p.QuerySongs().Count(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, mapPlaylistWithCount(p, count))
 	}
+	_ = s.cacheSetJSON(ctx, key, out)
 	return out, nil
 }
 
@@ -1585,6 +1779,7 @@ func (s *Service) CreatePlaylist(ctx context.Context, userID int, name, descript
 	if err != nil {
 		return models.Playlist{}, err
 	}
+	s.invalidateLibraryCache(ctx)
 	return mapPlaylist(p), nil
 }
 
@@ -1605,7 +1800,11 @@ func (s *Service) AddSongToPlaylist(ctx context.Context, userID, playlistID, son
 	if err != nil {
 		return err
 	}
-	return p.Update().AddSongIDs(songID).Exec(ctx)
+	if err := p.Update().AddSongIDs(songID).Exec(ctx); err != nil {
+		return err
+	}
+	s.invalidateLibraryCache(ctx)
+	return nil
 }
 
 func (s *Service) RemoveSongFromPlaylist(ctx context.Context, userID, playlistID, songID int) error {
@@ -1613,19 +1812,43 @@ func (s *Service) RemoveSongFromPlaylist(ctx context.Context, userID, playlistID
 	if err != nil {
 		return err
 	}
-	return p.Update().RemoveSongIDs(songID).Exec(ctx)
+	if err := p.Update().RemoveSongIDs(songID).Exec(ctx); err != nil {
+		return err
+	}
+	s.invalidateLibraryCache(ctx)
+	return nil
 }
 
-func (s *Service) Albums(ctx context.Context, userID int) ([]models.Album, error) {
-	items, err := s.client.Album.Query().WithArtist().WithSongs().Order(ent.Desc(album.FieldUpdatedAt)).All(ctx)
+func (s *Service) Albums(ctx context.Context, userID, limit int) ([]models.Album, error) {
+	key := cacheKey("albums", userID, limit)
+	var cached []models.Album
+	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
+		return nil, err
+	} else if ok {
+		return cached, nil
+	}
+	query := s.client.Album.Query().WithArtist().Order(ent.Desc(album.FieldUpdatedAt))
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	items, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	counts, err := s.albumSongCounts(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]models.Album, 0, len(items))
 	for _, a := range items {
-		out = append(out, mapAlbum(a))
+		out = append(out, mapAlbumWithCount(a, counts[a.ID]))
 	}
-	return s.applyAlbumUserState(ctx, userID, out)
+	out, err = s.applyAlbumUserState(ctx, userID, out)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.cacheSetJSON(ctx, key, out)
+	return out, nil
 }
 
 func (s *Service) AlbumSongs(ctx context.Context, userID, id int) ([]models.Song, error) {
@@ -1640,16 +1863,40 @@ func (s *Service) AlbumSongs(ctx context.Context, userID, id int) ([]models.Song
 	return s.applySongUserState(ctx, userID, out)
 }
 
-func (s *Service) Artists(ctx context.Context, userID int) ([]models.Artist, error) {
-	items, err := s.client.Artist.Query().WithSongs().WithAlbums().Order(ent.Asc(artist.FieldName)).All(ctx)
+func (s *Service) Artists(ctx context.Context, userID, limit int) ([]models.Artist, error) {
+	key := cacheKey("artists", userID, limit)
+	var cached []models.Artist
+	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
+		return nil, err
+	} else if ok {
+		return cached, nil
+	}
+	query := s.client.Artist.Query().Order(ent.Asc(artist.FieldName))
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	items, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	songCounts, err := s.artistSongCounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	albumCounts, err := s.artistAlbumCounts(ctx)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]models.Artist, 0, len(items))
 	for _, a := range items {
-		out = append(out, mapArtist(a))
+		out = append(out, mapArtistWithCounts(a, songCounts[a.ID], albumCounts[a.ID]))
 	}
-	return s.applyArtistUserState(ctx, userID, out)
+	out, err = s.applyArtistUserState(ctx, userID, out)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.cacheSetJSON(ctx, key, out)
+	return out, nil
 }
 
 func (s *Service) ArtistSongs(ctx context.Context, userID, id int) ([]models.Song, error) {
@@ -1679,6 +1926,7 @@ func (s *Service) ToggleAlbumFavorite(ctx context.Context, userID, id int) (mode
 	if err != nil {
 		return models.Album{}, err
 	}
+	s.invalidateLibraryCache(ctx)
 	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs().Only(ctx)
 	if err != nil {
 		return models.Album{}, err
@@ -1708,6 +1956,7 @@ func (s *Service) ToggleArtistFavorite(ctx context.Context, userID, id int) (mod
 	if err != nil {
 		return models.Artist{}, err
 	}
+	s.invalidateLibraryCache(ctx)
 	a, err := s.client.Artist.Query().Where(artist.ID(id)).WithSongs().WithAlbums().Only(ctx)
 	if err != nil {
 		return models.Artist{}, err
@@ -1994,15 +2243,39 @@ func (s *Service) ensureAlbum(ctx context.Context, title, albumArtist string, ar
 	return s.client.Album.Create().SetTitle(title).SetAlbumArtist(albumArtist).SetYear(year).SetArtist(ar).Save(ctx)
 }
 
-func (s *Service) probe(path string) fileMetadata {
+func prepareProbeCommand(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		terminateProbeCommand(cmd)
+		return nil
+	}
+	cmd.WaitDelay = 5 * time.Second
+}
+
+func terminateProbeCommand(cmd *exec.Cmd) {
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+		return
+	}
+	if cmd.SysProcAttr != nil && cmd.SysProcAttr.Setpgid {
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		return
+	}
+	_ = cmd.Process.Kill()
+}
+
+func (s *Service) probe(ctx context.Context, path string) fileMetadata {
 	meta := s.probeTags(path)
 	mergeFileMetadata(&meta, probeWAVMetadata(path))
 	if s.ffprobe == "" {
 		return meta
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, s.ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path)
+	cmd := exec.CommandContext(probeCtx, s.ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path)
+	prepareProbeCommand(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return meta
@@ -2561,6 +2834,14 @@ func mapSong(item *ent.Song) models.Song {
 }
 
 func mapAlbum(item *ent.Album) models.Album {
+	count := 0
+	if item.Edges.Songs != nil {
+		count = len(item.Edges.Songs)
+	}
+	return mapAlbumWithCount(item, count)
+}
+
+func mapAlbumWithCount(item *ent.Album, songCount int) models.Album {
 	artistID := 0
 	artistName := ""
 	if item.Edges.Artist != nil {
@@ -2573,11 +2854,15 @@ func mapAlbum(item *ent.Album) models.Album {
 			year = song.Year
 		}
 	}
-	return models.Album{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumArtist: item.AlbumArtist, Year: year, Favorite: item.Favorite, SongCount: len(item.Edges.Songs), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return models.Album{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumArtist: item.AlbumArtist, Year: year, Favorite: item.Favorite, SongCount: songCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func mapArtist(item *ent.Artist) models.Artist {
-	return models.Artist{ID: item.ID, Name: item.Name, SongCount: len(item.Edges.Songs), AlbumCount: len(item.Edges.Albums), CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return mapArtistWithCounts(item, len(item.Edges.Songs), len(item.Edges.Albums))
+}
+
+func mapArtistWithCounts(item *ent.Artist, songCount, albumCount int) models.Artist {
+	return models.Artist{ID: item.ID, Name: item.Name, SongCount: songCount, AlbumCount: albumCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func mapPlaylist(item *ent.Playlist) models.Playlist {
@@ -2585,7 +2870,11 @@ func mapPlaylist(item *ent.Playlist) models.Playlist {
 	if item.Edges.Songs != nil {
 		count = len(item.Edges.Songs)
 	}
-	return models.Playlist{ID: item.ID, Name: item.Name, Description: item.Description, CoverTheme: item.CoverTheme, Favorite: item.Favorite, SongCount: count, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return mapPlaylistWithCount(item, count)
+}
+
+func mapPlaylistWithCount(item *ent.Playlist, songCount int) models.Playlist {
+	return models.Playlist{ID: item.ID, Name: item.Name, Description: item.Description, CoverTheme: item.CoverTheme, Favorite: item.Favorite, SongCount: songCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func IsMissing(err error) bool { return errors.Is(err, os.ErrNotExist) || ent.IsNotFound(err) }
