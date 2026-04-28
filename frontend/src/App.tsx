@@ -115,10 +115,40 @@ const ADAPTIVE_STREAM_QUALITY = 128;
 const AUTO_DOWNGRADE_STALL_MS = 1200;
 const RADIO_STATION_LIMIT = 30;
 const HOME_RECENT_LIMIT = 12;
-const LIBRARY_PAGE_SIZE = 100;
-const GRID_PAGE_SIZE = 72;
+const DEFAULT_LIBRARY_PAGE_SIZE = 36;
+const DEFAULT_GRID_PAGE_SIZE = 24;
+const MIN_PAGE_SIZE = 10;
+const MAX_LIBRARY_PAGE_SIZE = 80;
+const MAX_GRID_PAGE_SIZE = 72;
 const STARTUP_ALBUM_LIMIT = 300;
 const STARTUP_FOLDER_LIMIT = 80;
+type PageSizing = {
+  songs: number;
+  cards: number;
+};
+
+function clampPageSize(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function measurePageSizing(container: HTMLElement): PageSizing {
+  const width = container.clientWidth || window.innerWidth;
+  const height = container.clientHeight || window.innerHeight;
+  const narrow = width <= 720;
+  const contentHeight = Math.max(320, height - (narrow ? 156 : 148));
+  const songRows = clampPageSize(
+    Math.floor(contentHeight / SONG_ROW_HEIGHT),
+    MIN_PAGE_SIZE,
+    MAX_LIBRARY_PAGE_SIZE,
+  );
+  const cardMinWidth = narrow ? 150 : 172;
+  const cardGap = narrow ? 10 : 16;
+  const columns = Math.max(1, Math.floor((width + cardGap) / (cardMinWidth + cardGap)));
+  const cardHeight = narrow ? 218 : 248;
+  const rows = Math.max(1, Math.floor(contentHeight / cardHeight));
+  const cards = clampPageSize(columns * rows, MIN_PAGE_SIZE, MAX_GRID_PAGE_SIZE);
+  return { songs: songRows, cards };
+}
 type ThemeLabel =
   | "deepSpace"
   | "amberFilm"
@@ -725,6 +755,12 @@ export default function App() {
   const [lyricCandidatesLoading, setLyricCandidatesLoading] = useState(false);
   const [lyricsFullScreen, setLyricsFullScreen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [mobilePlayerExpanded, setMobilePlayerExpanded] = useState(false);
+  const mainRef = useRef<HTMLElement | null>(null);
+  const [pageSizing, setPageSizing] = useState<PageSizing>({
+    songs: DEFAULT_LIBRARY_PAGE_SIZE,
+    cards: DEFAULT_GRID_PAGE_SIZE,
+  });
   const [message, setMessage] = useState("");
   const [librarySongPage, setLibrarySongPage] = useState<SongPage | null>(null);
   const [libraryPage, setLibraryPage] = useState(1);
@@ -812,6 +848,8 @@ export default function App() {
   streamOffsetRef.current = streamOffset;
   resumeModeRef.current = resumeMode;
   const t = useMemo(() => createT(settings.language), [settings.language]);
+  const libraryPageSize = pageSizing.songs;
+  const gridPageSize = pageSizing.cards;
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
   const activeLyric = useMemo(() => {
     let activeIndex = -1;
@@ -1293,6 +1331,25 @@ export default function App() {
     }
   }
 
+  useLayoutEffect(() => {
+    const node = mainRef.current;
+    if (!node) return;
+    const update = () => {
+      const next = measurePageSizing(node);
+      setPageSizing((old) =>
+        old.songs === next.songs && old.cards === next.cards ? old : next,
+      );
+    };
+    update();
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(node);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("orientationchange", update);
+    };
+  }, [lyricsFullScreen, mobilePlayerExpanded]);
+
   useEffect(() => {
     if (
       !lyricsFullScreen ||
@@ -1486,12 +1543,12 @@ export default function App() {
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
     const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
       await Promise.all([
-        api.songsPage(query, libraryPage, LIBRARY_PAGE_SIZE),
+        api.songsPage(query, libraryPage, libraryPageSize),
         api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
         api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => []),
-        api.albumsPage(albumPage, GRID_PAGE_SIZE),
-        api.artistsPage(artistPage, GRID_PAGE_SIZE),
-        api.playlistsPage(playlistPage, GRID_PAGE_SIZE),
+        api.albumsPage(albumPage, gridPageSize),
+        api.artistsPage(artistPage, gridPageSize),
+        api.playlistsPage(playlistPage, gridPageSize),
         api.dailyMix(24).catch(() => []),
         api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
         api.libraryStats().catch(() => null),
@@ -1546,7 +1603,7 @@ export default function App() {
 
   async function refreshLibraryDataOnly() {
     const [songPageItem, recentAddedItems, folderItems, libraryStatsItem] = await Promise.all([
-      api.songsPage(query, libraryPage, LIBRARY_PAGE_SIZE),
+      api.songsPage(query, libraryPage, libraryPageSize),
       api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => recentAddedSongs),
       api.folders(STARTUP_FOLDER_LIMIT).catch(() => folders),
       api.libraryStats().catch(() => libraryStats),
@@ -1562,7 +1619,7 @@ export default function App() {
     const nextPage = Math.max(1, page);
     setLibraryPageLoading(true);
     try {
-      const pageItem = await api.songsPage(search, nextPage, LIBRARY_PAGE_SIZE);
+      const pageItem = await api.songsPage(search, nextPage, libraryPageSize);
       setLibraryPage(pageItem.page);
       setLibrarySongPage(pageItem);
       setSongs(pageItem.items);
@@ -1575,7 +1632,7 @@ export default function App() {
     const nextPage = Math.max(1, page);
     setAlbumPageLoading(true);
     try {
-      const pageItem = await api.albumsPage(nextPage, GRID_PAGE_SIZE);
+      const pageItem = await api.albumsPage(nextPage, gridPageSize);
       setAlbumPage(pageItem.page);
       setAlbumPageData(pageItem);
       setAlbums(pageItem.items);
@@ -1588,7 +1645,7 @@ export default function App() {
     const nextPage = Math.max(1, page);
     setArtistPageLoading(true);
     try {
-      const pageItem = await api.artistsPage(nextPage, GRID_PAGE_SIZE);
+      const pageItem = await api.artistsPage(nextPage, gridPageSize);
       setArtistPage(pageItem.page);
       setArtistPageData(pageItem);
       setArtists(pageItem.items);
@@ -1601,7 +1658,7 @@ export default function App() {
     const nextPage = Math.max(1, page);
     setPlaylistPageLoading(true);
     try {
-      const pageItem = await api.playlistsPage(nextPage, GRID_PAGE_SIZE);
+      const pageItem = await api.playlistsPage(nextPage, gridPageSize);
       setPlaylistPage(pageItem.page);
       setPlaylistPageData(pageItem);
       setPlaylists(pageItem.items);
@@ -1609,6 +1666,29 @@ export default function App() {
       setPlaylistPageLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (!auth?.user || authLoading) return;
+    if (!librarySongPage && !albumPageData && !artistPageData && !playlistPageData) return;
+    const nextLibraryPage = librarySongPage
+      ? Math.floor(librarySongPage.offset / libraryPageSize) + 1
+      : libraryPage;
+    const nextAlbumPage = albumPageData
+      ? Math.floor(albumPageData.offset / gridPageSize) + 1
+      : albumPage;
+    const nextArtistPage = artistPageData
+      ? Math.floor(artistPageData.offset / gridPageSize) + 1
+      : artistPage;
+    const nextPlaylistPage = playlistPageData
+      ? Math.floor(playlistPageData.offset / gridPageSize) + 1
+      : playlistPage;
+    void Promise.all([
+      loadLibrarySongsPage(nextLibraryPage),
+      loadAlbumPage(nextAlbumPage),
+      loadArtistPage(nextArtistPage),
+      loadPlaylistPage(nextPlaylistPage),
+    ]);
+  }, [libraryPageSize, gridPageSize]);
 
   async function refreshRecentPlayed() {
     setRecentPlayedSongs(await api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => recentPlayedSongs));
@@ -2287,13 +2367,25 @@ export default function App() {
     }
   }
 
+  async function openSongAlbum(song: Song, backTo: Collection | null = null) {
+    if (!song.album_id) return;
+    const cached = albums.find((item) => item.id === song.album_id);
+    if (cached) {
+      await openAlbum(cached, backTo);
+      return;
+    }
+    const item = await api.album(song.album_id);
+    setAlbums((old) => (old.some((album) => album.id === item.id) ? old : [item, ...old]));
+    await openAlbum(item, backTo);
+  }
+
   async function openArtistById(id: number, fallbackName = "") {
     if (!id) return;
     setCollectionBack(null);
     const requestId = ++collectionRequestRef.current;
     const artist = artists.find((item) => item.id === id);
     const title = artist?.name || fallbackName || t("artists");
-    const artistAlbums = albums.filter((album) => album.artist_id === id);
+    const artistAlbums = albums.filter((album) => album.artist_id === id && album.song_count > 0);
     const nextCollection: Collection = {
       type: "artist",
       id,
@@ -2321,9 +2413,7 @@ export default function App() {
         subtitle: `${items.length} ${t("count")}`,
         favorite: artist?.favorite ?? false,
         songs: items,
-        albums: artistAlbums.length
-          ? artistAlbums
-          : albumsFromSongs(items, id, resolvedTitle),
+        albums: albumsFromSongs(items, id, resolvedTitle),
         coverUrl: `/api/artists/${id}/cover`,
         artistId: id,
         artistName: resolvedTitle,
@@ -2486,7 +2576,10 @@ export default function App() {
   }
 
   return (
-    <div className={lyricsFullScreen ? "app-shell lyrics-mode" : "app-shell"}>
+    <div
+      className={lyricsFullScreen ? "app-shell lyrics-mode" : "app-shell"}
+      data-mobile-player-expanded={mobilePlayerExpanded ? "true" : "false"}
+    >
       <a className="skip-link" href="#main-content">
         {t("skipToContent")}
       </a>
@@ -2504,7 +2597,10 @@ export default function App() {
               onClick={() => {
                 setLyricsFullScreen(false);
                 setView(item.id);
-                if (item.id === "library") void loadLibrarySongsPage(libraryPage);
+                if (item.id === "library") void loadLibrarySongsPage(1);
+                if (item.id === "playlists") void loadPlaylistPage(1);
+                if (item.id === "albums") void loadAlbumPage(1);
+                if (item.id === "artists") void loadArtistPage(1);
               }}
             >
               {item.icon}
@@ -2514,7 +2610,7 @@ export default function App() {
         </nav>
       </aside>
 
-      <main id="main-content" className="main" tabIndex={-1}>
+      <main id="main-content" className="main" tabIndex={-1} ref={mainRef}>
         {lyricsFullScreen ? (
           <FullLyrics
             song={current}
@@ -2539,11 +2635,8 @@ export default function App() {
               void openArtistById(song.artist_id, song.artist);
             }}
             onOpenAlbum={(song) => {
-              const album = albums.find((item) => item.id === song.album_id);
-              if (album) {
-                setLyricsFullScreen(false);
-                void openAlbum(album);
-              }
+              setLyricsFullScreen(false);
+              void openSongAlbum(song);
             }}
             onFavoriteSong={(song) => void toggleFavorite(song)}
           />
@@ -2638,6 +2731,8 @@ export default function App() {
                 current={current}
                 t={t}
                 theme={settings.theme}
+                songPageSize={libraryPageSize}
+                cardPageSize={gridPageSize}
                 onPlay={playSong}
                 onFavoriteSong={toggleFavorite}
                 onAdd={addToPlaylist}
@@ -2666,8 +2761,7 @@ export default function App() {
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
                 onOpenAlbum={(song) => {
-                  const album = albums.find((item) => item.id === song.album_id);
-                  if (album) void openAlbum(album);
+                  void openSongAlbum(song);
                 }}
                 onOpenArtist={(song) =>
                   void openArtistById(song.artist_id, song.artist)
@@ -2693,7 +2787,7 @@ export default function App() {
                 stats={libraryStats}
                 songPage={librarySongPage}
                 pageLoading={libraryPageLoading}
-                onPageChange={(page) => void loadLibrarySongsPage(page)}
+                onPageChange={loadLibrarySongsPage}
               />
             )}
             {view === "radio" && (
@@ -2759,10 +2853,7 @@ export default function App() {
                       : undefined
                 }
                 onOpenAlbum={(song) => {
-                  const album = albums.find((item) => item.id === song.album_id);
-                  if (album) {
-                    void openAlbum(album, collection.type === "artist" ? collection : null);
-                  }
+                  void openSongAlbum(song, collection.type === "artist" ? collection : null);
                 }}
                 onOpenArtist={(song) =>
                   void openArtistById(song.artist_id, song.artist)
@@ -2801,7 +2892,7 @@ export default function App() {
                     onPlay: () => void playPlaylist(p),
                   }))}
                 />
-                <PaginationControls page={playlistPageData} itemCount={playlists.length} loading={playlistPageLoading} t={t} onPageChange={(page) => void loadPlaylistPage(page)} />
+                <PaginationControls page={playlistPageData} itemCount={playlists.length} loading={playlistPageLoading} t={t} onPageChange={loadPlaylistPage} />
               </>
             )}
             {view === "albums" && (
@@ -2844,7 +2935,7 @@ export default function App() {
                     onFavorite: () => void toggleAlbumFavorite(a),
                   }))}
                 />
-                <PaginationControls page={albumPageData} itemCount={albums.length} loading={albumPageLoading} t={t} onPageChange={(page) => void loadAlbumPage(page)} />
+                <PaginationControls page={albumPageData} itemCount={albums.length} loading={albumPageLoading} t={t} onPageChange={loadAlbumPage} />
               </>
             )}
             {view === "artists" && (
@@ -2865,7 +2956,7 @@ export default function App() {
                     onFavorite: () => void toggleArtistFavorite(a),
                   }))}
                 />
-                <PaginationControls page={artistPageData} itemCount={artists.length} loading={artistPageLoading} t={t} onPageChange={(page) => void loadArtistPage(page)} />
+                <PaginationControls page={artistPageData} itemCount={artists.length} loading={artistPageLoading} t={t} onPageChange={loadArtistPage} />
               </>
             )}
             {view === "settings" && (
@@ -3125,6 +3216,16 @@ export default function App() {
             }}
           />
         </div>
+        <button
+          type="button"
+          className="player-minimize-toggle"
+          aria-label={mobilePlayerExpanded ? t("minimizePlayer") : t("expandPlayer")}
+          title={mobilePlayerExpanded ? t("minimizePlayer") : t("expandPlayer")}
+          onClick={() => setMobilePlayerExpanded((value) => !value)}
+        >
+          {mobilePlayerExpanded ? <CaretDown weight="bold" /> : <ArrowUp weight="bold" />}
+          <span>{mobilePlayerExpanded ? t("minimizePlayer") : t("expandPlayer")}</span>
+        </button>
         <audio
           ref={setAudioNode}
           preload="metadata"
@@ -4040,6 +4141,8 @@ function FavoritesView({
   current,
   t,
   theme,
+  songPageSize,
+  cardPageSize,
   onPlay,
   onFavoriteSong,
   onAdd,
@@ -4060,6 +4163,8 @@ function FavoritesView({
   current: Song | null;
   t: ReturnType<typeof createT>;
   theme: Theme;
+  songPageSize: number;
+  cardPageSize: number;
   onPlay: (song: Song, list: Song[]) => void;
   onFavoriteSong: (song: Song) => void;
   onAdd: (song: Song) => void;
@@ -4076,17 +4181,30 @@ function FavoritesView({
   const [tab, setTab] = useState<"songs" | "albums" | "artists" | "radios">("songs");
   const [page, setPage] = useState(1);
   const hasAny = songs.length || albums.length || artists.length || radios.length;
-  const pageItems = <T,>(items: T[]) => items.slice((page - 1) * GRID_PAGE_SIZE, page * GRID_PAGE_SIZE);
+  const pageSize = tab === "songs" ? songPageSize : cardPageSize;
+  const pageItems = <T,>(items: T[]) => items.slice((page - 1) * pageSize, page * pageSize);
   const pageMeta = (total: number): PageLike => ({
     total,
-    limit: GRID_PAGE_SIZE,
-    offset: (page - 1) * GRID_PAGE_SIZE,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
     page,
   });
   const setFavoriteTab = (nextTab: typeof tab) => {
     setTab(nextTab);
     setPage(1);
   };
+  useEffect(() => {
+    const total =
+      tab === "songs"
+        ? songs.length
+        : tab === "albums"
+          ? albums.length
+          : tab === "artists"
+            ? artists.length
+            : radios.length;
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  }, [albums.length, artists.length, page, pageSize, radios.length, songs.length, tab]);
   return (
     <section className="favorites-view">
       <div className="section-head">
@@ -4660,7 +4778,7 @@ function LibraryView({
   scanStatus: ScanStatus | null;
   onCancelScan: () => void;
   onDismissScan: () => void;
-  onPageChange: (page: number) => void;
+  onPageChange: (page: number) => void | Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [tab, setTabState] = useState<LibraryTab>(() => storedLibraryTab());
@@ -6509,10 +6627,13 @@ function PaginationControls({
   itemCount: number;
   loading: boolean;
   t: ReturnType<typeof createT>;
-  onPageChange: (page: number) => void;
+  onPageChange: (page: number) => void | Promise<void>;
 }) {
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const userScrolledRef = useRef(false);
+  const controlsRef = useRef<HTMLDivElement | null>(null);
+  const scrollLockRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const visibleTimerRef = useRef<number | null>(null);
+  const [controlsVisible, setControlsVisible] = useState(false);
   const [jumpValue, setJumpValue] = useState("");
   const total = page?.total ?? 0;
   const limit = page?.limit ?? itemCount;
@@ -6523,52 +6644,90 @@ function PaginationControls({
   const canPrevious = Boolean(page) && currentPage > 1 && !loading;
   const canNext = Boolean(page) && currentPage < totalPages && !loading;
 
-  useEffect(() => {
-    userScrolledRef.current = false;
-  }, [currentPage]);
+  const scrollRoot = () => controlsRef.current?.closest(".main") as HTMLElement | null;
 
   useEffect(() => {
-    const node = sentinelRef.current;
-    if (!node || !canNext || !("IntersectionObserver" in window)) return;
-    const scrollRoot = node.closest(".main") as HTMLElement | null;
-    const markScrolled = () => {
-      const scrollTop = scrollRoot ? scrollRoot.scrollTop : window.scrollY;
-      if (scrollTop > 16) userScrolledRef.current = true;
-    };
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!userScrolledRef.current) return;
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        userScrolledRef.current = false;
-        onPageChange(currentPage + 1);
-      },
-      { root: scrollRoot, threshold: 1 },
-    );
-    (scrollRoot || window).addEventListener("scroll", markScrolled, { passive: true });
-    observer.observe(node);
     return () => {
-      (scrollRoot || window).removeEventListener("scroll", markScrolled);
-      observer.disconnect();
+      if (visibleTimerRef.current != null) window.clearTimeout(visibleTimerRef.current);
     };
-  }, [canNext, currentPage, onPageChange]);
+  }, []);
+
+  const revealControls = () => {
+    setControlsVisible(true);
+    if (visibleTimerRef.current != null) window.clearTimeout(visibleTimerRef.current);
+    visibleTimerRef.current = window.setTimeout(() => setControlsVisible(false), 1800);
+  };
+
+  const changePage = async (nextPage: number, placement: "top" | "bottom" | "keep") => {
+    if (!page || loading) return;
+    const boundedPage = Math.min(totalPages, Math.max(1, nextPage));
+    if (boundedPage === currentPage) return;
+    const root = scrollRoot();
+    scrollLockRef.current = true;
+    revealControls();
+    await Promise.resolve(onPageChange(boundedPage));
+    window.requestAnimationFrame(() => {
+      if (root && placement === "top") {
+        root.scrollTo({ top: 4, behavior: "auto" });
+      } else if (root && placement === "bottom") {
+        root.scrollTo({
+          top: Math.max(0, root.scrollHeight - root.clientHeight - 4),
+          behavior: "auto",
+        });
+      }
+      window.setTimeout(() => {
+        lastScrollTopRef.current = root?.scrollTop ?? window.scrollY;
+        scrollLockRef.current = false;
+      }, 320);
+    });
+  };
+
+  useEffect(() => {
+    const root = scrollRoot();
+    if (!root || total <= limit || total < 10) return;
+    lastScrollTopRef.current = root.scrollTop;
+    const onScroll = () => {
+      revealControls();
+      if (scrollLockRef.current || loading) return;
+      const scrollTop = root.scrollTop;
+      const delta = scrollTop - lastScrollTopRef.current;
+      lastScrollTopRef.current = scrollTop;
+      if (Math.abs(delta) < 8) return;
+      const maxScrollTop = Math.max(0, root.scrollHeight - root.clientHeight);
+      if (delta > 0 && canNext && maxScrollTop - scrollTop <= 36) {
+        void changePage(currentPage + 1, "top");
+      } else if (delta < 0 && canPrevious && scrollTop <= 6) {
+        void changePage(currentPage - 1, "bottom");
+      }
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      root.removeEventListener("scroll", onScroll);
+    };
+  }, [canNext, canPrevious, currentPage, loading, limit, total]);
 
   if (!page || total < 10 || total <= limit) return null;
 
   const jumpToPage = () => {
     const nextPage = Number(jumpValue);
     if (!Number.isInteger(nextPage)) return;
-    onPageChange(Math.min(totalPages, Math.max(1, nextPage)));
+    void changePage(nextPage, "top");
   };
 
   return (
-    <div className="pagination-controls">
+    <div
+      className={controlsVisible ? "pagination-controls is-visible" : "pagination-controls"}
+      ref={controlsRef}
+      onMouseEnter={revealControls}
+      onFocus={revealControls}
+    >
       <span>{start}-{end} / {page.total}</span>
       <div>
-        <button disabled={!canPrevious} onClick={() => onPageChange(currentPage - 1)}>
+        <button disabled={!canPrevious} onClick={() => void changePage(currentPage - 1, "bottom")}>
           {t("previousPage")}
         </button>
         <strong>{t("pageStatus").replace("{current}", String(currentPage)).replace("{total}", String(totalPages))}</strong>
-        <button disabled={!canNext} onClick={() => onPageChange(currentPage + 1)}>
+        <button disabled={!canNext} onClick={() => void changePage(currentPage + 1, "top")}>
           {loading ? t("loading") : t("nextPage")}
         </button>
         <label>
@@ -6589,7 +6748,6 @@ function PaginationControls({
           {t("jump")}
         </button>
       </div>
-      <span className="pagination-sentinel" ref={sentinelRef} aria-hidden="true" />
     </div>
   );
 }

@@ -128,6 +128,46 @@ func TestScanPreservesSongFavoriteForExistingPath(t *testing.T) {
 	}
 }
 
+func TestCleanupMissingLibraryEntriesRemovesEmptyAlbumsWithoutMissingSongs(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:scan-empty-albums?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client}
+	ar, err := service.ensureArtist(ctx, "Artist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ensureAlbum(ctx, "Empty Album", "Artist", ar, 0); err != nil {
+		t.Fatal(err)
+	}
+	nonEmpty, err := service.ensureAlbum(ctx, "Real Album", "Artist", ar, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Song.Create().
+		SetTitle("Track").
+		SetPath(filepath.Join(t.TempDir(), "Track.mp3")).
+		SetFileName("Track.mp3").
+		SetArtist(ar).
+		SetAlbum(nonEmpty).
+		Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.cleanupMissingLibraryEntries(ctx, nil, map[string]bool{}); err != nil {
+		t.Fatal(err)
+	}
+	page, err := service.AlbumsPage(ctx, 0, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 1 || len(page.Items) != 1 {
+		t.Fatalf("expected only non-empty album to remain visible, total=%d len=%d", page.Total, len(page.Items))
+	}
+	if page.Items[0].Title != "Real Album" || page.Items[0].SongCount != 1 {
+		t.Fatalf("unexpected visible album: %+v", page.Items[0])
+	}
+}
+
 func TestEnsureAlbumSeparatesSameTitleByAlbumArtist(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:album-identity?mode=memory&cache=shared&_pragma=foreign_keys(1)")
 	defer client.Close()

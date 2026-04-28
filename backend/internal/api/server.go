@@ -180,6 +180,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 
 	e.GET("/api/albums", s.handleAlbums, auth)
 	e.GET("/api/albums/page", s.handleAlbumsPage, auth)
+	e.GET("/api/albums/:id", s.handleAlbum, auth)
 	e.GET("/api/albums/:id/cover", s.handleAlbumCover, auth)
 	e.GET("/api/albums/:id/songs", s.handleAlbumSongs, auth)
 	e.GET("/api/artists", s.handleArtists, auth)
@@ -896,6 +897,18 @@ func (s *Server) handleAlbumsPage(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleAlbum(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	item, err := s.lib.Album(c.Request().Context(), currentUserID(c), id)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, item)
 }
 
 func (s *Server) handleAlbumSongs(c *echo.Context) error {

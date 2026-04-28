@@ -60,6 +60,7 @@ export const api = {
   folderSongs: (path: string) => request<Song[]>(`/api/folders/songs?path=${encodeURIComponent(path)}`),
   albums: (limit = 0) => request<Album[]>(`/api/albums${limit > 0 ? `?limit=${limit}` : ''}`),
   albumsPage: (page = 1, limit = 100) => request<AlbumPage>(`/api/albums/page?page=${page}&limit=${limit}`),
+  album: (id: number) => request<Album>(`/api/albums/${id}`),
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),
   artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
   artistsPage: (page = 1, limit = 100) => request<ArtistPage>(`/api/artists/page?page=${page}&limit=${limit}`),

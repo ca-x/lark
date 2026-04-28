@@ -455,21 +455,20 @@ func (s *Service) cleanupMissingLibraryEntries(ctx context.Context, roots []stri
 		}
 		missingIDs = append(missingIDs, item.ID)
 	}
-	if len(missingIDs) == 0 {
-		return nil
-	}
-	if _, err := s.client.UserSongFavorite.Delete().
-		Where(usersongfavorite.HasSongWith(song.IDIn(missingIDs...))).
-		Exec(ctx); err != nil {
-		return err
-	}
-	if _, err := s.client.PlayHistory.Delete().
-		Where(playhistory.HasSongWith(song.IDIn(missingIDs...))).
-		Exec(ctx); err != nil {
-		return err
-	}
-	if _, err := s.client.Song.Delete().Where(song.IDIn(missingIDs...)).Exec(ctx); err != nil {
-		return err
+	if len(missingIDs) > 0 {
+		if _, err := s.client.UserSongFavorite.Delete().
+			Where(usersongfavorite.HasSongWith(song.IDIn(missingIDs...))).
+			Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := s.client.PlayHistory.Delete().
+			Where(playhistory.HasSongWith(song.IDIn(missingIDs...))).
+			Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := s.client.Song.Delete().Where(song.IDIn(missingIDs...)).Exec(ctx); err != nil {
+			return err
+		}
 	}
 	emptyAlbums, err := s.client.Album.Query().Where(album.Not(album.HasSongs())).All(ctx)
 	if err != nil {
@@ -1962,7 +1961,7 @@ func (s *Service) artistSongCounts(ctx context.Context) (map[int]int, error) {
 
 func (s *Service) artistAlbumCounts(ctx context.Context) (map[int]int, error) {
 	rows := []artistAlbumCountRow{}
-	if err := s.client.Album.Query().GroupBy(album.ArtistColumn).Aggregate(ent.Count()).Scan(ctx, &rows); err != nil {
+	if err := s.client.Album.Query().Where(album.HasSongs()).GroupBy(album.ArtistColumn).Aggregate(ent.Count()).Scan(ctx, &rows); err != nil {
 		return nil, err
 	}
 	counts := make(map[int]int, len(rows))
@@ -2076,6 +2075,18 @@ func (s *Service) Albums(ctx context.Context, userID, limit int) ([]models.Album
 	return page.Items, nil
 }
 
+func (s *Service) Album(ctx context.Context, userID, id int) (models.Album, error) {
+	item, err := s.client.Album.Query().Where(album.ID(id), album.HasSongs()).WithArtist().WithSongs().Only(ctx)
+	if err != nil {
+		return models.Album{}, err
+	}
+	items, err := s.applyAlbumUserState(ctx, userID, []models.Album{mapAlbum(item)})
+	if err != nil {
+		return models.Album{}, err
+	}
+	return items[0], nil
+}
+
 func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset int) (models.AlbumPage, error) {
 	limit, offset = normalizePage(limit, offset)
 	key := cacheKey("albums-page", userID, limit, offset)
@@ -2085,11 +2096,11 @@ func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset int) (mo
 	} else if ok {
 		return cached, nil
 	}
-	total, err := s.client.Album.Query().Count(ctx)
+	total, err := s.client.Album.Query().Where(album.HasSongs()).Count(ctx)
 	if err != nil {
 		return models.AlbumPage{}, err
 	}
-	query := s.client.Album.Query().WithArtist().Order(ent.Desc(album.FieldUpdatedAt)).Limit(limit)
+	query := s.client.Album.Query().Where(album.HasSongs()).WithArtist().Order(ent.Desc(album.FieldUpdatedAt)).Limit(limit)
 	if offset > 0 {
 		query = query.Offset(offset)
 	}
@@ -2234,7 +2245,13 @@ func (s *Service) ToggleArtistFavorite(ctx context.Context, userID, id int) (mod
 		return models.Artist{}, err
 	}
 	s.invalidateLibraryCache(ctx)
-	a, err := s.client.Artist.Query().Where(artist.ID(id)).WithSongs().WithAlbums().Only(ctx)
+	a, err := s.client.Artist.Query().
+		Where(artist.ID(id)).
+		WithSongs().
+		WithAlbums(func(q *ent.AlbumQuery) {
+			q.Where(album.HasSongs())
+		}).
+		Only(ctx)
 	if err != nil {
 		return models.Artist{}, err
 	}
