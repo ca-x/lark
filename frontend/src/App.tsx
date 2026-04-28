@@ -2565,6 +2565,9 @@ export default function App() {
           audioEl={audioEl}
           streamSrc={currentStreamUrl}
           lowBandwidth={buffering}
+          eqActive={eqEnabled}
+          onOpenEqualizer={() => setEqPanelOpen((value) => !value)}
+          equalizerLabel={t("equalizer")}
         />
         <div className="now">
           <button
@@ -2736,14 +2739,6 @@ export default function App() {
           >
             <Queue />
           </button>
-          <button
-            className={eqEnabled ? "eq-toggle active" : "eq-toggle"}
-            title={t("equalizer")}
-            aria-label={t("equalizer")}
-            onClick={() => setEqPanelOpen((value) => !value)}
-          >
-            <SlidersHorizontal />
-          </button>
           <SleepTimerControl
             value={sleepTimerMins}
             left={sleepLeft}
@@ -2763,21 +2758,6 @@ export default function App() {
             }}
           />
         </div>
-        {eqPanelOpen ? (
-          <div className="eq-layer">
-            <button className="eq-scrim" type="button" aria-label={t("close")} onClick={() => setEqPanelOpen(false)} />
-            <EqualizerPanel
-              t={t}
-              enabled={eqEnabled}
-              bands={eqBands}
-              onToggle={() => setEqEnabled((value) => !value)}
-              onChange={updateEqBand}
-              onReset={resetEqualizer}
-              onApplyPreset={(presetBands) => setEqBands(presetBands)}
-              onClose={() => setEqPanelOpen(false)}
-            />
-          </div>
-        ) : null}
         {queueOpen && (
           <div className="queue-layer">
             <button
@@ -2898,6 +2878,21 @@ export default function App() {
           onEnded={() => next(1, true)}
         />
       </footer>
+      {eqPanelOpen ? (
+        <div className="eq-layer">
+          <button className="eq-scrim" type="button" aria-label={t("close")} onClick={() => setEqPanelOpen(false)} />
+          <EqualizerPanel
+            t={t}
+            enabled={eqEnabled}
+            bands={eqBands}
+            onToggle={() => setEqEnabled((value) => !value)}
+            onChange={updateEqBand}
+            onReset={resetEqualizer}
+            onApplyPreset={(presetBands) => setEqBands(presetBands)}
+            onClose={() => setEqPanelOpen(false)}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2945,6 +2940,14 @@ function AuthView({
       ? "登录后可同步你的歌单、喜欢、收藏与播放历史。"
       : "Sign in to keep playlists, likes, albums, and history separate.";
 
+  if (mode === "loading") {
+    return (
+      <div className="auth-shell" data-theme={settings.theme}>
+        <LoadingStage t={createT(settings.language)} />
+      </div>
+    );
+  }
+
   return (
     <div className="auth-shell" data-theme={settings.theme}>
       <div className="auth-card">
@@ -2957,10 +2960,7 @@ function AuthView({
           <h1>{title}</h1>
           <span>{subtitle}</span>
         </div>
-        {mode === "loading" ? (
-          <LoadingStage t={createT(settings.language)} brand={zh ? "百灵" : "Lark"} />
-        ) : (
-          <form
+        <form
             className="auth-form"
             onSubmit={(event) => {
               event.preventDefault();
@@ -3018,7 +3018,6 @@ function AuthView({
               </button>
             ) : null}
           </form>
-        )}
       </div>
     </div>
   );
@@ -3694,6 +3693,9 @@ function PlayerMood({
   audioEl,
   streamSrc,
   lowBandwidth,
+  eqActive,
+  onOpenEqualizer,
+  equalizerLabel,
 }: {
   theme: Theme;
   playing: boolean;
@@ -3702,6 +3704,9 @@ function PlayerMood({
   audioEl: HTMLAudioElement | null;
   streamSrc?: string;
   lowBandwidth: boolean;
+  eqActive: boolean;
+  onOpenEqualizer: () => void;
+  equalizerLabel: string;
 }) {
   const labels: Record<Theme, string> = {
     "deep-space": "HI-FI ORBIT",
@@ -3739,8 +3744,11 @@ function PlayerMood({
   const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed && !lowBandwidth);
   if (radio) {
     return (
-      <div className="player-mood player-waveform radio-waveform-mood loading" data-theme-key={theme} data-playing={playing ? "true" : "false"} aria-hidden="true">
+      <div className="player-mood player-waveform radio-waveform-mood loading" data-theme-key={theme} data-playing={playing ? "true" : "false"}>
         <span>LIVE</span>
+        <button className={eqActive ? "wave-eq-button active" : "wave-eq-button"} type="button" title={equalizerLabel} aria-label={equalizerLabel} onClick={onOpenEqualizer}>
+          <SlidersHorizontal />
+        </button>
         <div className="wave-lane">
           <div className="wave-fallback">
             {Array.from({ length: 16 }, (_, index) => (
@@ -3767,9 +3775,11 @@ function PlayerMood({
       }
       data-theme-key={theme}
       data-playing={playing ? "true" : "false"}
-      aria-hidden="true"
     >
       <span>{labels[theme]}</span>
+      <button className={eqActive ? "wave-eq-button active" : "wave-eq-button"} type="button" title={equalizerLabel} aria-label={equalizerLabel} onClick={onOpenEqualizer}>
+        <SlidersHorizontal />
+      </button>
       <div className="wave-lane">
         {(!canRenderWave || !waveReady) && (
           <div className="wave-fallback">

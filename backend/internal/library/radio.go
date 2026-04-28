@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -118,12 +119,16 @@ func fetchRadioStations(ctx context.Context, endpoint string) ([]models.RadioSta
 }
 
 func (s *Service) RadioSources(ctx context.Context) ([]models.RadioSource, error) {
-	items := []models.RadioSource{defaultRadioSource(ctx)}
+	items := defaultRadioSources(ctx)
 	stored, err := s.storedRadioSources(ctx)
 	if err != nil {
 		return nil, err
 	}
-	seen := map[string]bool{items[0].ID: true, strings.TrimSpace(items[0].URL): true}
+	seen := map[string]bool{}
+	for _, item := range items {
+		seen[item.ID] = true
+		seen[strings.TrimSpace(item.URL)] = true
+	}
 	for _, item := range stored {
 		item.Name = strings.TrimSpace(item.Name)
 		item.URL = strings.TrimSpace(item.URL)
@@ -316,6 +321,34 @@ func defaultRadioSource(ctx context.Context) models.RadioSource {
 	return item
 }
 
+func defaultRadioSources(ctx context.Context) []models.RadioSource {
+	entries := radioPlaylistEntries(ctx, defaultCliampRadioURL)
+	if len(entries) == 0 {
+		return []models.RadioSource{defaultRadioSource(ctx)}
+	}
+	out := make([]models.RadioSource, 0, len(entries))
+	for index, entry := range entries {
+		name := strings.TrimSpace(entry.Name)
+		if name == "" {
+			name = fmt.Sprintf("cliamp %d", index+1)
+		}
+		item := models.RadioSource{
+			ID:        radioID(defaultCliampRadioURL + "|" + entry.URL + "|" + name),
+			Name:      name,
+			URL:       entry.URL,
+			SourceURL: defaultCliampRadioURL,
+			GroupName: "cliamp",
+			Builtin:   true,
+		}
+		if index == 0 {
+			item.ID = "builtin-cliamp"
+		}
+		item.StreamURL = radioSourceStreamURL(item.ID)
+		out = append(out, item)
+	}
+	return out
+}
+
 func radioSourceStreamURL(id string) string {
 	if strings.TrimSpace(id) == "" {
 		return ""
@@ -388,7 +421,12 @@ type radioPlaylistEntry struct {
 func radioPlaylistEntries(ctx context.Context, playlistURL string) []radioPlaylistEntry {
 	playlistURL = strings.TrimSpace(playlistURL)
 	lower := strings.ToLower(strings.Split(playlistURL, "?")[0])
-	if !strings.HasSuffix(lower, ".m3u") && !strings.HasSuffix(lower, ".m3u8") {
+	isPLS := strings.HasSuffix(lower, ".pls")
+	isM3U := strings.HasSuffix(lower, ".m3u") || strings.HasSuffix(lower, ".m3u8")
+	if !isPLS && !isM3U {
+		return nil
+	}
+	if strings.HasSuffix(lower, ".m3u8") {
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
@@ -407,11 +445,92 @@ func radioPlaylistEntries(ctx context.Context, playlistURL string) []radioPlayli
 		return nil
 	}
 	baseURL, _ := url.Parse(playlistURL)
-	entries := parseRadioM3U(io.LimitReader(res.Body, 4<<20), baseURL)
+	reader := io.LimitReader(res.Body, 4<<20)
+	var entries []radioPlaylistEntry
+	if isPLS {
+		entries = parseRadioPLS(reader, baseURL)
+	} else {
+		entries = parseRadioM3U(reader, baseURL)
+	}
 	if len(entries) > 200 {
 		return entries[:200]
 	}
 	return entries
+}
+
+func parseRadioPLS(r io.Reader, baseURL *url.URL) []radioPlaylistEntry {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64<<10), 1<<20)
+	titles := map[int]string{}
+	files := map[int]string{}
+	order := []int{}
+	for scanner.Scan() {
+		line := strings.TrimPrefix(scanner.Text(), "\xef\xbb\xbf")
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "[") || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.ToLower(strings.TrimSpace(key))
+		value = strings.TrimSpace(value)
+		if strings.HasPrefix(key, "file") {
+			idx, err := strconv.Atoi(strings.TrimPrefix(key, "file"))
+			if err != nil || idx <= 0 {
+				continue
+			}
+			if _, exists := files[idx]; !exists {
+				order = append(order, idx)
+			}
+			files[idx] = value
+			continue
+		}
+		if strings.HasPrefix(key, "title") {
+			idx, err := strconv.Atoi(strings.TrimPrefix(key, "title"))
+			if err == nil && idx > 0 {
+				titles[idx] = value
+			}
+		}
+	}
+	if len(order) == 0 {
+		for idx := range files {
+			order = append(order, idx)
+		}
+	}
+	sort.Ints(order)
+	entries := make([]radioPlaylistEntry, 0, len(order))
+	for _, idx := range order {
+		entryURL := resolveRadioPlaylistEntryURL(files[idx], baseURL)
+		if validStreamLikeURL(entryURL) {
+			entries = append(entries, radioPlaylistEntry{Name: stripPLSMirrorSuffix(titles[idx]), URL: resolvePlaylistURL(context.Background(), entryURL)})
+		}
+	}
+	if allRadioPlaylistEntriesAreStreams(entries) && len(entries) > 1 {
+		return entries[:1]
+	}
+	return entries
+}
+
+func allRadioPlaylistEntriesAreStreams(entries []radioPlaylistEntry) bool {
+	if len(entries) == 0 {
+		return false
+	}
+	for _, entry := range entries {
+		if !validStreamLikeURL(entry.URL) {
+			return false
+		}
+	}
+	return true
+}
+
+func stripPLSMirrorSuffix(value string) string {
+	value = strings.TrimSpace(value)
+	if i := strings.LastIndex(value, "(#"); i >= 0 && strings.HasSuffix(value, ")") {
+		return strings.TrimRight(value[:i], " :")
+	}
+	return value
 }
 
 func parseRadioM3U(r io.Reader, baseURL *url.URL) []radioPlaylistEntry {
