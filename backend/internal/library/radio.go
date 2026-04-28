@@ -147,6 +147,37 @@ func (s *Service) AddRadioSource(ctx context.Context, name, sourceURL string) (m
 	if err != nil {
 		return models.RadioSource{}, err
 	}
+	playlistEntries := radioPlaylistEntries(ctx, sourceURL)
+	if len(playlistEntries) > 0 {
+		var first models.RadioSource
+		for _, entry := range playlistEntries {
+			entryName := strings.TrimSpace(entry.Name)
+			if entryName == "" {
+				entryName = name
+			}
+			item := models.RadioSource{
+				ID:        radioID(sourceURL + "|" + entry.URL + "|" + entryName),
+				Name:      entryName,
+				URL:       entry.URL,
+				SourceURL: sourceURL,
+			}
+			if first.ID == "" {
+				first = item
+			}
+			replaced := false
+			for i, existing := range items {
+				if existing.ID == item.ID || strings.EqualFold(existing.URL, item.URL) {
+					items[i] = item
+					replaced = true
+					break
+				}
+			}
+			if !replaced {
+				items = append(items, item)
+			}
+		}
+		return first, s.saveRadioSources(ctx, items)
+	}
 	item := models.RadioSource{ID: radioID(sourceURL), Name: name, URL: resolvePlaylistURL(ctx, sourceURL), SourceURL: sourceURL}
 	for i, existing := range items {
 		if existing.ID == item.ID || strings.EqualFold(existing.URL, item.URL) || strings.EqualFold(existing.SourceURL, item.SourceURL) {
@@ -240,6 +271,9 @@ func resolvePlaylistURL(ctx context.Context, streamURL string) string {
 	if !strings.HasSuffix(lower, ".pls") && !strings.HasSuffix(lower, ".m3u") && !strings.HasSuffix(lower, ".m3u8") {
 		return streamURL
 	}
+	if strings.HasSuffix(lower, ".m3u8") {
+		return streamURL
+	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, streamURL, nil)
@@ -255,10 +289,20 @@ func resolvePlaylistURL(ctx context.Context, streamURL string) string {
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		return streamURL
 	}
+	contentType := strings.ToLower(res.Header.Get("Content-Type"))
+	if strings.Contains(contentType, "mpegurl") && res.ContentLength == 0 {
+		return streamURL
+	}
 	scanner := bufio.NewScanner(io.LimitReader(res.Body, 256<<10))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "[") {
+		if line == "" || strings.HasPrefix(line, "[") {
+			continue
+		}
+		if strings.HasPrefix(strings.ToUpper(line), "#EXTINF:") {
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
 			continue
 		}
 		if strings.Contains(line, "=") {
@@ -275,6 +319,68 @@ func resolvePlaylistURL(ctx context.Context, streamURL string) string {
 	return streamURL
 }
 
+type radioPlaylistEntry struct {
+	Name string
+	URL  string
+}
+
+func radioPlaylistEntries(ctx context.Context, playlistURL string) []radioPlaylistEntry {
+	playlistURL = strings.TrimSpace(playlistURL)
+	lower := strings.ToLower(strings.Split(playlistURL, "?")[0])
+	if !strings.HasSuffix(lower, ".m3u") {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, playlistURL, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("User-Agent", radioUserAgent)
+	res, err := radioHTTPClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return nil
+	}
+	scanner := bufio.NewScanner(io.LimitReader(res.Body, 2<<20))
+	scanner.Buffer(make([]byte, 64<<10), 512<<10)
+	var entries []radioPlaylistEntry
+	var title string
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "[") {
+			continue
+		}
+		upper := strings.ToUpper(line)
+		if strings.HasPrefix(upper, "#EXT-X-") {
+			return nil
+		}
+		if strings.HasPrefix(upper, "#EXTINF:") {
+			if _, value, ok := strings.Cut(line, ","); ok {
+				title = strings.TrimSpace(value)
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		if validStreamLikeURL(line) {
+			entries = append(entries, radioPlaylistEntry{Name: title, URL: resolvePlaylistURL(ctx, line)})
+			title = ""
+		}
+	}
+	if len(entries) == 1 {
+		return entries
+	}
+	if len(entries) > 200 {
+		return entries[:200]
+	}
+	return entries
+}
+
 func validStreamLikeURL(value string) bool {
 	u, err := url.Parse(strings.TrimSpace(value))
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
@@ -285,12 +391,26 @@ func radioID(value string) string {
 	return hex.EncodeToString(sum[:10])
 }
 
-func (s *Service) LibrarySources(context.Context) []models.LibrarySource {
+func (s *Service) LibrarySources(ctx context.Context) []models.LibrarySource {
+	sources, _ := s.NetworkSources(ctx)
+	configured := map[string]int{}
+	for _, source := range sources {
+		configured[source.Provider]++
+	}
+	status := func(provider string) string {
+		if configured[provider] > 0 {
+			return "configured"
+		}
+		if provider == "spotify" {
+			return "needs-oauth"
+		}
+		return "available"
+	}
 	return []models.LibrarySource{
 		{ID: "local", Name: "Local Library", Kind: "local", Status: "connected", Description: "Scanned audio files stored in the Lark library directory."},
-		{ID: "spotify", Name: "Spotify", Kind: "network", Status: "available", Description: "Direct-connect entry reserved for Spotify account/library integration."},
-		{ID: "navidrome", Name: "Navidrome", Kind: "network", Status: "available", Description: "Subsonic/Navidrome-compatible server entry."},
-		{ID: "plex", Name: "Plex", Kind: "network", Status: "available", Description: "Plex music library direct-connect entry."},
-		{ID: "jellyfin", Name: "Jellyfin", Kind: "network", Status: "available", Description: "Jellyfin music library direct-connect entry."},
+		{ID: "navidrome", Name: "Navidrome / Subsonic", Kind: "network", Status: status("navidrome"), Description: "Connect with a Subsonic-compatible server URL, username and password."},
+		{ID: "plex", Name: "Plex", Kind: "network", Status: status("plex"), Description: "Connect to a Plex Media Server with a server URL and X-Plex-Token."},
+		{ID: "jellyfin", Name: "Jellyfin", Kind: "network", Status: status("jellyfin"), Description: "Connect with a Jellyfin server URL and an API token or username/password."},
+		{ID: "spotify", Name: "Spotify", Kind: "network", Status: status("spotify"), Description: "Spotify needs an OAuth + playback handoff flow; it is listed here but not yet enabled for direct playback."},
 	}
 }

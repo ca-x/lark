@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { Record } from "@phosphor-icons/react";
+import { useEffect, useMemo, useState } from "react";
+import { Pause, Play, Record, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 export function VinylTurntable({
   cover,
@@ -9,6 +10,10 @@ export function VinylTurntable({
   decorative = false,
   title = "Lark",
   artist = "Sonora",
+  volume = 0.85,
+  onToggle,
+  onVolume,
+  onSeek,
 }: {
   cover?: string;
   playing: boolean;
@@ -17,10 +22,18 @@ export function VinylTurntable({
   decorative?: boolean;
   title?: string;
   artist?: string;
+  volume?: number;
+  onToggle?: () => void;
+  onVolume?: (value: number) => void;
+  onSeek?: (seconds: number) => void;
 }) {
+  const [rpm, setRpm] = useState<"33" | "45" | "78">("33");
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
+  const rpmLabel = rpm === "33" ? "33⅓" : rpm;
+  const spinDuration = rpm === "33" ? "1.82s" : rpm === "45" ? "1.33s" : "0.77s";
+  const knobRotation = -145 + Math.max(0, Math.min(1, volume)) * 290;
   return (
-    <div className={decorative ? "turntable vinyl-component decorative" : "turntable vinyl-component"} data-playing={playing ? "true" : "false"}>
+    <div className={decorative ? "turntable vinyl-component decorative" : "turntable vinyl-component"} data-playing={playing ? "true" : "false"} style={{ "--vinyl-spin-duration": spinDuration } as CSSProperties}>
       <div className="vinyl-plinth">
         <div className="vinyl-top-row">
           <div className="vinyl-platter-wrap">
@@ -31,23 +44,58 @@ export function VinylTurntable({
                   {cover ? <img src={cover} alt="" /> : null}
                   <span>Sonora</span>
                   <strong>{title}</strong>
-                  <em>33⅓ RPM</em>
+                  <em>{rpmLabel} RPM</em>
                 </div>
               </div>
             </div>
             <div className="vinyl-spindle" />
             <Tonearm progress={pct} playing={playing} />
           </div>
-          <div className="vinyl-controls" aria-hidden="true">
-            <div className="vinyl-speed-row"><span>RPM</span><i className="active">33⅓</i><i>45</i><i>78</i></div>
+          <div className="vinyl-controls">
+            <div className="vinyl-speed-row"><span>RPM</span>{(["33", "45", "78"] as const).map((value) => (
+              <button key={value} type="button" className={rpm === value ? "active" : ""} onClick={() => setRpm(value)}>
+                {value === "33" ? "33⅓" : value}
+              </button>
+            ))}</div>
             <VUMeter playing={playing} seed={title + artist} />
-            <div className="vinyl-knobs"><span><i />VOL</span><span><i />BASS</span><span><i />TREBLE</span></div>
-            <div className="vinyl-mini-transport"><i /><b /><i /></div>
+            <div className="vinyl-knobs">
+              <label>
+                <i style={{ transform: `rotate(${knobRotation}deg)` }} />
+                <small>{Math.round(volume * 100)}%</small>
+                VOL
+                <input
+                  aria-label="Volume"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={(event) => onVolume?.(Number(event.target.value))}
+                />
+              </label>
+              <span><i />BASS</span><span><i />TREBLE</span>
+            </div>
+            <div className="vinyl-mini-transport">
+              <button type="button" aria-label="Previous" disabled><SkipBack weight="fill" /></button>
+              <button type="button" aria-label={playing ? "Pause" : "Play"} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
+              <button type="button" aria-label="Next" disabled><SkipForward weight="fill" /></button>
+              <div className="vinyl-position-row">
+                <input
+                  aria-label="Position"
+                  type="range"
+                  min="0"
+                  max={Math.max(0, duration || 0)}
+                  step="0.01"
+                  value={Math.min(progress, duration || progress || 0)}
+                  disabled={!duration || !onSeek}
+                  onChange={(event) => onSeek?.(Number(event.target.value))}
+                />
+              </div>
+            </div>
           </div>
         </div>
         <div className="vinyl-bottom-strip"><span className={playing ? "vinyl-led on" : "vinyl-led"} /><strong>Sonora</strong><em>REPEAT</em></div>
       </div>
-      <div className="turntable-speed">33⅓ RPM</div>
       <div className="turntable-status">{playing ? "PLAY" : "PAUSE"}</div>
     </div>
   );
@@ -83,7 +131,16 @@ function Tonearm({ progress, playing }: { progress: number; playing: boolean }) 
 }
 
 function VUMeter({ playing, seed }: { playing: boolean; seed: string }) {
-  const base = Array.from(seed).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const base = useMemo(() => Array.from(seed).reduce((sum, char) => sum + char.charCodeAt(0), 0), [seed]);
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    if (!playing) {
+      setFrame(0);
+      return;
+    }
+    const timer = window.setInterval(() => setFrame((value) => (value + 1) % 97), 120);
+    return () => window.clearInterval(timer);
+  }, [playing]);
   return (
     <div className="vinyl-vu">
       <span>· · · VU · · ·</span>
@@ -92,7 +149,9 @@ function VUMeter({ playing, seed }: { playing: boolean; seed: string }) {
           <em>{channel}</em>
           <div>
             {Array.from({ length: 18 }, (_, index) => {
-              const lit = playing && index < 8 + ((base + channelIndex * 5 + index) % 7);
+              const wave = Math.sin((frame + index * 1.7 + channelIndex * 3) * 0.72);
+              const jitter = (base + frame * (channelIndex + 3) + index * 11) % 5;
+              const lit = playing && index < 7 + Math.round((wave + 1) * 3) + jitter;
               const color = lit ? (index < 11 ? 'g' : index < 14 ? 'y' : 'r') : '';
               return <i key={index} className={color} />;
             })}

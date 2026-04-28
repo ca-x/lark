@@ -153,6 +153,33 @@ export interface RadioSource {
   builtin: boolean;
 }
 
+export interface NetworkSource {
+  id: string;
+  provider: "navidrome" | "jellyfin" | "plex" | "spotify" | string;
+  name: string;
+  base_url: string;
+  username: string;
+  password?: string;
+  token?: string;
+  has_password: boolean;
+  has_token: boolean;
+  status: string;
+  last_error?: string;
+}
+
+export interface NetworkTrack {
+  id: string;
+  source_id: string;
+  provider: string;
+  title: string;
+  artist: string;
+  album: string;
+  duration_seconds: number;
+  year: number;
+  cover_url: string;
+  stream_url: string;
+}
+
 export interface RadioStation {
   id: string;
   name: string;

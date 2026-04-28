@@ -72,6 +72,16 @@ type radioSourceRequest struct {
 	URL  string `json:"url"`
 }
 
+type networkSourceRequest struct {
+	ID       string `json:"id"`
+	Provider string `json:"provider"`
+	Name     string `json:"name"`
+	BaseURL  string `json:"base_url"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Token    string `json:"token"`
+}
+
 type settingsRequest struct {
 	Language            string `json:"language"`
 	Theme               string `json:"theme"`
@@ -128,6 +138,12 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/library/scan", s.handleScan, admin)
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
 	e.GET("/api/library/sources", s.handleLibrarySources, auth)
+	e.GET("/api/network/sources", s.handleNetworkSources, auth)
+	e.POST("/api/network/sources", s.handleUpsertNetworkSource, admin)
+	e.DELETE("/api/network/sources/:id", s.handleDeleteNetworkSource, admin)
+	e.POST("/api/network/sources/:id/test", s.handleTestNetworkSource, admin)
+	e.GET("/api/network/sources/:id/search", s.handleSearchNetworkTracks, auth)
+	e.GET("/api/network/sources/:id/tracks/:track/stream", s.handleNetworkTrackStream, auth)
 	e.GET("/api/radio/sources", s.handleRadioSources, auth)
 	e.POST("/api/radio/sources", s.handleAddRadioSource, admin)
 	e.DELETE("/api/radio/sources/:id", s.handleDeleteRadioSource, admin)
@@ -996,6 +1012,66 @@ func canBrowserPlayDirect(format string) bool {
 
 func (s *Server) handleLibrarySources(c *echo.Context) error {
 	return c.JSON(http.StatusOK, s.lib.LibrarySources(c.Request().Context()))
+}
+
+func (s *Server) handleNetworkSources(c *echo.Context) error {
+	items, err := s.lib.NetworkSources(c.Request().Context())
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleUpsertNetworkSource(c *echo.Context) error {
+	var req networkSourceRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	item, err := s.lib.UpsertNetworkSource(c.Request().Context(), models.NetworkSource{
+		ID:       req.ID,
+		Provider: req.Provider,
+		Name:     req.Name,
+		BaseURL:  req.BaseURL,
+		Username: req.Username,
+		Password: req.Password,
+		Token:    req.Token,
+	})
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusCreated, item)
+}
+
+func (s *Server) handleDeleteNetworkSource(c *echo.Context) error {
+	if err := s.lib.DeleteNetworkSource(c.Request().Context(), c.Param("id")); err != nil {
+		return mapError(err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) handleTestNetworkSource(c *echo.Context) error {
+	item, err := s.lib.TestNetworkSource(c.Request().Context(), c.Param("id"))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, item)
+}
+
+func (s *Server) handleSearchNetworkTracks(c *echo.Context) error {
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	items, err := s.lib.SearchNetworkTracks(c.Request().Context(), c.Param("id"), c.QueryParam("q"), limit)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleNetworkTrackStream(c *echo.Context) error {
+	streamURL, err := s.lib.NetworkTrackStreamURL(c.Request().Context(), c.Param("id"), c.Param("track"))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.Redirect(http.StatusTemporaryRedirect, streamURL)
 }
 
 func (s *Server) handleRadioSources(c *echo.Context) error {

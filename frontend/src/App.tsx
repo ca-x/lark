@@ -64,11 +64,13 @@ import type {
   User,
   WebFont,
   LibrarySource,
+  NetworkSource,
+  NetworkTrack,
   RadioSource,
   RadioStation,
 } from "./types";
 import { createT } from "./i18n";
-import { RadioControlBar, RadioReceiver } from "./components/RadioPlayer";
+import { RadioReceiver } from "./components/RadioPlayer";
 import { VinylTurntable } from "./components/VinylPlayer";
 
 const defaultSettings: Settings = {
@@ -564,11 +566,13 @@ export default function App() {
   const [dailyMix, setDailyMix] = useState<Song[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [librarySources, setLibrarySources] = useState<LibrarySource[]>([]);
+  const [networkSources, setNetworkSources] = useState<NetworkSource[]>([]);
   const [radioSources, setRadioSources] = useState<RadioSource[]>([]);
   const [radioStations, setRadioStations] = useState<RadioStation[]>([]);
   const [radioLoading, setRadioLoading] = useState(false);
   const [radioQuery, setRadioQuery] = useState("");
   const [currentRadio, setCurrentRadio] = useState<RadioStation | null>(null);
+  const [currentNetworkTrack, setCurrentNetworkTrack] = useState<NetworkTrack | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -602,6 +606,7 @@ export default function App() {
   const [duration, setDuration] = useState(0);
   const [bufferedEnd, setBufferedEnd] = useState(0);
   const [buffering, setBuffering] = useState(false);
+  const [volume, setVolume] = useState(0.85);
   const [streamMode, setStreamMode] = useState<StreamMode>(() =>
     prefersLowBandwidthStream() ? "adaptive" : "auto",
   );
@@ -611,8 +616,9 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const setAudioNode = useCallback((node: HTMLAudioElement | null) => {
     audioRef.current = node;
+    if (node) node.volume = volume;
     setAudioEl((currentNode) => (currentNode === node ? currentNode : node));
-  }, []);
+  }, [volume]);
   const lyricsScrollRef = useRef<HTMLDivElement | null>(null);
   const lyricFollowPausedUntil = useRef(0);
   const messageTimerRef = useRef<number | null>(null);
@@ -625,6 +631,7 @@ export default function App() {
   const stallDowngradeTimerRef = useRef<number | null>(null);
   const currentRef = useRef<Song | null>(null);
   const currentRadioRef = useRef<RadioStation | null>(null);
+  const currentNetworkTrackRef = useRef<NetworkTrack | null>(null);
   const queueRef = useRef<Song[]>([]);
   const playModeRef = useRef<PlayMode>("sequence");
   const playingRef = useRef(false);
@@ -635,6 +642,7 @@ export default function App() {
   const audioOutputSnapshotRef = useRef<AudioOutputSnapshot | null>(null);
   currentRef.current = current;
   currentRadioRef.current = currentRadio;
+  currentNetworkTrackRef.current = currentNetworkTrack;
   progressRef.current = progress;
   durationRef.current = duration || current?.duration_seconds || 0;
   queueRef.current = queue;
@@ -674,6 +682,12 @@ export default function App() {
         .join(" / ") || line.text
     );
   }, [activeLyric, current, lyricLines, lyricsLoading, t]);
+
+  const updateVolume = useCallback((value: number) => {
+    const next = Math.max(0, Math.min(1, value));
+    setVolume(next);
+    if (audioRef.current) audioRef.current.volume = next;
+  }, []);
 
   useEffect(() => {
     void bootstrap();
@@ -737,15 +751,22 @@ export default function App() {
     const audio = audioRef.current;
     const song = currentRef.current;
     const radio = currentRadioRef.current;
-    if (!audio || (!song && !radio)) return;
-    const requestedKey = song ? `song:${song.id}` : `radio:${radio?.id ?? radio?.url}`;
+    const networkTrack = currentNetworkTrackRef.current;
+    if (!audio || (!song && !radio && !networkTrack)) return;
+    const requestedKey = song
+      ? `song:${song.id}`
+      : radio
+        ? `radio:${radio.id || radio.url}`
+        : `network:${networkTrack?.source_id}:${networkTrack?.id}`;
     pendingAutoplayRef.current = true;
     void audio.play().then(() => {
       const activeKey = currentRef.current
         ? `song:${currentRef.current.id}`
         : currentRadioRef.current
           ? `radio:${currentRadioRef.current.id || currentRadioRef.current.url}`
-          : "";
+          : currentNetworkTrackRef.current
+            ? `network:${currentNetworkTrackRef.current.source_id}:${currentNetworkTrackRef.current.id}`
+            : "";
       if (activeKey !== requestedKey) return;
       if (!pendingAutoplayRef.current && !playingRef.current) return;
       pendingAutoplayRef.current = false;
@@ -755,7 +776,9 @@ export default function App() {
         ? `song:${currentRef.current.id}`
         : currentRadioRef.current
           ? `radio:${currentRadioRef.current.id || currentRadioRef.current.url}`
-          : "";
+          : currentNetworkTrackRef.current
+            ? `network:${currentNetworkTrackRef.current.source_id}:${currentNetworkTrackRef.current.id}`
+            : "";
       if (activeKey !== requestedKey) return;
       const name = error instanceof DOMException ? error.name : "";
       if (name === "AbortError" || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -770,7 +793,7 @@ export default function App() {
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || (!current && !currentRadio)) return;
+    if (!audio || (!current && !currentRadio && !currentNetworkTrack)) return;
     audio.pause();
     audio.currentTime = 0;
     audio.load();
@@ -778,7 +801,7 @@ export default function App() {
       pendingAutoplayRef.current = true;
       window.requestAnimationFrame(requestAudioPlay);
     }
-  }, [current?.id, currentRadio?.id, currentRadio?.url, requestAudioPlay]);
+  }, [current?.id, currentRadio?.id, currentRadio?.url, currentNetworkTrack?.id, currentNetworkTrack?.source_id, requestAudioPlay]);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -787,7 +810,7 @@ export default function App() {
       pendingAutoplayRef.current = false;
       audioRef.current.pause();
     }
-  }, [playing, current?.id, currentRadio?.id, currentRadio?.url, requestAudioPlay]);
+  }, [playing, current?.id, currentRadio?.id, currentRadio?.url, currentNetworkTrack?.id, currentNetworkTrack?.source_id, requestAudioPlay]);
   useEffect(() => {
     const mediaDevices = navigator.mediaDevices;
     if (!mediaDevices?.enumerateDevices) return;
@@ -883,6 +906,21 @@ export default function App() {
             ]
           : [],
       });
+    } else if (currentNetworkTrack) {
+      setClientMediaMetadata({
+        title: currentNetworkTrack.title || t("nowPlaying"),
+        artist: currentNetworkTrack.artist || t("artist"),
+        album: currentNetworkTrack.album || t("networkLibrary"),
+        artwork: currentNetworkTrack.cover_url
+          ? [
+              {
+                src: new URL(currentNetworkTrack.cover_url, window.location.origin).toString(),
+                sizes: "512x512",
+                type: "image/jpeg",
+              },
+            ]
+          : [],
+      });
     } else if (currentRadio) {
       setClientMediaMetadata({
         title: currentRadio.name || t("onlineRadio"),
@@ -920,19 +958,19 @@ export default function App() {
         setClientActionHandler(action as MediaSessionAction, null);
       });
     };
-  }, [current?.id, currentRadio?.id, currentRadio?.url, t]);
+  }, [current?.id, currentRadio?.id, currentRadio?.url, currentNetworkTrack?.id, currentNetworkTrack?.source_id, t]);
 
   useEffect(() => {
     if (!hasClientMediaSession()) return;
-    const hasPlayable = Boolean(current || currentRadio);
+    const hasPlayable = Boolean(current || currentRadio || currentNetworkTrack);
     setClientPlaybackState(playing ? "playing" : hasPlayable ? "paused" : "none");
-    if (!current || !duration) return;
+    if ((!current && !currentNetworkTrack) || !duration) return;
     setClientPositionState({
       duration,
       playbackRate: audioRef.current?.playbackRate || 1,
       position: Math.min(progress, duration),
     });
-  }, [current?.id, currentRadio?.id, duration, playing, progress]);
+  }, [current?.id, currentRadio?.id, currentNetworkTrack?.id, currentNetworkTrack?.source_id, duration, playing, progress]);
 
   useEffect(() => {
     return () => {
@@ -1021,9 +1059,11 @@ export default function App() {
     setDailyMix([]);
     setFolders([]);
     setLibrarySources([]);
+    setNetworkSources([]);
     setRadioSources([]);
     setRadioStations([]);
     setCurrentRadio(null);
+    setCurrentNetworkTrack(null);
     setAlbums([]);
     setArtists([]);
     setPlaylists([]);
@@ -1127,7 +1167,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, librarySourceItems, radioSourceItems, radioStationItems] =
+    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, librarySourceItems, networkSourceItems, radioSourceItems, radioStationItems] =
       await Promise.all([
         api.songs(query),
         api.albums(),
@@ -1136,6 +1176,7 @@ export default function App() {
         api.dailyMix(24).catch(() => []),
         api.folders(0).catch(() => []),
         api.librarySources().catch(() => []),
+        api.networkSources().catch(() => []),
         api.radioSources().catch(() => []),
         api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
       ]);
@@ -1143,6 +1184,7 @@ export default function App() {
     setDailyMix(dailyItems);
     setFolders(folderItems);
     setLibrarySources(librarySourceItems);
+    setNetworkSources(networkSourceItems);
     setRadioSources(radioSourceItems);
     setRadioStations(radioStationItems);
     setAlbums(albumItems);
@@ -1192,6 +1234,7 @@ export default function App() {
     setStreamOffset(0);
     setStreamMode(defaultStreamMode(song));
     setCurrentRadio(null);
+    setCurrentNetworkTrack(null);
     setCurrent(song);
     setQueue(queueWithCurrent(list.length ? list : [song], song));
     setDuration((value) => value || song.duration_seconds || 0);
@@ -1222,10 +1265,34 @@ export default function App() {
     setBuffering(true);
     setCurrent(null);
     setCurrentRadio(station);
+    setCurrentNetworkTrack(null);
     setLyrics(null);
     setLyricCandidates([]);
     setProgress(0);
     setDuration(0);
+    setBufferedEnd(0);
+    setStreamOffset(0);
+    setStreamMode("auto");
+    setPlaying(true);
+  }
+
+  function playNetworkTrack(track: NetworkTrack) {
+    if (!track?.stream_url) return;
+    if (current) syncPlaybackProgress(false);
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    pendingAutoplayRef.current = true;
+    setBuffering(true);
+    setCurrent(null);
+    setCurrentRadio(null);
+    setCurrentNetworkTrack(track);
+    setLyrics(null);
+    setLyricCandidates([]);
+    setProgress(0);
+    setDuration(track.duration_seconds || 0);
     setBufferedEnd(0);
     setStreamOffset(0);
     setStreamMode("auto");
@@ -1260,6 +1327,25 @@ export default function App() {
 
   function next(delta: 1 | -1, ended = false) {
     if (currentRadioRef.current) {
+      if (ended) {
+        pendingAutoplayRef.current = false;
+        setPlaying(false);
+        return;
+      }
+      const activeRadio = currentRadioRef.current;
+      const radioList = radioStations.length ? radioStations : radioSources.map(radioSourceToStation);
+      const currentIndex = radioList.findIndex((station) => station.url === activeRadio.url || station.id === activeRadio.id);
+      if (radioList.length > 1) {
+        const nextIndex = currentIndex >= 0
+          ? (currentIndex + delta + radioList.length) % radioList.length
+          : delta > 0
+            ? 0
+            : radioList.length - 1;
+        playRadio(radioList[nextIndex]);
+      }
+      return;
+    }
+    if (currentNetworkTrackRef.current) {
       if (ended) {
         pendingAutoplayRef.current = false;
         setPlaying(false);
@@ -1854,7 +1940,7 @@ export default function App() {
       : playMode === "shuffle"
         ? t("playModeShuffle")
         : t("playModeRepeatOne");
-  const playableDuration = duration || current?.duration_seconds || 0;
+  const playableDuration = duration || current?.duration_seconds || currentNetworkTrack?.duration_seconds || 0;
   const playedPercent = playableDuration
     ? `${Math.min(100, Math.max(0, (progress / playableDuration) * 100))}%`
     : "0%";
@@ -1890,13 +1976,16 @@ export default function App() {
     current && current.album_id
       ? albums.find((item) => item.id === current.album_id)
       : undefined;
-  const playerStyle = coverUrl(current)
-    ? ({ "--cover-url": `url(${coverUrl(current)})` } as React.CSSProperties)
+  const currentArtwork = coverUrl(current) || currentNetworkTrack?.cover_url || "";
+  const playerStyle = currentArtwork
+    ? ({ "--cover-url": `url(${currentArtwork})` } as React.CSSProperties)
     : undefined;
-  const currentStreamUrl = currentRadio?.url || streamUrl(current, streamMode, streamOffset);
-  const nowTitle = current?.title ?? currentRadio?.name ?? t("nowPlaying");
+  const currentStreamUrl = currentRadio?.url || currentNetworkTrack?.stream_url || streamUrl(current, streamMode, streamOffset);
+  const nowTitle = current?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("nowPlaying");
   const nowSubtitle = currentRadio
-    ? [t("onlineRadio"), currentRadio.country, currentRadio.codec || currentRadio.tags].filter(Boolean).join(" · ")
+    ? [currentRadio.country, currentRadio.codec || currentRadio.tags, currentRadio.bitrate ? `${currentRadio.bitrate}kbps` : ""].filter(Boolean).join(" · ")
+    : currentNetworkTrack
+      ? [t("networkLibrary"), currentNetworkTrack.provider, currentNetworkTrack.artist, currentNetworkTrack.album].filter(Boolean).join(" · ")
     : "";
   const seekStyle = {
     "--played": playedPercent,
@@ -2023,15 +2112,18 @@ export default function App() {
                 albums={albums}
                 artists={artists}
                 playlists={playlists}
-                radioSources={radioSources}
                 currentRadio={currentRadio}
                 heroSong={heroSong}
                 current={current}
                 playing={playing}
                 progress={progress}
                 duration={playableDuration}
+                volume={volume}
                 t={t}
                 onPlay={playSong}
+                onTogglePlayback={() => setPlaying((value) => !value)}
+                onVolume={updateVolume}
+                onSeek={seekTo}
                 onPlayAlbum={playAlbum}
                 onOpenAlbum={openAlbum}
                 onPlayArtist={playArtist}
@@ -2039,11 +2131,6 @@ export default function App() {
                 onPlayPlaylist={playPlaylist}
                 onOpenPlaylist={openPlaylist}
                 onCreatePlaylist={createPlaylist}
-                onPlayRadio={(source) => playRadio(radioSourceToStation(source))}
-                onOpenRadio={() => {
-                  setView("radio");
-                  if (!radioStations.length) void loadRadioStations();
-                }}
               />
             )}
 
@@ -2073,6 +2160,7 @@ export default function App() {
                 songs={songs}
                 folders={folders}
                 librarySources={librarySources}
+                networkSources={networkSources}
                 radioSources={radioSources}
                 current={current}
                 t={t}
@@ -2095,6 +2183,8 @@ export default function App() {
                   if (!radioStations.length) void loadRadioStations();
                 }}
                 onPlayRadio={(source) => playRadio(radioSourceToStation(source))}
+                onNetworkSourcesChange={setNetworkSources}
+                onPlayNetworkTrack={playNetworkTrack}
                 scanStatus={scanStatus}
               />
             )}
@@ -2311,39 +2401,44 @@ export default function App() {
         />
       ) : null}
 
-      <footer className={currentRadio ? "player radio-player" : "player"} style={currentRadio ? undefined : playerStyle}>
-        {currentRadio ? (
-          <RadioControlBar
-            station={currentRadio}
-            playing={playing}
-            t={t}
-            onToggle={() => setPlaying((value) => !value)}
-            onBrowse={() => {
-              setLyricsFullScreen(false);
-              setView("radio");
-              if (!radioStations.length) void loadRadioStations();
-            }}
-            onVolume={(value) => {
-              if (audioRef.current) audioRef.current.volume = value;
-            }}
-          />
-        ) : null}
+      <footer className="player" style={playerStyle}>
         <PlayerMood
           theme={settings.theme}
           playing={playing}
           song={current}
+          radio={currentRadio}
           audioEl={audioEl}
           streamSrc={currentStreamUrl}
           lowBandwidth={buffering}
         />
         <div className="now">
           <button
-            className="cover-button"
-            title={t("lyrics")}
-            aria-label={t("lyrics")}
-            onClick={() => setLyricsFullScreen((value) => !value)}
+            className={currentRadio ? "cover-button radio-cover-button" : "cover-button"}
+            title={currentRadio ? t("onlineRadio") : t("lyrics")}
+            aria-label={currentRadio ? t("onlineRadio") : t("lyrics")}
+            onClick={() => {
+              if (currentRadio) {
+                setView("radio");
+                if (!radioStations.length) void loadRadioStations();
+                return;
+              }
+              setLyricsFullScreen((value) => !value);
+            }}
           >
-            <MiniCover song={current} playing={playing} />
+            {currentRadio ? (
+              <RadioMiniLogo station={currentRadio} playing={playing} />
+            ) : currentNetworkTrack ? (
+              <div
+                className="mini-art"
+                data-playing={playing ? "true" : "false"}
+                data-has-cover={currentNetworkTrack.cover_url ? "true" : "false"}
+                style={currentNetworkTrack.cover_url ? ({ "--cover-url": `url(${currentNetworkTrack.cover_url})` } as React.CSSProperties) : undefined}
+              >
+                {!currentNetworkTrack.cover_url ? <Record weight="fill" /> : null}
+              </div>
+            ) : (
+              <MiniCover song={current} playing={playing} />
+            )}
           </button>
           <div>
             <strong>{nowTitle}</strong>
@@ -2375,6 +2470,8 @@ export default function App() {
                   {formatQuality(current)}
                 </>
               ) : currentRadio ? (
+                <span className="radio-now-meta"><i />LIVE{nowSubtitle ? ` · ${nowSubtitle}` : ""}</span>
+              ) : currentNetworkTrack ? (
                 nowSubtitle
               ) : (
                 "—"
@@ -2404,7 +2501,7 @@ export default function App() {
               <button
                 className="play"
                 aria-label={playing ? t("pause") : t("play")}
-                disabled={!current && !currentRadio}
+                disabled={!current && !currentRadio && !currentNetworkTrack}
                 onClick={() => setPlaying((v) => !v)}
               >
                 {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
@@ -2439,6 +2536,10 @@ export default function App() {
             ) : currentRadio ? (
               <>
                 <Record weight="fill" /> {t("liveRadio")}
+              </>
+            ) : currentNetworkTrack ? (
+              <>
+                {formatDuration(progress)} / {formatDuration(playableDuration || currentNetworkTrack.duration_seconds)}
               </>
             ) : (
               <>
@@ -2493,9 +2594,9 @@ export default function App() {
             max="1"
             step="0.01"
             defaultValue="0.85"
+            value={volume}
             onChange={(e) => {
-              if (audioRef.current)
-                audioRef.current.volume = Number(e.target.value);
+              updateVolume(Number(e.target.value));
             }}
           />
         </div>
@@ -2525,7 +2626,7 @@ export default function App() {
             updateBuffered(e.currentTarget);
             const d = e.currentTarget.duration;
             const mediaDuration = Number.isFinite(d) && d > 0 ? d : 0;
-            const libraryDuration = current?.duration_seconds || 0;
+            const libraryDuration = current?.duration_seconds || currentNetworkTrackRef.current?.duration_seconds || 0;
             setDuration(
               streamModeRef.current === "adaptive"
                 ? libraryDuration || streamOffsetRef.current + mediaDuration
@@ -2554,7 +2655,7 @@ export default function App() {
             updateBuffered(e.currentTarget);
             const d = e.currentTarget.duration;
             const mediaDuration = Number.isFinite(d) && d > 0 ? d : 0;
-            const libraryDuration = current?.duration_seconds || 0;
+            const libraryDuration = current?.duration_seconds || currentNetworkTrackRef.current?.duration_seconds || 0;
             setDuration(
               streamModeRef.current === "adaptive"
                 ? libraryDuration || streamOffsetRef.current + mediaDuration
@@ -2872,15 +2973,18 @@ function HomeView({
   albums,
   artists,
   playlists,
-  radioSources,
   currentRadio,
   heroSong,
   current,
   playing,
   progress,
   duration,
+  volume,
   t,
   onPlay,
+  onTogglePlayback,
+  onVolume,
+  onSeek,
   onPlayAlbum,
   onOpenAlbum,
   onPlayArtist,
@@ -2888,23 +2992,24 @@ function HomeView({
   onPlayPlaylist,
   onOpenPlaylist,
   onCreatePlaylist,
-  onPlayRadio,
-  onOpenRadio,
 }: {
   songs: Song[];
   dailyMix: Song[];
   albums: Album[];
   artists: Artist[];
   playlists: Playlist[];
-  radioSources: RadioSource[];
   currentRadio: RadioStation | null;
   heroSong?: Song | null;
   current: Song | null;
   playing: boolean;
   progress: number;
   duration: number;
+  volume: number;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
+  onTogglePlayback: () => void;
+  onVolume: (value: number) => void;
+  onSeek: (seconds: number) => void;
   onPlayAlbum: (album: Album) => void;
   onOpenAlbum: (album: Album) => void;
   onPlayArtist: (artist: Artist) => void;
@@ -2912,34 +3017,49 @@ function HomeView({
   onPlayPlaylist: (playlist: Playlist) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
   onCreatePlaylist: () => void;
-  onPlayRadio: (source: RadioSource) => void;
-  onOpenRadio: () => void;
 }) {
   const latestSongs = songs.slice(0, 5);
   const dailySongs = dailyMix.length ? dailyMix.slice(0, 5) : songs.slice(0, 5);
   const featuredAlbums = albums.slice(0, 4);
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
-  const featuredRadio = radioSources[0];
   const heroPlaying = playing && current?.id === heroSong?.id;
   const heroAlbum = heroSong
     ? albums.find((album) => album.id === heroSong.album_id)
     : undefined;
   return (
     <section className="home-view">
-      <section className="hero">
-        <VinylTurntable
-          cover={coverUrl(heroSong)}
-          playing={heroPlaying}
-          progress={heroPlaying ? progress : 0}
-          duration={heroPlaying ? duration : heroSong?.duration_seconds || 0}
-          title={heroSong?.title}
-          artist={heroSong?.artist}
-        />
+      <section className={currentRadio ? "hero radio-hero" : "hero"}>
+        {currentRadio ? (
+          <RadioReceiver
+            title={currentRadio.name || t("onlineRadio")}
+            subtitle={[t("onlineRadio"), currentRadio.country, currentRadio.codec || currentRadio.tags].filter(Boolean).join(" · ")}
+            playing={playing}
+            t={t}
+            onPlay={() => undefined}
+          />
+        ) : (
+          <VinylTurntable
+            cover={coverUrl(heroSong)}
+            playing={heroPlaying}
+            progress={heroPlaying ? progress : 0}
+            duration={heroPlaying ? duration : heroSong?.duration_seconds || 0}
+            title={heroSong?.title}
+            artist={heroSong?.artist}
+            volume={volume}
+            onToggle={heroPlaying ? onTogglePlayback : heroSong ? () => onPlay(heroSong) : undefined}
+            onVolume={onVolume}
+            onSeek={heroPlaying ? onSeek : undefined}
+          />
+        )}
         <div>
-          <p>{heroPlaying ? t("nowPlaying") : t("jumpBackIn")}</p>
-          <h1>{heroSong?.title ?? `${t("brand")} Music`}</h1>
-          {heroSong ? (
+          <p>{currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : t("jumpBackIn")}</p>
+          <h1>{currentRadio?.name ?? heroSong?.title ?? `${t("brand")} Music`}</h1>
+          {currentRadio ? (
+            <h2 className="home-hero-meta">
+              {[currentRadio.country, currentRadio.codec, currentRadio.bitrate ? `${currentRadio.bitrate}kbps` : ""].filter(Boolean).join(" · ") || t("onlineRadio")}
+            </h2>
+          ) : heroSong ? (
             <h2 className="home-hero-meta">
               <button
                 type="button"
@@ -2967,25 +3087,15 @@ function HomeView({
           <div className="hero-actions">
             <button
               className="primary"
-              disabled={!heroSong}
+              disabled={!heroSong || Boolean(currentRadio)}
               onClick={() => heroSong && onPlay(heroSong)}
             >
-              {heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
-              {heroPlaying ? t("nowPlaying") : t("play")}
+              {currentRadio ? <Record weight="fill" /> : heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
+              {currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : t("play")}
             </button>
           </div>
         </div>
       </section>
-
-      <RadioReceiver
-        className="radio-home-card"
-        title={currentRadio?.name || featuredRadio?.name || "cliamp"}
-        subtitle={currentRadio ? [t("onlineRadio"), currentRadio.country, currentRadio.codec || currentRadio.tags].filter(Boolean).join(" · ") : t("radioHomeHint")}
-        playing={playing && Boolean(currentRadio)}
-        t={t}
-        onPlay={() => featuredRadio && onPlayRadio(featuredRadio)}
-        onBrowse={onOpenRadio}
-      />
 
       <div className="home-dashboard">
         <section className="summary-panel">
@@ -3242,6 +3352,16 @@ function MiniCover({
   );
 }
 
+function RadioMiniLogo({ station, playing }: { station: RadioStation; playing: boolean }) {
+  const style = station.favicon ? ({ "--cover-url": `url(${station.favicon})` } as React.CSSProperties) : undefined;
+  return (
+    <div className="mini-art radio-mini-art" data-playing={playing ? "true" : "false"} data-has-cover={station.favicon ? "true" : "false"} style={style}>
+      {!station.favicon ? <Record weight="fill" /> : null}
+      <span aria-hidden="true" />
+    </div>
+  );
+}
+
 function FavoritesView({
   songs,
   albums,
@@ -3378,6 +3498,7 @@ function PlayerMood({
   theme,
   playing,
   song,
+  radio,
   audioEl,
   streamSrc,
   lowBandwidth,
@@ -3385,6 +3506,7 @@ function PlayerMood({
   theme: Theme;
   playing: boolean;
   song: Song | null;
+  radio?: RadioStation | null;
   audioEl: HTMLAudioElement | null;
   streamSrc?: string;
   lowBandwidth: boolean;
@@ -3421,8 +3543,25 @@ function PlayerMood({
   useEffect(() => {
     setWaveReady(false);
     setWaveFailed(false);
-  }, [song?.id]);
+  }, [song?.id, radio?.id, radio?.url]);
   const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed && !lowBandwidth);
+  if (radio) {
+    return (
+      <div className="player-mood radio-station-card" data-playing={playing ? "true" : "false"} aria-hidden="true">
+        <div className="radio-station-logo">
+          {radio.favicon ? <img src={radio.favicon} alt="" /> : <Record weight="fill" />}
+        </div>
+        <div className="radio-station-info">
+          <strong>{radio.name || "Radio"}</strong>
+          <span>{[radio.country, radio.codec || radio.tags, radio.bitrate ? `${radio.bitrate}kbps` : ""].filter(Boolean).join(" · ") || "LIVE"}</span>
+        </div>
+        <div className="live-badge"><i />LIVE</div>
+        <div className="radio-card-wave" data-playing={playing ? "true" : "false"}>
+          {Array.from({ length: 6 }, (_, index) => <i key={index} />)}
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className={
@@ -3735,6 +3874,7 @@ function LibraryView({
   songs,
   folders,
   librarySources,
+  networkSources,
   radioSources,
   current,
   t,
@@ -3749,11 +3889,14 @@ function LibraryView({
   onPlayFolder,
   onOpenRadio,
   onPlayRadio,
+  onNetworkSourcesChange,
+  onPlayNetworkTrack,
   scanStatus,
 }: {
   songs: Song[];
   folders: Folder[];
   librarySources: LibrarySource[];
+  networkSources: NetworkSource[];
   radioSources: RadioSource[];
   current: Song | null;
   t: ReturnType<typeof createT>;
@@ -3768,6 +3911,8 @@ function LibraryView({
   onPlayFolder: (folder: Folder) => void;
   onOpenRadio: () => void;
   onPlayRadio: (source: RadioSource) => void;
+  onNetworkSourcesChange: (sources: NetworkSource[]) => void;
+  onPlayNetworkTrack: (track: NetworkTrack) => void;
   scanStatus: ScanStatus | null;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -3848,7 +3993,13 @@ function LibraryView({
         </button>
       </div>
       {tab === "network" ? (
-        <NetworkLibrarySources sources={librarySources} t={t} />
+        <NetworkLibrarySources
+          sources={librarySources}
+          configuredSources={networkSources}
+          t={t}
+          onSourcesChange={onNetworkSourcesChange}
+          onPlayTrack={onPlayNetworkTrack}
+        />
       ) : tab === "radio" ? (
         <LibraryRadioSources sources={radioSources} t={t} onOpenRadio={onOpenRadio} onPlayRadio={onPlayRadio} />
       ) : tab === "folders" ? (
@@ -3886,22 +4037,189 @@ function LibraryView({
 
 function NetworkLibrarySources({
   sources,
+  configuredSources,
   t,
+  onSourcesChange,
+  onPlayTrack,
 }: {
   sources: LibrarySource[];
+  configuredSources: NetworkSource[];
   t: ReturnType<typeof createT>;
+  onSourcesChange: (sources: NetworkSource[]) => void;
+  onPlayTrack: (track: NetworkTrack) => void;
 }) {
   const network = sources.filter((item) => item.kind !== "local");
+  const [provider, setProvider] = useState("navidrome");
+  const [name, setName] = useState("");
+  const [baseURL, setBaseURL] = useState("");
+  const [username, setUsername] = useState("");
+  const [secret, setSecret] = useState("");
+  const [query, setQuery] = useState("");
+  const [activeSourceId, setActiveSourceId] = useState("");
+  const [results, setResults] = useState<NetworkTrack[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const activeSource = configuredSources.find((source) => source.id === activeSourceId) ?? configuredSources[0];
+  const refreshSources = async () => onSourcesChange(await api.networkSources());
+  const saveSource = async () => {
+    setError("");
+    try {
+      const saved = await api.saveNetworkSource({
+        provider,
+        name,
+        base_url: baseURL,
+        username,
+        ...(provider === "plex" || (provider === "jellyfin" && !username) ? { token: secret } : { password: secret }),
+      });
+      const next = await api.networkSources();
+      onSourcesChange(next);
+      setActiveSourceId(saved.id);
+      setName("");
+      setBaseURL("");
+      setUsername("");
+      setSecret("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+  const testSource = async (source: NetworkSource) => {
+    setError("");
+    try {
+      await api.testNetworkSource(source.id);
+      await refreshSources();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      await refreshSources().catch(() => undefined);
+    }
+  };
+  const deleteSource = async (source: NetworkSource) => {
+    setError("");
+    try {
+      await api.deleteNetworkSource(source.id);
+      const next = await api.networkSources();
+      onSourcesChange(next);
+      if (activeSourceId === source.id) setActiveSourceId("");
+      setResults([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  };
+  const search = async () => {
+    if (!activeSource || !query.trim()) return;
+    setLoading(true);
+    setError("");
+    try {
+      setResults(await api.searchNetworkTracks(activeSource.id, query.trim(), 40));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const providerNeedsToken = provider === "plex" || (provider === "jellyfin" && !username.trim());
   return (
-    <div className="source-grid">
-      {network.map((source) => (
-        <article key={source.id} className="source-card">
-          <span>{t("networkLibrary")}</span>
-          <strong>{source.name}</strong>
-          <p>{source.description}</p>
-          <em>{t("directConnectEntry")}</em>
-        </article>
-      ))}
+    <div className="network-library-panel">
+      <div className="source-grid">
+        {network.map((source) => (
+          <article key={source.id} className="source-card">
+            <span>{t("networkLibrary")}</span>
+            <strong>{source.name}</strong>
+            <p>{source.description}</p>
+            <em>{source.status === "configured" ? t("configured") : source.status === "needs-oauth" ? t("needsOAuth") : t("available")}</em>
+          </article>
+        ))}
+      </div>
+
+      <div className="network-layout">
+        <aside className="network-config-panel">
+          <div className="section-head compact">
+            <h3>{t("networkSources")}</h3>
+          </div>
+          <div className="radio-source-list">
+            {configuredSources.map((source) => (
+              <article key={source.id} className={activeSource?.id === source.id ? "radio-source-row active" : "radio-source-row"}>
+                <button onClick={() => setActiveSourceId(source.id)}>
+                  <MusicNotes weight="fill" />
+                  <span>
+                    <strong>{source.name}</strong>
+                    <small>{source.provider} · {source.base_url}</small>
+                  </span>
+                </button>
+                <button onClick={() => void testSource(source)}>{t("testConnection")}</button>
+                <button className="icon-danger" aria-label={t("deleteSource")} onClick={() => void deleteSource(source)}>
+                  <X />
+                </button>
+              </article>
+            ))}
+            {!configuredSources.length ? <div className="empty mini-empty">{t("noNetworkSources")}</div> : null}
+          </div>
+          <div className="radio-source-form">
+            <strong>{t("addNetworkSource")}</strong>
+            <select value={provider} onChange={(event) => setProvider(event.target.value)}>
+              <option value="navidrome">Navidrome / Subsonic</option>
+              <option value="jellyfin">Jellyfin</option>
+              <option value="plex">Plex</option>
+              <option value="spotify">Spotify ({t("needsOAuth")})</option>
+            </select>
+            <input value={name} placeholder={t("sourceName")} onChange={(event) => setName(event.target.value)} />
+            <input value={baseURL} placeholder="https://music.example.com" onChange={(event) => setBaseURL(event.target.value)} />
+            {provider !== "plex" ? (
+              <input value={username} placeholder={t("username")} onChange={(event) => setUsername(event.target.value)} />
+            ) : null}
+            <input
+              value={secret}
+              type="password"
+              placeholder={providerNeedsToken ? t("token") : t("password")}
+              onChange={(event) => setSecret(event.target.value)}
+            />
+            <button onClick={saveSource} disabled={!baseURL.trim() || provider === "spotify"}>
+              <Plus /> {t("addNetworkSource")}
+            </button>
+          </div>
+        </aside>
+
+        <section className="network-search-panel">
+          <div className="section-head compact">
+            <div>
+              <h3>{t("networkSearch")}</h3>
+              <p className="section-subtitle">{activeSource ? `${activeSource.name} · ${activeSource.provider}` : t("selectNetworkSource")}</p>
+            </div>
+            <label className="search radio-search">
+              <MagnifyingGlass />
+              <input
+                value={query}
+                placeholder={t("search")}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void search();
+                }}
+              />
+            </label>
+            <button onClick={() => void search()} disabled={!activeSource || !query.trim() || loading}>
+              <MagnifyingGlass /> {loading ? t("loading") : t("search")}
+            </button>
+          </div>
+          {error ? <div className="message inline-error">{error}</div> : null}
+          <div className="network-track-list" aria-busy={loading}>
+            {results.map((track) => (
+              <article key={`${track.source_id}-${track.id}`} className="network-track-row">
+                <button className="station-play" onClick={() => onPlayTrack(track)}>
+                  <Play weight="fill" />
+                </button>
+                <div className="network-track-cover" style={track.cover_url ? ({ "--cover-url": `url(${track.cover_url})` } as React.CSSProperties) : undefined}>
+                  {!track.cover_url ? <Record weight="fill" /> : null}
+                </div>
+                <div>
+                  <strong>{track.title}</strong>
+                  <small>{[track.artist, track.album, track.year ? String(track.year) : "", formatDuration(track.duration_seconds)].filter(Boolean).join(" · ")}</small>
+                </div>
+              </article>
+            ))}
+            {!results.length && !loading ? <div className="empty">{t("networkSearchEmpty")}</div> : null}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

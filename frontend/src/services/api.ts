@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont, LibrarySource, RadioSource, RadioStation } from '../types'
+import type { Album, Artist, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont, LibrarySource, NetworkSource, NetworkTrack, RadioSource, RadioStation } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -50,6 +50,11 @@ export const api = {
   removeFromPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'DELETE' }),
 
   librarySources: () => request<LibrarySource[]>('/api/library/sources'),
+  networkSources: () => request<NetworkSource[]>('/api/network/sources'),
+  saveNetworkSource: (source: Partial<NetworkSource>) => request<NetworkSource>('/api/network/sources', { method: 'POST', body: JSON.stringify(source) }),
+  deleteNetworkSource: (id: string) => request<void>(`/api/network/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  testNetworkSource: (id: string) => request<NetworkSource>(`/api/network/sources/${encodeURIComponent(id)}/test`, { method: 'POST' }),
+  searchNetworkTracks: (sourceId: string, q: string, limit = 30) => request<NetworkTrack[]>(`/api/network/sources/${encodeURIComponent(sourceId)}/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   radioSources: () => request<RadioSource[]>('/api/radio/sources'),
   addRadioSource: (name: string, url: string) => request<RadioSource>('/api/radio/sources', { method: 'POST', body: JSON.stringify({ name, url }) }),
   deleteRadioSource: (id: string) => request<void>(`/api/radio/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),

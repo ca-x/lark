@@ -151,6 +151,33 @@ type LibrarySource struct {
 	Description string `json:"description"`
 }
 
+type NetworkSource struct {
+	ID          string `json:"id"`
+	Provider    string `json:"provider"`
+	Name        string `json:"name"`
+	BaseURL     string `json:"base_url"`
+	Username    string `json:"username"`
+	Password    string `json:"password,omitempty"`
+	Token       string `json:"token,omitempty"`
+	HasPassword bool   `json:"has_password"`
+	HasToken    bool   `json:"has_token"`
+	Status      string `json:"status"`
+	LastError   string `json:"last_error,omitempty"`
+}
+
+type NetworkTrack struct {
+	ID              string  `json:"id"`
+	SourceID        string  `json:"source_id"`
+	Provider        string  `json:"provider"`
+	Title           string  `json:"title"`
+	Artist          string  `json:"artist"`
+	Album           string  `json:"album"`
+	DurationSeconds float64 `json:"duration_seconds"`
+	Year            int     `json:"year"`
+	CoverURL        string  `json:"cover_url"`
+	StreamURL       string  `json:"stream_url"`
+}
+
 type RadioSource struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
