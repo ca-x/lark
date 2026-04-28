@@ -48,7 +48,9 @@ import {
 } from "./services/lazycat";
 import type {
   Album,
+  AlbumPage,
   Artist,
+  ArtistPage,
   AuthStatus,
   Folder,
   FolderDirectory,
@@ -58,9 +60,11 @@ import type {
   Lyrics,
   MCPTokenStatus,
   Playlist,
+  PlaylistPage,
   ScanStatus,
   Settings,
   Song,
+  SongPage,
   Theme,
   User,
   WebFont,
@@ -106,13 +110,14 @@ type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
 type PlaybackStartMode = "resume" | "restart";
 type StreamMode = "auto" | "adaptive";
+type RecentHomeTab = "played" | "added";
 const ADAPTIVE_STREAM_QUALITY = 128;
 const AUTO_DOWNGRADE_STALL_MS = 1200;
 const RADIO_STATION_LIMIT = 30;
-const STARTUP_SONG_LIMIT = 300;
+const HOME_RECENT_LIMIT = 12;
+const LIBRARY_PAGE_SIZE = 100;
+const GRID_PAGE_SIZE = 96;
 const STARTUP_ALBUM_LIMIT = 300;
-const STARTUP_ARTIST_LIMIT = 300;
-const STARTUP_PLAYLIST_LIMIT = 100;
 const STARTUP_FOLDER_LIMIT = 80;
 type ThemeLabel =
   | "deepSpace"
@@ -685,6 +690,8 @@ export default function App() {
   const [authError, setAuthError] = useState("");
   const [route, setRoute] = useState(() => currentBrowserRoute());
   const [songs, setSongs] = useState<Song[]>([]);
+  const [recentPlayedSongs, setRecentPlayedSongs] = useState<Song[]>([]);
+  const [recentAddedSongs, setRecentAddedSongs] = useState<Song[]>([]);
   const [dailyMix, setDailyMix] = useState<Song[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [libraryDirectories, setLibraryDirectories] = useState<LibraryDirectory[]>([]);
@@ -719,6 +726,18 @@ export default function App() {
   const [lyricsFullScreen, setLyricsFullScreen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [librarySongPage, setLibrarySongPage] = useState<SongPage | null>(null);
+  const [libraryPage, setLibraryPage] = useState(1);
+  const [libraryPageLoading, setLibraryPageLoading] = useState(false);
+  const [albumPageData, setAlbumPageData] = useState<AlbumPage | null>(null);
+  const [albumPage, setAlbumPage] = useState(1);
+  const [albumPageLoading, setAlbumPageLoading] = useState(false);
+  const [artistPageData, setArtistPageData] = useState<ArtistPage | null>(null);
+  const [artistPage, setArtistPage] = useState(1);
+  const [artistPageLoading, setArtistPageLoading] = useState(false);
+  const [playlistPageData, setPlaylistPageData] = useState<PlaylistPage | null>(null);
+  const [playlistPage, setPlaylistPage] = useState(1);
+  const [playlistPageLoading, setPlaylistPageLoading] = useState(false);
   const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
   const [playlistSubmitting, setPlaylistSubmitting] = useState(false);
   const [playlistPickerSong, setPlaylistPickerSong] = useState<Song | null>(null);
@@ -1465,12 +1484,14 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
+    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
       await Promise.all([
-        api.songs(query, STARTUP_SONG_LIMIT),
-        api.albums(STARTUP_ALBUM_LIMIT),
-        api.artists(STARTUP_ARTIST_LIMIT),
-        api.playlists(STARTUP_PLAYLIST_LIMIT),
+        api.songsPage(query, libraryPage, LIBRARY_PAGE_SIZE),
+        api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
+        api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => []),
+        api.albumsPage(albumPage, GRID_PAGE_SIZE),
+        api.artistsPage(artistPage, GRID_PAGE_SIZE),
+        api.playlistsPage(playlistPage, GRID_PAGE_SIZE),
         api.dailyMix(24).catch(() => []),
         api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
         api.libraryStats().catch(() => null),
@@ -1480,7 +1501,11 @@ export default function App() {
         api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
         api.radioFavorites().catch(() => []),
       ]);
+    const songItems = songPageItem.items;
     setSongs(songItems);
+    setLibrarySongPage(songPageItem);
+    setRecentPlayedSongs(recentPlayedItems);
+    setRecentAddedSongs(recentAddedItems);
     setDailyMix(dailyItems);
     setFolders(folderItems);
     setLibraryStats(libraryStatsItem);
@@ -1489,20 +1514,22 @@ export default function App() {
     setRadioSources(radioSourceItems);
     setRadioStations(radioStationItems.map(radioStationToPlayable));
     setRadioFavorites(radioFavoriteItems.map(radioStationToPlayable));
-    setAlbums(albumItems);
-    setArtists(artistItems);
-    setPlaylists(playlistItems);
+    setAlbumPageData(albumPageItem);
+    setArtistPageData(artistPageItem);
+    setPlaylistPageData(playlistPageItem);
+    setAlbums(albumPageItem.items);
+    setArtists(artistPageItem.items);
+    setPlaylists(playlistPageItem.items);
     setQueue((old) => {
       if (!options.initializeQueue && old.length > 0) return old;
       return dailyItems.length > 0 ? dailyItems : songItems;
     });
     const nextCurrent = current
-      ? (songItems.find((item) => item.id === current.id) ?? null)
-      : (songItems[0] ?? null);
-    setStreamOffset(0);
-    setStreamMode(defaultStreamMode(nextCurrent));
-    if (options.initializeQueue) playbackStartModeRef.current = "resume";
-    setCurrent(nextCurrent);
+      ? (songItems.find((item) => item.id === current.id) ?? current)
+      : null;
+    if (nextCurrent && (nextCurrent.id !== current?.id || nextCurrent !== current)) {
+      setCurrent(nextCurrent);
+    }
     setCollection((old) => {
       if (!old) return old;
       return {
@@ -1511,10 +1538,80 @@ export default function App() {
           .map((song) => songItems.find((item) => item.id === song.id))
           .filter((song): song is Song => Boolean(song)),
         albums: old.albums
-          ?.map((album) => albumItems.find((item) => item.id === album.id))
+          ?.map((album) => albumPageItem.items.find((item) => item.id === album.id))
           .filter((album): album is Album => Boolean(album)),
       };
     });
+  }
+
+  async function refreshLibraryDataOnly() {
+    const [songPageItem, recentAddedItems, folderItems, libraryStatsItem] = await Promise.all([
+      api.songsPage(query, libraryPage, LIBRARY_PAGE_SIZE),
+      api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => recentAddedSongs),
+      api.folders(STARTUP_FOLDER_LIMIT).catch(() => folders),
+      api.libraryStats().catch(() => libraryStats),
+    ]);
+    setSongs(songPageItem.items);
+    setLibrarySongPage(songPageItem);
+    setRecentAddedSongs(recentAddedItems);
+    setFolders(folderItems);
+    setLibraryStats(libraryStatsItem);
+  }
+
+  async function loadLibrarySongsPage(page: number, search = query) {
+    const nextPage = Math.max(1, page);
+    setLibraryPageLoading(true);
+    try {
+      const pageItem = await api.songsPage(search, nextPage, LIBRARY_PAGE_SIZE);
+      setLibraryPage(pageItem.page);
+      setLibrarySongPage(pageItem);
+      setSongs(pageItem.items);
+    } finally {
+      setLibraryPageLoading(false);
+    }
+  }
+
+  async function loadAlbumPage(page: number) {
+    const nextPage = Math.max(1, page);
+    setAlbumPageLoading(true);
+    try {
+      const pageItem = await api.albumsPage(nextPage, GRID_PAGE_SIZE);
+      setAlbumPage(pageItem.page);
+      setAlbumPageData(pageItem);
+      setAlbums(pageItem.items);
+    } finally {
+      setAlbumPageLoading(false);
+    }
+  }
+
+  async function loadArtistPage(page: number) {
+    const nextPage = Math.max(1, page);
+    setArtistPageLoading(true);
+    try {
+      const pageItem = await api.artistsPage(nextPage, GRID_PAGE_SIZE);
+      setArtistPage(pageItem.page);
+      setArtistPageData(pageItem);
+      setArtists(pageItem.items);
+    } finally {
+      setArtistPageLoading(false);
+    }
+  }
+
+  async function loadPlaylistPage(page: number) {
+    const nextPage = Math.max(1, page);
+    setPlaylistPageLoading(true);
+    try {
+      const pageItem = await api.playlistsPage(nextPage, GRID_PAGE_SIZE);
+      setPlaylistPage(pageItem.page);
+      setPlaylistPageData(pageItem);
+      setPlaylists(pageItem.items);
+    } finally {
+      setPlaylistPageLoading(false);
+    }
+  }
+
+  async function refreshRecentPlayed() {
+    setRecentPlayedSongs(await api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => recentPlayedSongs));
   }
 
   async function playSong(
@@ -1557,6 +1654,7 @@ export default function App() {
     }
     setPlaying(true);
     await api.markPlayed(song.id).catch(() => undefined);
+    void refreshRecentPlayed();
   }
 
   function playRadio(station: RadioStation, list?: RadioStation[]) {
@@ -1831,7 +1929,7 @@ export default function App() {
       if (refreshBusy || now - lastLibraryRefresh < 2000) return;
       refreshBusy = true;
       lastLibraryRefresh = now;
-      void refreshAll().finally(() => {
+      void refreshLibraryDataOnly().finally(() => {
         refreshBusy = false;
       });
     };
@@ -1858,10 +1956,12 @@ export default function App() {
           updated: result.updated,
           skipped: result.skipped,
           errors: result.errors,
+          canceled: result.canceled,
         },
       );
-      showMessage(
-        `${t("done")}: +${result.added}, ↻${result.updated}, errors ${result.errors.length}`,
+      showMessage(result.canceled
+        ? t("scanCanceled")
+        : `${t("done")}: +${result.added}, ↻${result.updated}, errors ${result.errors.length}`,
       );
       await refreshAll();
     } catch (error) {
@@ -1869,6 +1969,13 @@ export default function App() {
     } finally {
       window.clearInterval(poll);
     }
+  }
+
+  async function cancelScan() {
+    await api.cancelScan().catch(() => undefined);
+    const latest = await api.scanStatus().catch(() => null);
+    if (latest) setScanStatus(latest);
+    showMessage(t("scanCanceled"));
   }
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
@@ -2280,7 +2387,7 @@ export default function App() {
     () => artists.filter((artist) => artist.favorite),
     [artists],
   );
-  const heroSong = current ?? songs[0];
+  const heroSong = current ?? (resumePosition(recentPlayedSongs[0]) ? recentPlayedSongs[0] : null);
   const playModeLabel =
     playMode === "sequence"
       ? t("playModeSequence")
@@ -2397,7 +2504,7 @@ export default function App() {
               onClick={() => {
                 setLyricsFullScreen(false);
                 setView(item.id);
-                if (item.id === "library") void api.songs(query, STARTUP_SONG_LIMIT).then(setSongs);
+                if (item.id === "library") void loadLibrarySongsPage(libraryPage);
               }}
             >
               {item.icon}
@@ -2455,7 +2562,10 @@ export default function App() {
                     placeholder={t("search")}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") void api.songs(query, STARTUP_SONG_LIMIT).then(setSongs);
+                      if (e.key === "Enter") {
+                        setLibraryPage(1);
+                        void loadLibrarySongsPage(1, query);
+                      }
                     }}
                   />
                 </label>
@@ -2480,6 +2590,8 @@ export default function App() {
             {view === "home" && (
               <HomeView
                 songs={songs}
+                recentPlayedSongs={recentPlayedSongs}
+                recentAddedSongs={recentAddedSongs}
                 dailyMix={dailyMix}
                 albums={albums}
                 artists={artists}
@@ -2498,6 +2610,7 @@ export default function App() {
                 playModeLabel={playModeLabel}
                 t={t}
                 onPlay={playSong}
+                onResume={(song) => void playSong(song, [song], { startMode: "resume" })}
                 onTogglePlayback={() => setPlaying((value) => !value)}
                 onPrevious={() => next(-1)}
                 onNext={() => next(1)}
@@ -2575,6 +2688,12 @@ export default function App() {
                 onNetworkSourcesChange={setNetworkSources}
                 onPlayNetworkTrack={playNetworkTrack}
                 scanStatus={scanStatus}
+                onCancelScan={() => void cancelScan()}
+                onDismissScan={() => setScanStatus(null)}
+                stats={libraryStats}
+                songPage={librarySongPage}
+                pageLoading={libraryPageLoading}
+                onPageChange={(page) => void loadLibrarySongsPage(page)}
               />
             )}
             {view === "radio" && (
@@ -2664,81 +2783,90 @@ export default function App() {
               />
             )}
             {view === "playlists" && (
-              <CardGrid
-                t={t}
-                title={t("playlists")}
-                action={
-                  <button onClick={createPlaylist}>
-                    <Plus /> {t("createPlaylist")}
-                  </button>
-                }
-                items={playlists.map((p) => ({
-                  id: p.id,
-                  title: p.name,
-                  subtitle: `${p.song_count} ${t("count")}`,
-                  theme: p.cover_theme,
-                  onClick: () => void openPlaylist(p),
-                  onPlay: () => void playPlaylist(p),
-                }))}
-              />
+              <>
+                <CardGrid
+                  t={t}
+                  title={t("playlists")}
+                  action={
+                    <button onClick={createPlaylist}>
+                      <Plus /> {t("createPlaylist")}
+                    </button>
+                  }
+                  items={playlists.map((p) => ({
+                    id: p.id,
+                    title: p.name,
+                    subtitle: `${p.song_count} ${t("count")}`,
+                    theme: p.cover_theme,
+                    onClick: () => void openPlaylist(p),
+                    onPlay: () => void playPlaylist(p),
+                  }))}
+                />
+                <PaginationControls page={playlistPageData} itemCount={playlists.length} loading={playlistPageLoading} t={t} onPageChange={(page) => void loadPlaylistPage(page)} />
+              </>
             )}
             {view === "albums" && (
-              <CardGrid
-                t={t}
-                title={t("albums")}
-                variant="album"
-                action={
-                  <label className="filter-pill">
-                    <span>{t("filterByArtist")}</span>
-                    <select
-                      value={albumArtistFilter}
-                      onChange={(event) => setAlbumArtistFilter(Number(event.target.value))}
-                    >
-                      <option value={0}>{t("allArtists")}</option>
-                      {albumArtistOptions.map(([id, name]) => (
-                        <option key={id} value={id}>
-                          {name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                }
-                items={visibleAlbums.map((a) => ({
-                  id: a.id,
-                  title: a.title,
-                  subtitle: [a.year ? String(a.year) : "", `${a.song_count} ${t("count")}`]
-                    .filter(Boolean)
-                    .join(" · "),
-                  meta: a.artist,
-                  theme: settings.theme,
-                  coverUrl: albumCoverUrl(a),
-                  favorite: a.favorite,
-                  onClick: () => void openAlbum(a),
-                  onMetaClick: a.artist_id
-                    ? () => void openArtistById(a.artist_id, a.artist)
-                    : undefined,
-                  onPlay: () => void playAlbum(a),
-                  onFavorite: () => void toggleAlbumFavorite(a),
-                }))}
-              />
+              <>
+                <CardGrid
+                  t={t}
+                  title={t("albums")}
+                  variant="album"
+                  action={
+                    <label className="filter-pill">
+                      <span>{t("filterByArtist")}</span>
+                      <select
+                        value={albumArtistFilter}
+                        onChange={(event) => setAlbumArtistFilter(Number(event.target.value))}
+                      >
+                        <option value={0}>{t("allArtists")}</option>
+                        {albumArtistOptions.map(([id, name]) => (
+                          <option key={id} value={id}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  }
+                  items={visibleAlbums.map((a) => ({
+                    id: a.id,
+                    title: a.title,
+                    subtitle: [a.year ? String(a.year) : "", `${a.song_count} ${t("count")}`]
+                      .filter(Boolean)
+                      .join(" · "),
+                    meta: a.artist,
+                    theme: settings.theme,
+                    coverUrl: albumCoverUrl(a),
+                    favorite: a.favorite,
+                    onClick: () => void openAlbum(a),
+                    onMetaClick: a.artist_id
+                      ? () => void openArtistById(a.artist_id, a.artist)
+                      : undefined,
+                    onPlay: () => void playAlbum(a),
+                    onFavorite: () => void toggleAlbumFavorite(a),
+                  }))}
+                />
+                <PaginationControls page={albumPageData} itemCount={albums.length} loading={albumPageLoading} t={t} onPageChange={(page) => void loadAlbumPage(page)} />
+              </>
             )}
             {view === "artists" && (
-              <CardGrid
-                t={t}
-                title={t("artists")}
-                variant="artist"
-                items={artists.map((a) => ({
-                  id: a.id,
-                  title: a.name,
-                  subtitle: `${a.song_count} ${t("count")} · ${a.album_count} ${t("album")}`,
-                  theme: settings.theme,
-                  coverUrl: artistCoverUrl(a),
-                  favorite: a.favorite,
-                  onClick: () => void openArtistById(a.id, a.name),
-                  onPlay: () => void playArtist(a),
-                  onFavorite: () => void toggleArtistFavorite(a),
-                }))}
-              />
+              <>
+                <CardGrid
+                  t={t}
+                  title={t("artists")}
+                  variant="artist"
+                  items={artists.map((a) => ({
+                    id: a.id,
+                    title: a.name,
+                    subtitle: `${a.song_count} ${t("count")} · ${a.album_count} ${t("album")}`,
+                    theme: settings.theme,
+                    coverUrl: artistCoverUrl(a),
+                    favorite: a.favorite,
+                    onClick: () => void openArtistById(a.id, a.name),
+                    onPlay: () => void playArtist(a),
+                    onFavorite: () => void toggleArtistFavorite(a),
+                  }))}
+                />
+                <PaginationControls page={artistPageData} itemCount={artists.length} loading={artistPageLoading} t={t} onPageChange={(page) => void loadArtistPage(page)} />
+              </>
             )}
             {view === "settings" && (
               <SettingsPanel
@@ -3487,6 +3615,8 @@ function LibrarySummaryStats({
 
 function HomeView({
   songs,
+  recentPlayedSongs,
+  recentAddedSongs,
   dailyMix,
   albums,
   artists,
@@ -3505,6 +3635,7 @@ function HomeView({
   playModeLabel,
   t,
   onPlay,
+  onResume,
   onTogglePlayback,
   onPrevious,
   onNext,
@@ -3522,6 +3653,8 @@ function HomeView({
   onOpenPlaylist,
 }: {
   songs: Song[];
+  recentPlayedSongs: Song[];
+  recentAddedSongs: Song[];
   dailyMix: Song[];
   albums: Album[];
   artists: Artist[];
@@ -3540,6 +3673,7 @@ function HomeView({
   playModeLabel: string;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
+  onResume: (song: Song) => void;
   onTogglePlayback: () => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -3556,13 +3690,16 @@ function HomeView({
   onPlayPlaylist: (playlist: Playlist) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
 }) {
-  const latestSongs = songs.slice(0, 5);
+  const [recentTab, setRecentTab] = useState<RecentHomeTab>("played");
+  const recentSongs = (recentTab === "played" ? recentPlayedSongs : recentAddedSongs).slice(0, 5);
   const dailySongs = dailyMix.length ? dailyMix.slice(0, 5) : songs.slice(0, 5);
   const featuredAlbums = albums.slice(0, 4);
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
-  const displaySong = current ?? heroSong ?? null;
+  const resumeCandidate = resumePosition(recentPlayedSongs[0]) ? recentPlayedSongs[0] : null;
+  const displaySong = current ?? heroSong ?? resumeCandidate;
   const heroActive = Boolean(current);
+  const heroCanResume = !heroActive && Boolean(resumeCandidate);
   const heroPlaying = playing && heroActive;
   const heroAlbum = displaySong
     ? albums.find((album) => album.id === displaySong.album_id)
@@ -3592,7 +3729,7 @@ function HomeView({
             playMode={playMode}
             playModeLabel={playModeLabel}
             resetToneLabel={t("resetEqualizer")}
-            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onPlay(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onVolume={onVolume}
@@ -3604,7 +3741,7 @@ function HomeView({
           />
         )}
         <div>
-          <p>{currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : t("jumpBackIn")}</p>
+          <p>{currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : heroCanResume ? t("jumpBackIn") : t("quickStart")}</p>
           <h1>{currentRadio?.name ?? displaySong?.title ?? `${t("brand")} Music`}</h1>
           {currentRadio ? (
             <h2 className="home-hero-meta">
@@ -3639,10 +3776,10 @@ function HomeView({
             <button
               className="primary"
               disabled={!displaySong || Boolean(currentRadio)}
-              onClick={() => displaySong && (heroActive ? onTogglePlayback() : onPlay(displaySong))}
+              onClick={() => displaySong && (heroActive ? onTogglePlayback() : onResume(displaySong))}
             >
               {currentRadio ? <Record weight="fill" /> : heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
-              {currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : t("play")}
+              {currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : heroCanResume ? t("jumpBackIn") : t("play")}
             </button>
           </div>
         </div>
@@ -3670,19 +3807,27 @@ function HomeView({
               <h2>{t("latestSongs")}</h2>
               <p className="section-subtitle">{t("latestSongsHint")}</p>
             </div>
-            {latestSongs[0] ? (
-              <button onClick={() => onPlay(latestSongs[0], songs)}>
+            <div className="recent-tabs" role="tablist" aria-label={t("latestSongs")}>
+              <button className={recentTab === "played" ? "active" : ""} onClick={() => setRecentTab("played")}>
+                {t("recentPlayed")}
+              </button>
+              <button className={recentTab === "added" ? "active" : ""} onClick={() => setRecentTab("added")}>
+                {t("recentAdded")}
+              </button>
+            </div>
+            {recentSongs[0] ? (
+              <button onClick={() => onPlay(recentSongs[0], recentSongs)}>
                 <Play weight="fill" /> {t("playAll")}
               </button>
             ) : null}
           </div>
           <div className="quick-song-list">
-            {latestSongs.length ? (
-              latestSongs.map((song) => (
+            {recentSongs.length ? (
+              recentSongs.map((song) => (
                 <button
                   key={song.id}
                   className={song.id === current?.id ? "active" : ""}
-                  onClick={() => onPlay(song, songs)}
+                  onClick={() => onPlay(song, recentSongs)}
                 >
                   <MiniCover
                     song={song}
@@ -3929,7 +4074,19 @@ function FavoritesView({
   onFavoriteRadio: (station: RadioStation) => void;
 }) {
   const [tab, setTab] = useState<"songs" | "albums" | "artists" | "radios">("songs");
+  const [page, setPage] = useState(1);
   const hasAny = songs.length || albums.length || artists.length || radios.length;
+  const pageItems = <T,>(items: T[]) => items.slice((page - 1) * GRID_PAGE_SIZE, page * GRID_PAGE_SIZE);
+  const pageMeta = (total: number): PageLike => ({
+    total,
+    limit: GRID_PAGE_SIZE,
+    offset: (page - 1) * GRID_PAGE_SIZE,
+    page,
+  });
+  const setFavoriteTab = (nextTab: typeof tab) => {
+    setTab(nextTab);
+    setPage(1);
+  };
   return (
     <section className="favorites-view">
       <div className="section-head">
@@ -3941,25 +4098,25 @@ function FavoritesView({
       <div className="collection-tabs">
         <button
           className={tab === "songs" ? "active" : ""}
-          onClick={() => setTab("songs")}
+          onClick={() => setFavoriteTab("songs")}
         >
           {t("songs")} · {songs.length}
         </button>
         <button
           className={tab === "albums" ? "active" : ""}
-          onClick={() => setTab("albums")}
+          onClick={() => setFavoriteTab("albums")}
         >
           {t("albums")} · {albums.length}
         </button>
         <button
           className={tab === "artists" ? "active" : ""}
-          onClick={() => setTab("artists")}
+          onClick={() => setFavoriteTab("artists")}
         >
           {t("artists")} · {artists.length}
         </button>
         <button
           className={tab === "radios" ? "active" : ""}
-          onClick={() => setTab("radios")}
+          onClick={() => setFavoriteTab("radios")}
         >
           {t("onlineRadio")} · {radios.length}
         </button>
@@ -3968,7 +4125,7 @@ function FavoritesView({
         <div className="empty">{t("emptyFavorites")}</div>
       ) : tab === "songs" ? (
         <SongTable
-          songs={songs}
+          songs={pageItems(songs)}
           current={current}
           t={t}
           onPlay={onPlay}
@@ -3977,11 +4134,12 @@ function FavoritesView({
           onInsertNext={(song) => onInsertNext([song])}
         />
       ) : tab === "albums" ? (
+        <>
         <CardGrid
           t={t}
           title={t("albums")}
           variant="album"
-          items={albums.map((album) => ({
+          items={pageItems(albums).map((album) => ({
             id: album.id,
             title: album.title,
             subtitle: [album.year ? String(album.year) : "", `${album.song_count} ${t("count")}`]
@@ -3996,12 +4154,15 @@ function FavoritesView({
             onFavorite: () => onFavoriteAlbum(album),
           }))}
         />
+        <PaginationControls page={pageMeta(albums.length)} itemCount={pageItems(albums).length} loading={false} t={t} onPageChange={setPage} />
+        </>
       ) : tab === "artists" ? (
+        <>
         <CardGrid
           t={t}
           title={t("artists")}
           variant="artist"
-          items={artists.map((artist) => ({
+          items={pageItems(artists).map((artist) => ({
             id: artist.id,
             title: artist.name,
             subtitle: `${artist.song_count} ${t("count")} · ${artist.album_count} ${t("album")}`,
@@ -4013,12 +4174,15 @@ function FavoritesView({
             onFavorite: () => onFavoriteArtist(artist),
           }))}
         />
+        <PaginationControls page={pageMeta(artists.length)} itemCount={pageItems(artists).length} loading={false} t={t} onPageChange={setPage} />
+        </>
       ) : (
+        <>
         <CardGrid
           t={t}
           title={t("onlineRadio")}
           variant="radio"
-          items={radios.map((station) => ({
+          items={pageItems(radios).map((station) => ({
             id: station.id || radioRawURL(station),
             title: station.name || t("onlineRadio"),
             subtitle: radioSourceLabel(station, t("liveRadio")),
@@ -4029,7 +4193,12 @@ function FavoritesView({
             onFavorite: () => onFavoriteRadio(station),
           }))}
         />
+        <PaginationControls page={pageMeta(radios.length)} itemCount={pageItems(radios).length} loading={false} t={t} onPageChange={setPage} />
+        </>
       )}
+      {tab === "songs" ? (
+        <PaginationControls page={pageMeta(songs.length)} itemCount={pageItems(songs).length} loading={false} t={t} onPageChange={setPage} />
+      ) : null}
     </section>
   );
 }
@@ -4443,6 +4612,9 @@ function LibraryView({
   folders,
   networkSources,
   radioSources,
+  stats,
+  songPage,
+  pageLoading,
   current,
   t,
   onPlay,
@@ -4459,11 +4631,17 @@ function LibraryView({
   onNetworkSourcesChange,
   onPlayNetworkTrack,
   scanStatus,
+  onCancelScan,
+  onDismissScan,
+  onPageChange,
 }: {
   songs: Song[];
   folders: Folder[];
   networkSources: NetworkSource[];
   radioSources: RadioSource[];
+  stats: LibraryStats | null;
+  songPage: SongPage | null;
+  pageLoading: boolean;
   current: Song | null;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list: Song[]) => void;
@@ -4480,6 +4658,9 @@ function LibraryView({
   onNetworkSourcesChange: (sources: NetworkSource[]) => void;
   onPlayNetworkTrack: (track: NetworkTrack) => void;
   scanStatus: ScanStatus | null;
+  onCancelScan: () => void;
+  onDismissScan: () => void;
+  onPageChange: (page: number) => void;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [tab, setTabState] = useState<LibraryTab>(() => storedLibraryTab());
@@ -4501,6 +4682,7 @@ function LibraryView({
     onInsertNext(selectedSongs);
     setSelected(new Set());
   };
+  const songTotal = songPage?.total ?? stats?.songs ?? songs.length;
   return (
     <section className="library-view">
       <div className="section-head library-actions">
@@ -4532,13 +4714,13 @@ function LibraryView({
           </label>
         </div>
       </div>
-      {scanStatus ? <ScanProgress status={scanStatus} t={t} /> : null}
+      {scanStatus ? <ScanProgress status={scanStatus} t={t} onCancel={onCancelScan} onClose={onDismissScan} /> : null}
       <div className="collection-tabs library-tabs">
         <button
           className={tab === "songs" ? "active" : ""}
           onClick={() => setTab("songs")}
         >
-          {t("localLibrary")} · {songs.length}
+          {t("localLibrary")} · {songTotal}
         </button>
         <button
           className={tab === "folders" ? "active" : ""}
@@ -4581,19 +4763,22 @@ function LibraryView({
           onPlayFolder={onPlayFolder}
         />
       ) : songs.length ? (
-        <SongTable
-          songs={songs}
-          current={current}
-          t={t}
-          onPlay={onPlay}
-          onFavorite={onFavorite}
-          onAdd={onAdd}
-          onInsertNext={(song) => onInsertNext([song])}
-          onOpenAlbum={onOpenAlbum}
-          onOpenArtist={onOpenArtist}
-          selectedIds={selected}
-          onToggleSelected={toggleSelected}
-        />
+        <>
+          <PaginationControls page={songPage} itemCount={songs.length} loading={pageLoading} t={t} onPageChange={onPageChange} />
+          <SongTable
+            songs={songs}
+            current={current}
+            t={t}
+            onPlay={onPlay}
+            onFavorite={onFavorite}
+            onAdd={onAdd}
+            onInsertNext={(song) => onInsertNext([song])}
+            onOpenAlbum={onOpenAlbum}
+            onOpenArtist={onOpenArtist}
+            selectedIds={selected}
+            onToggleSelected={toggleSelected}
+          />
+        </>
       ) : (
         <EmptyLibrary t={t} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
       )}
@@ -5186,18 +5371,29 @@ function FullLyrics({
 function ScanProgress({
   status,
   t,
+  onCancel,
+  onClose,
   compact = false,
 }: {
   status: ScanStatus;
   t: ReturnType<typeof createT>;
+  onCancel?: () => void;
+  onClose?: () => void;
   compact?: boolean;
 }) {
   const currentName = status.current_path || status.current_dir || "—";
+  const showCurrentPaths = status.running;
   return (
     <div className={compact ? "scan-progress compact" : "scan-progress"}>
       <div className="scan-progress-head">
-        <strong>{status.running ? t("scanning") : t("done")}</strong>
-        <span>{t("scanStats")}</span>
+        <strong>{status.running ? t("scanning") : status.canceled ? t("scanCanceled") : t("done")}</strong>
+        {status.running && onCancel ? (
+          <button type="button" onClick={onCancel}>{t("cancelScan")}</button>
+        ) : onClose ? (
+          <button type="button" onClick={onClose}>{t("close")}</button>
+        ) : (
+          <span>{t("scanStats")}</span>
+        )}
       </div>
       <div className="scan-progress-stats">
         <span>{status.scanned}</span>
@@ -5205,14 +5401,18 @@ function ScanProgress({
         <span>{status.updated}</span>
         <span>{status.skipped}</span>
       </div>
-      <p>
-        <b>{t("scanCurrentDir")}</b>
-        <span>{status.current_dir || "—"}</span>
-      </p>
-      <p>
-        <b>{t("scanCurrentFile")}</b>
-        <span>{currentName}</span>
-      </p>
+      {showCurrentPaths ? (
+        <>
+          <p>
+            <b>{t("scanCurrentDir")}</b>
+            <span>{status.current_dir || "—"}</span>
+          </p>
+          <p>
+            <b>{t("scanCurrentFile")}</b>
+            <span>{currentName}</span>
+          </p>
+        </>
+      ) : null}
       {status.errors?.length ? (
         <small>
           {t("error")}: {status.errors[status.errors.length - 1]}
@@ -6283,6 +6483,69 @@ type CardGridProps = {
   action?: React.ReactNode;
   actionKey?: string | number;
 };
+
+type PageLike = {
+  total: number;
+  limit: number;
+  page: number;
+  offset: number;
+};
+
+function PaginationControls({
+  page,
+  itemCount,
+  loading,
+  t,
+  onPageChange,
+}: {
+  page: PageLike | null;
+  itemCount: number;
+  loading: boolean;
+  t: ReturnType<typeof createT>;
+  onPageChange: (page: number) => void;
+}) {
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const total = page?.total ?? 0;
+  const limit = page?.limit ?? itemCount;
+  const totalPages = page ? Math.max(1, Math.ceil(total / limit)) : 1;
+  const currentPage = page ? Math.min(totalPages, Math.max(1, page.page)) : 1;
+  const start = page && total ? page.offset + 1 : 0;
+  const end = page ? Math.min(total, page.offset + itemCount) : itemCount;
+  const canPrevious = Boolean(page) && currentPage > 1 && !loading;
+  const canNext = Boolean(page) && currentPage < totalPages && !loading;
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !canNext || !("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onPageChange(currentPage + 1);
+      },
+      { rootMargin: "520px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [canNext, currentPage, onPageChange]);
+
+  if (!page || total < 10 || total <= limit) return null;
+
+  return (
+    <div className="pagination-controls" ref={sentinelRef}>
+      <span>
+        {start}-{end} / {page.total}
+      </span>
+      <div>
+        <button disabled={!canPrevious} onClick={() => onPageChange(currentPage - 1)}>
+          {t("previous")}
+        </button>
+        <strong>{currentPage} / {totalPages}</strong>
+        <button disabled={!canNext} onClick={() => onPageChange(currentPage + 1)}>
+          {loading ? t("loading") : t("next")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function cardGridItemsEqual(a: CardGridItem[], b: CardGridItem[]) {
   if (a === b) return true;

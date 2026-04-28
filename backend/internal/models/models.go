@@ -93,6 +93,38 @@ type LibraryStats struct {
 	Playlists int `json:"playlists"`
 }
 
+type SongPage struct {
+	Items  []Song `json:"items"`
+	Total  int    `json:"total"`
+	Limit  int    `json:"limit"`
+	Offset int    `json:"offset"`
+	Page   int    `json:"page"`
+}
+
+type AlbumPage struct {
+	Items  []Album `json:"items"`
+	Total  int     `json:"total"`
+	Limit  int     `json:"limit"`
+	Offset int     `json:"offset"`
+	Page   int     `json:"page"`
+}
+
+type ArtistPage struct {
+	Items  []Artist `json:"items"`
+	Total  int      `json:"total"`
+	Limit  int      `json:"limit"`
+	Offset int      `json:"offset"`
+	Page   int      `json:"page"`
+}
+
+type PlaylistPage struct {
+	Items  []Playlist `json:"items"`
+	Total  int        `json:"total"`
+	Limit  int        `json:"limit"`
+	Offset int        `json:"offset"`
+	Page   int        `json:"page"`
+}
+
 type Folder struct {
 	Path            string  `json:"path"`
 	Name            string  `json:"name"`
@@ -224,6 +256,7 @@ type RadioStation struct {
 
 type ScanStatus struct {
 	Running     bool       `json:"running"`
+	Canceled    bool       `json:"canceled"`
 	CurrentDir  string     `json:"current_dir"`
 	CurrentPath string     `json:"current_path"`
 	Scanned     int        `json:"scanned"`
@@ -240,6 +273,7 @@ type ScanResult struct {
 	Added      int      `json:"added"`
 	Updated    int      `json:"updated"`
 	Skipped    int      `json:"skipped"`
+	Canceled   bool     `json:"canceled"`
 	Errors     []string `json:"errors"`
 	CurrentDir string   `json:"current_dir"`
 }

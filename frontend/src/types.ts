@@ -44,6 +44,13 @@ export interface Song {
   has_lyrics: boolean;
   lyrics_source: string;
 }
+export interface SongPage {
+  items: Song[];
+  total: number;
+  limit: number;
+  offset: number;
+  page: number;
+}
 
 export interface Album {
   id: number;
@@ -55,6 +62,13 @@ export interface Album {
   favorite: boolean;
   song_count: number;
 }
+export interface AlbumPage {
+  items: Album[];
+  total: number;
+  limit: number;
+  offset: number;
+  page: number;
+}
 
 export interface Artist {
   id: number;
@@ -63,6 +77,13 @@ export interface Artist {
   song_count: number;
   album_count: number;
 }
+export interface ArtistPage {
+  items: Artist[];
+  total: number;
+  limit: number;
+  offset: number;
+  page: number;
+}
 export interface Playlist {
   id: number;
   name: string;
@@ -70,6 +91,13 @@ export interface Playlist {
   cover_theme: string;
   favorite: boolean;
   song_count: number;
+}
+export interface PlaylistPage {
+  items: Playlist[];
+  total: number;
+  limit: number;
+  offset: number;
+  page: number;
 }
 export interface Folder {
   path: string;
@@ -235,6 +263,7 @@ export interface Settings {
 }
 export interface ScanStatus {
   running: boolean;
+  canceled: boolean;
   current_dir: string;
   current_path: string;
   scanned: number;
@@ -250,6 +279,7 @@ export interface ScanResult {
   added: number;
   updated: number;
   skipped: number;
+  canceled: boolean;
   errors: string[];
   current_dir: string;
 }

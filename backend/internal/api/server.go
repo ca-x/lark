@@ -133,6 +133,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/mcp/sse", s.handleMCP)
 
 	e.GET("/api/songs", s.handleSongs, auth)
+	e.GET("/api/songs/page", s.handleSongsPage, auth)
+	e.GET("/api/songs/recent-played", s.handleRecentPlayedSongs, auth)
+	e.GET("/api/songs/recent-added", s.handleRecentAddedSongs, auth)
 	e.GET("/api/daily-mix", s.handleDailyMix, auth)
 	e.GET("/api/songs/:id", s.handleSong, auth)
 	e.POST("/api/songs/:id/favorite", s.handleToggleSongFavorite, auth)
@@ -145,6 +148,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.GET("/api/songs/:id/lyrics", s.handleLyrics, auth)
 
 	e.POST("/api/library/scan", s.handleScan, admin)
+	e.POST("/api/library/scan/cancel", s.handleCancelScan, admin)
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
 	e.GET("/api/library/stats", s.handleLibraryStats, auth)
 	e.GET("/api/library/sources", s.handleLibrarySources, auth)
@@ -175,15 +179,18 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.DELETE("/api/fonts/:name", s.handleDeleteWebFont, admin)
 
 	e.GET("/api/albums", s.handleAlbums, auth)
+	e.GET("/api/albums/page", s.handleAlbumsPage, auth)
 	e.GET("/api/albums/:id/cover", s.handleAlbumCover, auth)
 	e.GET("/api/albums/:id/songs", s.handleAlbumSongs, auth)
 	e.GET("/api/artists", s.handleArtists, auth)
+	e.GET("/api/artists/page", s.handleArtistsPage, auth)
 	e.GET("/api/artists/:id/cover", s.handleArtistCover, auth)
 	e.GET("/api/artists/:id/songs", s.handleArtistSongs, auth)
 	e.POST("/api/albums/:id/favorite", s.handleToggleAlbumFavorite, auth)
 	e.POST("/api/artists/:id/favorite", s.handleToggleArtistFavorite, auth)
 
 	e.GET("/api/playlists", s.handlePlaylists, auth)
+	e.GET("/api/playlists/page", s.handlePlaylistsPage, auth)
 	e.POST("/api/playlists", s.handleCreatePlaylist, auth)
 	e.GET("/api/playlists/:id/songs", s.handlePlaylistSongs, auth)
 	e.POST("/api/playlists/:id/songs/:song", s.handleAddSongToPlaylist, auth)
@@ -371,6 +378,32 @@ func (s *Server) handleSongs(c *echo.Context) error {
 	limit := queryInt(c, "limit", 0)
 	favorites := c.QueryParam("favorites") == "true"
 	items, err := s.lib.Songs(c.Request().Context(), currentUserID(c), c.QueryParam("q"), favorites, limit)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleSongsPage(c *echo.Context) error {
+	limit := queryInt(c, "limit", 100)
+	favorites := c.QueryParam("favorites") == "true"
+	items, err := s.lib.SongsPage(c.Request().Context(), currentUserID(c), c.QueryParam("q"), favorites, limit, pageOffset(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleRecentPlayedSongs(c *echo.Context) error {
+	items, err := s.lib.RecentPlayedSongs(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 12))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleRecentAddedSongs(c *echo.Context) error {
+	items, err := s.lib.RecentAddedSongs(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 12))
 	if err != nil {
 		return mapError(err)
 	}
@@ -777,6 +810,10 @@ func (s *Server) handleScanStatus(c *echo.Context) error {
 	return c.JSON(http.StatusOK, s.lib.ScanStatus())
 }
 
+func (s *Server) handleCancelScan(c *echo.Context) error {
+	return c.JSON(http.StatusOK, map[string]bool{"canceled": s.lib.CancelScan()})
+}
+
 func (s *Server) handleUpload(c *echo.Context) error {
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -853,6 +890,14 @@ func (s *Server) handleAlbums(c *echo.Context) error {
 	return c.JSON(http.StatusOK, items)
 }
 
+func (s *Server) handleAlbumsPage(c *echo.Context) error {
+	items, err := s.lib.AlbumsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
 func (s *Server) handleAlbumSongs(c *echo.Context) error {
 	id, err := paramInt(c, "id")
 	if err != nil {
@@ -878,6 +923,14 @@ func (s *Server) handleToggleAlbumFavorite(c *echo.Context) error {
 
 func (s *Server) handleArtists(c *echo.Context) error {
 	items, err := s.lib.Artists(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 0))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleArtistsPage(c *echo.Context) error {
+	items, err := s.lib.ArtistsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c))
 	if err != nil {
 		return mapError(err)
 	}
@@ -910,6 +963,14 @@ func (s *Server) handleArtistSongs(c *echo.Context) error {
 
 func (s *Server) handlePlaylists(c *echo.Context) error {
 	items, err := s.lib.Playlists(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 0))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handlePlaylistsPage(c *echo.Context) error {
+	items, err := s.lib.PlaylistsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c))
 	if err != nil {
 		return mapError(err)
 	}
@@ -1063,6 +1124,16 @@ func queryInt(c *echo.Context, name string, fallback int) int {
 	}
 	return n
 }
+
+func pageOffset(c *echo.Context) int {
+	limit := queryInt(c, "limit", 100)
+	page := queryInt(c, "page", 1)
+	if page < 1 {
+		page = 1
+	}
+	return queryInt(c, "offset", (page-1)*limit)
+}
+
 func mapError(err error) error {
 	if errors.Is(err, library.ErrUnauthenticated) {
 		return echo.NewHTTPError(http.StatusUnauthorized, "unauthenticated")

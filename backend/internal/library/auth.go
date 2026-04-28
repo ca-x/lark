@@ -31,6 +31,7 @@ var (
 	ErrForbidden       = errors.New("forbidden")
 	ErrUnauthenticated = errors.New("unauthenticated")
 	ErrScanRunning     = errors.New("library scan already running")
+	ErrScanCanceled    = errors.New("library scan canceled")
 )
 
 func (s *Service) AuthStatus(ctx context.Context, token string) (models.AuthStatus, error) {

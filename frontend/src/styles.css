@@ -114,6 +114,13 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .selection-actions { display:flex; align-items:center; gap:8px; padding:4px; border-radius:999px; background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); border:1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); }
 .selection-actions span { padding:0 8px; color:var(--text); font-size:13px; white-space:nowrap; }
 .selection-actions button { min-height:36px; padding:8px 12px; }
+.pagination-controls { margin:12px 0; display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--muted); font-size:13px; }
+.pagination-controls div { display:flex; align-items:center; gap:8px; }
+.pagination-controls button { min-height:34px; padding:8px 12px; border-radius:999px; }
+.pagination-controls strong { color:var(--text); font-variant-numeric:tabular-nums; }
+.recent-tabs { display:inline-flex; align-items:center; gap:4px; padding:4px; border-radius:999px; background:var(--panel); border:1px solid var(--line); }
+.recent-tabs button { min-height:32px; padding:7px 12px; border-radius:999px; color:var(--muted); }
+.recent-tabs button.active { background:var(--accent); color:var(--bg); }
 
 
 .song-table { display:grid; gap:6px; margin-top:18px; }

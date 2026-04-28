@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, ScanResult, ScanStatus, Settings, Song, SongPage, User, MCPTokenStatus, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
@@ -28,6 +28,15 @@ export const api = {
     const qs = params.toString()
     return request<Song[]>(`/api/songs${qs ? `?${qs}` : ''}`)
   },
+  songsPage: (q = '', page = 1, limit = 100) => {
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    params.set('page', String(page))
+    params.set('limit', String(limit))
+    return request<SongPage>(`/api/songs/page?${params.toString()}`)
+  },
+  recentPlayedSongs: (limit = 12) => request<Song[]>(`/api/songs/recent-played?limit=${limit}`),
+  recentAddedSongs: (limit = 12) => request<Song[]>(`/api/songs/recent-added?limit=${limit}`),
   dailyMix: (limit = 24) => request<Song[]>(`/api/daily-mix?limit=${limit}`),
   song: (id: number) => request<Song>(`/api/songs/${id}`),
   favoriteSong: (id: number) => request<Song>(`/api/songs/${id}/favorite`, { method: 'POST' }),
@@ -36,6 +45,7 @@ export const api = {
   lyricCandidates: (id: number) => request<LyricCandidate[]>(`/api/songs/${id}/lyrics/candidates`),
   selectLyrics: (id: number, source: string, candidateId: string) => request<Lyrics>(`/api/songs/${id}/lyrics/select`, { method: 'POST', body: JSON.stringify({ source, id: candidateId }) }),
   scan: () => request<ScanResult>('/api/library/scan', { method: 'POST' }),
+  cancelScan: () => request<{ canceled: boolean }>('/api/library/scan/cancel', { method: 'POST' }),
   scanStatus: () => request<ScanStatus>('/api/library/scan/status'),
   libraryStats: () => request<LibraryStats>('/api/library/stats'),
   upload: async (file: File) => {
@@ -49,12 +59,15 @@ export const api = {
   folderDirectory: (path = '.') => request<FolderDirectory>(`/api/folders/tree?path=${encodeURIComponent(path)}`),
   folderSongs: (path: string) => request<Song[]>(`/api/folders/songs?path=${encodeURIComponent(path)}`),
   albums: (limit = 0) => request<Album[]>(`/api/albums${limit > 0 ? `?limit=${limit}` : ''}`),
+  albumsPage: (page = 1, limit = 100) => request<AlbumPage>(`/api/albums/page?page=${page}&limit=${limit}`),
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),
   artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
+  artistsPage: (page = 1, limit = 100) => request<ArtistPage>(`/api/artists/page?page=${page}&limit=${limit}`),
   artistSongs: (id: number) => request<Song[]>(`/api/artists/${id}/songs`),
   favoriteArtist: (id: number) => request<Artist>(`/api/artists/${id}/favorite`, { method: 'POST' }),
   favoriteAlbum: (id: number) => request<Album>(`/api/albums/${id}/favorite`, { method: 'POST' }),
   playlists: (limit = 0) => request<Playlist[]>(`/api/playlists${limit > 0 ? `?limit=${limit}` : ''}`),
+  playlistsPage: (page = 1, limit = 100) => request<PlaylistPage>(`/api/playlists/page?page=${page}&limit=${limit}`),
   createPlaylist: (name: string, description = '', cover_theme = 'deep-space') => request<Playlist>('/api/playlists', { method: 'POST', body: JSON.stringify({ name, description, cover_theme }) }),
   playlistSongs: (id: number) => request<Song[]>(`/api/playlists/${id}/songs`),
   addToPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'POST' }),
