@@ -1671,3 +1671,108 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .wave-eq-button:hover, .wave-eq-button.active { opacity:1; color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, var(--panel)); }
 .wave-eq-button:active { transform:scale(.94); }
 .player-waveform > span { padding-right:30px; }
+
+/* v0.3.14 playback polish: anchor EQ at waveform, stable topbar, centered queue rows. */
+.topbar-search-spacer { min-height:44px; display:block; visibility:hidden; }
+.eq-layer { justify-content:flex-start; padding:0 20px calc(var(--player-h, 96px) + 14px); }
+.eq-layer .eq-popover { transform-origin:bottom left; }
+.queue-list button { align-items:center; }
+.queue-list button > span:first-child { min-width:30px; height:30px; display:grid; place-items:center; text-align:center; line-height:1; font-variant-numeric:tabular-nums; }
+.queue-list button > div { min-width:0; display:grid; align-content:center; gap:2px; }
+.queue-list strong, .queue-list small { line-height:1.25; }
+.queue-list em { align-self:center; }
+@media (max-width:720px) {
+  .eq-layer { justify-content:center; padding:0 8px calc(var(--player-h, 172px) + 8px); }
+  .topbar-search-spacer { display:none; }
+}
+
+/* Vinyl transport and tone controls: actionable prev/next, reset, play-mode icon and end-of-side slowdown. */
+.vinyl-component[data-ending='true'] .vinyl-record { animation-timing-function:ease-out; }
+.vinyl-mini-transport button:not(:disabled):hover,
+.vinyl-bottom-actions button:not(:disabled):hover,
+.vinyl-tone-reset:hover { color:var(--bg); background:var(--vinyl-led); }
+.vinyl-bottom-actions { display:flex; align-items:center; gap:7px; }
+.vinyl-bottom-actions button,
+.vinyl-tone-reset { width:32px; height:32px; min-width:32px; min-height:32px; display:grid; place-items:center; border:2px solid var(--vinyl-border); border-radius:999px; color:var(--vinyl-led); background:linear-gradient(180deg,var(--vinyl-knob-base),var(--vinyl-arm-hi)); box-shadow:inset 0 1px 0 rgba(255,180,60,.12); }
+.vinyl-bottom-actions button.active { box-shadow:inset 1px 2px 4px rgba(0,0,0,.65); background:linear-gradient(180deg,var(--vinyl-arm-hi),var(--vinyl-knob-base)); }
+.vinyl-bottom-actions svg,
+.vinyl-tone-reset svg { width:15px; height:15px; }
+.vinyl-tone-reset { position:absolute; right:-4px; top:42px; width:22px; height:22px; min-width:22px; min-height:22px; border-width:1px; opacity:.76; z-index:2; }
+.vinyl-tone-reset svg { width:11px; height:11px; }
+.vinyl-tone-unit:hover .vinyl-tone-reset { opacity:1; }
+@media (max-width:760px) {
+  .vinyl-bottom-actions button { width:34px; height:34px; min-width:34px; min-height:34px; }
+}
+
+/* Loading stage: restore product identity late in the automatic entry animation. */
+.loading-disc img { width:48px; height:48px; border-radius:14px; animation:loading-logo-in 3.8s ease-out infinite; }
+.loading-wordmark { font-size:30px; font-weight:900; letter-spacing:-.04em; color:var(--text); z-index:2; margin:-12px 0 6px; opacity:0; animation:loading-identity-in 3.8s ease-out infinite; }
+.loading-tagline { font-size:11px; font-weight:850; color:var(--muted); letter-spacing:.18em; text-transform:uppercase; z-index:2; margin-bottom:26px; opacity:0; animation:loading-identity-in 3.8s ease-out infinite; animation-delay:.08s; }
+@keyframes loading-logo-in { 0%,72%{opacity:0; transform:translate(-50%,-50%) scale(.76) rotate(-12deg);} 86%,100%{opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg);} }
+@keyframes loading-identity-in { 0%,62%{opacity:0; transform:translateY(8px);} 78%,100%{opacity:1; transform:none;} }
+@media (max-width:720px) {
+  .loading-disc img { width:44px; height:44px; }
+  .loading-wordmark { font-size:28px; }
+}
+.queue-list button.active > span:first-child { width:30px; min-width:30px; height:30px; display:grid; place-items:center; line-height:1; }
+
+/* Light-theme vinyl contrast pass: keep the vintage deck readable on pale palettes. */
+:root[data-theme='milk-porcelain'] .vinyl-component,
+:root[data-theme='oat-latte'] .vinyl-component,
+:root[data-theme='mint-soda'] .vinyl-component,
+:root[data-theme='sakura-washi'] .vinyl-component,
+:root[data-theme='dusk-amber'] .vinyl-component,
+:root[data-theme='apple-light'] .vinyl-component,
+:root[data-theme='spotify-light'] .vinyl-component,
+:root[data-theme='netease-light'] .vinyl-component,
+:root[data-theme='winamp-light'] .vinyl-component,
+:root[data-theme='foobar-light'] .vinyl-component {
+  --vinyl-plinth: color-mix(in srgb, var(--accent) 55%, #8b6914);
+  --vinyl-plinth-hi: color-mix(in srgb, var(--accent) 72%, #d39a24);
+  --vinyl-plinth-dark: color-mix(in srgb, #3b2608 78%, var(--accent));
+  --vinyl-border:#2f1d04;
+  --vinyl-screen:#160d02;
+  --vinyl-muted:#f4d28a;
+  --vinyl-led:#ff9a1f;
+  --vinyl-knob-base:#241503;
+  --vinyl-knob-top:#85591a;
+  --vinyl-arm:#201204;
+  --vinyl-arm-hi:#654116;
+  --vinyl-tone-track:rgba(255,214,138,.28);
+  color:#f7dfad;
+}
+:root[data-theme='milk-porcelain'] .vinyl-component .vinyl-plinth,
+:root[data-theme='oat-latte'] .vinyl-component .vinyl-plinth,
+:root[data-theme='mint-soda'] .vinyl-component .vinyl-plinth,
+:root[data-theme='sakura-washi'] .vinyl-component .vinyl-plinth,
+:root[data-theme='dusk-amber'] .vinyl-component .vinyl-plinth,
+:root[data-theme='apple-light'] .vinyl-component .vinyl-plinth,
+:root[data-theme='spotify-light'] .vinyl-component .vinyl-plinth,
+:root[data-theme='netease-light'] .vinyl-component .vinyl-plinth,
+:root[data-theme='winamp-light'] .vinyl-component .vinyl-plinth,
+:root[data-theme='foobar-light'] .vinyl-component .vinyl-plinth {
+  box-shadow:inset 0 2px 0 rgba(255,222,150,.32), inset 0 -3px 0 rgba(0,0,0,.64), 5px 10px 0 #2f1d04, 9px 18px 0 rgba(50,31,4,.22);
+}
+:root[data-theme='milk-porcelain'] .vinyl-component .vinyl-tone-center strong,
+:root[data-theme='oat-latte'] .vinyl-component .vinyl-tone-center strong,
+:root[data-theme='mint-soda'] .vinyl-component .vinyl-tone-center strong,
+:root[data-theme='sakura-washi'] .vinyl-component .vinyl-tone-center strong,
+:root[data-theme='dusk-amber'] .vinyl-component .vinyl-tone-center strong,
+:root[data-theme='apple-light'] .vinyl-component .vinyl-tone-center strong,
+:root[data-theme='spotify-light'] .vinyl-component .vinyl-tone-center strong,
+:root[data-theme='netease-light'] .vinyl-component .vinyl-tone-center strong,
+:root[data-theme='winamp-light'] .vinyl-component .vinyl-tone-center strong,
+:root[data-theme='foobar-light'] .vinyl-component .vinyl-tone-center strong { color:#fff1bf; }
+:root[data-theme='milk-porcelain'] .vinyl-component .vinyl-speed-row button,
+:root[data-theme='oat-latte'] .vinyl-component .vinyl-speed-row button,
+:root[data-theme='mint-soda'] .vinyl-component .vinyl-speed-row button,
+:root[data-theme='sakura-washi'] .vinyl-component .vinyl-speed-row button,
+:root[data-theme='dusk-amber'] .vinyl-component .vinyl-speed-row button,
+:root[data-theme='apple-light'] .vinyl-component .vinyl-speed-row button,
+:root[data-theme='spotify-light'] .vinyl-component .vinyl-speed-row button,
+:root[data-theme='netease-light'] .vinyl-component .vinyl-speed-row button,
+:root[data-theme='winamp-light'] .vinyl-component .vinyl-speed-row button,
+:root[data-theme='foobar-light'] .vinyl-component .vinyl-speed-row button {
+  color:#f4d28a;
+  background:linear-gradient(180deg,#6c4513,#241503);
+}

@@ -2227,7 +2227,9 @@ export default function App() {
                     }}
                   />
                 </label>
-              ) : null}
+              ) : (
+                <span className="topbar-search-spacer" aria-hidden="true" />
+              )}
               {view !== "settings" ? (
                 <UserMenu
                   user={auth.user}
@@ -2259,12 +2261,18 @@ export default function App() {
                 volume={volume}
                 bassGain={bassGain}
                 trebleGain={trebleGain}
+                playMode={playMode}
+                playModeLabel={playModeLabel}
                 t={t}
                 onPlay={playSong}
                 onTogglePlayback={() => setPlaying((value) => !value)}
+                onPrevious={() => next(-1)}
+                onNext={() => next(1)}
                 onVolume={updateVolume}
                 onBass={updateBassGain}
                 onTreble={updateTrebleGain}
+                onResetTone={() => { updateBassGain(0); updateTrebleGain(0); }}
+                onCyclePlayMode={cyclePlayMode}
                 onSeek={seekTo}
                 onPlayAlbum={playAlbum}
                 onOpenAlbum={openAlbum}
@@ -3159,12 +3167,18 @@ function HomeView({
   volume,
   bassGain,
   trebleGain,
+  playMode,
+  playModeLabel,
   t,
   onPlay,
   onTogglePlayback,
+  onPrevious,
+  onNext,
   onVolume,
   onBass,
   onTreble,
+  onResetTone,
+  onCyclePlayMode,
   onSeek,
   onPlayAlbum,
   onOpenAlbum,
@@ -3188,12 +3202,18 @@ function HomeView({
   volume: number;
   bassGain: number;
   trebleGain: number;
+  playMode: PlayMode;
+  playModeLabel: string;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
   onTogglePlayback: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
   onVolume: (value: number) => void;
   onBass: (value: number) => void;
   onTreble: (value: number) => void;
+  onResetTone: () => void;
+  onCyclePlayMode: () => void;
   onSeek: (seconds: number) => void;
   onPlayAlbum: (album: Album) => void;
   onOpenAlbum: (album: Album) => void;
@@ -3236,10 +3256,17 @@ function HomeView({
             volume={volume}
             bassGain={bassGain}
             trebleGain={trebleGain}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            resetToneLabel={t("resetEqualizer")}
             onToggle={heroActive ? onTogglePlayback : displaySong ? () => onPlay(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
             onVolume={onVolume}
             onBass={onBass}
             onTreble={onTreble}
+            onResetTone={onResetTone}
+            onCyclePlayMode={onCyclePlayMode}
             onSeek={heroActive ? onSeek : undefined}
           />
         )}

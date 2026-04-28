@@ -25,7 +25,7 @@ const (
 	radioUserAgent         = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Lark/1.0"
 	radioBrowserBase       = "https://de1.api.radio-browser.info/json"
 	radioSourcesSettingKey = "radio_sources"
-	defaultCliampRadioURL  = "https://radio.cliamp.stream/lofi/stream.pls"
+	defaultCliampRadioURL  = "https://radio.cliamp.stream/streams.m3u"
 )
 
 var radioHTTPClient = &http.Client{Timeout: 10 * time.Second}
@@ -324,6 +324,9 @@ func defaultRadioSource(ctx context.Context) models.RadioSource {
 func defaultRadioSources(ctx context.Context) []models.RadioSource {
 	entries := radioPlaylistEntries(ctx, defaultCliampRadioURL)
 	if len(entries) == 0 {
+		entries = cliampFallbackRadioEntries()
+	}
+	if len(entries) == 0 {
 		return []models.RadioSource{defaultRadioSource(ctx)}
 	}
 	out := make([]models.RadioSource, 0, len(entries))
@@ -347,6 +350,14 @@ func defaultRadioSources(ctx context.Context) []models.RadioSource {
 		out = append(out, item)
 	}
 	return out
+}
+
+func cliampFallbackRadioEntries() []radioPlaylistEntry {
+	return []radioPlaylistEntry{
+		{Name: "Lofi Stream", URL: "https://radio.cliamp.stream/lofi/stream"},
+		{Name: "Synthwave Stream", URL: "https://radio.cliamp.stream/synthwave/stream"},
+		{Name: "EDM Stream", URL: "https://radio.cliamp.stream/edm/stream"},
+	}
 }
 
 func radioSourceStreamURL(id string) string {

@@ -28,6 +28,8 @@ export function LoadingStage({ t }: { t: ReturnType<typeof createT> }) {
       <div className="loading-bars-row" aria-hidden="true">
         {bars.map((bar) => <i key={bar} style={{ "--i": bar } as CSSProperties} />)}
       </div>
+      <div className="loading-wordmark">{t("brand")}</div>
+      <div className="loading-tagline">{t("loadingTagline")}</div>
       <div className="loading-progress-wrap"><div /></div>
     </section>
   );

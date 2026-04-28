@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Pause, Play, Record, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
+
+type VinylPlayMode = "sequence" | "shuffle" | "repeat-one";
 
 export function VinylTurntable({
   cover,
@@ -13,10 +15,17 @@ export function VinylTurntable({
   volume = 0.85,
   bassGain = 0,
   trebleGain = 0,
+  playMode = "sequence",
+  playModeLabel = "Play mode",
+  resetToneLabel = "Reset",
   onToggle,
+  onPrevious,
+  onNext,
   onVolume,
   onBass,
   onTreble,
+  onResetTone,
+  onCyclePlayMode,
   onSeek,
 }: {
   cover?: string;
@@ -29,19 +38,32 @@ export function VinylTurntable({
   volume?: number;
   bassGain?: number;
   trebleGain?: number;
+  playMode?: VinylPlayMode;
+  playModeLabel?: string;
+  resetToneLabel?: string;
   onToggle?: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
   onVolume?: (value: number) => void;
   onBass?: (value: number) => void;
   onTreble?: (value: number) => void;
+  onResetTone?: () => void;
+  onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
   const [rpm, setRpm] = useState<"33" | "45" | "78">("33");
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const rpmLabel = rpm === "33" ? "33⅓" : rpm;
-  const spinDuration = rpm === "33" ? "1.82s" : rpm === "45" ? "1.33s" : "0.77s";
+  const baseSpinSeconds = rpm === "33" ? 1.82 : rpm === "45" ? 1.33 : 0.77;
+  const endWindowSeconds = Math.max(8, Math.min(18, duration * 0.08 || 8));
+  const secondsLeft = duration > 0 ? Math.max(0, duration - progress) : Number.POSITIVE_INFINITY;
+  const endingPct = Number.isFinite(secondsLeft) ? Math.max(0, Math.min(1, (endWindowSeconds - secondsLeft) / endWindowSeconds)) : 0;
+  const isAtEnd = duration > 0 && progress >= duration - 0.2;
+  const spinDuration = `${(baseSpinSeconds * (1 + endingPct * 2.6)).toFixed(2)}s`;
+  const recordSpinning = playing && !isAtEnd;
   const knobRotation = -145 + Math.max(0, Math.min(1, volume)) * 290;
   return (
-    <div className={decorative ? "turntable vinyl-component decorative" : "turntable vinyl-component"} data-playing={playing ? "true" : "false"} style={{ "--vinyl-spin-duration": spinDuration } as CSSProperties}>
+    <div className={decorative ? "turntable vinyl-component decorative" : "turntable vinyl-component"} data-playing={recordSpinning ? "true" : "false"} data-ending={endingPct > 0 && recordSpinning ? "true" : "false"} style={{ "--vinyl-spin-duration": spinDuration } as CSSProperties}>
       <div className="vinyl-plinth">
         <div className="vinyl-top-row">
           <div className="vinyl-platter-wrap">
@@ -57,7 +79,7 @@ export function VinylTurntable({
               </div>
             </div>
             <div className="vinyl-spindle" />
-            <Tonearm progress={pct} playing={playing} />
+            <Tonearm progress={pct} />
           </div>
           <div className="vinyl-controls">
             <div className="vinyl-speed-row"><span>RPM</span>{(["33", "45", "78"] as const).map((value) => (
@@ -81,13 +103,13 @@ export function VinylTurntable({
                   onChange={(event) => onVolume?.(Number(event.target.value))}
                 />
               </label>
-              <ToneKnob name="BASS" subtitle="80 Hz" value={bassGain} tone="bass" onChange={onBass} />
-              <ToneKnob name="TREBLE" subtitle="8 kHz" value={trebleGain} tone="treble" onChange={onTreble} />
+              <ToneKnob name="BASS" subtitle="80 Hz" value={bassGain} tone="bass" onChange={onBass} onReset={() => onBass?.(0)} />
+              <ToneKnob name="TREBLE" subtitle="8 kHz" value={trebleGain} tone="treble" onChange={onTreble} onReset={() => onTreble?.(0)} />
             </div>
             <div className="vinyl-mini-transport">
-              <button type="button" aria-label="Previous" disabled><SkipBack weight="fill" /></button>
+              <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
               <button type="button" aria-label={playing ? "Pause" : "Play"} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
-              <button type="button" aria-label="Next" disabled><SkipForward weight="fill" /></button>
+              <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
               <div className="vinyl-position-row">
                 <input
                   aria-label="Position"
@@ -103,7 +125,18 @@ export function VinylTurntable({
             </div>
           </div>
         </div>
-        <div className="vinyl-bottom-strip"><span className={playing ? "vinyl-led on" : "vinyl-led"} /><strong>Sonora</strong><em>REPEAT</em></div>
+        <div className="vinyl-bottom-strip">
+          <span className={playing ? "vinyl-led on" : "vinyl-led"} />
+          <strong>Sonora</strong>
+          <div className="vinyl-bottom-actions">
+            <button type="button" aria-label={resetToneLabel} title={resetToneLabel} onClick={onResetTone ?? (() => { onBass?.(0); onTreble?.(0); })}>
+              <ArrowCounterClockwise />
+            </button>
+            <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} onClick={onCyclePlayMode} disabled={!onCyclePlayMode}>
+              {playMode === "shuffle" ? <Shuffle /> : playMode === "repeat-one" ? <RepeatOnce /> : <Repeat />}
+            </button>
+          </div>
+        </div>
       </div>
       <div className="turntable-status">{playing ? "PLAY" : "PAUSE"}</div>
     </div>
@@ -116,12 +149,14 @@ function ToneKnob({
   value,
   tone,
   onChange,
+  onReset,
 }: {
   name: string;
   subtitle: string;
   value: number;
   tone: "bass" | "treble";
   onChange?: (value: number) => void;
+  onReset?: () => void;
 }) {
   const clamped = Math.max(-12, Math.min(12, Number.isFinite(value) ? value : 0));
   const pct = (clamped + 12) / 24;
@@ -138,7 +173,7 @@ function ToneKnob({
   const dash = Math.max(0, Math.min(157, pct * 157));
   const label = `${name} ${clamped > 0 ? "+" : ""}${clamped.toFixed(clamped % 1 ? 1 : 0)} dB`;
   return (
-    <label className={`vinyl-tone-unit ${tone}`} aria-label={label}>
+    <div className={`vinyl-tone-unit ${tone}`} aria-label={label} onDoubleClick={onReset}>
       <span className="vinyl-tone-knob">
         <svg viewBox="0 0 76 76" aria-hidden="true">
           <circle cx="38" cy="38" r="30" fill="none" stroke="var(--vinyl-tone-track)" strokeWidth="4" strokeLinecap="round" strokeDasharray="157 220" strokeDashoffset="-31" pathLength="220" />
@@ -164,13 +199,16 @@ function ToneKnob({
           }}
         />
       </span>
+      <button className="vinyl-tone-reset" type="button" aria-label={`Reset ${name}`} title={`Reset ${name}`} onClick={(event) => { event.preventDefault(); onReset?.(); }}>
+        <ArrowCounterClockwise />
+      </button>
       <span className="vinyl-tone-name">{name}</span>
       <small>{subtitle}</small>
-    </label>
+    </div>
   );
 }
 
-function Tonearm({ progress, playing }: { progress: number; playing: boolean }) {
+function Tonearm({ progress }: { progress: number }) {
   const angle = 28 - progress * 30;
   return (
     <svg className="vinyl-tonearm" viewBox="0 0 170 280" aria-hidden="true">
@@ -183,7 +221,7 @@ function Tonearm({ progress, playing }: { progress: number; playing: boolean }) 
       <circle cx="138" cy="28" r="14" fill="var(--vinyl-knob-base)" stroke="var(--vinyl-border)" strokeWidth="2" />
       <circle cx="138" cy="28" r="9" fill="url(#vinylKnobGrad)" stroke="var(--vinyl-border)" strokeWidth="1.5" />
       <circle cx="138" cy="28" r="3" fill="var(--vinyl-led)" />
-      <g transform={`rotate(${playing ? angle : 28},138,28)`}>
+      <g transform={`rotate(${angle},138,28)`}>
         <rect x="131" y="28" width="10" height="130" rx="5" fill="var(--vinyl-arm)" stroke="var(--vinyl-border)" strokeWidth="1.5" />
         <rect x="133" y="30" width="3" height="126" rx="2" fill="var(--vinyl-arm-hi)" opacity=".68" />
         <g transform="translate(136,158) rotate(-15)">
