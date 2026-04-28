@@ -734,6 +734,7 @@ export default function App() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [libraryDirectories, setLibraryDirectories] = useState<LibraryDirectory[]>([]);
   const [libraryStats, setLibraryStats] = useState<LibraryStats | null>(null);
+  const [favoriteArtists, setFavoriteArtists] = useState<Artist[]>([]);
   const [networkSources, setNetworkSources] = useState<NetworkSource[]>([]);
   const [radioSources, setRadioSources] = useState<RadioSource[]>([]);
   const [radioStations, setRadioStations] = useState<RadioStation[]>([]);
@@ -1568,7 +1569,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
+    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
       await Promise.all([
         api.songsPage(query, libraryPage, libraryPageSize),
         api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
@@ -1580,6 +1581,7 @@ export default function App() {
         api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
         api.libraryStats().catch(() => null),
         api.libraryDirectories().catch(() => []),
+        api.favoriteArtists().catch(() => []),
         api.networkSources().catch(() => []),
         api.radioSources().catch(() => []),
         api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
@@ -1594,6 +1596,7 @@ export default function App() {
     setFolders(folderItems);
     setLibraryStats(libraryStatsItem);
     setLibraryDirectories(libraryDirectoryItems);
+    setFavoriteArtists(favoriteArtistItems);
     setNetworkSources(networkSourceItems);
     setRadioSources(radioSourceItems);
     setRadioStations(radioStationItems.map(radioStationToPlayable));
@@ -2214,6 +2217,13 @@ export default function App() {
     setArtists((old) =>
       old.map((item) => (item.id === updated.id ? updated : item)),
     );
+    setFavoriteArtists((old) => {
+      if (!updated.favorite) return old.filter((item) => item.id !== updated.id);
+      const exists = old.some((item) => item.id === updated.id);
+      return exists
+        ? old.map((item) => (item.id === updated.id ? updated : item))
+        : [updated, ...old];
+    });
     setCollection((old) =>
       old?.type === "artist" && old.id === updated.id
         ? { ...old, favorite: updated.favorite, title: updated.name }
@@ -2568,10 +2578,6 @@ export default function App() {
   const favoriteAlbums = useMemo(
     () => albums.filter((album) => album.favorite),
     [albums],
-  );
-  const favoriteArtists = useMemo(
-    () => artists.filter((artist) => artist.favorite),
-    [artists],
   );
   const heroSong = current ?? (resumePosition(recentPlayedSongs[0]) ? recentPlayedSongs[0] : null);
   const playModeLabel =

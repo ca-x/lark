@@ -28,9 +28,10 @@ export const api = {
     const qs = params.toString()
     return request<Song[]>(`/api/songs${qs ? `?${qs}` : ''}`)
   },
-  songsPage: (q = '', page = 1, limit = 100) => {
+  songsPage: (q = '', page = 1, limit = 100, favorites = false) => {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
+    if (favorites) params.set('favorites', 'true')
     params.set('page', String(page))
     params.set('limit', String(limit))
     return request<SongPage>(`/api/songs/page?${params.toString()}`)
@@ -67,6 +68,7 @@ export const api = {
   album: (id: number) => request<Album>(`/api/albums/${id}`),
   albumSongs: (id: number) => request<Song[]>(`/api/albums/${id}/songs`),
   artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
+  favoriteArtists: (limit = 500) => request<Artist[]>(`/api/artists/favorites?limit=${limit}`),
   artistsPage: (page = 1, limit = 100) => request<ArtistPage>(`/api/artists/page?page=${page}&limit=${limit}`),
   searchArtists: (q = '', limit = 20) => request<Artist[]>(`/api/artists/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   artistSongs: (id: number) => request<Song[]>(`/api/artists/${id}/songs`),

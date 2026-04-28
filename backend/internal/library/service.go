@@ -1712,9 +1712,20 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 		artistName = item.Edges.Artist.Name
 	}
 	cleanArtist, cleanTitle := cleanLyricArtistTitle(artistName, item.Title)
-	lyric, matchedID, matchedSource, err := s.matchOnlineLyrics(ctx, cleanTitle, cleanArtist, sourceID)
-	if err != nil {
-		return models.Lyrics{}, err
+	var lyric, matchedID, matchedSource string
+	for index, title := range lyricTitleQueryVariants(cleanTitle) {
+		preferredID := sourceID
+		if index > 0 {
+			preferredID = ""
+		}
+		var matchErr error
+		lyric, matchedID, matchedSource, matchErr = s.matchOnlineLyrics(ctx, title, cleanArtist, preferredID)
+		if matchErr != nil {
+			return models.Lyrics{}, matchErr
+		}
+		if strings.TrimSpace(lyric) != "" {
+			break
+		}
 	}
 	if strings.TrimSpace(lyric) == "" {
 		return models.Lyrics{SongID: id, Source: "online:not-found", Lyrics: ""}, nil
@@ -1791,24 +1802,31 @@ func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCa
 		}
 	}
 	cleanArtist, cleanTitle := cleanLyricArtistTitle(artistName, item.Title)
+	titleVariants := lyricTitleQueryVariants(cleanTitle)
 	if s.netease != nil {
-		items, _ := s.netease.SearchCandidates(ctx, cleanTitle, cleanArtist)
-		appendCandidates(items)
+		for _, title := range titleVariants {
+			items, _ := s.netease.SearchCandidates(ctx, title, cleanArtist)
+			appendCandidates(items)
+		}
 	}
 	if s.qqmusic != nil {
-		items, _ := s.qqmusic.SearchCandidates(ctx, cleanTitle, cleanArtist)
-		appendCandidates(items)
+		for _, title := range titleVariants {
+			items, _ := s.qqmusic.SearchCandidates(ctx, title, cleanArtist)
+			appendCandidates(items)
+		}
 	}
 	for _, provider := range s.online {
-		items, err := provider.SearchSongs(ctx, cleanTitle, cleanArtist)
-		if err != nil {
-			continue
+		for _, title := range titleVariants {
+			items, err := provider.SearchSongs(ctx, title, cleanArtist)
+			if err != nil {
+				continue
+			}
+			candidates := make([]models.LyricCandidate, 0, len(items))
+			for _, found := range items {
+				candidates = append(candidates, models.LyricCandidate{ID: found.ID, Source: provider.Name(), Title: found.Title, Artist: found.Artist})
+			}
+			appendCandidates(candidates)
 		}
-		candidates := make([]models.LyricCandidate, 0, len(items))
-		for _, found := range items {
-			candidates = append(candidates, models.LyricCandidate{ID: found.ID, Source: provider.Name(), Title: found.Title, Artist: found.Artist})
-		}
-		appendCandidates(candidates)
 	}
 	return out, nil
 }
@@ -2147,6 +2165,39 @@ func (s *Service) Artists(ctx context.Context, userID, limit int) ([]models.Arti
 		return nil, err
 	}
 	return page.Items, nil
+}
+
+func (s *Service) FavoriteArtists(ctx context.Context, userID, limit int) ([]models.Artist, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 500
+	}
+	favorites, err := s.client.UserArtistFavorite.Query().
+		Where(userartistfavorite.HasUserWith(user.ID(userID))).
+		WithArtist().
+		Order(ent.Desc(userartistfavorite.FieldCreatedAt)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	songCounts, err := s.artistSongCounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	albumCounts, err := s.artistAlbumCounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.Artist, 0, len(favorites))
+	for _, favorite := range favorites {
+		if favorite.Edges.Artist == nil {
+			continue
+		}
+		item := mapArtistWithCounts(favorite.Edges.Artist, songCounts[favorite.Edges.Artist.ID], albumCounts[favorite.Edges.Artist.ID])
+		item.Favorite = true
+		out = append(out, item)
+	}
+	return out, nil
 }
 
 func (s *Service) SearchArtists(ctx context.Context, userID int, term string, limit int) ([]models.Artist, error) {
