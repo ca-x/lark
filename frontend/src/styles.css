@@ -1841,3 +1841,24 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
     color:color-mix(in srgb, var(--muted) 78%, transparent);
   }
 }
+
+/* v0.3.17: queue is a root overlay, isolated from the page content behind it. */
+.queue-layer-root {
+  z-index:9500;
+  pointer-events:auto;
+  isolation:isolate;
+}
+.queue-layer-root .queue-scrim {
+  background:rgba(0,0,0,.44);
+  backdrop-filter:blur(5px) saturate(.9);
+}
+.queue-layer-root .queue-panel {
+  z-index:1;
+  background:var(--panel);
+  border-color:color-mix(in srgb, var(--accent) 24%, var(--line));
+  box-shadow:0 28px 90px rgba(0,0,0,.52), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+@media (max-width:720px) {
+  .queue-layer-root { z-index:9500; }
+  .queue-layer-root .queue-scrim { background:rgba(0,0,0,.62); backdrop-filter:blur(8px); }
+}

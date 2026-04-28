@@ -2766,22 +2766,6 @@ export default function App() {
             }}
           />
         </div>
-        {queueOpen && (
-          <div className="queue-layer">
-            <button
-              className="queue-scrim"
-              aria-label={t("close")}
-              onClick={() => setQueueOpen(false)}
-            />
-            <QueuePanel
-              queue={queue}
-              current={current}
-              t={t}
-              onPlay={(song) => void playSong(song, queue)}
-              onClose={() => setQueueOpen(false)}
-            />
-          </div>
-        )}
         <audio
           ref={setAudioNode}
           preload="auto"
@@ -2886,6 +2870,22 @@ export default function App() {
           onEnded={() => next(1, true)}
         />
       </footer>
+      {queueOpen && (
+        <div className="queue-layer queue-layer-root">
+          <button
+            className="queue-scrim"
+            aria-label={t("close")}
+            onClick={() => setQueueOpen(false)}
+          />
+          <QueuePanel
+            queue={queue}
+            current={current}
+            t={t}
+            onPlay={(song) => void playSong(song, queue)}
+            onClose={() => setQueueOpen(false)}
+          />
+        </div>
+      )}
       {eqPanelOpen ? (
         <div className="eq-layer">
           <button className="eq-scrim" type="button" aria-label={t("close")} onClick={() => setEqPanelOpen(false)} />
