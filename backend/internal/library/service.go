@@ -26,8 +26,10 @@ import (
 	"lark/backend/ent/album"
 	"lark/backend/ent/appsetting"
 	"lark/backend/ent/artist"
+	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
+	"lark/backend/ent/predicate"
 	"lark/backend/ent/song"
 	"lark/backend/ent/user"
 	"lark/backend/ent/useralbumfavorite"
@@ -97,6 +99,184 @@ func (s *Service) DataDir() string { return s.dataDir }
 
 func (s *Service) fontDir() string { return filepath.Join(s.dataDir, "fonts") }
 
+type libraryRoot struct {
+	ID      string
+	Path    string
+	Note    string
+	Builtin bool
+}
+
+func (s *Service) builtinLibraryRoot() (libraryRoot, error) {
+	path, err := filepath.Abs(s.libraryDir)
+	if err != nil {
+		return libraryRoot{}, err
+	}
+	return libraryRoot{ID: "env", Path: path, Note: "", Builtin: true}, nil
+}
+
+func (s *Service) effectiveLibraryRoots(ctx context.Context, userID int) ([]libraryRoot, error) {
+	root, err := s.builtinLibraryRoot()
+	if err != nil {
+		return nil, err
+	}
+	roots := []libraryRoot{root}
+	if userID == 0 || s.client == nil {
+		return roots, nil
+	}
+	items, err := s.client.LibraryDirectory.Query().
+		Where(librarydirectory.HasUserWith(user.ID(userID))).
+		Order(ent.Asc(librarydirectory.FieldPath)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{root.Path: true}
+	for _, item := range items {
+		abs, err := filepath.Abs(item.Path)
+		if err != nil || seen[abs] {
+			continue
+		}
+		seen[abs] = true
+		roots = append(roots, libraryRoot{ID: strconv.Itoa(item.ID), Path: abs, Note: item.Note})
+	}
+	return roots, nil
+}
+
+func (s *Service) LibraryDirectories(ctx context.Context, userID int) ([]models.LibraryDirectory, error) {
+	root, err := s.builtinLibraryRoot()
+	if err != nil {
+		return nil, err
+	}
+	out := []models.LibraryDirectory{{ID: root.ID, Path: root.Path, Builtin: true}}
+	if userID == 0 || s.client == nil {
+		return out, nil
+	}
+	items, err := s.client.LibraryDirectory.Query().
+		Where(librarydirectory.HasUserWith(user.ID(userID))).
+		Order(ent.Asc(librarydirectory.FieldPath)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		out = append(out, mapLibraryDirectory(item))
+	}
+	return out, nil
+}
+
+func (s *Service) AddLibraryDirectory(ctx context.Context, userID int, path, note string) (models.LibraryDirectory, error) {
+	if userID == 0 {
+		return models.LibraryDirectory{}, ErrUnauthenticated
+	}
+	abs, err := filepath.Abs(strings.TrimSpace(path))
+	if err != nil {
+		return models.LibraryDirectory{}, err
+	}
+	info, err := os.Stat(abs)
+	if err != nil {
+		return models.LibraryDirectory{}, err
+	}
+	if !info.IsDir() {
+		return models.LibraryDirectory{}, fmt.Errorf("library directory must be a directory")
+	}
+	builtin, err := s.builtinLibraryRoot()
+	if err != nil {
+		return models.LibraryDirectory{}, err
+	}
+	if samePath(abs, builtin.Path) {
+		return models.LibraryDirectory{}, fmt.Errorf("directory already exists")
+	}
+	note = strings.TrimSpace(note)
+	item, err := s.client.LibraryDirectory.Create().SetUserID(userID).SetPath(abs).SetNote(note).Save(ctx)
+	if err != nil {
+		return models.LibraryDirectory{}, err
+	}
+	return mapLibraryDirectory(item), nil
+}
+
+func (s *Service) DeleteLibraryDirectory(ctx context.Context, userID int, id int) error {
+	if userID == 0 {
+		return ErrUnauthenticated
+	}
+	deleted, err := s.client.LibraryDirectory.Delete().
+		Where(librarydirectory.ID(id), librarydirectory.HasUserWith(user.ID(userID))).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+	if deleted == 0 {
+		return fmt.Errorf("library directory not found")
+	}
+	return nil
+}
+
+type resolvedFolderRoot struct {
+	Root libraryRoot
+	Rel  string
+	Path string
+}
+
+func (s *Service) resolveLibraryFolderForUser(ctx context.Context, userID int, relPath string) (resolvedFolderRoot, error) {
+	roots, err := s.effectiveLibraryRoots(ctx, userID)
+	if err != nil {
+		return resolvedFolderRoot{}, err
+	}
+	rootID, rel := splitRootedFolderPath(relPath)
+	var root libraryRoot
+	found := false
+	for _, item := range roots {
+		if item.ID == rootID {
+			root = item
+			found = true
+			break
+		}
+	}
+	if !found {
+		return resolvedFolderRoot{}, fmt.Errorf("library directory not found")
+	}
+	cleanRel := filepath.Clean(strings.TrimSpace(rel))
+	if cleanRel == "" || cleanRel == "." || cleanRel == string(os.PathSeparator) {
+		return resolvedFolderRoot{Root: root, Rel: "", Path: root.Path}, nil
+	}
+	if filepath.IsAbs(cleanRel) {
+		return resolvedFolderRoot{}, fmt.Errorf("folder path must be relative")
+	}
+	target, err := filepath.Abs(filepath.Join(root.Path, cleanRel))
+	if err != nil {
+		return resolvedFolderRoot{}, err
+	}
+	if target != root.Path && !strings.HasPrefix(target, root.Path+string(os.PathSeparator)) {
+		return resolvedFolderRoot{}, fmt.Errorf("folder path escapes library")
+	}
+	return resolvedFolderRoot{Root: root, Rel: normalizeFolderRel(cleanRel), Path: target}, nil
+}
+
+func splitRootedFolderPath(path string) (string, string) {
+	trimmed := strings.TrimSpace(path)
+	if strings.HasPrefix(trimmed, "@") {
+		parts := strings.SplitN(strings.TrimPrefix(trimmed, "@"), ":", 2)
+		if len(parts) == 2 && strings.TrimSpace(parts[0]) != "" {
+			return strings.TrimSpace(parts[0]), parts[1]
+		}
+	}
+	return "env", trimmed
+}
+
+func rootedFolderPath(rootID, rel string) string {
+	clean := displayFolderRel(normalizeFolderRel(rel))
+	if rootID == "env" {
+		return clean
+	}
+	return "@" + rootID + ":" + clean
+}
+
+func (s *Service) rootDisplayName(root libraryRoot) string {
+	if strings.TrimSpace(root.Note) != "" {
+		return root.Note
+	}
+	return filepath.Base(root.Path)
+}
+
 func IsSupported(path string) bool { return supportedExts[strings.ToLower(filepath.Ext(path))] }
 
 func (s *Service) ScanStatus() models.ScanStatus {
@@ -105,8 +285,12 @@ func (s *Service) ScanStatus() models.ScanStatus {
 	return cloneScanStatus(s.scanStatus)
 }
 
-func (s *Service) Scan(ctx context.Context) (models.ScanResult, error) {
+func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, error) {
 	started := time.Now()
+	roots, err := s.effectiveLibraryRoots(ctx, userID)
+	if err != nil {
+		return models.ScanResult{Errors: []string{err.Error()}}, err
+	}
 	s.setScanStatus(func(status *models.ScanStatus) {
 		*status = models.ScanStatus{Running: true, CurrentDir: s.libraryDir, Errors: []string{}, StartedAt: &started}
 	})
@@ -119,66 +303,79 @@ func (s *Service) Scan(ctx context.Context) (models.ScanResult, error) {
 			status.FinishedAt = &finished
 		})
 	}()
-	err := filepath.WalkDir(s.libraryDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			result.Errors = append(result.Errors, err.Error())
-			s.updateScanProgress(path, filepath.Dir(path), &result)
-			return nil
-		}
-		if d.IsDir() {
-			if shouldSkipScanDir(s.libraryDir, path, d.Name()) {
-				result.Skipped++
-				s.updateScanProgress("", filepath.Dir(path), &result)
-				return filepath.SkipDir
+	for _, root := range roots {
+		rootPath := root.Path
+		err := filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				result.Errors = append(result.Errors, err.Error())
+				s.updateScanProgress(path, filepath.Dir(path), &result)
+				return nil
 			}
-			result.CurrentDir = path
-			s.updateScanProgress("", path, &result)
-			return nil
-		}
-		result.CurrentDir = filepath.Dir(path)
-		s.updateScanProgress(path, result.CurrentDir, &result)
-		if !IsSupported(path) {
-			result.Skipped++
+			if d.IsDir() {
+				if shouldSkipScanDir(rootPath, path, d.Name()) {
+					result.Skipped++
+					s.updateScanProgress("", filepath.Dir(path), &result)
+					return filepath.SkipDir
+				}
+				result.CurrentDir = path
+				s.updateScanProgress("", path, &result)
+				return nil
+			}
+			result.CurrentDir = filepath.Dir(path)
+			s.updateScanProgress(path, result.CurrentDir, &result)
+			if !IsSupported(path) {
+				result.Skipped++
+				s.updateScanProgress(path, result.CurrentDir, &result)
+				return nil
+			}
+			if abs, err := filepath.Abs(path); err == nil {
+				seen[abs] = true
+			}
+			result.Scanned++
+			added, err := s.ImportFile(ctx, path)
+			if err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", path, err))
+				s.updateScanProgress(path, result.CurrentDir, &result)
+				return nil
+			}
+			if added {
+				result.Added++
+			} else {
+				result.Updated++
+			}
 			s.updateScanProgress(path, result.CurrentDir, &result)
 			return nil
-		}
-		if abs, err := filepath.Abs(path); err == nil {
-			seen[abs] = true
-		}
-		result.Scanned++
-		added, err := s.ImportFile(ctx, path)
+		})
 		if err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", path, err))
-			s.updateScanProgress(path, result.CurrentDir, &result)
-			return nil
+			return result, err
 		}
-		if added {
-			result.Added++
-		} else {
-			result.Updated++
-		}
-		s.updateScanProgress(path, result.CurrentDir, &result)
-		return nil
-	})
-	if err != nil {
-		return result, err
 	}
-	if err := s.cleanupMissingLibraryEntries(ctx, seen); err != nil {
+	rootPaths := make([]string, 0, len(roots))
+	for _, root := range roots {
+		rootPaths = append(rootPaths, root.Path)
+	}
+	if err := s.cleanupMissingLibraryEntries(ctx, rootPaths, seen); err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("cleanup missing library entries: %v", err))
 	}
 	return result, nil
 }
 
-func (s *Service) cleanupMissingLibraryEntries(ctx context.Context, seen map[string]bool) error {
+func (s *Service) cleanupMissingLibraryEntries(ctx context.Context, roots []string, seen map[string]bool) error {
 	if s.client == nil {
 		return nil
 	}
-	libraryRoot, err := filepath.Abs(s.libraryDir)
-	if err != nil {
-		return err
+	predicates := []predicate.Song{}
+	for _, rootPath := range roots {
+		libraryRoot, err := filepath.Abs(rootPath)
+		if err != nil {
+			return err
+		}
+		predicates = append(predicates, song.Or(song.Path(libraryRoot), song.PathHasPrefix(libraryRoot+string(os.PathSeparator))))
 	}
-	prefix := libraryRoot + string(os.PathSeparator)
-	items, err := s.client.Song.Query().Where(song.PathHasPrefix(prefix)).All(ctx)
+	if len(predicates) == 0 {
+		return nil
+	}
+	items, err := s.client.Song.Query().Where(song.Or(predicates...)).All(ctx)
 	if err != nil {
 		return err
 	}
@@ -481,26 +678,27 @@ func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Fold
 	if err != nil {
 		return nil, err
 	}
-	root, err := filepath.Abs(s.libraryDir)
+	roots, err := s.effectiveLibraryRoots(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	grouped := map[string]*models.Folder{}
 	order := []string{}
 	for _, item := range items {
-		rel, ok := relativeFolderPath(root, filepath.Dir(item.Path))
+		root, rel, ok := matchingLibraryRoot(roots, filepath.Dir(item.Path))
 		if !ok {
 			continue
 		}
-		folder := grouped[rel]
+		key := rootedFolderPath(root.ID, rel)
+		folder := grouped[key]
 		if folder == nil {
 			name := filepath.Base(rel)
 			if rel == "." || rel == "" {
-				name = filepath.Base(root)
+				name = s.rootDisplayName(root)
 			}
-			folder = &models.Folder{Path: rel, Name: name, CoverSongID: item.ID}
-			grouped[rel] = folder
-			order = append(order, rel)
+			folder = &models.Folder{Path: key, Name: name, CoverSongID: item.ID}
+			grouped[key] = folder
+			order = append(order, key)
 		}
 		folder.SongCount++
 		folder.DurationSeconds += item.DurationSeconds
@@ -520,17 +718,15 @@ func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Fold
 }
 
 func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath string) (*models.FolderDirectory, error) {
-	currentPath, err := s.resolveLibraryFolder(relPath)
+	resolved, err := s.resolveLibraryFolderForUser(ctx, userID, relPath)
 	if err != nil {
 		return nil, err
 	}
-	root, err := filepath.Abs(s.libraryDir)
+	root := resolved.Root.Path
+	currentRel := displayFolderRel(resolved.Rel)
+	roots, err := s.effectiveLibraryRoots(ctx, userID)
 	if err != nil {
 		return nil, err
-	}
-	currentRel, ok := relativeFolderPath(root, currentPath)
-	if !ok {
-		return nil, fmt.Errorf("folder path escapes library")
 	}
 	items, err := s.client.Song.Query().
 		Order(ent.Asc(song.FieldPath)).
@@ -574,7 +770,7 @@ func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath strin
 		child := children[childRel]
 		if child == nil {
 			child = &models.Folder{
-				Path:        displayFolderRel(childRel),
+				Path:        rootedFolderPath(resolved.Root.ID, childRel),
 				Name:        filepath.Base(filepath.FromSlash(childRel)),
 				CoverSongID: item.ID,
 			}
@@ -583,6 +779,27 @@ func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath strin
 		}
 		child.SongCount++
 		child.DurationSeconds += item.DurationSeconds
+	}
+
+	if resolved.Root.ID == "env" && currentClean == "" {
+		for _, extraRoot := range roots {
+			if extraRoot.ID == "env" {
+				continue
+			}
+			folder := &models.Folder{Path: rootedFolderPath(extraRoot.ID, "."), Name: s.rootDisplayName(extraRoot)}
+			for _, item := range items {
+				if _, ok := relativeFolderPath(extraRoot.Path, filepath.Dir(item.Path)); !ok {
+					continue
+				}
+				folder.SongCount++
+				folder.DurationSeconds += item.DurationSeconds
+				if folder.CoverSongID == 0 {
+					folder.CoverSongID = item.ID
+				}
+			}
+			children[folder.Path] = folder
+			childOrder = append(childOrder, folder.Path)
+		}
 	}
 
 	sort.SliceStable(childOrder, func(i, j int) bool {
@@ -597,11 +814,16 @@ func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath strin
 		return nil, err
 	}
 
+	parentPath := ""
+	if currentClean != "" {
+		parentPath = rootedFolderPath(resolved.Root.ID, parentFolderRel(currentClean))
+	}
+
 	return &models.FolderDirectory{
-		Path:            displayFolderRel(currentClean),
+		Path:            rootedFolderPath(resolved.Root.ID, currentClean),
 		Name:            s.folderDisplayName(root, currentClean),
-		ParentPath:      parentFolderRel(currentClean),
-		Breadcrumbs:     s.folderBreadcrumbs(root, currentClean),
+		ParentPath:      parentPath,
+		Breadcrumbs:     s.folderBreadcrumbsForRoot(resolved.Root, currentClean),
 		Folders:         folders,
 		Songs:           directSongs,
 		SongCount:       songCount,
@@ -611,10 +833,11 @@ func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath strin
 }
 
 func (s *Service) FolderSongs(ctx context.Context, userID int, relPath string) ([]models.Song, error) {
-	folderPath, err := s.resolveLibraryFolder(relPath)
+	resolved, err := s.resolveLibraryFolderForUser(ctx, userID, relPath)
 	if err != nil {
 		return nil, err
 	}
+	folderPath := resolved.Path
 	prefix := folderPath
 	if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
 		prefix += string(os.PathSeparator)
@@ -737,6 +960,51 @@ func (s *Service) resolveLibraryFolder(relPath string) (string, error) {
 		return "", fmt.Errorf("folder path escapes library")
 	}
 	return target, nil
+}
+
+func matchingLibraryRoot(roots []libraryRoot, path string) (libraryRoot, string, bool) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return libraryRoot{}, "", false
+	}
+	var best libraryRoot
+	bestRel := ""
+	bestLen := -1
+	for _, root := range roots {
+		rel, ok := relativeFolderPath(root.Path, abs)
+		if !ok {
+			continue
+		}
+		if len(root.Path) > bestLen {
+			best = root
+			bestRel = rel
+			bestLen = len(root.Path)
+		}
+	}
+	if bestLen < 0 {
+		return libraryRoot{}, "", false
+	}
+	return best, bestRel, true
+}
+
+func (s *Service) folderBreadcrumbsForRoot(root libraryRoot, rel string) []models.FolderBreadcrumb {
+	clean := normalizeFolderRel(rel)
+	breadcrumbs := []models.FolderBreadcrumb{{
+		Path: rootedFolderPath(root.ID, "."),
+		Name: s.rootDisplayName(root),
+	}}
+	if clean == "" {
+		return breadcrumbs
+	}
+	parts := strings.Split(clean, "/")
+	for i := range parts {
+		path := strings.Join(parts[:i+1], "/")
+		breadcrumbs = append(breadcrumbs, models.FolderBreadcrumb{
+			Path: rootedFolderPath(root.ID, path),
+			Name: parts[i],
+		})
+	}
+	return breadcrumbs
 }
 
 func relativeFolderPath(root, folder string) (string, bool) {
@@ -2201,6 +2469,10 @@ func (s *Service) applyArtistUserState(ctx context.Context, userID int, items []
 		items[i].Favorite = favoriteIDs[items[i].ID]
 	}
 	return items, nil
+}
+
+func mapLibraryDirectory(item *ent.LibraryDirectory) models.LibraryDirectory {
+	return models.LibraryDirectory{ID: strconv.Itoa(item.ID), Path: item.Path, Note: item.Note, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func mapSongs(items []*ent.Song) []models.Song {

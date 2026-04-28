@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/predicate"
@@ -167,6 +168,21 @@ func (_u *UserUpdate) AddSessions(v ...*Session) *UserUpdate {
 	return _u.AddSessionIDs(ids...)
 }
 
+// AddLibraryDirectoryIDs adds the "library_directories" edge to the LibraryDirectory entity by IDs.
+func (_u *UserUpdate) AddLibraryDirectoryIDs(ids ...int) *UserUpdate {
+	_u.mutation.AddLibraryDirectoryIDs(ids...)
+	return _u
+}
+
+// AddLibraryDirectories adds the "library_directories" edges to the LibraryDirectory entity.
+func (_u *UserUpdate) AddLibraryDirectories(v ...*LibraryDirectory) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLibraryDirectoryIDs(ids...)
+}
+
 // AddPlaylistIDs adds the "playlists" edge to the Playlist entity by IDs.
 func (_u *UserUpdate) AddPlaylistIDs(ids ...int) *UserUpdate {
 	_u.mutation.AddPlaylistIDs(ids...)
@@ -266,6 +282,27 @@ func (_u *UserUpdate) RemoveSessions(v ...*Session) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSessionIDs(ids...)
+}
+
+// ClearLibraryDirectories clears all "library_directories" edges to the LibraryDirectory entity.
+func (_u *UserUpdate) ClearLibraryDirectories() *UserUpdate {
+	_u.mutation.ClearLibraryDirectories()
+	return _u
+}
+
+// RemoveLibraryDirectoryIDs removes the "library_directories" edge to LibraryDirectory entities by IDs.
+func (_u *UserUpdate) RemoveLibraryDirectoryIDs(ids ...int) *UserUpdate {
+	_u.mutation.RemoveLibraryDirectoryIDs(ids...)
+	return _u
+}
+
+// RemoveLibraryDirectories removes "library_directories" edges to LibraryDirectory entities.
+func (_u *UserUpdate) RemoveLibraryDirectories(v ...*LibraryDirectory) *UserUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLibraryDirectoryIDs(ids...)
 }
 
 // ClearPlaylists clears all "playlists" edges to the Playlist entity.
@@ -501,6 +538,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LibraryDirectoriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LibraryDirectoriesTable,
+			Columns: []string{user.LibraryDirectoriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarydirectory.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLibraryDirectoriesIDs(); len(nodes) > 0 && !_u.mutation.LibraryDirectoriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LibraryDirectoriesTable,
+			Columns: []string{user.LibraryDirectoriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarydirectory.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LibraryDirectoriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LibraryDirectoriesTable,
+			Columns: []string{user.LibraryDirectoriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarydirectory.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -886,6 +968,21 @@ func (_u *UserUpdateOne) AddSessions(v ...*Session) *UserUpdateOne {
 	return _u.AddSessionIDs(ids...)
 }
 
+// AddLibraryDirectoryIDs adds the "library_directories" edge to the LibraryDirectory entity by IDs.
+func (_u *UserUpdateOne) AddLibraryDirectoryIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.AddLibraryDirectoryIDs(ids...)
+	return _u
+}
+
+// AddLibraryDirectories adds the "library_directories" edges to the LibraryDirectory entity.
+func (_u *UserUpdateOne) AddLibraryDirectories(v ...*LibraryDirectory) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddLibraryDirectoryIDs(ids...)
+}
+
 // AddPlaylistIDs adds the "playlists" edge to the Playlist entity by IDs.
 func (_u *UserUpdateOne) AddPlaylistIDs(ids ...int) *UserUpdateOne {
 	_u.mutation.AddPlaylistIDs(ids...)
@@ -985,6 +1082,27 @@ func (_u *UserUpdateOne) RemoveSessions(v ...*Session) *UserUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveSessionIDs(ids...)
+}
+
+// ClearLibraryDirectories clears all "library_directories" edges to the LibraryDirectory entity.
+func (_u *UserUpdateOne) ClearLibraryDirectories() *UserUpdateOne {
+	_u.mutation.ClearLibraryDirectories()
+	return _u
+}
+
+// RemoveLibraryDirectoryIDs removes the "library_directories" edge to LibraryDirectory entities by IDs.
+func (_u *UserUpdateOne) RemoveLibraryDirectoryIDs(ids ...int) *UserUpdateOne {
+	_u.mutation.RemoveLibraryDirectoryIDs(ids...)
+	return _u
+}
+
+// RemoveLibraryDirectories removes "library_directories" edges to LibraryDirectory entities.
+func (_u *UserUpdateOne) RemoveLibraryDirectories(v ...*LibraryDirectory) *UserUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveLibraryDirectoryIDs(ids...)
 }
 
 // ClearPlaylists clears all "playlists" edges to the Playlist entity.
@@ -1250,6 +1368,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.LibraryDirectoriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LibraryDirectoriesTable,
+			Columns: []string{user.LibraryDirectoriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarydirectory.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedLibraryDirectoriesIDs(); len(nodes) > 0 && !_u.mutation.LibraryDirectoriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LibraryDirectoriesTable,
+			Columns: []string{user.LibraryDirectoriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarydirectory.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.LibraryDirectoriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LibraryDirectoriesTable,
+			Columns: []string{user.LibraryDirectoriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarydirectory.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

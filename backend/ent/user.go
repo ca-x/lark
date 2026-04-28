@@ -45,6 +45,8 @@ type User struct {
 type UserEdges struct {
 	// Sessions holds the value of the sessions edge.
 	Sessions []*Session `json:"sessions,omitempty"`
+	// LibraryDirectories holds the value of the library_directories edge.
+	LibraryDirectories []*LibraryDirectory `json:"library_directories,omitempty"`
 	// Playlists holds the value of the playlists edge.
 	Playlists []*Playlist `json:"playlists,omitempty"`
 	// SongFavorites holds the value of the song_favorites edge.
@@ -57,7 +59,7 @@ type UserEdges struct {
 	PlayHistory []*PlayHistory `json:"play_history,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [6]bool
+	loadedTypes [7]bool
 }
 
 // SessionsOrErr returns the Sessions value or an error if the edge
@@ -69,10 +71,19 @@ func (e UserEdges) SessionsOrErr() ([]*Session, error) {
 	return nil, &NotLoadedError{edge: "sessions"}
 }
 
+// LibraryDirectoriesOrErr returns the LibraryDirectories value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) LibraryDirectoriesOrErr() ([]*LibraryDirectory, error) {
+	if e.loadedTypes[1] {
+		return e.LibraryDirectories, nil
+	}
+	return nil, &NotLoadedError{edge: "library_directories"}
+}
+
 // PlaylistsOrErr returns the Playlists value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PlaylistsOrErr() ([]*Playlist, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		return e.Playlists, nil
 	}
 	return nil, &NotLoadedError{edge: "playlists"}
@@ -81,7 +92,7 @@ func (e UserEdges) PlaylistsOrErr() ([]*Playlist, error) {
 // SongFavoritesOrErr returns the SongFavorites value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) SongFavoritesOrErr() ([]*UserSongFavorite, error) {
-	if e.loadedTypes[2] {
+	if e.loadedTypes[3] {
 		return e.SongFavorites, nil
 	}
 	return nil, &NotLoadedError{edge: "song_favorites"}
@@ -90,7 +101,7 @@ func (e UserEdges) SongFavoritesOrErr() ([]*UserSongFavorite, error) {
 // AlbumFavoritesOrErr returns the AlbumFavorites value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) AlbumFavoritesOrErr() ([]*UserAlbumFavorite, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.AlbumFavorites, nil
 	}
 	return nil, &NotLoadedError{edge: "album_favorites"}
@@ -99,7 +110,7 @@ func (e UserEdges) AlbumFavoritesOrErr() ([]*UserAlbumFavorite, error) {
 // ArtistFavoritesOrErr returns the ArtistFavorites value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) ArtistFavoritesOrErr() ([]*UserArtistFavorite, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.ArtistFavorites, nil
 	}
 	return nil, &NotLoadedError{edge: "artist_favorites"}
@@ -108,7 +119,7 @@ func (e UserEdges) ArtistFavoritesOrErr() ([]*UserArtistFavorite, error) {
 // PlayHistoryOrErr returns the PlayHistory value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PlayHistoryOrErr() ([]*PlayHistory, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[6] {
 		return e.PlayHistory, nil
 	}
 	return nil, &NotLoadedError{edge: "play_history"}
@@ -216,6 +227,11 @@ func (_m *User) Value(name string) (ent.Value, error) {
 // QuerySessions queries the "sessions" edge of the User entity.
 func (_m *User) QuerySessions() *SessionQuery {
 	return NewUserClient(_m.config).QuerySessions(_m)
+}
+
+// QueryLibraryDirectories queries the "library_directories" edge of the User entity.
+func (_m *User) QueryLibraryDirectories() *LibraryDirectoryQuery {
+	return NewUserClient(_m.config).QueryLibraryDirectories(_m)
 }
 
 // QueryPlaylists queries the "playlists" edge of the User entity.

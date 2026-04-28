@@ -44,6 +44,18 @@ func (f ArtistFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ArtistMutation", m)
 }
 
+// The LibraryDirectoryFunc type is an adapter to allow the use of ordinary
+// function as LibraryDirectory mutator.
+type LibraryDirectoryFunc func(context.Context, *ent.LibraryDirectoryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LibraryDirectoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LibraryDirectoryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LibraryDirectoryMutation", m)
+}
+
 // The PlayHistoryFunc type is an adapter to allow the use of ordinary
 // function as PlayHistory mutator.
 type PlayHistoryFunc func(context.Context, *ent.PlayHistoryMutation) (ent.Value, error)

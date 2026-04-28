@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont, LibrarySource, NetworkSource, NetworkTrack, RadioSource, RadioStation } from '../types'
+import type { Album, Artist, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont, LibrarySource, LibraryDirectory, NetworkSource, NetworkTrack, RadioSource, RadioStation } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -50,6 +50,9 @@ export const api = {
   removeFromPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'DELETE' }),
 
   librarySources: () => request<LibrarySource[]>('/api/library/sources'),
+  libraryDirectories: () => request<LibraryDirectory[]>('/api/library/directories'),
+  addLibraryDirectory: (path: string, note: string) => request<LibraryDirectory>('/api/library/directories', { method: 'POST', body: JSON.stringify({ path, note }) }),
+  deleteLibraryDirectory: (id: string) => request<void>(`/api/library/directories/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   networkSources: () => request<NetworkSource[]>('/api/network/sources'),
   saveNetworkSource: (source: Partial<NetworkSource>) => request<NetworkSource>('/api/network/sources', { method: 'POST', body: JSON.stringify(source) }),
   deleteNetworkSource: (id: string) => request<void>(`/api/network/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),

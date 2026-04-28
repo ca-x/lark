@@ -658,6 +658,29 @@ func HasSessionsWith(preds ...predicate.Session) predicate.User {
 	})
 }
 
+// HasLibraryDirectories applies the HasEdge predicate on the "library_directories" edge.
+func HasLibraryDirectories() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, LibraryDirectoriesTable, LibraryDirectoriesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasLibraryDirectoriesWith applies the HasEdge predicate on the "library_directories" edge with a given conditions (other predicates).
+func HasLibraryDirectoriesWith(preds ...predicate.LibraryDirectory) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newLibraryDirectoriesStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasPlaylists applies the HasEdge predicate on the "playlists" edge.
 func HasPlaylists() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

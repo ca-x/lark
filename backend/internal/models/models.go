@@ -94,6 +94,15 @@ type Folder struct {
 	CoverSongID     int     `json:"cover_song_id"`
 }
 
+type LibraryDirectory struct {
+	ID        string    `json:"id"`
+	Path      string    `json:"path"`
+	Note      string    `json:"note"`
+	Builtin   bool      `json:"builtin"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type FolderBreadcrumb struct {
 	Path string `json:"path"`
 	Name string `json:"name"`

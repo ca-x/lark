@@ -61,6 +61,36 @@ var (
 		Columns:    ArtistsColumns,
 		PrimaryKey: []*schema.Column{ArtistsColumns[0]},
 	}
+	// LibraryDirectoriesColumns holds the columns for the "library_directories" table.
+	LibraryDirectoriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "path", Type: field.TypeString},
+		{Name: "note", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "user_library_directories", Type: field.TypeInt},
+	}
+	// LibraryDirectoriesTable holds the schema information for the "library_directories" table.
+	LibraryDirectoriesTable = &schema.Table{
+		Name:       "library_directories",
+		Columns:    LibraryDirectoriesColumns,
+		PrimaryKey: []*schema.Column{LibraryDirectoriesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "library_directories_users_library_directories",
+				Columns:    []*schema.Column{LibraryDirectoriesColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "librarydirectory_path_user_library_directories",
+				Unique:  true,
+				Columns: []*schema.Column{LibraryDirectoriesColumns[1], LibraryDirectoriesColumns[5]},
+			},
+		},
+	}
 	// PlayHistoriesColumns holds the columns for the "play_histories" table.
 	PlayHistoriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -364,6 +394,7 @@ var (
 		AlbumsTable,
 		AppSettingsTable,
 		ArtistsTable,
+		LibraryDirectoriesTable,
 		PlayHistoriesTable,
 		PlaylistsTable,
 		SessionsTable,
@@ -378,6 +409,7 @@ var (
 
 func init() {
 	AlbumsTable.ForeignKeys[0].RefTable = ArtistsTable
+	LibraryDirectoriesTable.ForeignKeys[0].RefTable = UsersTable
 	PlayHistoriesTable.ForeignKeys[0].RefTable = SongsTable
 	PlayHistoriesTable.ForeignKeys[1].RefTable = UsersTable
 	PlaylistsTable.ForeignKeys[0].RefTable = UsersTable

@@ -64,6 +64,7 @@ import type {
   Theme,
   User,
   WebFont,
+  LibraryDirectory,
   LibrarySource,
   NetworkSource,
   NetworkTrack,
@@ -72,6 +73,7 @@ import type {
 } from "./types";
 import { createT } from "./i18n";
 import { RadioReceiver } from "./components/RadioPlayer";
+import { LoadingStage } from "./components/LoadingStage";
 import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
 import { radioGroupName } from "./components/radio";
 import { VinylTurntable } from "./components/VinylPlayer";
@@ -582,6 +584,7 @@ export default function App() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [dailyMix, setDailyMix] = useState<Song[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [libraryDirectories, setLibraryDirectories] = useState<LibraryDirectory[]>([]);
   const [librarySources, setLibrarySources] = useState<LibrarySource[]>([]);
   const [networkSources, setNetworkSources] = useState<NetworkSource[]>([]);
   const [radioSources, setRadioSources] = useState<RadioSource[]>([]);
@@ -1295,7 +1298,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, librarySourceItems, networkSourceItems, radioSourceItems, radioStationItems] =
+    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, libraryDirectoryItems, librarySourceItems, networkSourceItems, radioSourceItems, radioStationItems] =
       await Promise.all([
         api.songs(query),
         api.albums(),
@@ -1303,6 +1306,7 @@ export default function App() {
         api.playlists(),
         api.dailyMix(24).catch(() => []),
         api.folders(0).catch(() => []),
+        api.libraryDirectories().catch(() => []),
         api.librarySources().catch(() => []),
         api.networkSources().catch(() => []),
         api.radioSources().catch(() => []),
@@ -1311,6 +1315,7 @@ export default function App() {
     setSongs(songItems);
     setDailyMix(dailyItems);
     setFolders(folderItems);
+    setLibraryDirectories(libraryDirectoryItems);
     setLibrarySources(librarySourceItems);
     setNetworkSources(networkSourceItems);
     setRadioSources(radioSourceItems);
@@ -2210,7 +2215,7 @@ export default function App() {
                 <span>{topbarHasScreenTitle ? t("brand") : t("playingFrom")}</span>
                 {topbarHasScreenTitle ? <h1>{screenTitle}</h1> : null}
               </div>
-              {view !== "radio" ? (
+              {view !== "radio" && view !== "library" ? (
                 <label className="search">
                   <MagnifyingGlass />
                   <input
@@ -2503,6 +2508,8 @@ export default function App() {
               <SettingsPanel
                 settings={settings}
                 setSettings={(s) => void saveSettings(s)}
+                libraryDirectories={libraryDirectories}
+                onLibraryDirectoriesChange={setLibraryDirectories}
                 user={auth.user}
                 resumeMode={resumeMode}
                 onResumeModeChange={(mode) => {
@@ -2951,7 +2958,7 @@ function AuthView({
           <span>{subtitle}</span>
         </div>
         {mode === "loading" ? (
-          <div className="auth-loading" aria-label={title} />
+          <LoadingStage t={createT(settings.language)} brand={zh ? "百灵" : "Lark"} />
         ) : (
           <form
             className="auth-form"
@@ -4183,7 +4190,6 @@ function LibraryView({
       </div>
       {tab === "network" ? (
         <NetworkLibrarySources
-          sources={librarySources}
           configuredSources={networkSources}
           t={t}
           onSourcesChange={onNetworkSourcesChange}
@@ -4225,19 +4231,16 @@ function LibraryView({
 }
 
 function NetworkLibrarySources({
-  sources,
   configuredSources,
   t,
   onSourcesChange,
   onPlayTrack,
 }: {
-  sources: LibrarySource[];
   configuredSources: NetworkSource[];
   t: ReturnType<typeof createT>;
   onSourcesChange: (sources: NetworkSource[]) => void;
   onPlayTrack: (track: NetworkTrack) => void;
 }) {
-  const network = sources.filter((item) => item.kind !== "local");
   const [provider, setProvider] = useState("navidrome");
   const [name, setName] = useState("");
   const [baseURL, setBaseURL] = useState("");
@@ -4309,17 +4312,6 @@ function NetworkLibrarySources({
   const providerNeedsToken = provider === "plex" || (provider === "jellyfin" && !username.trim());
   return (
     <div className="network-library-panel">
-      <div className="source-grid">
-        {network.map((source) => (
-          <article key={source.id} className="source-card">
-            <span>{t("networkLibrary")}</span>
-            <strong>{source.name}</strong>
-            <p>{source.description}</p>
-            <em>{source.status === "configured" ? t("configured") : source.status === "needs-oauth" ? t("needsOAuth") : t("available")}</em>
-          </article>
-        ))}
-      </div>
-
       <div className="network-layout">
         <aside className="network-config-panel">
           <div className="section-head compact">
@@ -4349,7 +4341,6 @@ function NetworkLibrarySources({
               <option value="navidrome">Navidrome / Subsonic</option>
               <option value="jellyfin">Jellyfin</option>
               <option value="plex">Plex</option>
-              <option value="spotify">Spotify ({t("needsOAuth")})</option>
             </select>
             <input value={name} placeholder={t("sourceName")} onChange={(event) => setName(event.target.value)} />
             <input value={baseURL} placeholder="https://music.example.com" onChange={(event) => setBaseURL(event.target.value)} />
@@ -4362,7 +4353,7 @@ function NetworkLibrarySources({
               placeholder={providerNeedsToken ? t("token") : t("password")}
               onChange={(event) => setSecret(event.target.value)}
             />
-            <button onClick={saveSource} disabled={!baseURL.trim() || provider === "spotify"}>
+            <button onClick={saveSource} disabled={!baseURL.trim()}>
               <Plus /> {t("addNetworkSource")}
             </button>
           </div>
@@ -5082,6 +5073,8 @@ function MCPHelpDialog({
 function SettingsPanel({
   settings,
   setSettings,
+  libraryDirectories,
+  onLibraryDirectoriesChange,
   user,
   resumeMode,
   onResumeModeChange,
@@ -5092,6 +5085,8 @@ function SettingsPanel({
 }: {
   settings: Settings;
   setSettings: (settings: Settings) => void;
+  libraryDirectories: LibraryDirectory[];
+  onLibraryDirectoriesChange: (directories: LibraryDirectory[]) => void;
   user: User;
   resumeMode: ResumeMode;
   onResumeModeChange: (mode: ResumeMode) => void;
@@ -5107,6 +5102,9 @@ function SettingsPanel({
   const [nickname, setNickname] = useState(user.nickname || user.username);
   const [avatarDataURL, setAvatarDataURL] = useState(user.avatar_data_url || "");
   const [webFontFamily, setWebFontFamily] = useState(settings.web_font_family || "");
+  const [libraryPathInput, setLibraryPathInput] = useState("");
+  const [libraryNoteInput, setLibraryNoteInput] = useState("");
+  const [libraryDirError, setLibraryDirError] = useState("");
   const [fonts, setFonts] = useState<WebFont[]>([]);
   const [fontsLoading, setFontsLoading] = useState(false);
   const [fontUploading, setFontUploading] = useState(false);
@@ -5215,6 +5213,33 @@ function SettingsPanel({
     setSettings(nextSettings);
     setWebFontFamily(nextSettings.web_font_family || "");
     setFonts(await api.fonts().catch(() => []));
+  }
+
+  async function refreshLibraryDirectories() {
+    onLibraryDirectoriesChange(await api.libraryDirectories().catch(() => []));
+  }
+
+  async function addLibraryDirectory() {
+    if (!libraryPathInput.trim()) return;
+    setLibraryDirError("");
+    try {
+      await api.addLibraryDirectory(libraryPathInput.trim(), libraryNoteInput.trim());
+      setLibraryPathInput("");
+      setLibraryNoteInput("");
+      await refreshLibraryDirectories();
+    } catch (err) {
+      setLibraryDirError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function deleteLibraryDirectory(id: string) {
+    setLibraryDirError("");
+    try {
+      await api.deleteLibraryDirectory(id);
+      await refreshLibraryDirectories();
+    } catch (err) {
+      setLibraryDirError(err instanceof Error ? err.message : String(err));
+    }
   }
 
   return (
@@ -5511,10 +5536,40 @@ function SettingsPanel({
               )}
             </div>
           </div>
-          <label className="settings-wide-row">
-            {t("libraryPath")}
-            <input readOnly value={settings.library_path} />
-          </label>
+          <div className="library-dir-card settings-wide-row">
+            <div className="library-dir-head">
+              <div>
+                <strong>{t("libraryDirectories")}</strong>
+                <span>{t("libraryDirectoriesHint")}</span>
+              </div>
+              <span>{libraryDirectories.length} {t("folders")}</span>
+            </div>
+            <div className="library-dir-list">
+              {libraryDirectories.map((dir) => (
+                <div key={dir.id} className={dir.builtin ? "library-dir-row builtin" : "library-dir-row"}>
+                  <div>
+                    <strong>{dir.builtin ? t("envLibraryDirectory") : (dir.note || t("customLibraryDirectory"))}</strong>
+                    <span>{dir.path}</span>
+                  </div>
+                  {dir.builtin ? <em>{t("readOnly")}</em> : <button type="button" className="danger" onClick={() => void deleteLibraryDirectory(dir.id)}>{t("remove")}</button>}
+                </div>
+              ))}
+            </div>
+            <div className="library-dir-form">
+              <label>
+                {t("customLibraryPath")}
+                <input value={libraryPathInput} placeholder="/mnt/music" onChange={(event) => setLibraryPathInput(event.target.value)} />
+              </label>
+              <label>
+                {t("libraryDirectoryNote")}
+                <input value={libraryNoteInput} placeholder={t("libraryDirectoryNotePlaceholder")} onChange={(event) => setLibraryNoteInput(event.target.value)} />
+              </label>
+              <button type="button" onClick={() => void addLibraryDirectory()} disabled={!libraryPathInput.trim()}>
+                <Plus /> {t("addLibraryDirectory")}
+              </button>
+            </div>
+            {libraryDirError ? <div className="settings-empty error">{libraryDirError}</div> : null}
+          </div>
         </div>
       )}
     </section>

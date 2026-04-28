@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/session"
@@ -149,6 +150,21 @@ func (_c *UserCreate) AddSessions(v ...*Session) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddSessionIDs(ids...)
+}
+
+// AddLibraryDirectoryIDs adds the "library_directories" edge to the LibraryDirectory entity by IDs.
+func (_c *UserCreate) AddLibraryDirectoryIDs(ids ...int) *UserCreate {
+	_c.mutation.AddLibraryDirectoryIDs(ids...)
+	return _c
+}
+
+// AddLibraryDirectories adds the "library_directories" edges to the LibraryDirectory entity.
+func (_c *UserCreate) AddLibraryDirectories(v ...*LibraryDirectory) *UserCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddLibraryDirectoryIDs(ids...)
 }
 
 // AddPlaylistIDs adds the "playlists" edge to the Playlist entity by IDs.
@@ -401,6 +417,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(session.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.LibraryDirectoriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LibraryDirectoriesTable,
+			Columns: []string{user.LibraryDirectoriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(librarydirectory.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

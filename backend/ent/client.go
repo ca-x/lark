@@ -14,6 +14,7 @@ import (
 	"lark/backend/ent/album"
 	"lark/backend/ent/appsetting"
 	"lark/backend/ent/artist"
+	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/session"
@@ -40,6 +41,8 @@ type Client struct {
 	AppSetting *AppSettingClient
 	// Artist is the client for interacting with the Artist builders.
 	Artist *ArtistClient
+	// LibraryDirectory is the client for interacting with the LibraryDirectory builders.
+	LibraryDirectory *LibraryDirectoryClient
 	// PlayHistory is the client for interacting with the PlayHistory builders.
 	PlayHistory *PlayHistoryClient
 	// Playlist is the client for interacting with the Playlist builders.
@@ -70,6 +73,7 @@ func (c *Client) init() {
 	c.Album = NewAlbumClient(c.config)
 	c.AppSetting = NewAppSettingClient(c.config)
 	c.Artist = NewArtistClient(c.config)
+	c.LibraryDirectory = NewLibraryDirectoryClient(c.config)
 	c.PlayHistory = NewPlayHistoryClient(c.config)
 	c.Playlist = NewPlaylistClient(c.config)
 	c.Session = NewSessionClient(c.config)
@@ -173,6 +177,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Album:              NewAlbumClient(cfg),
 		AppSetting:         NewAppSettingClient(cfg),
 		Artist:             NewArtistClient(cfg),
+		LibraryDirectory:   NewLibraryDirectoryClient(cfg),
 		PlayHistory:        NewPlayHistoryClient(cfg),
 		Playlist:           NewPlaylistClient(cfg),
 		Session:            NewSessionClient(cfg),
@@ -203,6 +208,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Album:              NewAlbumClient(cfg),
 		AppSetting:         NewAppSettingClient(cfg),
 		Artist:             NewArtistClient(cfg),
+		LibraryDirectory:   NewLibraryDirectoryClient(cfg),
 		PlayHistory:        NewPlayHistoryClient(cfg),
 		Playlist:           NewPlaylistClient(cfg),
 		Session:            NewSessionClient(cfg),
@@ -240,8 +246,9 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Album, c.AppSetting, c.Artist, c.PlayHistory, c.Playlist, c.Session, c.Song,
-		c.User, c.UserAlbumFavorite, c.UserArtistFavorite, c.UserSongFavorite,
+		c.Album, c.AppSetting, c.Artist, c.LibraryDirectory, c.PlayHistory, c.Playlist,
+		c.Session, c.Song, c.User, c.UserAlbumFavorite, c.UserArtistFavorite,
+		c.UserSongFavorite,
 	} {
 		n.Use(hooks...)
 	}
@@ -251,8 +258,9 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Album, c.AppSetting, c.Artist, c.PlayHistory, c.Playlist, c.Session, c.Song,
-		c.User, c.UserAlbumFavorite, c.UserArtistFavorite, c.UserSongFavorite,
+		c.Album, c.AppSetting, c.Artist, c.LibraryDirectory, c.PlayHistory, c.Playlist,
+		c.Session, c.Song, c.User, c.UserAlbumFavorite, c.UserArtistFavorite,
+		c.UserSongFavorite,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -267,6 +275,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AppSetting.mutate(ctx, m)
 	case *ArtistMutation:
 		return c.Artist.mutate(ctx, m)
+	case *LibraryDirectoryMutation:
+		return c.LibraryDirectory.mutate(ctx, m)
 	case *PlayHistoryMutation:
 		return c.PlayHistory.mutate(ctx, m)
 	case *PlaylistMutation:
@@ -780,6 +790,155 @@ func (c *ArtistClient) mutate(ctx context.Context, m *ArtistMutation) (Value, er
 		return (&ArtistDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Artist mutation op: %q", m.Op())
+	}
+}
+
+// LibraryDirectoryClient is a client for the LibraryDirectory schema.
+type LibraryDirectoryClient struct {
+	config
+}
+
+// NewLibraryDirectoryClient returns a client for the LibraryDirectory from the given config.
+func NewLibraryDirectoryClient(c config) *LibraryDirectoryClient {
+	return &LibraryDirectoryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `librarydirectory.Hooks(f(g(h())))`.
+func (c *LibraryDirectoryClient) Use(hooks ...Hook) {
+	c.hooks.LibraryDirectory = append(c.hooks.LibraryDirectory, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `librarydirectory.Intercept(f(g(h())))`.
+func (c *LibraryDirectoryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LibraryDirectory = append(c.inters.LibraryDirectory, interceptors...)
+}
+
+// Create returns a builder for creating a LibraryDirectory entity.
+func (c *LibraryDirectoryClient) Create() *LibraryDirectoryCreate {
+	mutation := newLibraryDirectoryMutation(c.config, OpCreate)
+	return &LibraryDirectoryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LibraryDirectory entities.
+func (c *LibraryDirectoryClient) CreateBulk(builders ...*LibraryDirectoryCreate) *LibraryDirectoryCreateBulk {
+	return &LibraryDirectoryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LibraryDirectoryClient) MapCreateBulk(slice any, setFunc func(*LibraryDirectoryCreate, int)) *LibraryDirectoryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LibraryDirectoryCreateBulk{err: fmt.Errorf("calling to LibraryDirectoryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LibraryDirectoryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LibraryDirectoryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LibraryDirectory.
+func (c *LibraryDirectoryClient) Update() *LibraryDirectoryUpdate {
+	mutation := newLibraryDirectoryMutation(c.config, OpUpdate)
+	return &LibraryDirectoryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LibraryDirectoryClient) UpdateOne(_m *LibraryDirectory) *LibraryDirectoryUpdateOne {
+	mutation := newLibraryDirectoryMutation(c.config, OpUpdateOne, withLibraryDirectory(_m))
+	return &LibraryDirectoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LibraryDirectoryClient) UpdateOneID(id int) *LibraryDirectoryUpdateOne {
+	mutation := newLibraryDirectoryMutation(c.config, OpUpdateOne, withLibraryDirectoryID(id))
+	return &LibraryDirectoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LibraryDirectory.
+func (c *LibraryDirectoryClient) Delete() *LibraryDirectoryDelete {
+	mutation := newLibraryDirectoryMutation(c.config, OpDelete)
+	return &LibraryDirectoryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LibraryDirectoryClient) DeleteOne(_m *LibraryDirectory) *LibraryDirectoryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LibraryDirectoryClient) DeleteOneID(id int) *LibraryDirectoryDeleteOne {
+	builder := c.Delete().Where(librarydirectory.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LibraryDirectoryDeleteOne{builder}
+}
+
+// Query returns a query builder for LibraryDirectory.
+func (c *LibraryDirectoryClient) Query() *LibraryDirectoryQuery {
+	return &LibraryDirectoryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLibraryDirectory},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LibraryDirectory entity by its id.
+func (c *LibraryDirectoryClient) Get(ctx context.Context, id int) (*LibraryDirectory, error) {
+	return c.Query().Where(librarydirectory.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LibraryDirectoryClient) GetX(ctx context.Context, id int) *LibraryDirectory {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a LibraryDirectory.
+func (c *LibraryDirectoryClient) QueryUser(_m *LibraryDirectory) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(librarydirectory.Table, librarydirectory.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, librarydirectory.UserTable, librarydirectory.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *LibraryDirectoryClient) Hooks() []Hook {
+	return c.hooks.LibraryDirectory
+}
+
+// Interceptors returns the client interceptors.
+func (c *LibraryDirectoryClient) Interceptors() []Interceptor {
+	return c.inters.LibraryDirectory
+}
+
+func (c *LibraryDirectoryClient) mutate(ctx context.Context, m *LibraryDirectoryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LibraryDirectoryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LibraryDirectoryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LibraryDirectoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LibraryDirectoryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LibraryDirectory mutation op: %q", m.Op())
 	}
 }
 
@@ -1599,6 +1758,22 @@ func (c *UserClient) QuerySessions(_m *User) *SessionQuery {
 	return query
 }
 
+// QueryLibraryDirectories queries the library_directories edge of a User.
+func (c *UserClient) QueryLibraryDirectories(_m *User) *LibraryDirectoryQuery {
+	query := (&LibraryDirectoryClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(librarydirectory.Table, librarydirectory.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.LibraryDirectoriesTable, user.LibraryDirectoriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryPlaylists queries the playlists edge of a User.
 func (c *UserClient) QueryPlaylists(_m *User) *PlaylistQuery {
 	query := (&PlaylistClient{config: c.config}).Query()
@@ -2202,11 +2377,12 @@ func (c *UserSongFavoriteClient) mutate(ctx context.Context, m *UserSongFavorite
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Album, AppSetting, Artist, PlayHistory, Playlist, Session, Song, User,
-		UserAlbumFavorite, UserArtistFavorite, UserSongFavorite []ent.Hook
+		Album, AppSetting, Artist, LibraryDirectory, PlayHistory, Playlist, Session,
+		Song, User, UserAlbumFavorite, UserArtistFavorite, UserSongFavorite []ent.Hook
 	}
 	inters struct {
-		Album, AppSetting, Artist, PlayHistory, Playlist, Session, Song, User,
-		UserAlbumFavorite, UserArtistFavorite, UserSongFavorite []ent.Interceptor
+		Album, AppSetting, Artist, LibraryDirectory, PlayHistory, Playlist, Session,
+		Song, User, UserAlbumFavorite, UserArtistFavorite,
+		UserSongFavorite []ent.Interceptor
 	}
 )

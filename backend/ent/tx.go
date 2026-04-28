@@ -18,6 +18,8 @@ type Tx struct {
 	AppSetting *AppSettingClient
 	// Artist is the client for interacting with the Artist builders.
 	Artist *ArtistClient
+	// LibraryDirectory is the client for interacting with the LibraryDirectory builders.
+	LibraryDirectory *LibraryDirectoryClient
 	// PlayHistory is the client for interacting with the PlayHistory builders.
 	PlayHistory *PlayHistoryClient
 	// Playlist is the client for interacting with the Playlist builders.
@@ -168,6 +170,7 @@ func (tx *Tx) init() {
 	tx.Album = NewAlbumClient(tx.config)
 	tx.AppSetting = NewAppSettingClient(tx.config)
 	tx.Artist = NewArtistClient(tx.config)
+	tx.LibraryDirectory = NewLibraryDirectoryClient(tx.config)
 	tx.PlayHistory = NewPlayHistoryClient(tx.config)
 	tx.Playlist = NewPlaylistClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)

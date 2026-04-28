@@ -52,7 +52,7 @@ func TestScanSkipsSharedCenterAndContinuesSiblings(t *testing.T) {
 	}
 
 	service := &Service{libraryDir: root}
-	result, err := service.Scan(context.Background())
+	result, err := service.Scan(context.Background(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

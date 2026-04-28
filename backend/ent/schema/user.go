@@ -27,6 +27,7 @@ func (User) Fields() []ent.Field {
 func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("sessions", Session.Type),
+		edge.To("library_directories", LibraryDirectory.Type),
 		edge.To("playlists", Playlist.Type),
 		edge.To("song_favorites", UserSongFavorite.Type),
 		edge.To("album_favorites", UserAlbumFavorite.Type),

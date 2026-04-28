@@ -73,6 +73,11 @@ type radioSourceRequest struct {
 	URL  string `json:"url"`
 }
 
+type libraryDirectoryRequest struct {
+	Path string `json:"path"`
+	Note string `json:"note"`
+}
+
 type networkSourceRequest struct {
 	ID       string `json:"id"`
 	Provider string `json:"provider"`
@@ -139,6 +144,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.POST("/api/library/scan", s.handleScan, admin)
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
 	e.GET("/api/library/sources", s.handleLibrarySources, auth)
+	e.GET("/api/library/directories", s.handleLibraryDirectories, auth)
+	e.POST("/api/library/directories", s.handleAddLibraryDirectory, auth)
+	e.DELETE("/api/library/directories/:id", s.handleDeleteLibraryDirectory, auth)
 	e.GET("/api/network/sources", s.handleNetworkSources, auth)
 	e.POST("/api/network/sources", s.handleUpsertNetworkSource, admin)
 	e.DELETE("/api/network/sources/:id", s.handleDeleteNetworkSource, admin)
@@ -681,7 +689,7 @@ func (s *Server) handleSelectLyrics(c *echo.Context) error {
 }
 
 func (s *Server) handleScan(c *echo.Context) error {
-	result, err := s.lib.Scan(c.Request().Context())
+	result, err := s.lib.Scan(c.Request().Context(), currentUserID(c))
 	if err != nil {
 		return mapError(err)
 	}
@@ -1011,6 +1019,37 @@ func canBrowserPlayDirect(format string) bool {
 	default:
 		return false
 	}
+}
+
+func (s *Server) handleLibraryDirectories(c *echo.Context) error {
+	items, err := s.lib.LibraryDirectories(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleAddLibraryDirectory(c *echo.Context) error {
+	var req libraryDirectoryRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	item, err := s.lib.AddLibraryDirectory(c.Request().Context(), currentUserID(c), req.Path, req.Note)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusCreated, item)
+}
+
+func (s *Server) handleDeleteLibraryDirectory(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	if err := s.lib.DeleteLibraryDirectory(c.Request().Context(), currentUserID(c), id); err != nil {
+		return mapError(err)
+	}
+	return c.NoContent(http.StatusNoContent)
 }
 
 func (s *Server) handleLibrarySources(c *echo.Context) error {

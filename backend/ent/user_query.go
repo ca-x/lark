@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/predicate"
@@ -25,16 +26,17 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx                 *QueryContext
-	order               []user.OrderOption
-	inters              []Interceptor
-	predicates          []predicate.User
-	withSessions        *SessionQuery
-	withPlaylists       *PlaylistQuery
-	withSongFavorites   *UserSongFavoriteQuery
-	withAlbumFavorites  *UserAlbumFavoriteQuery
-	withArtistFavorites *UserArtistFavoriteQuery
-	withPlayHistory     *PlayHistoryQuery
+	ctx                    *QueryContext
+	order                  []user.OrderOption
+	inters                 []Interceptor
+	predicates             []predicate.User
+	withSessions           *SessionQuery
+	withLibraryDirectories *LibraryDirectoryQuery
+	withPlaylists          *PlaylistQuery
+	withSongFavorites      *UserSongFavoriteQuery
+	withAlbumFavorites     *UserAlbumFavoriteQuery
+	withArtistFavorites    *UserArtistFavoriteQuery
+	withPlayHistory        *PlayHistoryQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -86,6 +88,28 @@ func (_q *UserQuery) QuerySessions() *SessionQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(session.Table, session.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.SessionsTable, user.SessionsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryLibraryDirectories chains the current query on the "library_directories" edge.
+func (_q *UserQuery) QueryLibraryDirectories() *LibraryDirectoryQuery {
+	query := (&LibraryDirectoryClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(librarydirectory.Table, librarydirectory.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.LibraryDirectoriesTable, user.LibraryDirectoriesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -390,17 +414,18 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:              _q.config,
-		ctx:                 _q.ctx.Clone(),
-		order:               append([]user.OrderOption{}, _q.order...),
-		inters:              append([]Interceptor{}, _q.inters...),
-		predicates:          append([]predicate.User{}, _q.predicates...),
-		withSessions:        _q.withSessions.Clone(),
-		withPlaylists:       _q.withPlaylists.Clone(),
-		withSongFavorites:   _q.withSongFavorites.Clone(),
-		withAlbumFavorites:  _q.withAlbumFavorites.Clone(),
-		withArtistFavorites: _q.withArtistFavorites.Clone(),
-		withPlayHistory:     _q.withPlayHistory.Clone(),
+		config:                 _q.config,
+		ctx:                    _q.ctx.Clone(),
+		order:                  append([]user.OrderOption{}, _q.order...),
+		inters:                 append([]Interceptor{}, _q.inters...),
+		predicates:             append([]predicate.User{}, _q.predicates...),
+		withSessions:           _q.withSessions.Clone(),
+		withLibraryDirectories: _q.withLibraryDirectories.Clone(),
+		withPlaylists:          _q.withPlaylists.Clone(),
+		withSongFavorites:      _q.withSongFavorites.Clone(),
+		withAlbumFavorites:     _q.withAlbumFavorites.Clone(),
+		withArtistFavorites:    _q.withArtistFavorites.Clone(),
+		withPlayHistory:        _q.withPlayHistory.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -415,6 +440,17 @@ func (_q *UserQuery) WithSessions(opts ...func(*SessionQuery)) *UserQuery {
 		opt(query)
 	}
 	_q.withSessions = query
+	return _q
+}
+
+// WithLibraryDirectories tells the query-builder to eager-load the nodes that are connected to
+// the "library_directories" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithLibraryDirectories(opts ...func(*LibraryDirectoryQuery)) *UserQuery {
+	query := (&LibraryDirectoryClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withLibraryDirectories = query
 	return _q
 }
 
@@ -551,8 +587,9 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [6]bool{
+		loadedTypes = [7]bool{
 			_q.withSessions != nil,
+			_q.withLibraryDirectories != nil,
 			_q.withPlaylists != nil,
 			_q.withSongFavorites != nil,
 			_q.withAlbumFavorites != nil,
@@ -582,6 +619,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadSessions(ctx, query, nodes,
 			func(n *User) { n.Edges.Sessions = []*Session{} },
 			func(n *User, e *Session) { n.Edges.Sessions = append(n.Edges.Sessions, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withLibraryDirectories; query != nil {
+		if err := _q.loadLibraryDirectories(ctx, query, nodes,
+			func(n *User) { n.Edges.LibraryDirectories = []*LibraryDirectory{} },
+			func(n *User, e *LibraryDirectory) { n.Edges.LibraryDirectories = append(n.Edges.LibraryDirectories, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -649,6 +693,37 @@ func (_q *UserQuery) loadSessions(ctx context.Context, query *SessionQuery, node
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "user_sessions" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadLibraryDirectories(ctx context.Context, query *LibraryDirectoryQuery, nodes []*User, init func(*User), assign func(*User, *LibraryDirectory)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.LibraryDirectory(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.LibraryDirectoriesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.user_library_directories
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "user_library_directories" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "user_library_directories" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

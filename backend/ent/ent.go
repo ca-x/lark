@@ -9,6 +9,7 @@ import (
 	"lark/backend/ent/album"
 	"lark/backend/ent/appsetting"
 	"lark/backend/ent/artist"
+	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/session"
@@ -86,6 +87,7 @@ func checkColumn(t, c string) error {
 			album.Table:              album.ValidColumn,
 			appsetting.Table:         appsetting.ValidColumn,
 			artist.Table:             artist.ValidColumn,
+			librarydirectory.Table:   librarydirectory.ValidColumn,
 			playhistory.Table:        playhistory.ValidColumn,
 			playlist.Table:           playlist.ValidColumn,
 			session.Table:            session.ValidColumn,

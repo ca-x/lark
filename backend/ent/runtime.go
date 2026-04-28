@@ -6,6 +6,7 @@ import (
 	"lark/backend/ent/album"
 	"lark/backend/ent/appsetting"
 	"lark/backend/ent/artist"
+	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
 	"lark/backend/ent/schema"
@@ -90,6 +91,26 @@ func init() {
 	artist.DefaultUpdatedAt = artistDescUpdatedAt.Default.(func() time.Time)
 	// artist.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	artist.UpdateDefaultUpdatedAt = artistDescUpdatedAt.UpdateDefault.(func() time.Time)
+	librarydirectoryFields := schema.LibraryDirectory{}.Fields()
+	_ = librarydirectoryFields
+	// librarydirectoryDescPath is the schema descriptor for path field.
+	librarydirectoryDescPath := librarydirectoryFields[0].Descriptor()
+	// librarydirectory.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	librarydirectory.PathValidator = librarydirectoryDescPath.Validators[0].(func(string) error)
+	// librarydirectoryDescNote is the schema descriptor for note field.
+	librarydirectoryDescNote := librarydirectoryFields[1].Descriptor()
+	// librarydirectory.DefaultNote holds the default value on creation for the note field.
+	librarydirectory.DefaultNote = librarydirectoryDescNote.Default.(string)
+	// librarydirectoryDescCreatedAt is the schema descriptor for created_at field.
+	librarydirectoryDescCreatedAt := librarydirectoryFields[2].Descriptor()
+	// librarydirectory.DefaultCreatedAt holds the default value on creation for the created_at field.
+	librarydirectory.DefaultCreatedAt = librarydirectoryDescCreatedAt.Default.(func() time.Time)
+	// librarydirectoryDescUpdatedAt is the schema descriptor for updated_at field.
+	librarydirectoryDescUpdatedAt := librarydirectoryFields[3].Descriptor()
+	// librarydirectory.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	librarydirectory.DefaultUpdatedAt = librarydirectoryDescUpdatedAt.Default.(func() time.Time)
+	// librarydirectory.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	librarydirectory.UpdateDefaultUpdatedAt = librarydirectoryDescUpdatedAt.UpdateDefault.(func() time.Time)
 	playhistoryFields := schema.PlayHistory{}.Fields()
 	_ = playhistoryFields
 	// playhistoryDescPlayedAt is the schema descriptor for played_at field.

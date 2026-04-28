@@ -137,6 +137,16 @@ export interface HealthInfo {
   metadata_backend: string;
   transcode_backend: string;
 }
+
+export interface LibraryDirectory {
+  id: string;
+  path: string;
+  note: string;
+  builtin: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LibrarySource {
   id: string;
   name: string;
