@@ -116,7 +116,7 @@ const AUTO_DOWNGRADE_STALL_MS = 1200;
 const RADIO_STATION_LIMIT = 30;
 const HOME_RECENT_LIMIT = 12;
 const LIBRARY_PAGE_SIZE = 100;
-const GRID_PAGE_SIZE = 96;
+const GRID_PAGE_SIZE = 72;
 const STARTUP_ALBUM_LIMIT = 300;
 const STARTUP_FOLDER_LIMIT = 80;
 type ThemeLabel =
@@ -4764,7 +4764,6 @@ function LibraryView({
         />
       ) : songs.length ? (
         <>
-          <PaginationControls page={songPage} itemCount={songs.length} loading={pageLoading} t={t} onPageChange={onPageChange} />
           <SongTable
             songs={songs}
             current={current}
@@ -4778,6 +4777,7 @@ function LibraryView({
             selectedIds={selected}
             onToggleSelected={toggleSelected}
           />
+          <PaginationControls page={songPage} itemCount={songs.length} loading={pageLoading} t={t} onPageChange={onPageChange} />
         </>
       ) : (
         <EmptyLibrary t={t} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
@@ -5814,6 +5814,13 @@ function SettingsPanel({
       .catch(() => setMcpToken(null));
   }, [activeTab]);
 
+  useEffect(() => {
+    document.body.dataset.mcpHelpOpen = mcpHelpOpen ? "true" : "false";
+    return () => {
+      delete document.body.dataset.mcpHelpOpen;
+    };
+  }, [mcpHelpOpen]);
+
   async function generateMcpToken() {
     if (mcpLoading) return;
     setMcpLoading(true);
@@ -6505,6 +6512,8 @@ function PaginationControls({
   onPageChange: (page: number) => void;
 }) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const userScrolledRef = useRef(false);
+  const [jumpValue, setJumpValue] = useState("");
   const total = page?.total ?? 0;
   const limit = page?.limit ?? itemCount;
   const totalPages = page ? Math.max(1, Math.ceil(total / limit)) : 1;
@@ -6515,34 +6524,72 @@ function PaginationControls({
   const canNext = Boolean(page) && currentPage < totalPages && !loading;
 
   useEffect(() => {
+    userScrolledRef.current = false;
+  }, [currentPage]);
+
+  useEffect(() => {
     const node = sentinelRef.current;
     if (!node || !canNext || !("IntersectionObserver" in window)) return;
+    const scrollRoot = node.closest(".main") as HTMLElement | null;
+    const markScrolled = () => {
+      const scrollTop = scrollRoot ? scrollRoot.scrollTop : window.scrollY;
+      if (scrollTop > 16) userScrolledRef.current = true;
+    };
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) onPageChange(currentPage + 1);
+        if (!userScrolledRef.current) return;
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        userScrolledRef.current = false;
+        onPageChange(currentPage + 1);
       },
-      { rootMargin: "520px 0px" },
+      { root: scrollRoot, threshold: 1 },
     );
+    (scrollRoot || window).addEventListener("scroll", markScrolled, { passive: true });
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => {
+      (scrollRoot || window).removeEventListener("scroll", markScrolled);
+      observer.disconnect();
+    };
   }, [canNext, currentPage, onPageChange]);
 
   if (!page || total < 10 || total <= limit) return null;
 
+  const jumpToPage = () => {
+    const nextPage = Number(jumpValue);
+    if (!Number.isInteger(nextPage)) return;
+    onPageChange(Math.min(totalPages, Math.max(1, nextPage)));
+  };
+
   return (
-    <div className="pagination-controls" ref={sentinelRef}>
-      <span>
-        {start}-{end} / {page.total}
-      </span>
+    <div className="pagination-controls">
+      <span>{start}-{end} / {page.total}</span>
       <div>
         <button disabled={!canPrevious} onClick={() => onPageChange(currentPage - 1)}>
-          {t("previous")}
+          {t("previousPage")}
         </button>
-        <strong>{currentPage} / {totalPages}</strong>
+        <strong>{t("pageStatus").replace("{current}", String(currentPage)).replace("{total}", String(totalPages))}</strong>
         <button disabled={!canNext} onClick={() => onPageChange(currentPage + 1)}>
-          {loading ? t("loading") : t("next")}
+          {loading ? t("loading") : t("nextPage")}
+        </button>
+        <label>
+          <span>{t("goToPage")}</span>
+          <input
+            inputMode="numeric"
+            min={1}
+            max={totalPages}
+            type="number"
+            value={jumpValue}
+            onChange={(event) => setJumpValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") jumpToPage();
+            }}
+          />
+        </label>
+        <button disabled={loading || !jumpValue} onClick={jumpToPage}>
+          {t("jump")}
         </button>
       </div>
+      <span className="pagination-sentinel" ref={sentinelRef} aria-hidden="true" />
     </div>
   );
 }

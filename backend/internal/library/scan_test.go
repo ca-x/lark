@@ -75,6 +75,59 @@ func TestScanRejectsConcurrentRun(t *testing.T) {
 	}
 }
 
+func TestScanPreservesSongFavoriteForExistingPath(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	albumDir := filepath.Join(root, "Artist", "Album")
+	if err := os.MkdirAll(albumDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	audioPath := filepath.Join(albumDir, "Artist - Title.mp3")
+	if err := os.WriteFile(audioPath, []byte("first scan"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:scan-favorites?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	userItem, err := client.User.Create().SetUsername("owner").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := &Service{client: client, libraryDir: root}
+	if _, err := service.Scan(ctx, userItem.ID); err != nil {
+		t.Fatal(err)
+	}
+	page, err := service.SongsPage(ctx, userItem.ID, "Title", false, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 1 {
+		t.Fatalf("expected one scanned song, got %d", len(page.Items))
+	}
+	songID := page.Items[0].ID
+	if _, err := service.ToggleSongFavorite(ctx, userItem.ID, songID); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(audioPath, []byte("second scan updates same path"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Scan(ctx, userItem.ID); err != nil {
+		t.Fatal(err)
+	}
+	favorites, err := service.SongsPage(ctx, userItem.ID, "", true, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(favorites.Items) != 1 {
+		t.Fatalf("expected favorite to survive rescan, got %d favorites", len(favorites.Items))
+	}
+	if favorites.Items[0].ID != songID {
+		t.Fatalf("expected favorite song id %d to be preserved, got %d", songID, favorites.Items[0].ID)
+	}
+	if !favorites.Items[0].Favorite {
+		t.Fatal("expected rescanned song to remain favorited")
+	}
+}
+
 func TestEnsureAlbumSeparatesSameTitleByAlbumArtist(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:album-identity?mode=memory&cache=shared&_pragma=foreign_keys(1)")
 	defer client.Close()
