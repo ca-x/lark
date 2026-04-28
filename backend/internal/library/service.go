@@ -1025,7 +1025,8 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 	if item.Edges.Artist != nil {
 		artistName = item.Edges.Artist.Name
 	}
-	lyric, matchedID, matchedSource, err := s.matchOnlineLyrics(ctx, item.Title, artistName, sourceID)
+	cleanArtist, cleanTitle := cleanLyricArtistTitle(artistName, item.Title)
+	lyric, matchedID, matchedSource, err := s.matchOnlineLyrics(ctx, cleanTitle, cleanArtist, sourceID)
 	if err != nil {
 		return models.Lyrics{}, err
 	}
@@ -1103,16 +1104,17 @@ func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCa
 			out = append(out, candidate)
 		}
 	}
+	cleanArtist, cleanTitle := cleanLyricArtistTitle(artistName, item.Title)
 	if s.netease != nil {
-		items, _ := s.netease.SearchCandidates(ctx, item.Title, artistName)
+		items, _ := s.netease.SearchCandidates(ctx, cleanTitle, cleanArtist)
 		appendCandidates(items)
 	}
 	if s.qqmusic != nil {
-		items, _ := s.qqmusic.SearchCandidates(ctx, item.Title, artistName)
+		items, _ := s.qqmusic.SearchCandidates(ctx, cleanTitle, cleanArtist)
 		appendCandidates(items)
 	}
 	for _, provider := range s.online {
-		items, err := provider.SearchSongs(ctx, item.Title, artistName)
+		items, err := provider.SearchSongs(ctx, cleanTitle, cleanArtist)
 		if err != nil {
 			continue
 		}

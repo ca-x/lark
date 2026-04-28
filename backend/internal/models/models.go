@@ -143,6 +143,35 @@ type Settings struct {
 	WebFontURL          string `json:"web_font_url"`
 }
 
+type LibrarySource struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Kind        string `json:"kind"`
+	Status      string `json:"status"`
+	Description string `json:"description"`
+}
+
+type RadioSource struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	URL       string `json:"url"`
+	SourceURL string `json:"source_url"`
+	Builtin   bool   `json:"builtin"`
+}
+
+type RadioStation struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	URL      string `json:"url"`
+	Country  string `json:"country"`
+	Tags     string `json:"tags"`
+	Codec    string `json:"codec"`
+	Bitrate  int    `json:"bitrate"`
+	Votes    int    `json:"votes"`
+	Homepage string `json:"homepage"`
+	Favicon  string `json:"favicon"`
+}
+
 type ScanStatus struct {
 	Running     bool       `json:"running"`
 	CurrentDir  string     `json:"current_dir"`

@@ -63,8 +63,13 @@ import type {
   Theme,
   User,
   WebFont,
+  LibrarySource,
+  RadioSource,
+  RadioStation,
 } from "./types";
 import { createT } from "./i18n";
+import { RadioControlBar, RadioReceiver } from "./components/RadioPlayer";
+import { VinylTurntable } from "./components/VinylPlayer";
 
 const defaultSettings: Settings = {
   language: "zh-CN",
@@ -81,6 +86,7 @@ type View =
   | "home"
   | "favorites"
   | "library"
+  | "radio"
   | "playlists"
   | "albums"
   | "artists"
@@ -93,6 +99,7 @@ type PlaybackStartMode = "resume" | "restart";
 type StreamMode = "auto" | "adaptive";
 const ADAPTIVE_STREAM_QUALITY = 128;
 const AUTO_DOWNGRADE_STALL_MS = 1200;
+const RADIO_STATION_LIMIT = 30;
 type ThemeLabel =
   | "deepSpace"
   | "amberFilm"
@@ -205,8 +212,37 @@ function randomQueueIndex(length: number, currentIndex: number) {
   return nextIndex;
 }
 
+function uniqueSongs(items: Song[]) {
+  const seen = new Set<number>();
+  return items.filter((item) => {
+    if (!item || seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
+function queueWithCurrent(base: Song[], current?: Song | null) {
+  const unique = uniqueSongs(base);
+  if (!current) return unique;
+  return unique.some((item) => item.id === current.id) ? unique : [current, ...unique];
+}
+
 function coverUrl(song?: Song | null) {
   return song ? `/api/songs/${song.id}/cover` : undefined;
+}
+function radioSourceToStation(source: RadioSource): RadioStation {
+  return {
+    id: source.id,
+    name: source.name,
+    url: source.url,
+    country: "",
+    tags: source.source_url || source.url,
+    codec: "",
+    bitrate: 0,
+    votes: 0,
+    homepage: "",
+    favicon: "",
+  };
 }
 function albumCoverUrl(album?: Album | null) {
   return album ? `/api/albums/${album.id}/cover` : undefined;
@@ -502,6 +538,12 @@ export default function App() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [dailyMix, setDailyMix] = useState<Song[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [librarySources, setLibrarySources] = useState<LibrarySource[]>([]);
+  const [radioSources, setRadioSources] = useState<RadioSource[]>([]);
+  const [radioStations, setRadioStations] = useState<RadioStation[]>([]);
+  const [radioLoading, setRadioLoading] = useState(false);
+  const [radioQuery, setRadioQuery] = useState("");
+  const [currentRadio, setCurrentRadio] = useState<RadioStation | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -557,6 +599,7 @@ export default function App() {
   const pendingAutoplayRef = useRef(false);
   const stallDowngradeTimerRef = useRef<number | null>(null);
   const currentRef = useRef<Song | null>(null);
+  const currentRadioRef = useRef<RadioStation | null>(null);
   const queueRef = useRef<Song[]>([]);
   const playModeRef = useRef<PlayMode>("sequence");
   const playingRef = useRef(false);
@@ -566,6 +609,7 @@ export default function App() {
   const playbackStartModeRef = useRef<PlaybackStartMode>("resume");
   const audioOutputSnapshotRef = useRef<AudioOutputSnapshot | null>(null);
   currentRef.current = current;
+  currentRadioRef.current = currentRadio;
   progressRef.current = progress;
   durationRef.current = duration || current?.duration_seconds || 0;
   queueRef.current = queue;
@@ -667,16 +711,27 @@ export default function App() {
   const requestAudioPlay = useCallback(() => {
     const audio = audioRef.current;
     const song = currentRef.current;
-    if (!audio || !song) return;
-    const requestedSongId = song.id;
+    const radio = currentRadioRef.current;
+    if (!audio || (!song && !radio)) return;
+    const requestedKey = song ? `song:${song.id}` : `radio:${radio?.id ?? radio?.url}`;
     pendingAutoplayRef.current = true;
     void audio.play().then(() => {
-      if (currentRef.current?.id !== requestedSongId) return;
+      const activeKey = currentRef.current
+        ? `song:${currentRef.current.id}`
+        : currentRadioRef.current
+          ? `radio:${currentRadioRef.current.id || currentRadioRef.current.url}`
+          : "";
+      if (activeKey !== requestedKey) return;
       if (!pendingAutoplayRef.current && !playingRef.current) return;
       pendingAutoplayRef.current = false;
       setPlaying(true);
     }).catch((error) => {
-      if (currentRef.current?.id !== requestedSongId) return;
+      const activeKey = currentRef.current
+        ? `song:${currentRef.current.id}`
+        : currentRadioRef.current
+          ? `radio:${currentRadioRef.current.id || currentRadioRef.current.url}`
+          : "";
+      if (activeKey !== requestedKey) return;
       const name = error instanceof DOMException ? error.name : "";
       if (name === "AbortError" || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
         pendingAutoplayRef.current = true;
@@ -690,7 +745,7 @@ export default function App() {
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !current) return;
+    if (!audio || (!current && !currentRadio)) return;
     audio.pause();
     audio.currentTime = 0;
     audio.load();
@@ -698,7 +753,7 @@ export default function App() {
       pendingAutoplayRef.current = true;
       window.requestAnimationFrame(requestAudioPlay);
     }
-  }, [current?.id, requestAudioPlay]);
+  }, [current?.id, currentRadio?.id, currentRadio?.url, requestAudioPlay]);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -707,7 +762,7 @@ export default function App() {
       pendingAutoplayRef.current = false;
       audioRef.current.pause();
     }
-  }, [playing, current?.id, requestAudioPlay]);
+  }, [playing, current?.id, currentRadio?.id, currentRadio?.url, requestAudioPlay]);
   useEffect(() => {
     const mediaDevices = navigator.mediaDevices;
     if (!mediaDevices?.enumerateDevices) return;
@@ -761,7 +816,7 @@ export default function App() {
       .catch(() => {
         audioOutputSnapshotRef.current = null;
       });
-  }, [playing, current?.id]);
+  }, [playing, current?.id, currentRadio?.id]);
   useEffect(() => {
     if (!sleepTimerMins) {
       setSleepLeft(0);
@@ -803,6 +858,13 @@ export default function App() {
             ]
           : [],
       });
+    } else if (currentRadio) {
+      setClientMediaMetadata({
+        title: currentRadio.name || t("onlineRadio"),
+        artist: currentRadio.country || t("onlineRadio"),
+        album: t("onlineRadio"),
+        artwork: [],
+      });
     } else {
       setClientMediaMetadata(null);
     }
@@ -833,18 +895,19 @@ export default function App() {
         setClientActionHandler(action as MediaSessionAction, null);
       });
     };
-  }, [current?.id, t]);
+  }, [current?.id, currentRadio?.id, currentRadio?.url, t]);
 
   useEffect(() => {
     if (!hasClientMediaSession()) return;
-    setClientPlaybackState(playing ? "playing" : current ? "paused" : "none");
+    const hasPlayable = Boolean(current || currentRadio);
+    setClientPlaybackState(playing ? "playing" : hasPlayable ? "paused" : "none");
     if (!current || !duration) return;
     setClientPositionState({
       duration,
       playbackRate: audioRef.current?.playbackRate || 1,
       position: Math.min(progress, duration),
     });
-  }, [current?.id, duration, playing, progress]);
+  }, [current?.id, currentRadio?.id, duration, playing, progress]);
 
   useEffect(() => {
     return () => {
@@ -932,6 +995,10 @@ export default function App() {
     setSongs([]);
     setDailyMix([]);
     setFolders([]);
+    setLibrarySources([]);
+    setRadioSources([]);
+    setRadioStations([]);
+    setCurrentRadio(null);
     setAlbums([]);
     setArtists([]);
     setPlaylists([]);
@@ -1035,7 +1102,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems] =
+    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, librarySourceItems, radioSourceItems, radioStationItems] =
       await Promise.all([
         api.songs(query),
         api.albums(),
@@ -1043,10 +1110,16 @@ export default function App() {
         api.playlists(),
         api.dailyMix(24).catch(() => []),
         api.folders(0).catch(() => []),
+        api.librarySources().catch(() => []),
+        api.radioSources().catch(() => []),
+        api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
       ]);
     setSongs(songItems);
     setDailyMix(dailyItems);
     setFolders(folderItems);
+    setLibrarySources(librarySourceItems);
+    setRadioSources(radioSourceItems);
+    setRadioStations(radioStationItems);
     setAlbums(albumItems);
     setArtists(artistItems);
     setPlaylists(playlistItems);
@@ -1093,8 +1166,9 @@ export default function App() {
     setBuffering(true);
     setStreamOffset(0);
     setStreamMode(defaultStreamMode(song));
+    setCurrentRadio(null);
     setCurrent(song);
-    setQueue(list.length ? list : [song]);
+    setQueue(queueWithCurrent(list.length ? list : [song], song));
     setDuration((value) => value || song.duration_seconds || 0);
     if (sameSong && audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -1111,7 +1185,62 @@ export default function App() {
     await api.markPlayed(song.id).catch(() => undefined);
   }
 
+  function playRadio(station: RadioStation) {
+    if (!station?.url) return;
+    if (current) syncPlaybackProgress(false);
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    pendingAutoplayRef.current = true;
+    setBuffering(true);
+    setCurrent(null);
+    setCurrentRadio(station);
+    setLyrics(null);
+    setLyricCandidates([]);
+    setProgress(0);
+    setDuration(0);
+    setBufferedEnd(0);
+    setStreamOffset(0);
+    setStreamMode("auto");
+    setPlaying(true);
+  }
+
+  async function loadRadioStations(search = radioQuery) {
+    setRadioLoading(true);
+    try {
+      const items = search.trim()
+        ? await api.searchRadioStations(search, RADIO_STATION_LIMIT)
+        : await api.topRadioStations(RADIO_STATION_LIMIT);
+      setRadioStations(items);
+    } catch {
+      showMessage(t("loadFailed"));
+    } finally {
+      setRadioLoading(false);
+    }
+  }
+
+  async function addRadioSource(name: string, url: string) {
+    await api.addRadioSource(name, url);
+    setRadioSources(await api.radioSources());
+    showMessage(t("done"));
+  }
+
+  async function deleteRadioSource(id: string) {
+    await api.deleteRadioSource(id);
+    setRadioSources(await api.radioSources());
+    showMessage(t("done"));
+  }
+
   function next(delta: 1 | -1, ended = false) {
+    if (currentRadioRef.current) {
+      if (ended) {
+        pendingAutoplayRef.current = false;
+        setPlaying(false);
+      }
+      return;
+    }
     const active = currentRef.current;
     const activeQueue = queueRef.current.length
       ? queueRef.current
@@ -1178,23 +1307,25 @@ export default function App() {
   }
 
   function insertNextBatch(items: Song[]) {
-    const batch = items.filter(Boolean);
-    if (!batch.length) return;
+    const requested = uniqueSongs(items.filter(Boolean));
+    if (!requested.length) return;
     if (!current) {
-      setQueue(batch);
-      void playSong(batch[0], batch);
+      setQueue(requested);
+      void playSong(requested[0], requested);
       showMessage(t("queueInserted"));
       return;
     }
+    let inserted = 0;
     setQueue((old) => {
-      const base = old.length ? old : [current];
-      const idx = Math.max(
-        0,
-        base.findIndex((song) => song.id === current.id),
-      );
+      const base = queueWithCurrent(old.length ? old : [current], current);
+      const baseIDs = new Set(base.map((song) => song.id));
+      const batch = requested.filter((song) => song.id !== current.id && !baseIDs.has(song.id));
+      inserted = batch.length;
+      if (!batch.length) return base;
+      const idx = Math.max(0, base.findIndex((song) => song.id === current.id));
       return [...base.slice(0, idx + 1), ...batch, ...base.slice(idx + 1)];
     });
-    showMessage(t("queueInserted"));
+    if (inserted || requested.length) showMessage(t("queueInserted"));
   }
 
   function seekTo(seconds: number) {
@@ -1669,6 +1800,7 @@ export default function App() {
   ] as const;
   const activeNav = (id: (typeof nav)[number]["id"]) =>
     view === id ||
+    (view === "radio" && id === "library") ||
     (view === "collection" &&
       collection?.type === "playlist" &&
       id === "playlists") ||
@@ -1723,6 +1855,7 @@ export default function App() {
   const topbarHasScreenTitle = !([
     "favorites",
     "library",
+    "radio",
     "playlists",
     "albums",
     "artists",
@@ -1735,7 +1868,11 @@ export default function App() {
   const playerStyle = coverUrl(current)
     ? ({ "--cover-url": `url(${coverUrl(current)})` } as React.CSSProperties)
     : undefined;
-  const currentStreamUrl = streamUrl(current, streamMode, streamOffset);
+  const currentStreamUrl = currentRadio?.url || streamUrl(current, streamMode, streamOffset);
+  const nowTitle = current?.title ?? currentRadio?.name ?? t("nowPlaying");
+  const nowSubtitle = currentRadio
+    ? [t("onlineRadio"), currentRadio.country, currentRadio.codec || currentRadio.tags].filter(Boolean).join(" · ")
+    : "";
   const seekStyle = {
     "--played": playedPercent,
     "--buffered": bufferedPercent,
@@ -1861,6 +1998,8 @@ export default function App() {
                 albums={albums}
                 artists={artists}
                 playlists={playlists}
+                radioSources={radioSources}
+                currentRadio={currentRadio}
                 heroSong={heroSong}
                 current={current}
                 playing={playing}
@@ -1875,6 +2014,11 @@ export default function App() {
                 onPlayPlaylist={playPlaylist}
                 onOpenPlaylist={openPlaylist}
                 onCreatePlaylist={createPlaylist}
+                onPlayRadio={(source) => playRadio(radioSourceToStation(source))}
+                onOpenRadio={() => {
+                  setView("radio");
+                  if (!radioStations.length) void loadRadioStations();
+                }}
               />
             )}
 
@@ -1903,6 +2047,8 @@ export default function App() {
               <LibraryView
                 songs={songs}
                 folders={folders}
+                librarySources={librarySources}
+                radioSources={radioSources}
                 current={current}
                 t={t}
                 onPlay={playSong}
@@ -1919,7 +2065,29 @@ export default function App() {
                 onScan={() => void scan()}
                 onUpload={upload}
                 onPlayFolder={playFolder}
+                onOpenRadio={() => {
+                  setView("radio");
+                  if (!radioStations.length) void loadRadioStations();
+                }}
+                onPlayRadio={(source) => playRadio(radioSourceToStation(source))}
                 scanStatus={scanStatus}
+              />
+            )}
+            {view === "radio" && (
+              <RadioView
+                t={t}
+                query={radioQuery}
+                setQuery={setRadioQuery}
+                sources={radioSources}
+                stations={radioStations}
+                currentRadio={currentRadio}
+                playing={playing}
+                loading={radioLoading}
+                onPlayStation={playRadio}
+                onPlaySource={(source) => playRadio(radioSourceToStation(source))}
+                onSearch={() => void loadRadioStations()}
+                onAddSource={(name, url) => void addRadioSource(name, url)}
+                onDeleteSource={(id) => void deleteRadioSource(id)}
               />
             )}
             {view === "collection" && collection && (
@@ -2118,7 +2286,23 @@ export default function App() {
         />
       ) : null}
 
-      <footer className="player" style={playerStyle}>
+      <footer className={currentRadio ? "player radio-player" : "player"} style={currentRadio ? undefined : playerStyle}>
+        {currentRadio ? (
+          <RadioControlBar
+            station={currentRadio}
+            playing={playing}
+            t={t}
+            onToggle={() => setPlaying((value) => !value)}
+            onBrowse={() => {
+              setLyricsFullScreen(false);
+              setView("radio");
+              if (!radioStations.length) void loadRadioStations();
+            }}
+            onVolume={(value) => {
+              if (audioRef.current) audioRef.current.volume = value;
+            }}
+          />
+        ) : null}
         <PlayerMood
           theme={settings.theme}
           playing={playing}
@@ -2137,7 +2321,7 @@ export default function App() {
             <MiniCover song={current} playing={playing} />
           </button>
           <div>
-            <strong>{current?.title ?? t("nowPlaying")}</strong>
+            <strong>{nowTitle}</strong>
             <span>
               {current ? (
                 <>
@@ -2165,6 +2349,8 @@ export default function App() {
                   {" · "}
                   {formatQuality(current)}
                 </>
+              ) : currentRadio ? (
+                nowSubtitle
               ) : (
                 "—"
               )}
@@ -2193,7 +2379,7 @@ export default function App() {
               <button
                 className="play"
                 aria-label={playing ? t("pause") : t("play")}
-                disabled={!current}
+                disabled={!current && !currentRadio}
                 onClick={() => setPlaying((v) => !v)}
               >
                 {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
@@ -2210,7 +2396,7 @@ export default function App() {
             max={playableDuration || 0}
             step="0.01"
             value={Math.min(progress, playableDuration || progress || 0)}
-            disabled={!playableDuration}
+            disabled={!playableDuration || Boolean(currentRadio)}
             style={seekStyle}
             onChange={(e) => {
               seekTo(Number(e.target.value));
@@ -2224,6 +2410,10 @@ export default function App() {
             ) : inlineLyrics ? (
               <>
                 <ChatText weight="fill" /> {activeLyricText}
+              </>
+            ) : currentRadio ? (
+              <>
+                <Record weight="fill" /> {t("liveRadio")}
               </>
             ) : (
               <>
@@ -2304,6 +2494,7 @@ export default function App() {
           ref={setAudioNode}
           preload="auto"
           data-song-id={current?.id ?? undefined}
+          data-radio-id={currentRadio?.id ?? undefined}
           src={currentStreamUrl}
           onLoadedMetadata={(e) => {
             updateBuffered(e.currentTarget);
@@ -2656,6 +2847,8 @@ function HomeView({
   albums,
   artists,
   playlists,
+  radioSources,
+  currentRadio,
   heroSong,
   current,
   playing,
@@ -2670,12 +2863,16 @@ function HomeView({
   onPlayPlaylist,
   onOpenPlaylist,
   onCreatePlaylist,
+  onPlayRadio,
+  onOpenRadio,
 }: {
   songs: Song[];
   dailyMix: Song[];
   albums: Album[];
   artists: Artist[];
   playlists: Playlist[];
+  radioSources: RadioSource[];
+  currentRadio: RadioStation | null;
   heroSong?: Song | null;
   current: Song | null;
   playing: boolean;
@@ -2690,12 +2887,15 @@ function HomeView({
   onPlayPlaylist: (playlist: Playlist) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
   onCreatePlaylist: () => void;
+  onPlayRadio: (source: RadioSource) => void;
+  onOpenRadio: () => void;
 }) {
   const latestSongs = songs.slice(0, 5);
   const dailySongs = dailyMix.length ? dailyMix.slice(0, 5) : songs.slice(0, 5);
   const featuredAlbums = albums.slice(0, 4);
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
+  const featuredRadio = radioSources[0];
   const heroPlaying = playing && current?.id === heroSong?.id;
   const heroAlbum = heroSong
     ? albums.find((album) => album.id === heroSong.album_id)
@@ -2703,11 +2903,13 @@ function HomeView({
   return (
     <section className="home-view">
       <section className="hero">
-        <Turntable
-          song={heroSong}
+        <VinylTurntable
+          cover={coverUrl(heroSong)}
           playing={heroPlaying}
           progress={heroPlaying ? progress : 0}
           duration={heroPlaying ? duration : heroSong?.duration_seconds || 0}
+          title={heroSong?.title}
+          artist={heroSong?.artist}
         />
         <div>
           <p>{heroPlaying ? t("nowPlaying") : t("jumpBackIn")}</p>
@@ -2749,6 +2951,16 @@ function HomeView({
           </div>
         </div>
       </section>
+
+      <RadioReceiver
+        className="radio-home-card"
+        title={currentRadio?.name || featuredRadio?.name || "cliamp"}
+        subtitle={currentRadio ? [t("onlineRadio"), currentRadio.country, currentRadio.codec || currentRadio.tags].filter(Boolean).join(" · ") : t("radioHomeHint")}
+        playing={playing && Boolean(currentRadio)}
+        t={t}
+        onPlay={() => featuredRadio && onPlayRadio(featuredRadio)}
+        onBrowse={onOpenRadio}
+      />
 
       <div className="home-dashboard">
         <section className="summary-panel">
@@ -2980,235 +3192,6 @@ function HomeView({
       ) : null}
     </section>
   );
-}
-
-function Turntable({
-  song,
-  playing,
-  progress = 0,
-  duration = 0,
-  decorative = false,
-}: {
-  song?: Song | null;
-  playing: boolean;
-  progress?: number;
-  duration?: number;
-  decorative?: boolean;
-}) {
-  return (
-    <div
-      className={decorative ? "turntable decorative" : "turntable"}
-      data-playing={playing ? "true" : "false"}
-    >
-      <VinylCanvas
-        cover={coverUrl(song)}
-        playing={playing}
-        progress={progress}
-        duration={duration || song?.duration_seconds || 0}
-      />
-      <div className="turntable-speed">33⅓ RPM</div>
-      <div className="turntable-status">{playing ? "PLAY" : "PAUSE"}</div>
-    </div>
-  );
-}
-
-function VinylCanvas({
-  cover,
-  playing,
-  progress,
-  duration,
-}: {
-  cover?: string;
-  playing: boolean;
-  progress: number;
-  duration: number;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const armRef = useRef<SVGSVGElement | null>(null);
-  const coverRef = useRef<HTMLImageElement | null>(null);
-  const stateRef = useRef({ rotation: 0, last: 0, needle: 0 });
-  const inputRef = useRef({ cover, playing, progress, duration });
-
-  useEffect(() => {
-    inputRef.current = { cover, playing, progress, duration };
-  }, [cover, playing, progress, duration]);
-
-  useEffect(() => {
-    coverRef.current = null;
-    if (!cover) return;
-    let cancelled = false;
-    const image = new Image();
-    image.decoding = "async";
-    image.onload = () => {
-      if (!cancelled) coverRef.current = image;
-    };
-    image.onerror = () => {
-      if (!cancelled) coverRef.current = null;
-    };
-    image.src = cover;
-    return () => {
-      cancelled = true;
-    };
-  }, [cover]);
-
-  useEffect(() => {
-    let frame = 0;
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const drawFrame = (timestamp: number) => {
-      const canvas = canvasRef.current;
-      const arm = armRef.current;
-      if (!canvas || !arm) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const size = 240;
-      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-      if (canvas.width !== size * dpr || canvas.height !== size * dpr) {
-        canvas.width = size * dpr;
-        canvas.height = size * dpr;
-        canvas.style.width = `${size}px`;
-        canvas.style.height = `${size}px`;
-      }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const state = stateRef.current;
-      const input = inputRef.current;
-      const dt = state.last ? Math.min(0.05, (timestamp - state.last) / 1000) : 0;
-      state.last = timestamp;
-      if (input.playing && !reduceMotion) {
-        state.rotation += dt * Math.PI * 2 * (33.333 / 60);
-      }
-      const pct = input.duration > 0 ? Math.min(1, Math.max(0, input.progress / input.duration)) : 0;
-      const targetNeedle = input.playing ? pct : 0;
-      state.needle += (targetNeedle - state.needle) * (input.playing ? 0.055 : 0.035);
-      drawVinylCanvas(ctx, state.rotation, coverRef.current);
-      drawTonearmSvg(arm, state.needle);
-      frame = window.requestAnimationFrame(drawFrame);
-    };
-    frame = window.requestAnimationFrame(drawFrame);
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
-  return (
-    <div className="vinyl-stage" aria-hidden="true">
-      <canvas ref={canvasRef} className="vinyl-canvas" width={240} height={240} />
-      <svg ref={armRef} className="tonearm-svg" width="240" height="240" viewBox="0 0 240 240" />
-    </div>
-  );
-}
-
-function drawVinylCanvas(
-  ctx: CanvasRenderingContext2D,
-  rotation: number,
-  coverImage: HTMLImageElement | null,
-) {
-  const cx = 120;
-  const cy = 120;
-  const radius = 116;
-  ctx.clearRect(0, 0, 240, 240);
-
-  const body = ctx.createRadialGradient(cx - 28, cy - 32, 14, cx, cy, radius);
-  body.addColorStop(0, "#2a2826");
-  body.addColorStop(0.34, "#101010");
-  body.addColorStop(1, "#030303");
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fillStyle = body;
-  ctx.fill();
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(rotation);
-  for (let i = 0; i < 120; i += 1) {
-    const t = i / 120;
-    const grooveR = 34 + t * (radius - 46);
-    const alpha = 0.045 + 0.07 * Math.sin(i * 0.37 + rotation * 0.7);
-    ctx.beginPath();
-    ctx.arc(0, 0, grooveR, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(244,213,156,${alpha})`;
-    ctx.lineWidth = i % 8 === 0 ? 0.75 : 0.45;
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(rotation * 0.35);
-  ctx.beginPath();
-  ctx.arc(0, 0, 34, 0, Math.PI * 2);
-  ctx.clip();
-  if (coverImage?.complete && coverImage.naturalWidth > 0) {
-    const side = Math.min(coverImage.naturalWidth, coverImage.naturalHeight);
-    const sx = (coverImage.naturalWidth - side) / 2;
-    const sy = (coverImage.naturalHeight - side) / 2;
-    ctx.drawImage(coverImage, sx, sy, side, side, -34, -34, 68, 68);
-  } else {
-    const label = ctx.createRadialGradient(-8, -9, 2, 0, 0, 34);
-    label.addColorStop(0, "#5a3a18");
-    label.addColorStop(0.58, "#2a1a06");
-    label.addColorStop(1, "#100704");
-    ctx.fillStyle = label;
-    ctx.fillRect(-34, -34, 68, 68);
-  }
-  ctx.restore();
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.beginPath();
-  ctx.arc(0, 0, 34, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(200,169,110,.82)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(0, 0, 27, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(0,0,0,.24)";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, 5.8, 0, Math.PI * 2);
-  ctx.fillStyle = "#c8a96e";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
-  ctx.fillStyle = "#1a1008";
-  ctx.fill();
-
-  const sheen = ctx.createLinearGradient(38, 28, 182, 212);
-  sheen.addColorStop(0, "rgba(255,255,255,.18)");
-  sheen.addColorStop(0.18, "rgba(255,255,255,.03)");
-  sheen.addColorStop(0.55, "rgba(255,255,255,0)");
-  sheen.addColorStop(1, "rgba(255,220,150,.08)");
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fillStyle = sheen;
-  ctx.fill();
-}
-
-function drawTonearmSvg(svg: SVGSVGElement, needleProgress: number) {
-  const rest = -28;
-  const play = 0;
-  const angle = ((rest + (play - rest) * needleProgress) * Math.PI) / 180;
-  const pivotX = 215;
-  const pivotY = 18;
-  const armLength = 188;
-  const endX = pivotX + Math.sin(angle) * armLength;
-  const endY = pivotY + Math.cos(angle) * armLength;
-  const cartX = endX + Math.sin(angle + 0.18) * 14;
-  const cartY = endY + Math.cos(angle + 0.18) * 14;
-  const tipX = cartX + Math.sin(angle - 0.15) * 12;
-  const tipY = cartY + Math.cos(angle - 0.15) * 12 - (needleProgress < 0.02 ? 4 : 0);
-  const midX = (pivotX + endX) / 2 - Math.cos(angle) * 6;
-  const midY = (pivotY + endY) / 2 + Math.sin(angle) * 6;
-  svg.innerHTML = `
-    <path d="M${pivotX} ${pivotY} Q${midX} ${midY} ${endX} ${endY}" stroke="#6f5436" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <path d="M${pivotX} ${pivotY} Q${midX} ${midY} ${endX} ${endY}" stroke="#d4b06f" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".72"/>
-    <line x1="${endX}" y1="${endY}" x2="${cartX}" y2="${cartY}" stroke="#9f7b3d" stroke-width="3" stroke-linecap="round"/>
-    <line x1="${cartX}" y1="${cartY}" x2="${tipX}" y2="${tipY}" stroke="#d8d8d8" stroke-width="1.4" stroke-linecap="round"/>
-    <circle cx="${tipX}" cy="${tipY}" r="1.8" fill="#f4f4f4"/>
-    <circle cx="${pivotX}" cy="${pivotY}" r="8" fill="#2e1e0a" stroke="#c8a96e" stroke-width="1.5"/>
-    <circle cx="${pivotX}" cy="${pivotY}" r="4" fill="#c8a96e"/>
-    <circle cx="${pivotX}" cy="${pivotY}" r="2" fill="#1a1008"/>
-  `;
 }
 
 function MiniCover({
@@ -3726,6 +3709,8 @@ function CollectionCover({ collection }: { collection: Collection }) {
 function LibraryView({
   songs,
   folders,
+  librarySources,
+  radioSources,
   current,
   t,
   onPlay,
@@ -3737,10 +3722,14 @@ function LibraryView({
   onScan,
   onUpload,
   onPlayFolder,
+  onOpenRadio,
+  onPlayRadio,
   scanStatus,
 }: {
   songs: Song[];
   folders: Folder[];
+  librarySources: LibrarySource[];
+  radioSources: RadioSource[];
   current: Song | null;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list: Song[]) => void;
@@ -3752,10 +3741,12 @@ function LibraryView({
   onScan: () => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onPlayFolder: (folder: Folder) => void;
+  onOpenRadio: () => void;
+  onPlayRadio: (source: RadioSource) => void;
   scanStatus: ScanStatus | null;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
-  const [tab, setTab] = useState<"songs" | "folders">("songs");
+  const [tab, setTab] = useState<"songs" | "folders" | "network" | "radio">("songs");
   const selectedSongs = songs.filter((song) => selected.has(song.id));
   const toggleSelected = (song: Song) => {
     setSelected((old) => {
@@ -3814,8 +3805,24 @@ function LibraryView({
         >
           {t("folderBrowser")} · {folders.length}
         </button>
+        <button
+          className={tab === "network" ? "active" : ""}
+          onClick={() => setTab("network")}
+        >
+          {t("networkLibrary")} · {librarySources.filter((item) => item.kind !== "local").length}
+        </button>
+        <button
+          className={tab === "radio" ? "active" : ""}
+          onClick={() => setTab("radio")}
+        >
+          {t("onlineRadio")} · {radioSources.length}
+        </button>
       </div>
-      {tab === "folders" ? (
+      {tab === "network" ? (
+        <NetworkLibrarySources sources={librarySources} t={t} />
+      ) : tab === "radio" ? (
+        <LibraryRadioSources sources={radioSources} t={t} onOpenRadio={onOpenRadio} onPlayRadio={onPlayRadio} />
+      ) : tab === "folders" ? (
         <FolderBrowser
           current={current}
           t={t}
@@ -3847,6 +3854,187 @@ function LibraryView({
     </section>
   );
 }
+
+function NetworkLibrarySources({
+  sources,
+  t,
+}: {
+  sources: LibrarySource[];
+  t: ReturnType<typeof createT>;
+}) {
+  const network = sources.filter((item) => item.kind !== "local");
+  return (
+    <div className="source-grid">
+      {network.map((source) => (
+        <article key={source.id} className="source-card">
+          <span>{t("networkLibrary")}</span>
+          <strong>{source.name}</strong>
+          <p>{source.description}</p>
+          <em>{t("directConnectEntry")}</em>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function LibraryRadioSources({
+  sources,
+  t,
+  onOpenRadio,
+  onPlayRadio,
+}: {
+  sources: RadioSource[];
+  t: ReturnType<typeof createT>;
+  onOpenRadio: () => void;
+  onPlayRadio: (source: RadioSource) => void;
+}) {
+  return (
+    <div className="source-grid">
+      {sources.map((source) => (
+        <article key={source.id} className="source-card radio-source-card">
+          <span>{source.builtin ? t("defaultSource") : t("customSource")}</span>
+          <strong>{source.name}</strong>
+          <p>{source.source_url || source.url}</p>
+          <div>
+            <button className="primary" onClick={() => onPlayRadio(source)}>
+              <Play weight="fill" /> {t("playRadio")}
+            </button>
+            <button onClick={onOpenRadio}>{t("browseRadio")}</button>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function RadioView({
+  t,
+  query,
+  setQuery,
+  sources,
+  stations,
+  currentRadio,
+  playing,
+  loading,
+  onPlayStation,
+  onPlaySource,
+  onSearch,
+  onAddSource,
+  onDeleteSource,
+}: {
+  t: ReturnType<typeof createT>;
+  query: string;
+  setQuery: (value: string) => void;
+  sources: RadioSource[];
+  stations: RadioStation[];
+  currentRadio: RadioStation | null;
+  playing: boolean;
+  loading: boolean;
+  onPlayStation: (station: RadioStation) => void;
+  onPlaySource: (source: RadioSource) => void;
+  onSearch: () => void;
+  onAddSource: (name: string, url: string) => void;
+  onDeleteSource: (id: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [url, setURL] = useState("");
+  const submitSource = () => {
+    if (!name.trim() || !url.trim()) return;
+    onAddSource(name, url);
+    setName("");
+    setURL("");
+  };
+  return (
+    <section className="radio-view">
+      <div className="section-head library-actions">
+        <div>
+          <h2>{t("onlineRadio")}</h2>
+          <p className="section-subtitle">{t("radioPageHint")}</p>
+        </div>
+        <label className="search radio-search">
+          <MagnifyingGlass />
+          <input
+            value={query}
+            placeholder={t("searchRadio")}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") onSearch();
+            }}
+          />
+        </label>
+      </div>
+
+      <div className="radio-layout">
+        <aside className="radio-sources-panel">
+          <div className="section-head compact">
+            <h3>{t("radioSources")}</h3>
+          </div>
+          <div className="radio-source-list">
+            {sources.map((source) => (
+              <article key={source.id} className="radio-source-row">
+                <button onClick={() => onPlaySource(source)}>
+                  <Play weight="fill" />
+                  <span>
+                    <strong>{source.name}</strong>
+                    <small>{source.source_url || source.url}</small>
+                  </span>
+                </button>
+                {!source.builtin ? (
+                  <button className="icon-danger" aria-label={t("deleteSource")} onClick={() => onDeleteSource(source.id)}>
+                    <X />
+                  </button>
+                ) : null}
+              </article>
+            ))}
+          </div>
+          <div className="radio-source-form">
+            <strong>{t("addRadioSource")}</strong>
+            <input value={name} placeholder={t("sourceName")} onChange={(event) => setName(event.target.value)} />
+            <input value={url} placeholder="https://…/stream.pls" onChange={(event) => setURL(event.target.value)} />
+            <button onClick={submitSource} disabled={!name.trim() || !url.trim()}>
+              <Plus /> {t("addRadioSource")}
+            </button>
+          </div>
+        </aside>
+
+        <section className="radio-browser-panel">
+          <div className="section-head compact">
+            <div>
+              <h3>{t("radioBrowser")}</h3>
+              <p className="section-subtitle">{t("radioBrowserHint")}</p>
+            </div>
+            <button onClick={onSearch} disabled={loading}>
+              <MagnifyingGlass /> {loading ? t("loading") : t("search")}
+            </button>
+          </div>
+          <div className="radio-station-list" aria-busy={loading}>
+            {stations.map((station) => {
+              const active = currentRadio?.url === station.url;
+              return (
+                <article key={`${station.id}-${station.url}`} className={active ? "radio-station active" : "radio-station"}>
+                  <button className="station-play" onClick={() => onPlayStation(station)}>
+                    {active && playing ? <Pause weight="fill" /> : <Play weight="fill" />}
+                  </button>
+                  <div>
+                    <strong>{station.name}</strong>
+                    <small>
+                      {[station.country, station.codec, station.bitrate ? `${station.bitrate}kbps` : "", station.tags]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </small>
+                  </div>
+                  <span>{station.votes ? `${station.votes} ${t("votes")}` : t("liveRadio")}</span>
+                </article>
+              );
+            })}
+            {!stations.length && !loading ? <div className="empty">{t("emptyCollection")}</div> : null}
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
 
 function FolderBrowser({
   current,
@@ -4110,7 +4298,7 @@ function FullLyrics({
   };
   return (
     <section className="full-lyrics" style={backgroundStyle}>
-      <Turntable song={song} playing={false} decorative />
+      <VinylTurntable cover={coverUrl(song)} playing={false} title={song?.title} artist={song?.artist} decorative />
       <div className="full-lyrics-head">
         <button
           className="full-lyrics-cover-button"

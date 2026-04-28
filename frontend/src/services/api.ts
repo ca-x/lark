@@ -1,4 +1,4 @@
-import type { Album, Artist, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont } from '../types'
+import type { Album, Artist, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, ScanResult, ScanStatus, Settings, Song, User, MCPTokenStatus, WebFont, LibrarySource, RadioSource, RadioStation } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: 'include', headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }, ...init })
@@ -48,6 +48,13 @@ export const api = {
   playlistSongs: (id: number) => request<Song[]>(`/api/playlists/${id}/songs`),
   addToPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'POST' }),
   removeFromPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'DELETE' }),
+
+  librarySources: () => request<LibrarySource[]>('/api/library/sources'),
+  radioSources: () => request<RadioSource[]>('/api/radio/sources'),
+  addRadioSource: (name: string, url: string) => request<RadioSource>('/api/radio/sources', { method: 'POST', body: JSON.stringify({ name, url }) }),
+  deleteRadioSource: (id: string) => request<void>(`/api/radio/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  topRadioStations: (limit = 30, offset = 0) => request<RadioStation[]>(`/api/radio/top?limit=${limit}&offset=${offset}`),
+  searchRadioStations: (q: string, limit = 30) => request<RadioStation[]>(`/api/radio/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   settings: () => request<Settings>('/api/settings'),
   fonts: () => request<WebFont[]>('/api/fonts'),
   uploadFont: async (file: File) => {

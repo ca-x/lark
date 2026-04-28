@@ -67,6 +67,11 @@ type lyricSelectRequest struct {
 	ID     string `json:"id"`
 }
 
+type radioSourceRequest struct {
+	Name string `json:"name"`
+	URL  string `json:"url"`
+}
+
 type settingsRequest struct {
 	Language            string `json:"language"`
 	Theme               string `json:"theme"`
@@ -122,6 +127,12 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 
 	e.POST("/api/library/scan", s.handleScan, admin)
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
+	e.GET("/api/library/sources", s.handleLibrarySources, auth)
+	e.GET("/api/radio/sources", s.handleRadioSources, auth)
+	e.POST("/api/radio/sources", s.handleAddRadioSource, admin)
+	e.DELETE("/api/radio/sources/:id", s.handleDeleteRadioSource, admin)
+	e.GET("/api/radio/top", s.handleTopRadioStations, auth)
+	e.GET("/api/radio/search", s.handleSearchRadioStations, auth)
 	e.POST("/api/library/upload", s.handleUpload, admin)
 	e.GET("/api/folders", s.handleFolders, auth)
 	e.GET("/api/folders/tree", s.handleFolderDirectory, auth)
@@ -981,4 +992,54 @@ func canBrowserPlayDirect(format string) bool {
 	default:
 		return false
 	}
+}
+
+func (s *Server) handleLibrarySources(c *echo.Context) error {
+	return c.JSON(http.StatusOK, s.lib.LibrarySources(c.Request().Context()))
+}
+
+func (s *Server) handleRadioSources(c *echo.Context) error {
+	items, err := s.lib.RadioSources(c.Request().Context())
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleAddRadioSource(c *echo.Context) error {
+	var req radioSourceRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	item, err := s.lib.AddRadioSource(c.Request().Context(), req.Name, req.URL)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusCreated, item)
+}
+
+func (s *Server) handleDeleteRadioSource(c *echo.Context) error {
+	if err := s.lib.DeleteRadioSource(c.Request().Context(), c.Param("id")); err != nil {
+		return mapError(err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) handleTopRadioStations(c *echo.Context) error {
+	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	items, err := s.lib.TopRadioStations(c.Request().Context(), offset, limit)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleSearchRadioStations(c *echo.Context) error {
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	items, err := s.lib.SearchRadioStations(c.Request().Context(), c.QueryParam("q"), limit)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
 }

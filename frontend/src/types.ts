@@ -137,6 +137,35 @@ export interface HealthInfo {
   metadata_backend: string;
   transcode_backend: string;
 }
+export interface LibrarySource {
+  id: string;
+  name: string;
+  kind: "local" | "network" | string;
+  status: string;
+  description: string;
+}
+
+export interface RadioSource {
+  id: string;
+  name: string;
+  url: string;
+  source_url: string;
+  builtin: boolean;
+}
+
+export interface RadioStation {
+  id: string;
+  name: string;
+  url: string;
+  country: string;
+  tags: string;
+  codec: string;
+  bitrate: number;
+  votes: number;
+  homepage: string;
+  favicon: string;
+}
+
 export interface WebFont {
   name: string;
   family: string;

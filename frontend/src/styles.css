@@ -1207,3 +1207,215 @@ body, button, input, select { font-family: var(--app-font); }
 @media (max-width: 720px) {
   .collection-title-row { gap: 8px; }
 }
+
+/* v0.3.8 library sources and online radio */
+.radio-home-card { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:16px 18px; border:1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); border-radius:24px; background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--panel)), color-mix(in srgb, var(--panel2) 80%, transparent)); box-shadow:0 18px 50px color-mix(in srgb, #000 14%, transparent); }
+.radio-home-card > div:first-child { display:grid; gap:3px; min-width:0; }
+.radio-home-card span, .radio-home-card small { color:var(--muted); font-size:12px; }
+.radio-home-card strong { font-size:22px; color:var(--text); }
+.radio-home-card > div:last-child { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.source-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+.source-card { display:grid; gap:10px; align-content:start; min-height:150px; padding:16px; border:1px solid var(--line); border-radius:22px; background:color-mix(in srgb, var(--panel2) 78%, transparent); }
+.source-card span, .source-card em { color:var(--muted); font-size:12px; font-style:normal; }
+.source-card strong { font-size:20px; color:var(--text); }
+.source-card p { margin:0; color:var(--muted); line-height:1.45; overflow-wrap:anywhere; }
+.source-card div { display:flex; gap:8px; flex-wrap:wrap; margin-top:auto; }
+.radio-view { display:grid; gap:16px; }
+.radio-search { width:min(420px, 100%); }
+.radio-layout { display:grid; grid-template-columns:minmax(260px, 330px) minmax(0,1fr); gap:16px; align-items:start; }
+.radio-sources-panel, .radio-browser-panel { border:1px solid var(--line); border-radius:26px; background:color-mix(in srgb, var(--panel) 82%, transparent); padding:16px; min-width:0; }
+.radio-source-list, .radio-station-list { display:grid; gap:8px; }
+.radio-source-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; }
+.radio-source-row > button:first-child { min-width:0; display:grid; grid-template-columns:24px minmax(0,1fr); gap:8px; align-items:center; text-align:left; padding:10px; border-radius:16px; background:var(--panel2); }
+.radio-source-row strong, .radio-source-row small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.radio-source-row small { color:var(--muted); }
+.icon-danger { color:var(--danger); border-color:color-mix(in srgb, var(--danger) 30%, var(--line)); }
+.radio-source-form { display:grid; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+.radio-source-form input { width:100%; border:1px solid var(--line); border-radius:14px; background:var(--panel2); color:var(--text); padding:10px 12px; }
+.radio-station { display:grid; grid-template-columns:44px minmax(0,1fr) auto; gap:12px; align-items:center; padding:10px; border:1px solid transparent; border-radius:18px; background:color-mix(in srgb, var(--panel2) 72%, transparent); }
+.radio-station.active { border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); background:color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
+.station-play { width:44px; height:44px; border-radius:50%; background:var(--accent); color:var(--bg); display:grid; place-items:center; }
+.radio-station strong, .radio-station small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.radio-station small, .radio-station > span { color:var(--muted); font-size:12px; }
+
+@media (max-width: 860px) {
+  .radio-home-card { align-items:stretch; flex-direction:column; border-radius:20px; padding:14px; }
+  .radio-home-card > div:last-child { justify-content:stretch; }
+  .radio-home-card button { flex:1; }
+  .radio-layout { grid-template-columns:1fr; gap:10px; }
+  .radio-sources-panel, .radio-browser-panel { border-radius:20px; padding:12px; }
+  .radio-station { grid-template-columns:40px minmax(0,1fr); }
+  .radio-station > span { grid-column:2; }
+}
+
+/* Distinct radio playback surface */
+.radio-receiver { --radio-body:#8B6914; --radio-dark:#5C4209; --radio-light:#C8960A; --radio-cream:#F5E6C0; --radio-dial:#1A1008; --radio-led:#ff6600; position:relative; isolation:isolate; border:2px solid #3d2500; border-radius:24px 24px 18px 18px; padding:14px 16px 16px; color:#f5d487; background:linear-gradient(160deg,#c8960a 0%,#8b6914 36%,#5c4209 100%); box-shadow:inset 0 2px 0 rgba(255,200,80,.3), inset 0 -3px 0 rgba(0,0,0,.48), 4px 8px 0 #3d2500, 8px 16px 0 rgba(0,0,0,.2); overflow:visible; }
+.radio-receiver::after { content:'SONORA'; position:absolute; right:18px; bottom:8px; font-family:Georgia,serif; font-style:italic; letter-spacing:.18em; color:#d1982b; font-size:12px; text-shadow:0 1px 0 rgba(0,0,0,.45); }
+.radio-antenna { position:absolute; top:-42px; right:34px; width:4px; height:50px; border:1px solid #2d1800; border-radius:4px 4px 0 0; background:linear-gradient(180deg,#c8960a,#5c4209); transform:rotate(8deg); transform-origin:bottom center; }
+.radio-top-stripe { height:5px; margin-bottom:12px; border-radius:4px; opacity:.62; background:repeating-linear-gradient(90deg,#f5c842 0 8px,#8b6914 8px 14px); }
+.radio-face { display:grid; grid-template-columns:150px minmax(0,1fr); gap:14px; align-items:stretch; }
+.radio-speaker { display:grid; grid-template-columns:repeat(8,1fr); gap:5px; min-height:132px; padding:10px; border:3px solid #2d1a05; border-radius:12px; background:#1a0e03; box-shadow:inset 0 2px 4px rgba(0,0,0,.82), inset 0 -1px 0 rgba(255,160,30,.14); }
+.radio-speaker i { aspect-ratio:1; border-radius:50%; background:#3a2208; border:1px solid #0d0800; }
+.radio-receiver[data-playing='true'] .radio-speaker i { animation:radio-dot 720ms ease-in-out infinite; animation-delay:calc(var(--i) * -34ms); }
+.radio-panel { display:grid; gap:10px; min-width:0; }
+.radio-display { position:relative; display:grid; gap:6px; padding:10px 14px; border:2px solid #3a2208; border-radius:10px; background:#110a00; box-shadow:inset 0 2px 6px rgba(0,0,0,.9), inset 0 0 20px rgba(255,100,0,.05); overflow:hidden; }
+.radio-scan { position:absolute; inset:0; pointer-events:none; opacity:.8; background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,100,0,.045) 3px,rgba(255,100,0,.045) 4px); animation:radio-scan 3s ease-in-out infinite; }
+.radio-band-row { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; font:800 11px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.18em; color:#cc6600; }
+.radio-signal { display:flex; align-items:flex-end; gap:3px; height:15px; }
+.radio-signal i { width:4px; min-height:4px; border-radius:1px; background:#3a1a00; }
+.radio-receiver[data-playing='true'] .radio-signal i { background:#ff6600; animation:radio-signal 780ms ease-in-out infinite alternate; }
+.radio-signal i:nth-child(2) { animation-delay:-120ms; height:7px; } .radio-signal i:nth-child(3) { animation-delay:-240ms; height:12px; } .radio-signal i:nth-child(4) { animation-delay:-360ms; height:8px; } .radio-signal i:nth-child(5) { animation-delay:-480ms; height:5px; }
+.radio-display strong { position:relative; z-index:1; text-align:center; font:900 28px/1 'Courier New',monospace; color:#ff7700; letter-spacing:.12em; text-shadow:0 0 8px rgba(255,110,0,.42); }
+.radio-display small { position:relative; z-index:1; display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; font:700 11px ui-monospace,SFMono-Regular,Menlo,monospace; color:#cc5500; letter-spacing:.08em; }
+.radio-scale { position:relative; height:4px; margin-top:3px; border-radius:3px; background:#2a1500; }
+.radio-scale i { position:absolute; left:var(--needle); top:-6px; width:2px; height:16px; border-radius:2px; background:#ff6600; box-shadow:0 0 5px rgba(255,100,0,.7); transition:left .4s cubic-bezier(.34,1.56,.64,1); }
+.radio-numbers { display:flex; justify-content:space-between; color:#79500d; font:700 9px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.radio-actions { display:grid; grid-template-columns:48px minmax(0,1fr) auto; gap:10px; align-items:center; }
+.radio-power { width:44px; height:44px; display:grid; place-items:center; border-radius:50%; background:linear-gradient(180deg,#4a2a08,#1e1006); color:#884400; border:2px solid #0a0600; box-shadow:2px 3px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,120,0,.15); }
+.radio-power.on { color:#ff6600; text-shadow:0 0 8px rgba(255,100,0,.65); }
+.radio-actions span, .radio-actions small { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.radio-actions span { color:#ff8800; font-weight:900; font-size:12px; letter-spacing:.1em; text-transform:uppercase; }
+.radio-actions small { color:#d1982b; font-size:12px; }
+.radio-actions > button:last-child { color:#e8a830; background:linear-gradient(180deg,#7a5010,#3d2508); border:1px solid #1a0c00; }
+.radio-player { grid-template-columns:1fr; padding:10px 14px; min-height:var(--player-h); background:linear-gradient(135deg,rgba(82,48,6,.95),rgba(22,12,3,.96)); border-color:#3d2500; }
+.radio-player > .player-mood, .radio-player > .now, .radio-player > .transport, .radio-player > .volume { display:none; }
+.radio-controlbar { grid-column:1 / -1; display:grid; grid-template-columns:minmax(360px, 560px) minmax(260px, 1fr); gap:16px; align-items:center; min-width:0; }
+.radio-controlbar .radio-receiver { box-shadow:inset 0 2px 0 rgba(255,200,80,.24), inset 0 -3px 0 rgba(0,0,0,.45); transform:scale(.82); transform-origin:left center; margin:-18px 0; }
+.radio-console { min-width:0; display:grid; gap:12px; }
+.radio-console-head { display:grid; gap:3px; min-width:0; }
+.radio-console-head span { color:#ff8800; font-size:11px; font-weight:900; letter-spacing:.18em; text-transform:uppercase; }
+.radio-console-head strong { color:#f5d487; font-size:22px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.radio-console-head small { color:#c98d28; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.radio-console-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.radio-console-actions label { flex:1 1 180px; display:flex; align-items:center; gap:8px; min-width:160px; color:#ff8800; }
+.radio-console-actions input[type=range] { width:100%; accent-color:#ff8800; }
+@keyframes radio-dot { 0%,100%{background:#3a2208;} 50%{background:#7a3d10;} }
+@keyframes radio-signal { from{height:4px; opacity:.55;} to{height:15px; opacity:1;} }
+@keyframes radio-scan { 0%,100%{opacity:.35;} 50%{opacity:.8;} }
+
+@media (max-width: 920px) {
+  .radio-face { grid-template-columns:118px minmax(0,1fr); }
+  .radio-speaker { min-height:116px; gap:4px; }
+  .radio-controlbar { grid-template-columns:1fr; gap:8px; }
+  .radio-controlbar .radio-receiver { transform:none; margin:0; }
+}
+@media (max-width: 640px) {
+  .radio-receiver { padding:12px; border-radius:20px; box-shadow:inset 0 2px 0 rgba(255,200,80,.24), inset 0 -3px 0 rgba(0,0,0,.42), 2px 4px 0 #3d2500; }
+  .radio-antenna { display:none; }
+  .radio-face { grid-template-columns:1fr; }
+  .radio-speaker { min-height:60px; grid-template-columns:repeat(16,1fr); }
+  .radio-actions { grid-template-columns:44px minmax(0,1fr); }
+  .radio-actions > button:last-child { grid-column:1 / -1; width:100%; }
+  .radio-player { --player-h:238px; }
+  .radio-console-head strong { font-size:18px; }
+}
+
+/* Radio components inherit the active music theme instead of a fixed palette. */
+.radio-receiver {
+  --radio-body: color-mix(in srgb, var(--accent) 42%, #8b6914);
+  --radio-dark: color-mix(in srgb, var(--bg) 72%, #5c4209);
+  --radio-light: color-mix(in srgb, var(--accent) 68%, #c8960a);
+  --radio-cream: color-mix(in srgb, var(--text) 78%, #f5e6c0);
+  --radio-screen: color-mix(in srgb, var(--bg) 88%, #110a00);
+  --radio-screen-soft: color-mix(in srgb, var(--panel2) 60%, #2a1500);
+  --radio-led: color-mix(in srgb, var(--accent) 82%, #ff6600);
+  --radio-led-dim: color-mix(in srgb, var(--accent) 22%, #3a1a00);
+  --radio-border: color-mix(in srgb, var(--accent) 24%, #3d2500);
+  --radio-speaker: color-mix(in srgb, var(--bg) 78%, #1a0e03);
+  --radio-speaker-dot: color-mix(in srgb, var(--accent) 18%, #3a2208);
+  --radio-speaker-pulse: color-mix(in srgb, var(--accent) 48%, #7a3d10);
+  --radio-button: color-mix(in srgb, var(--accent) 44%, #7a5010);
+  --radio-button-dark: color-mix(in srgb, var(--bg) 65%, #3d2508);
+  display:block;
+  border-color:var(--radio-border);
+  color:var(--radio-cream);
+  background:linear-gradient(160deg,var(--radio-light) 0%, var(--radio-body) 38%, var(--radio-dark) 100%);
+  box-shadow:inset 0 2px 0 color-mix(in srgb, var(--radio-cream) 22%, transparent), inset 0 -3px 0 rgba(0,0,0,.44), 4px 8px 0 var(--radio-border), 8px 16px 0 rgba(0,0,0,.18);
+}
+.radio-receiver.radio-home-card { display:block; }
+.radio-receiver::after { color:color-mix(in srgb, var(--radio-cream) 62%, var(--radio-light)); }
+.radio-antenna { background:linear-gradient(180deg,var(--radio-light),var(--radio-dark)); border-color:var(--radio-border); }
+.radio-top-stripe { background:repeating-linear-gradient(90deg,var(--radio-cream) 0 8px,var(--radio-body) 8px 14px); }
+.radio-speaker { background:var(--radio-speaker); border-color:var(--radio-border); }
+.radio-speaker i { background:var(--radio-speaker-dot); border-color:color-mix(in srgb, var(--bg) 80%, #0d0800); }
+.radio-display { background:var(--radio-screen); border-color:var(--radio-border); }
+.radio-band-row, .radio-actions span, .radio-console-head span { color:var(--radio-led); }
+.radio-signal i { background:var(--radio-led-dim); }
+.radio-receiver[data-playing='true'] .radio-signal i { background:var(--radio-led); }
+.radio-display strong { color:var(--radio-led); text-shadow:0 0 8px color-mix(in srgb, var(--radio-led) 45%, transparent); }
+.radio-display small, .radio-actions small, .radio-console-head small { color:color-mix(in srgb, var(--radio-cream) 58%, var(--radio-led)); }
+.radio-scale { background:var(--radio-screen-soft); }
+.radio-scale i { background:var(--radio-led); box-shadow:0 0 6px color-mix(in srgb, var(--radio-led) 72%, transparent); }
+.radio-numbers { color:color-mix(in srgb, var(--radio-cream) 38%, var(--radio-dark)); }
+.radio-power { background:linear-gradient(180deg,var(--radio-button),var(--radio-button-dark)); color:var(--radio-led-dim); border-color:color-mix(in srgb, var(--bg) 82%, #0a0600); }
+.radio-power.on { color:var(--radio-led); text-shadow:0 0 8px color-mix(in srgb, var(--radio-led) 70%, transparent); }
+.radio-actions > button:last-child, .radio-console-actions button:not(.primary) { color:var(--radio-cream); background:linear-gradient(180deg,var(--radio-button),var(--radio-button-dark)); border-color:var(--radio-border); }
+.radio-player { background:linear-gradient(135deg,color-mix(in srgb, var(--radio-dark, var(--bg)) 88%, transparent), color-mix(in srgb, var(--bg) 94%, var(--accent))); border-color:var(--radio-border, var(--line)); }
+.radio-console-head strong { color:var(--radio-cream, var(--text)); }
+@keyframes radio-dot { 0%,100%{background:var(--radio-speaker-dot);} 50%{background:var(--radio-speaker-pulse);} }
+
+/* Theme-aware vinyl component extracted from the former turntable visual. */
+.vinyl-component {
+  --vinyl-plinth: color-mix(in srgb, var(--accent) 42%, #8b6914);
+  --vinyl-plinth-hi: color-mix(in srgb, var(--accent) 62%, #b8860b);
+  --vinyl-plinth-dark: color-mix(in srgb, var(--bg) 74%, #3d2800);
+  --vinyl-border: color-mix(in srgb, var(--bg) 82%, #2a1800);
+  --vinyl-screen: color-mix(in srgb, var(--bg) 88%, #0d0800);
+  --vinyl-led: color-mix(in srgb, var(--accent) 84%, #ff8800);
+  --vinyl-muted: color-mix(in srgb, var(--text) 45%, #cc8820);
+  --vinyl-knob-base: color-mix(in srgb, var(--bg) 72%, #2d1800);
+  --vinyl-knob-top: color-mix(in srgb, var(--accent) 48%, #8a5c1a);
+  --vinyl-arm: color-mix(in srgb, var(--bg) 70%, #2a1600);
+  --vinyl-arm-hi: color-mix(in srgb, var(--accent) 36%, #4a2a08);
+  width:min(560px, 100%); height:auto; aspect-ratio:auto; border-radius:18px; background:transparent; overflow:visible;
+}
+.vinyl-component .vinyl-plinth { position:relative; padding:22px 26px 26px; border:3px solid var(--vinyl-border); border-radius:18px; background:linear-gradient(175deg,var(--vinyl-plinth-hi) 0%, var(--vinyl-plinth) 33%, var(--vinyl-plinth-dark) 100%); box-shadow:inset 0 2px 0 color-mix(in srgb, var(--text) 18%, transparent), inset 0 -3px 0 rgba(0,0,0,.58), 5px 10px 0 var(--vinyl-border), 9px 18px 0 rgba(0,0,0,.18); }
+.vinyl-component .vinyl-plinth::before { content:''; position:absolute; inset:0; border-radius:16px; background:repeating-linear-gradient(92deg,transparent,transparent 18px,rgba(0,0,0,.06) 18px,rgba(0,0,0,.06) 19px); pointer-events:none; }
+.vinyl-top-row { position:relative; display:flex; gap:20px; align-items:flex-start; }
+.vinyl-platter-wrap { position:relative; width:280px; height:280px; flex-shrink:0; }
+.vinyl-mat { position:absolute; inset:0; border-radius:50%; background:radial-gradient(circle at 50% 50%, #1a1a1a 0%, #0d0d0d 100%); border:3px solid #111; box-shadow:inset 0 2px 6px rgba(255,255,255,.06), inset 0 -2px 6px rgba(0,0,0,.8), 0 0 0 2px #222; }
+.vinyl-record { position:absolute; inset:6px; border-radius:50%; background:repeating-radial-gradient(circle at 50% 50%, #1a1a1a 0px, #1c1c1c 1px, #111 1px, #141414 2.5px); transform-origin:50% 50%; animation:vinyl-spin 1.82s linear infinite paused; }
+.vinyl-component[data-playing='true'] .vinyl-record { animation-play-state:running; }
+.vinyl-record-sheen { position:absolute; inset:0; border-radius:50%; background:conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,.04) 15deg, transparent 30deg, rgba(255,255,255,.02) 90deg, transparent 120deg, rgba(255,255,255,.05) 200deg, transparent 240deg, rgba(255,255,255,.03) 300deg, transparent 360deg); }
+.vinyl-label { position:absolute; top:50%; left:50%; width:96px; height:96px; transform:translate(-50%,-50%); border-radius:50%; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:8px; text-align:center; background:linear-gradient(140deg, color-mix(in srgb, var(--accent) 65%, #c0392b), color-mix(in srgb, var(--bg) 30%, #8e1a0e)); border:2px solid color-mix(in srgb, var(--bg) 70%, #3a0a05); }
+.vinyl-label::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.12) 3px,rgba(0,0,0,.12) 4px); pointer-events:none; }
+.vinyl-label img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.72; filter:saturate(.9) brightness(.75); }
+.vinyl-label span, .vinyl-label strong, .vinyl-label em { position:relative; z-index:1; display:block; max-width:100%; overflow:hidden; text-overflow:ellipsis; color:color-mix(in srgb, var(--text) 82%, #ffdcb4); }
+.vinyl-label span { font-family:Georgia,serif; font-size:11px; font-style:italic; letter-spacing:1px; font-weight:bold; }
+.vinyl-label strong { font:800 7px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; white-space:normal; }
+.vinyl-label em { font:700 8px ui-monospace,SFMono-Regular,Menlo,monospace; opacity:.74; font-style:normal; }
+.vinyl-spindle { position:absolute; top:50%; left:50%; width:10px; height:10px; transform:translate(-50%,-50%); border-radius:50%; background:radial-gradient(circle at 40% 35%,#ccc,#555); border:1px solid #222; z-index:10; }
+.vinyl-tonearm { position:absolute; top:-10px; right:-20px; width:170px; height:280px; pointer-events:none; z-index:20; }
+.vinyl-controls { flex:1; min-width:170px; display:flex; flex-direction:column; gap:14px; }
+.vinyl-speed-row { display:flex; align-items:center; gap:6px; color:var(--vinyl-muted); font:800 10px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.08em; }
+.vinyl-speed-row i { padding:5px 8px; border:2px solid var(--vinyl-border); border-radius:5px; background:linear-gradient(180deg,var(--vinyl-arm-hi),var(--vinyl-knob-base)); font-style:normal; }
+.vinyl-speed-row i.active { color:var(--vinyl-led); box-shadow:inset 1px 2px 4px rgba(0,0,0,.55); }
+.vinyl-vu { position:relative; display:grid; gap:6px; padding:10px 12px; border:2px solid color-mix(in srgb, var(--accent) 24%, var(--vinyl-border)); border-radius:8px; background:var(--vinyl-screen); overflow:hidden; }
+.vinyl-vu::before { content:''; position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 5px,color-mix(in srgb, var(--vinyl-led) 8%, transparent) 5px,color-mix(in srgb, var(--vinyl-led) 8%, transparent) 6px); pointer-events:none; }
+.vinyl-vu > span { color:color-mix(in srgb, var(--vinyl-muted) 62%, var(--bg)); font:800 9px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:2px; text-align:center; }
+.vinyl-vu-row { position:relative; z-index:1; display:flex; align-items:center; gap:6px; }
+.vinyl-vu-row em { width:10px; color:var(--vinyl-muted); font:800 9px ui-monospace,SFMono-Regular,Menlo,monospace; font-style:normal; }
+.vinyl-vu-row div { flex:1; height:8px; display:flex; gap:1px; background:color-mix(in srgb, var(--bg) 82%, #1a0e03); border-radius:2px; overflow:hidden; }
+.vinyl-vu-row i { flex:1; border-radius:1px; background:color-mix(in srgb, var(--accent) 12%, #2a1600); }
+.vinyl-vu-row i.g { background:#00aa44; } .vinyl-vu-row i.y { background:#cc9900; } .vinyl-vu-row i.r { background:#cc2200; }
+.vinyl-knobs { display:flex; justify-content:space-between; gap:8px; }
+.vinyl-knobs span { display:grid; justify-items:center; gap:5px; color:var(--vinyl-muted); font:800 9px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.vinyl-knobs i { width:40px; height:40px; border-radius:50%; background:radial-gradient(circle at 35% 30%,var(--vinyl-knob-top),var(--vinyl-knob-base) 65%); border:2px solid var(--vinyl-border); box-shadow:inset 0 2px 0 rgba(255,180,60,.16), inset 0 -2px 0 rgba(0,0,0,.55), 2px 3px 0 rgba(0,0,0,.32); }
+.vinyl-knobs span:first-child i { width:54px; height:54px; }
+.vinyl-mini-transport { display:flex; justify-content:center; align-items:center; gap:8px; padding:10px; border:2px solid var(--vinyl-border); border-radius:8px; background:var(--vinyl-screen); }
+.vinyl-mini-transport i, .vinyl-mini-transport b { width:34px; height:34px; border-radius:50%; background:linear-gradient(180deg,var(--vinyl-arm-hi),var(--vinyl-knob-base)); border:2px solid var(--vinyl-border); }
+.vinyl-mini-transport b { width:44px; height:44px; background:linear-gradient(180deg,var(--vinyl-led),var(--vinyl-knob-base)); }
+.vinyl-bottom-strip { position:relative; display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; padding:0 4px; }
+.vinyl-bottom-strip strong { font-family:Georgia,serif; font-size:15px; font-style:italic; color:var(--vinyl-muted); letter-spacing:3px; }
+.vinyl-bottom-strip em { padding:5px 10px; border:2px solid var(--vinyl-border); border-radius:4px; color:var(--vinyl-led); background:linear-gradient(180deg,var(--vinyl-knob-base),var(--vinyl-arm-hi)); font:800 10px ui-monospace,SFMono-Regular,Menlo,monospace; font-style:normal; }
+.vinyl-led { width:8px; height:8px; border-radius:50%; background:color-mix(in srgb, var(--vinyl-led) 18%, #3a1a00); border:1px solid var(--vinyl-border); }
+.vinyl-led.on { background:var(--vinyl-led); box-shadow:0 0 6px color-mix(in srgb, var(--vinyl-led) 72%, transparent); }
+@keyframes vinyl-spin { to { transform:rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .vinyl-component .vinyl-plinth { padding:14px; box-shadow:inset 0 2px 0 color-mix(in srgb, var(--text) 14%, transparent), inset 0 -3px 0 rgba(0,0,0,.48), 2px 4px 0 var(--vinyl-border); }
+  .vinyl-top-row { flex-direction:column; align-items:center; }
+  .vinyl-platter-wrap { width:min(280px, 82vw); height:min(280px, 82vw); }
+  .vinyl-tonearm { transform:scale(.86); transform-origin:top right; }
+  .vinyl-controls { width:100%; }
+}
