@@ -2134,8 +2134,7 @@ export default function App() {
     updateAlbumFavoriteState(await api.favoriteAlbum(id));
   }
 
-  async function toggleArtistFavorite(artistItem: Artist) {
-    const updated = await api.favoriteArtist(artistItem.id);
+  function updateArtistFavoriteState(updated: Artist) {
     setArtists((old) =>
       old.map((item) => (item.id === updated.id ? updated : item)),
     );
@@ -2144,6 +2143,15 @@ export default function App() {
         ? { ...old, favorite: updated.favorite, title: updated.name }
         : old,
     );
+  }
+
+  async function toggleArtistFavorite(artistItem: Artist) {
+    updateArtistFavoriteState(await api.favoriteArtist(artistItem.id));
+  }
+
+  async function toggleArtistFavoriteById(id: number) {
+    if (!id) return;
+    updateArtistFavoriteState(await api.favoriteArtist(id));
   }
 
   async function toggleRadioFavorite(station: RadioStation) {
@@ -2857,10 +2865,9 @@ export default function App() {
                       ? () => void toggleAlbumFavoriteById(collection.id!)
                       : undefined
                     : collection.type === "artist"
-                      ? () => {
-                          const artist = artists.find((item) => item.id === collection.id);
-                          if (artist) void toggleArtistFavorite(artist);
-                        }
+                      ? collection.id
+                        ? () => void toggleArtistFavoriteById(collection.id!)
+                        : undefined
                       : undefined
                 }
                 onOpenAlbum={(song) => {
