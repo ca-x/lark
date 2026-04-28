@@ -123,6 +123,7 @@ type ThemeLabel =
   | "foobarLight";
 type ThemeMode = "dark" | "light";
 type SettingsTab = "profile" | "users" | "site";
+type LibraryTab = "songs" | "folders" | "network" | "radio";
 type Collection = {
   type: "playlist" | "album" | "artist";
   id?: number;
@@ -180,6 +181,30 @@ const VIRTUAL_TABLE_THRESHOLD = 220;
 const VIRTUAL_OVERSCAN = 8;
 const CARD_GRID_BATCH = 72;
 const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
+const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
+const defaultLibraryTab: LibraryTab = "songs";
+
+function normalizeLibraryTab(value?: string | null): LibraryTab {
+  return value === "folders" || value === "network" || value === "radio" || value === "songs"
+    ? value
+    : defaultLibraryTab;
+}
+
+function storedLibraryTab(): LibraryTab {
+  try {
+    return normalizeLibraryTab(window.localStorage.getItem(LIBRARY_SOURCE_TAB_KEY));
+  } catch {
+    return defaultLibraryTab;
+  }
+}
+
+function rememberLibraryTab(tab: LibraryTab) {
+  try {
+    window.localStorage.setItem(LIBRARY_SOURCE_TAB_KEY, tab);
+  } catch {
+    // localStorage can be unavailable in private/webview modes; local source remains default.
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs = COLLECTION_LOAD_TIMEOUT_MS): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -3746,7 +3771,11 @@ function LibraryView({
   scanStatus: ScanStatus | null;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
-  const [tab, setTab] = useState<"songs" | "folders" | "network" | "radio">("songs");
+  const [tab, setTabState] = useState<LibraryTab>(() => storedLibraryTab());
+  const setTab = (nextTab: LibraryTab) => {
+    setTabState(nextTab);
+    rememberLibraryTab(nextTab);
+  };
   const selectedSongs = songs.filter((song) => selected.has(song.id));
   const toggleSelected = (song: Song) => {
     setSelected((old) => {
@@ -3797,7 +3826,7 @@ function LibraryView({
           className={tab === "songs" ? "active" : ""}
           onClick={() => setTab("songs")}
         >
-          {t("libraryList")} · {songs.length}
+          {t("localLibrary")} · {songs.length}
         </button>
         <button
           className={tab === "folders" ? "active" : ""}
