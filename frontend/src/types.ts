@@ -138,6 +138,13 @@ export interface HealthInfo {
   transcode_backend: string;
 }
 
+export interface LibraryStats {
+  songs: number;
+  albums: number;
+  artists: number;
+  playlists: number;
+}
+
 export interface LibraryDirectory {
   id: string;
   path: string;

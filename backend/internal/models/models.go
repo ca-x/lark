@@ -86,6 +86,13 @@ type Playlist struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type LibraryStats struct {
+	Songs     int `json:"songs"`
+	Albums    int `json:"albums"`
+	Artists   int `json:"artists"`
+	Playlists int `json:"playlists"`
+}
+
 type Folder struct {
 	Path            string  `json:"path"`
 	Name            string  `json:"name"`

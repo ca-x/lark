@@ -627,6 +627,26 @@ func (s *Service) Songs(ctx context.Context, userID int, q string, favorites boo
 	return out, nil
 }
 
+func (s *Service) LibraryStats(ctx context.Context, userID int) (models.LibraryStats, error) {
+	var stats models.LibraryStats
+	var err error
+	if stats.Songs, err = s.client.Song.Query().Count(ctx); err != nil {
+		return models.LibraryStats{}, err
+	}
+	if stats.Albums, err = s.client.Album.Query().Count(ctx); err != nil {
+		return models.LibraryStats{}, err
+	}
+	if stats.Artists, err = s.client.Artist.Query().Count(ctx); err != nil {
+		return models.LibraryStats{}, err
+	}
+	if stats.Playlists, err = s.client.Playlist.Query().
+		Where(playlist.HasOwnerWith(user.ID(userID))).
+		Count(ctx); err != nil {
+		return models.LibraryStats{}, err
+	}
+	return stats, nil
+}
+
 func (s *Service) Song(ctx context.Context, userID, id int) (models.Song, error) {
 	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().WithAlbum().Only(ctx)
 	if err != nil {

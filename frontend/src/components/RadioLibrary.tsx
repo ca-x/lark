@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MagnifyingGlass, Pause, PencilSimple, Play, Plus, X } from "@phosphor-icons/react";
+import { Pause, PencilSimple, Play, Plus, X } from "@phosphor-icons/react";
 import type { createT } from "../i18n";
 import type { RadioSource, RadioStation } from "../types";
 
@@ -58,34 +58,22 @@ export function LibraryRadioSources({
 
 export function RadioView({
   t,
-  query,
-  setQuery,
   sources,
-  stations,
   selectedGroup,
   setSelectedGroup,
   currentRadio,
   playing,
-  loading,
-  onPlayStation,
   onPlaySource,
-  onSearch,
   onAddSource,
   onDeleteSource,
 }: {
   t: ReturnType<typeof createT>;
-  query: string;
-  setQuery: (value: string) => void;
   sources: RadioSource[];
-  stations: RadioStation[];
   selectedGroup: string;
   setSelectedGroup: (value: string) => void;
   currentRadio: RadioStation | null;
   playing: boolean;
-  loading: boolean;
-  onPlayStation: (station: RadioStation) => void;
   onPlaySource: (source: RadioSource, groupSources?: RadioSource[]) => void;
-  onSearch: () => void;
   onAddSource: (name: string, url: string) => void;
   onDeleteSource: (id: string) => void;
 }) {
@@ -94,7 +82,6 @@ export function RadioView({
   const [editingGroup, setEditingGroup] = useState("");
   const sourceGroups = useMemo(() => radioSourceGroups(sources), [sources]);
   const activeGroup = sourceGroups.find((group) => group.name === selectedGroup) || sourceGroups[0];
-  const showSearchResults = query.trim().length > 0 && stations.length > 0;
 
   useEffect(() => {
     if (!sourceGroups.length) return;
@@ -197,67 +184,30 @@ export function RadioView({
         <section className="radio-browser-panel unified-radio-directory">
           <div className="section-head compact radio-directory-head">
             <div>
-              <h3>{showSearchResults ? t("radioBrowser") : (activeGroup?.name || t("radioBrowser"))}</h3>
+              <h3>{activeGroup?.name || t("radioBrowser")}</h3>
               <p className="section-subtitle">
-                {showSearchResults ? t("radioBrowserHint") : activeGroup ? `${t("radioSources")} · ${activeGroup.sources.length}` : t("emptyCollection")}
+                {activeGroup ? `${t("radioSources")} · ${activeGroup.sources.length}` : t("emptyCollection")}
               </p>
             </div>
-            <label className="search radio-search inline-radio-search">
-              <MagnifyingGlass />
-              <input
-                value={query}
-                placeholder={t("searchRadio")}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && query.trim()) onSearch();
-                }}
-              />
-            </label>
-            <button onClick={onSearch} disabled={loading || !query.trim()}>
-              <MagnifyingGlass /> {loading ? t("loading") : t("searchAction")}
-            </button>
           </div>
 
-          <div className="radio-station-list" aria-busy={loading}>
-            {showSearchResults ? (
-              stations.map((station) => {
-                const active = currentRadio?.url === station.url;
-                return (
-                  <article key={`${station.id}-${station.url}`} className={active ? "radio-station active" : "radio-station"}>
-                    <button className="station-play" onClick={() => onPlayStation(station)}>
-                      {active && playing ? <Pause weight="fill" /> : <Play weight="fill" />}
-                    </button>
-                    <div>
-                      <strong>{station.name}</strong>
-                      <small>
-                        {[station.country, station.codec, station.bitrate ? `${station.bitrate}kbps` : "", station.tags]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </small>
-                    </div>
-                    <span>{station.votes ? `${station.votes} ${t("votes")}` : t("liveRadio")}</span>
-                  </article>
-                );
-              })
-            ) : (
-              (activeGroup?.sources ?? []).map((source) => {
-                const active = currentRadio?.id === source.id || currentRadio?.url === (source.stream_url || source.url);
-                return (
-                  <article key={source.id} className={active ? "radio-station active" : "radio-station"}>
-                    <button className="station-play" onClick={() => onPlaySource(source, activeGroup?.sources)}>
-                      {active && playing ? <Pause weight="fill" /> : <Play weight="fill" />}
-                    </button>
-                    <div>
-                      <strong>{source.name}</strong>
-                      <small>{source.builtin ? t("defaultSource") : (source.source_url || source.url)}</small>
-                    </div>
-                    <span>{t("liveRadio")}</span>
-                  </article>
-                );
-              })
-            )}
-            {!showSearchResults && !activeGroup?.sources.length && !loading ? <div className="empty">{t("emptyCollection")}</div> : null}
-            {showSearchResults && !stations.length && !loading ? <div className="empty">{t("emptyCollection")}</div> : null}
+          <div className="radio-station-list">
+            {(activeGroup?.sources ?? []).map((source) => {
+              const active = currentRadio?.id === source.id || currentRadio?.url === (source.stream_url || source.url);
+              return (
+                <article key={source.id} className={active ? "radio-station active" : "radio-station"}>
+                  <button className="station-play" onClick={() => onPlaySource(source, activeGroup?.sources)}>
+                    {active && playing ? <Pause weight="fill" /> : <Play weight="fill" />}
+                  </button>
+                  <div>
+                    <strong>{source.name}</strong>
+                    <small>{source.builtin ? t("defaultSource") : (source.source_url || source.url)}</small>
+                  </div>
+                  <span>{t("liveRadio")}</span>
+                </article>
+              );
+            })}
+            {!activeGroup?.sources.length ? <div className="empty">{t("emptyCollection")}</div> : null}
           </div>
         </section>
       </div>

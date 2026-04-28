@@ -147,6 +147,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 
 	e.POST("/api/library/scan", s.handleScan, admin)
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
+	e.GET("/api/library/stats", s.handleLibraryStats, auth)
 	e.GET("/api/library/sources", s.handleLibrarySources, auth)
 	e.GET("/api/library/directories", s.handleLibraryDirectories, auth)
 	e.POST("/api/library/directories", s.handleAddLibraryDirectory, auth)
@@ -395,6 +396,14 @@ func (s *Server) handleSong(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, item)
+}
+
+func (s *Server) handleLibraryStats(c *echo.Context) error {
+	stats, err := s.lib.LibraryStats(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, stats)
 }
 
 func (s *Server) handleToggleSongFavorite(c *echo.Context) error {

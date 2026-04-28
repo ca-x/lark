@@ -65,7 +65,7 @@ import type {
   User,
   WebFont,
   LibraryDirectory,
-  LibrarySource,
+  LibraryStats,
   NetworkSource,
   NetworkTrack,
   RadioSource,
@@ -196,6 +196,7 @@ const VIRTUAL_OVERSCAN = 8;
 const CARD_GRID_BATCH = 72;
 const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
 const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
+const AUTH_REDIRECT_KEY = "lark.auth.redirect";
 const defaultLibraryTab: LibraryTab = "songs";
 
 function normalizeLibraryTab(value?: string | null): LibraryTab {
@@ -217,6 +218,33 @@ function rememberLibraryTab(tab: LibraryTab) {
     window.localStorage.setItem(LIBRARY_SOURCE_TAB_KEY, tab);
   } catch {
     // localStorage can be unavailable in private/webview modes; local source remains default.
+  }
+}
+
+function currentBrowserRoute() {
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function safeAuthRedirect(value: string | null) {
+  if (!value || value.startsWith("/login")) return "/";
+  return value.startsWith("/") ? value : "/";
+}
+
+function rememberAuthRedirect(value: string) {
+  try {
+    window.sessionStorage.setItem(AUTH_REDIRECT_KEY, value);
+  } catch {
+    // Session storage can be unavailable in private/webview modes.
+  }
+}
+
+function takeAuthRedirect() {
+  try {
+    const redirect = window.sessionStorage.getItem(AUTH_REDIRECT_KEY);
+    window.sessionStorage.removeItem(AUTH_REDIRECT_KEY);
+    return safeAuthRedirect(redirect);
+  } catch {
+    return "/";
   }
 }
 
@@ -323,6 +351,26 @@ function sameRadioStation(left?: RadioStation | null, right?: RadioStation | nul
   if (!left || !right) return false;
   if (left.id && right.id && left.id === right.id) return true;
   return radioRawURL(left) === radioRawURL(right);
+}
+
+function radioSourceLabel(station: RadioStation, fallback: string) {
+  const stationName = station.name.trim().toLowerCase();
+  const seen = new Set<string>();
+  const candidates = [
+    station.group_name,
+    station.country,
+    station.source_url,
+    station.homepage,
+    station.tags,
+  ];
+  for (const candidate of candidates) {
+    const value = candidate?.trim();
+    const key = value?.toLowerCase();
+    if (!value || !key || key === stationName || seen.has(key)) continue;
+    seen.add(key);
+    return value;
+  }
+  return fallback;
 }
 
 function albumCoverUrl(album?: Album | null) {
@@ -635,18 +683,18 @@ export default function App() {
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
+  const [route, setRoute] = useState(() => currentBrowserRoute());
   const [songs, setSongs] = useState<Song[]>([]);
   const [dailyMix, setDailyMix] = useState<Song[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [libraryDirectories, setLibraryDirectories] = useState<LibraryDirectory[]>([]);
-  const [librarySources, setLibrarySources] = useState<LibrarySource[]>([]);
+  const [libraryStats, setLibraryStats] = useState<LibraryStats | null>(null);
   const [networkSources, setNetworkSources] = useState<NetworkSource[]>([]);
   const [radioSources, setRadioSources] = useState<RadioSource[]>([]);
   const [radioStations, setRadioStations] = useState<RadioStation[]>([]);
   const [radioFavorites, setRadioFavorites] = useState<RadioStation[]>([]);
   const [radioQueue, setRadioQueue] = useState<RadioStation[]>([]);
-  const [radioLoading, setRadioLoading] = useState(false);
-  const [radioQuery, setRadioQuery] = useState("");
+  const [, setRadioLoading] = useState(false);
   const [selectedRadioGroup, setSelectedRadioGroup] = useState("");
   const [currentRadio, setCurrentRadio] = useState<RadioStation | null>(null);
   const [currentNetworkTrack, setCurrentNetworkTrack] = useState<NetworkTrack | null>(null);
@@ -852,6 +900,34 @@ export default function App() {
   useEffect(() => {
     void bootstrap();
   }, []);
+
+  useEffect(() => {
+    const syncRoute = () => setRoute(currentBrowserRoute());
+    window.addEventListener("popstate", syncRoute);
+    return () => window.removeEventListener("popstate", syncRoute);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const routePath = window.location.pathname;
+    const needsAuthPage = !auth?.initialized || !auth.user;
+    if (needsAuthPage) {
+      if (routePath !== "/login") {
+        const redirect = currentBrowserRoute();
+        if (!redirect.startsWith("/login")) {
+          rememberAuthRedirect(redirect);
+        }
+        window.history.replaceState(null, "", "/login");
+        setRoute(currentBrowserRoute());
+      }
+      return;
+    }
+    if (routePath === "/login") {
+      window.history.replaceState(null, "", takeAuthRedirect());
+      setRoute(currentBrowserRoute());
+    }
+  }, [authLoading, auth?.initialized, auth?.user?.id, route]);
+
   useEffect(() => {
     window.localStorage.setItem(EQ_STORAGE_KEY, JSON.stringify({ enabled: eqEnabled, bands: eqBands }));
   }, [eqEnabled, eqBands]);
@@ -1259,7 +1335,6 @@ export default function App() {
     setSongs([]);
     setDailyMix([]);
     setFolders([]);
-    setLibrarySources([]);
     setNetworkSources([]);
     setRadioSources([]);
     setRadioStations([]);
@@ -1390,7 +1465,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, libraryDirectoryItems, librarySourceItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
+    const [songItems, albumItems, artistItems, playlistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
       await Promise.all([
         api.songs(query, STARTUP_SONG_LIMIT),
         api.albums(STARTUP_ALBUM_LIMIT),
@@ -1398,8 +1473,8 @@ export default function App() {
         api.playlists(STARTUP_PLAYLIST_LIMIT),
         api.dailyMix(24).catch(() => []),
         api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
+        api.libraryStats().catch(() => null),
         api.libraryDirectories().catch(() => []),
-        api.librarySources().catch(() => []),
         api.networkSources().catch(() => []),
         api.radioSources().catch(() => []),
         api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
@@ -1408,8 +1483,8 @@ export default function App() {
     setSongs(songItems);
     setDailyMix(dailyItems);
     setFolders(folderItems);
+    setLibraryStats(libraryStatsItem);
     setLibraryDirectories(libraryDirectoryItems);
-    setLibrarySources(librarySourceItems);
     setNetworkSources(networkSourceItems);
     setRadioSources(radioSourceItems);
     setRadioStations(radioStationItems.map(radioStationToPlayable));
@@ -1537,7 +1612,7 @@ export default function App() {
     setPlaying(true);
   }
 
-  async function loadRadioStations(search = radioQuery) {
+  async function loadRadioStations(search = "") {
     setRadioLoading(true);
     try {
       const items = search.trim()
@@ -2403,6 +2478,7 @@ export default function App() {
                 albums={albums}
                 artists={artists}
                 playlists={playlists}
+                stats={libraryStats}
                 currentRadio={currentRadio}
                 heroSong={heroSong}
                 current={current}
@@ -2431,7 +2507,6 @@ export default function App() {
                 onOpenArtist={openArtistById}
                 onPlayPlaylist={playPlaylist}
                 onOpenPlaylist={openPlaylist}
-                onCreatePlaylist={createPlaylist}
               />
             )}
 
@@ -2442,8 +2517,6 @@ export default function App() {
                 artists={favoriteArtists}
                 radios={radioFavorites}
                 current={current}
-                currentRadio={currentRadio}
-                playing={playing}
                 t={t}
                 theme={settings.theme}
                 onPlay={playSong}
@@ -2465,7 +2538,6 @@ export default function App() {
               <LibraryView
                 songs={songs}
                 folders={folders}
-                librarySources={librarySources}
                 networkSources={networkSources}
                 radioSources={radioSources}
                 current={current}
@@ -2502,22 +2574,16 @@ export default function App() {
             {view === "radio" && (
               <RadioView
                 t={t}
-                query={radioQuery}
-                setQuery={setRadioQuery}
                 sources={radioSources}
-                stations={radioStations}
                 selectedGroup={selectedRadioGroup}
                 setSelectedGroup={setSelectedRadioGroup}
                 currentRadio={currentRadio}
                 playing={playing}
-                loading={radioLoading}
-                onPlayStation={(station) => playRadio(station, radioStations)}
                 onPlaySource={(source, groupSources) => {
                   const queue = (groupSources?.length ? groupSources : [source]).map(radioSourceToStation);
                   setSelectedRadioGroup(radioGroupName(source));
                   playRadio(radioSourceToStation(source), queue);
                 }}
-                onSearch={() => void loadRadioStations()}
                 onAddSource={(name, url) => void addRadioSource(name, url)}
                 onDeleteSource={(id) => void deleteRadioSource(id)}
               />
@@ -3380,12 +3446,46 @@ function AddToPlaylistDialog({
   );
 }
 
+function compactLibraryCount(value: number) {
+  const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+  return new Intl.NumberFormat(undefined, {
+    notation: safeValue >= 10000 ? "compact" : "standard",
+    maximumFractionDigits: safeValue >= 10000 ? 1 : 0,
+  }).format(safeValue);
+}
+
+function LibrarySummaryStats({
+  t,
+  stats,
+}: {
+  t: ReturnType<typeof createT>;
+  stats: LibraryStats;
+}) {
+  const items = [
+    { key: "songs", value: stats.songs, label: t("count") },
+    { key: "albums", value: stats.albums, label: t("albums") },
+    { key: "artists", value: stats.artists, label: t("artists") },
+    { key: "playlists", value: stats.playlists, label: t("playlists") },
+  ];
+  return (
+    <div className="library-summary-stats" aria-label={t("librarySummary")}>
+      {items.map((item) => (
+        <article className="library-summary-stat" key={item.key}>
+          <strong title={String(item.value)}>{compactLibraryCount(item.value)}</strong>
+          <span>{item.label}</span>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function HomeView({
   songs,
   dailyMix,
   albums,
   artists,
   playlists,
+  stats,
   currentRadio,
   heroSong,
   current,
@@ -3414,13 +3514,13 @@ function HomeView({
   onOpenArtist,
   onPlayPlaylist,
   onOpenPlaylist,
-  onCreatePlaylist,
 }: {
   songs: Song[];
   dailyMix: Song[];
   albums: Album[];
   artists: Artist[];
   playlists: Playlist[];
+  stats: LibraryStats | null;
   currentRadio: RadioStation | null;
   heroSong?: Song | null;
   current: Song | null;
@@ -3449,7 +3549,6 @@ function HomeView({
   onOpenArtist: (id: number, fallbackName?: string) => void;
   onPlayPlaylist: (playlist: Playlist) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
-  onCreatePlaylist: () => void;
 }) {
   const latestSongs = songs.slice(0, 5);
   const dailySongs = dailyMix.length ? dailyMix.slice(0, 5) : songs.slice(0, 5);
@@ -3548,41 +3647,15 @@ function HomeView({
           <div className="section-head compact">
             <h2>{t("librarySummary")}</h2>
           </div>
-          <div className="summary-stats">
-            <button
-              onClick={() => latestSongs[0] && onPlay(latestSongs[0], songs)}
-            >
-              <strong>{songs.length}</strong>
-              <span>{t("count")}</span>
-            </button>
-            <button
-              onClick={() =>
-                featuredAlbums[0] && onOpenAlbum(featuredAlbums[0])
-              }
-            >
-              <strong>{albums.length}</strong>
-              <span>{t("albums")}</span>
-            </button>
-            <button
-              onClick={() =>
-                featuredArtists[0] &&
-                onOpenArtist(featuredArtists[0].id, featuredArtists[0].name)
-              }
-            >
-              <strong>{artists.length}</strong>
-              <span>{t("artists")}</span>
-            </button>
-            <button
-              onClick={() =>
-                featuredPlaylists[0]
-                  ? onOpenPlaylist(featuredPlaylists[0])
-                  : onCreatePlaylist()
-              }
-            >
-              <strong>{playlists.length}</strong>
-              <span>{t("playlists")}</span>
-            </button>
-          </div>
+          <LibrarySummaryStats
+            t={t}
+            stats={stats ?? {
+              songs: songs.length,
+              albums: albums.length,
+              artists: artists.length,
+              playlists: playlists.length,
+            }}
+          />
         </section>
 
         <section className="quick-panel">
@@ -3814,8 +3887,6 @@ function FavoritesView({
   artists,
   radios,
   current,
-  currentRadio,
-  playing,
   t,
   theme,
   onPlay,
@@ -3836,8 +3907,6 @@ function FavoritesView({
   artists: Artist[];
   radios: RadioStation[];
   current: Song | null;
-  currentRadio: RadioStation | null;
-  playing: boolean;
   t: ReturnType<typeof createT>;
   theme: Theme;
   onPlay: (song: Song, list: Song[]) => void;
@@ -3939,59 +4008,22 @@ function FavoritesView({
           }))}
         />
       ) : (
-        <RadioFavoritesList
-          stations={radios}
-          currentRadio={currentRadio}
-          playing={playing}
+        <CardGrid
           t={t}
-          onPlay={onPlayRadio}
-          onFavorite={onFavoriteRadio}
+          title={t("onlineRadio")}
+          variant="radio"
+          items={radios.map((station) => ({
+            id: station.id || radioRawURL(station),
+            title: station.name || t("onlineRadio"),
+            subtitle: radioSourceLabel(station, t("liveRadio")),
+            theme,
+            coverUrl: station.favicon,
+            favorite: station.favorite,
+            onClick: () => onPlayRadio(station),
+            onFavorite: () => onFavoriteRadio(station),
+          }))}
         />
       )}
-    </section>
-  );
-}
-
-function RadioFavoritesList({
-  stations,
-  currentRadio,
-  playing,
-  t,
-  onPlay,
-  onFavorite,
-}: {
-  stations: RadioStation[];
-  currentRadio: RadioStation | null;
-  playing: boolean;
-  t: ReturnType<typeof createT>;
-  onPlay: (station: RadioStation) => void;
-  onFavorite: (station: RadioStation) => void;
-}) {
-  if (!stations.length) return <div className="empty">{t("emptyFavorites")}</div>;
-  return (
-    <section className="radio-station-list favorite-radio-list">
-      {stations.map((station, index) => {
-        const active = sameRadioStation(station, currentRadio);
-        return (
-          <article key={`${station.id || "radio"}-${radioRawURL(station)}-${index}`} className={active ? "radio-station active" : "radio-station"}>
-            <button className="station-play" onClick={() => onPlay(station)}>
-              {active && playing ? <Pause weight="fill" /> : <Play weight="fill" />}
-            </button>
-            <RadioMiniLogo station={station} playing={active && playing} />
-            <div>
-              <strong>{station.name || t("onlineRadio")}</strong>
-              <span>
-                {[station.group_name || station.country, station.codec || station.tags, station.bitrate ? `${station.bitrate}kbps` : ""]
-                  .filter(Boolean)
-                  .join(" · ") || t("liveRadio")}
-              </span>
-            </div>
-            <button className="player-favorite" aria-label={t("favorites")} onClick={() => onFavorite(station)}>
-              <HeartStraight weight="fill" />
-            </button>
-          </article>
-        );
-      })}
     </section>
   );
 }
@@ -4403,7 +4435,6 @@ function CollectionCover({ collection }: { collection: Collection }) {
 function LibraryView({
   songs,
   folders,
-  librarySources,
   networkSources,
   radioSources,
   current,
@@ -4425,7 +4456,6 @@ function LibraryView({
 }: {
   songs: Song[];
   folders: Folder[];
-  librarySources: LibrarySource[];
   networkSources: NetworkSource[];
   radioSources: RadioSource[];
   current: Song | null;
@@ -4513,7 +4543,7 @@ function LibraryView({
           className={tab === "network" ? "active" : ""}
           onClick={() => setTab("network")}
         >
-          {t("networkLibrary")} · {librarySources.filter((item) => item.kind !== "local").length}
+          {t("networkLibrary")} · {networkSources.length}
         </button>
         <button
           className={tab === "radio" ? "active" : ""}
@@ -4583,6 +4613,7 @@ function NetworkLibrarySources({
   const [query, setQuery] = useState("");
   const [activeSourceId, setActiveSourceId] = useState("");
   const [results, setResults] = useState<NetworkTrack[]>([]);
+  const [showSourceForm, setShowSourceForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const activeSource = configuredSources.find((source) => source.id === activeSourceId) ?? configuredSources[0];
@@ -4604,6 +4635,7 @@ function NetworkLibrarySources({
       setBaseURL("");
       setUsername("");
       setSecret("");
+      setShowSourceForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -4644,12 +4676,65 @@ function NetworkLibrarySources({
     }
   };
   const providerNeedsToken = provider === "plex" || (provider === "jellyfin" && !username.trim());
+  const sourceForm = (
+    <div className="radio-source-form">
+      <strong>{t("addNetworkSource")}</strong>
+      <select value={provider} onChange={(event) => setProvider(event.target.value)}>
+        <option value="navidrome">Navidrome / Subsonic</option>
+        <option value="jellyfin">Jellyfin</option>
+        <option value="plex">Plex</option>
+      </select>
+      <input value={name} placeholder={t("sourceName")} onChange={(event) => setName(event.target.value)} />
+      <input value={baseURL} placeholder="https://music.example.com" onChange={(event) => setBaseURL(event.target.value)} />
+      {provider !== "plex" ? (
+        <input value={username} placeholder={t("username")} onChange={(event) => setUsername(event.target.value)} />
+      ) : null}
+      <input
+        value={secret}
+        type="password"
+        placeholder={providerNeedsToken ? t("token") : t("password")}
+        onChange={(event) => setSecret(event.target.value)}
+      />
+      <div className="source-form-actions">
+        <button onClick={saveSource} disabled={!baseURL.trim()}>
+          <Plus /> {t("addNetworkSource")}
+        </button>
+        <button type="button" onClick={() => setShowSourceForm(false)}>
+          {t("cancel")}
+        </button>
+      </div>
+    </div>
+  );
+  if (!configuredSources.length && !showSourceForm) {
+    return (
+      <div className="network-library-panel">
+        <div className="network-empty-setup">
+          <button className="primary" type="button" onClick={() => setShowSourceForm(true)}>
+            <Plus /> {t("addNetworkSource")}
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (!configuredSources.length) {
+    return (
+      <div className="network-library-panel">
+        <aside className="network-config-panel network-add-only">
+          {sourceForm}
+          {error ? <div className="message inline-error">{error}</div> : null}
+        </aside>
+      </div>
+    );
+  }
   return (
     <div className="network-library-panel">
       <div className="network-layout">
         <aside className="network-config-panel">
           <div className="section-head compact">
             <h3>{t("networkSources")}</h3>
+            <button type="button" onClick={() => setShowSourceForm((shown) => !shown)}>
+              <Plus /> {t("addNetworkSource")}
+            </button>
           </div>
           <div className="radio-source-list">
             {configuredSources.map((source) => (
@@ -4667,30 +4752,8 @@ function NetworkLibrarySources({
                 </button>
               </article>
             ))}
-            {!configuredSources.length ? <div className="empty mini-empty">{t("noNetworkSources")}</div> : null}
           </div>
-          <div className="radio-source-form">
-            <strong>{t("addNetworkSource")}</strong>
-            <select value={provider} onChange={(event) => setProvider(event.target.value)}>
-              <option value="navidrome">Navidrome / Subsonic</option>
-              <option value="jellyfin">Jellyfin</option>
-              <option value="plex">Plex</option>
-            </select>
-            <input value={name} placeholder={t("sourceName")} onChange={(event) => setName(event.target.value)} />
-            <input value={baseURL} placeholder="https://music.example.com" onChange={(event) => setBaseURL(event.target.value)} />
-            {provider !== "plex" ? (
-              <input value={username} placeholder={t("username")} onChange={(event) => setUsername(event.target.value)} />
-            ) : null}
-            <input
-              value={secret}
-              type="password"
-              placeholder={providerNeedsToken ? t("token") : t("password")}
-              onChange={(event) => setSecret(event.target.value)}
-            />
-            <button onClick={saveSource} disabled={!baseURL.trim()}>
-              <Plus /> {t("addNetworkSource")}
-            </button>
-          </div>
+          {showSourceForm ? sourceForm : null}
         </aside>
 
         <section className="network-search-panel">
@@ -6191,7 +6254,7 @@ const LazyCoverImage = memo(function LazyCoverImage({ src }: { src?: string }) {
 });
 
 type CardGridItem = {
-  id: number;
+  id: number | string;
   title: string;
   subtitle: string;
   meta?: string;
@@ -6207,7 +6270,7 @@ type CardGridItem = {
 type CardGridProps = {
   t: ReturnType<typeof createT>;
   title: string;
-  variant?: "playlist" | "album" | "artist";
+  variant?: "playlist" | "album" | "artist" | "radio";
   items: CardGridItem[];
   action?: React.ReactNode;
   actionKey?: string | number;
