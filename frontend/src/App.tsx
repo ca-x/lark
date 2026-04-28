@@ -6727,7 +6727,7 @@ function PaginationControls({
     const isDesktop = () => root.clientWidth > 720;
     const onScroll = () => {
       revealControls();
-      if (scrollLockRef.current || loading) return;
+      if (!isDesktop() || scrollLockRef.current || loading) return;
       const scrollTop = root.scrollTop;
       const delta = scrollTop - lastScrollTopRef.current;
       lastScrollTopRef.current = scrollTop;

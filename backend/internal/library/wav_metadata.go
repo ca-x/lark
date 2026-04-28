@@ -209,14 +209,30 @@ func decodeID3LyricsFrame(payload []byte) string {
 	}
 	encoding := payload[0]
 	body := payload[4:]
-	if len(body) >= 2 && body[0] == 0xff && body[1] == 0xfe {
-		if idx := utf16TerminatorIndex(body[2:]); idx >= 0 {
-			body = body[2+idx+2:]
-		}
-	} else if idx := strings.IndexByte(string(body), 0); idx >= 0 {
-		body = body[idx+1:]
-	}
+	body = stripID3LyricsDescriptor(encoding, body)
 	return cleanMetadataText(decodeID3EncodedText(encoding, body))
+}
+
+func stripID3LyricsDescriptor(encoding byte, body []byte) []byte {
+	switch encoding {
+	case 1:
+		start := 0
+		if len(body) >= 2 && ((body[0] == 0xff && body[1] == 0xfe) || (body[0] == 0xfe && body[1] == 0xff)) {
+			start = 2
+		}
+		if idx := utf16TerminatorIndex(body[start:]); idx >= 0 {
+			return body[start+idx+2:]
+		}
+	case 2:
+		if idx := utf16TerminatorIndex(body); idx >= 0 {
+			return body[idx+2:]
+		}
+	default:
+		if idx := strings.IndexByte(string(body), 0); idx >= 0 {
+			return body[idx+1:]
+		}
+	}
+	return body
 }
 
 func decodeID3EncodedText(encoding byte, data []byte) string {
@@ -226,6 +242,9 @@ func decodeID3EncodedText(encoding byte, data []byte) string {
 			return decoded
 		}
 		if decoded, ok := tryDecodeUTF16WithoutBOM(data); ok {
+			return decoded
+		}
+		if decoded, ok := bestUTF16DecodeWithoutBOM(data); ok {
 			return decoded
 		}
 	case 2:

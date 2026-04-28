@@ -327,6 +327,17 @@ func TestCleanMetadataTextDecodesRawGBKBytesFromWavInfo(t *testing.T) {
 	}
 }
 
+func TestCleanMetadataTextDecodesUTF8ReadAsLatin1(t *testing.T) {
+	var mojibake []rune
+	for _, b := range []byte("你好，世界") {
+		mojibake = append(mojibake, rune(b))
+	}
+	got := cleanMetadataText(string(mojibake))
+	if got != "你好，世界" {
+		t.Fatalf("expected UTF-8 mojibake to decode, got %q", got)
+	}
+}
+
 func TestCleanMetadataTextDecodesUTF16LEBOM(t *testing.T) {
 	got := cleanMetadataText(string([]byte{0xff, 0xfe, 0x4b, 0x6d, 0xd5, 0x8b, 0x00, 0x00}))
 	if got != "测试" {
@@ -485,6 +496,14 @@ func TestParseID3MetadataFromWAVChunkDecodesUTF16TagsAndLyrics(t *testing.T) {
 	}
 }
 
+func TestDecodeID3LyricsFrameDecodesUTF16LyricsWithoutBOMAfterDescriptor(t *testing.T) {
+	payload := []byte{1, 'X', 'X', 'X', 0xff, 0xfe, 0x00, 0x00}
+	payload = append(payload, utf16LEString("邰正宵")...)
+	if got := decodeID3LyricsFrame(payload); got != "邰正宵" {
+		t.Fatalf("expected UTF-16 lyrics without BOM after descriptor to decode, got %q", got)
+	}
+}
+
 func wavInfoChunk(id string, value []byte) []byte {
 	out := []byte(id)
 	var size [4]byte
@@ -530,7 +549,11 @@ func id3Frame(id string, payload []byte) []byte {
 }
 
 func utf16LEBOMString(value string) []byte {
-	out := []byte{0xff, 0xfe}
+	return append([]byte{0xff, 0xfe}, utf16LEString(value)...)
+}
+
+func utf16LEString(value string) []byte {
+	out := []byte{}
 	for _, unit := range utf16.Encode([]rune(value)) {
 		out = append(out, byte(unit), byte(unit>>8))
 	}

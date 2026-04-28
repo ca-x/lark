@@ -2090,3 +2090,19 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
     padding-bottom:calc(var(--player-h) + var(--nav-h) + var(--safe-bottom) + 18px);
   }
 }
+
+/* Mobile lyrics mode hides the bottom nav, so the expanded player must dock to
+   the viewport bottom instead of inheriting the nav-sized page padding. */
+@media (max-width:720px) {
+  .app-shell.lyrics-mode,
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] {
+    grid-template-rows:minmax(0,1fr) var(--player-h);
+    padding:8px 8px 0;
+  }
+  .app-shell.lyrics-mode .main {
+    scroll-padding-bottom:calc(var(--player-h) + 8px);
+  }
+  .app-shell.lyrics-mode .player {
+    border-radius:20px 20px 0 0;
+  }
+}

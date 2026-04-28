@@ -115,9 +115,21 @@ func legacyMetadataCandidates(raw []byte, current string) []string {
 		latin1 = append(latin1, byte(r))
 	}
 	if latin1OK && len(latin1) > 0 {
+		candidates = append(candidates, decodeUTF8FromLatin1Mojibake(latin1)...)
 		candidates = append(candidates, decodeSimplifiedChineseCandidates(latin1)...)
 	}
 	return candidates
+}
+
+func decodeUTF8FromLatin1Mojibake(data []byte) []string {
+	if !utf8.Valid(data) {
+		return nil
+	}
+	text := cleanDecodedMetadata(string(data))
+	if text == "" {
+		return nil
+	}
+	return []string{text}
 }
 
 func decodeGB18030(data []byte) (string, error) {
@@ -169,6 +181,40 @@ func bestSimplifiedChineseDecode(data []byte) (string, bool) {
 		}
 		if score > bestScore {
 			best = candidate
+			bestScore = score
+		}
+	}
+	return best, best != ""
+}
+
+func bestUTF16DecodeWithoutBOM(data []byte) (string, bool) {
+	if len(data) < 2 || len(data)%2 != 0 {
+		return "", false
+	}
+	type candidate struct {
+		text string
+	}
+	candidates := []candidate{}
+	for _, endian := range []textunicode.Endianness{textunicode.LittleEndian, textunicode.BigEndian} {
+		decoded, _, err := transform.Bytes(textunicode.UTF16(endian, textunicode.IgnoreBOM).NewDecoder(), data)
+		if err != nil {
+			continue
+		}
+		text := cleanDecodedMetadata(string(decoded))
+		if text == "" || containsReplacement(text) {
+			continue
+		}
+		candidates = append(candidates, candidate{text: text})
+	}
+	best := ""
+	bestScore := -1 << 30
+	for _, item := range candidates {
+		score := metadataTextScore(item.text)
+		if containsCJK(item.text) {
+			score += 20
+		}
+		if score > bestScore {
+			best = item.text
 			bestScore = score
 		}
 	}
