@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowUp,
   CaretDown,
+  CaretUp,
   CaretRight,
   ChatText,
   FolderSimple,
@@ -146,7 +147,10 @@ function measurePageSizing(container: HTMLElement): PageSizing {
   const columns = Math.max(1, Math.floor((width + cardGap) / (cardMinWidth + cardGap)));
   const cardHeight = narrow ? 218 : 248;
   const rows = Math.max(1, Math.floor(contentHeight / cardHeight));
-  const cards = clampPageSize(columns * rows, MIN_PAGE_SIZE, MAX_GRID_PAGE_SIZE);
+  const maxFullRows = Math.max(1, Math.floor(MAX_GRID_PAGE_SIZE / columns));
+  const minFullRows = Math.max(1, Math.ceil(MIN_PAGE_SIZE / columns));
+  const cardRows = clampPageSize(rows, minFullRows, maxFullRows);
+  const cards = columns * cardRows;
   return { songs: songRows, cards };
 }
 type ThemeLabel =
@@ -2097,8 +2101,7 @@ export default function App() {
     updateSongState(updated);
   }
 
-  async function toggleAlbumFavorite(album: Album) {
-    const updated = await api.favoriteAlbum(album.id);
+  function updateAlbumFavoriteState(updated: Album) {
     setAlbums((old) =>
       old.map((item) => (item.id === updated.id ? updated : item)),
     );
@@ -2120,6 +2123,15 @@ export default function App() {
             }
           : old,
     );
+  }
+
+  async function toggleAlbumFavorite(album: Album) {
+    updateAlbumFavoriteState(await api.favoriteAlbum(album.id));
+  }
+
+  async function toggleAlbumFavoriteById(id: number) {
+    if (!id) return;
+    updateAlbumFavoriteState(await api.favoriteAlbum(id));
   }
 
   async function toggleArtistFavorite(artistItem: Artist) {
@@ -2841,10 +2853,9 @@ export default function App() {
                 onInsertCollection={() => void insertCollectionNext(collection)}
                 onFavoriteCollection={
                   collection.type === "album"
-                    ? () => {
-                        const album = albums.find((item) => item.id === collection.id);
-                        if (album) void toggleAlbumFavorite(album);
-                      }
+                    ? collection.id
+                      ? () => void toggleAlbumFavoriteById(collection.id!)
+                      : undefined
                     : collection.type === "artist"
                       ? () => {
                           const artist = artists.find((item) => item.id === collection.id);
@@ -3223,7 +3234,7 @@ export default function App() {
           title={mobilePlayerExpanded ? t("minimizePlayer") : t("expandPlayer")}
           onClick={() => setMobilePlayerExpanded((value) => !value)}
         >
-          {mobilePlayerExpanded ? <CaretDown weight="bold" /> : <ArrowUp weight="bold" />}
+          {mobilePlayerExpanded ? <CaretDown weight="bold" /> : <CaretUp weight="bold" />}
           <span>{mobilePlayerExpanded ? t("minimizePlayer") : t("expandPlayer")}</span>
         </button>
         <audio

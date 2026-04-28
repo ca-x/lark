@@ -2010,7 +2010,7 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
     border:0;
   }
   .app-shell[data-mobile-player-expanded='true'] {
-    --player-h:202px;
+    --player-h:236px;
     padding-bottom:calc(var(--nav-h) + var(--safe-bottom) + 14px);
   }
   .app-shell[data-mobile-player-expanded='true'] .main {
@@ -2018,48 +2018,72 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   }
   .app-shell[data-mobile-player-expanded='true'] .player {
     grid-template-columns:1fr;
-    grid-template-rows:48px 76px 44px 40px;
-    gap:4px;
+    grid-template-rows:46px 70px 42px;
+    gap:5px;
     max-height:var(--player-h);
-    padding:9px 12px 10px;
+    padding:8px 12px 50px;
+    position:relative;
   }
   .app-shell[data-mobile-player-expanded='true'] .player .now {
     grid-column:1;
     grid-row:1;
-    grid-template-columns:48px minmax(0,1fr) 42px;
+    grid-template-columns:48px minmax(0,1fr);
   }
   .app-shell[data-mobile-player-expanded='true'] .player .transport {
     grid-column:1;
     grid-row:2;
     display:grid;
-    grid-template-rows:38px 18px 14px;
+    grid-template-rows:34px 18px 12px;
+    gap:3px;
   }
   .app-shell[data-mobile-player-expanded='true'] .player .transport-controls {
     display:grid;
+    grid-template-columns:42px minmax(0,1fr) 42px;
+    align-items:center;
   }
   .app-shell[data-mobile-player-expanded='true'] .player .volume {
     grid-column:1;
     grid-row:3;
     display:grid !important;
   }
-  .app-shell[data-mobile-player-expanded='true'] .player .player-favorite,
-  .app-shell[data-mobile-player-expanded='true'] .player .transport input,
-  .app-shell[data-mobile-player-expanded='true'] .player .transport > span,
-  .app-shell[data-mobile-player-expanded='true'] .player .transport-spacer,
-  .app-shell[data-mobile-player-expanded='true'] .player .playback-buttons button:not(.play) {
-    display:initial !important;
+  .app-shell[data-mobile-player-expanded='true'] .player .transport input {
+    display:block !important;
+    width:100%;
+  }
+  .app-shell[data-mobile-player-expanded='true'] .player .transport > span {
+    display:flex !important;
+    align-items:center;
+    justify-content:center;
+    min-width:0;
   }
   .app-shell[data-mobile-player-expanded='true'] .player .transport-spacer {
     display:block !important;
   }
-  .app-shell[data-mobile-player-expanded='true'] .player .player-favorite {
+  .app-shell[data-mobile-player-expanded='true'] .player .playback-buttons {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:12px;
+  }
+  .app-shell[data-mobile-player-expanded='true'] .player .playback-buttons button:not(.play) {
     display:grid !important;
+    place-items:center;
+    width:40px;
+    min-width:40px;
+    height:40px;
+    min-height:40px;
+  }
+  .app-shell[data-mobile-player-expanded='true'] .player .player-favorite {
+    display:none !important;
   }
   .app-shell[data-mobile-player-expanded='true'] .player-minimize-toggle {
-    grid-column:1;
-    grid-row:4;
-    width:100%;
+    position:absolute;
+    left:12px;
+    right:12px;
+    bottom:8px;
+    width:auto;
     height:38px;
+    min-height:38px;
     border-radius:16px;
   }
   .artist-album-grid {
