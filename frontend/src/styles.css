@@ -1862,3 +1862,11 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   .queue-layer-root { z-index:9500; }
   .queue-layer-root .queue-scrim { background:rgba(0,0,0,.62); backdrop-filter:blur(8px); }
 }
+
+/* Radio playback uses the queue drawer as a live station switcher. */
+.radio-queue-head strong::after { content:' · live stations'; color:var(--muted); font-size:12px; font-weight:500; margin-left:6px; }
+.radio-queue-list button.radio-queue-row { grid-template-columns:46px minmax(0,1fr) auto; }
+.radio-queue-logo { width:42px; height:42px; min-width:42px; display:grid; place-items:center; }
+.radio-queue-logo .mini-art { width:42px; height:42px; min-width:42px; min-height:42px; border-radius:14px; }
+.radio-queue-row em { color:color-mix(in srgb, var(--accent) 80%, var(--muted)); font-weight:800; letter-spacing:.04em; }
+.radio-queue-row.active em { color:var(--accent); }

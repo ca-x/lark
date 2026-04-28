@@ -302,6 +302,20 @@ function artistCoverUrl(artist?: Artist | null) {
   return artist ? `/api/artists/${artist.id}/cover` : undefined;
 }
 
+function formatDownloadSpeed(kbps: number) {
+  if (!Number.isFinite(kbps) || kbps <= 0) return "";
+  const kibPerSecond = kbps / 8;
+  if (kibPerSecond >= 1024) return `${(kibPerSecond / 1024).toFixed(1)} MB/s`;
+  if (kibPerSecond >= 100) return `${Math.round(kibPerSecond)} KB/s`;
+  return `${kibPerSecond.toFixed(1)} KB/s`;
+}
+
+function radioStreamBitrateKbps(station?: RadioStation | null) {
+  if (!station) return 0;
+  if (station.bitrate > 0) return station.bitrate;
+  return station.url.startsWith("/api/radio/stream") ? 128 : 0;
+}
+
 function formatDuration(seconds: number) {
   if (!seconds) return "—";
   const m = Math.floor(seconds / 60);
@@ -638,6 +652,7 @@ export default function App() {
   const [duration, setDuration] = useState(0);
   const [bufferedEnd, setBufferedEnd] = useState(0);
   const [buffering, setBuffering] = useState(false);
+  const [radioDownloadKbps, setRadioDownloadKbps] = useState(0);
   const [volume, setVolume] = useState(0.85);
   const initialEq = useMemo(storedEqualizer, []);
   const initialTone = useMemo(storedToneControls, []);
@@ -670,6 +685,7 @@ export default function App() {
   const resumeSeekRef = useRef(0);
   const progressRef = useRef(0);
   const lastProgressPaintRef = useRef(0);
+  const radioDownloadSampleRef = useRef({ at: 0, ahead: 0 });
   const durationRef = useRef(0);
   const collectionRequestRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
@@ -1279,6 +1295,27 @@ export default function App() {
     setBufferedEnd(streamOffsetRef.current + ranges.end(ranges.length - 1));
   }
 
+  function updateRadioDownloadSpeed(media: HTMLAudioElement) {
+    const radio = currentRadioRef.current;
+    if (!radio) {
+      radioDownloadSampleRef.current = { at: 0, ahead: 0 };
+      setRadioDownloadKbps(0);
+      return;
+    }
+    const bitrate = radioStreamBitrateKbps(radio);
+    if (bitrate <= 0) return;
+    const ahead = bufferedAhead(media);
+    const now = performance.now();
+    const previous = radioDownloadSampleRef.current;
+    radioDownloadSampleRef.current = { at: now, ahead };
+    if (!previous.at) return;
+    const elapsedSeconds = (now - previous.at) / 1000;
+    if (elapsedSeconds < 0.75) return;
+    const bufferGrowth = (ahead - previous.ahead) / elapsedSeconds;
+    const estimated = Math.max(0, Math.min(10000, bitrate * (bufferGrowth + (playingRef.current ? 1 : 0))));
+    setRadioDownloadKbps((currentValue) => currentValue > 0 ? currentValue * 0.65 + estimated * 0.35 : estimated);
+  }
+
   function bufferedAhead(media: HTMLAudioElement) {
     const currentTime = media.currentTime;
     for (let i = 0; i < media.buffered.length; i += 1) {
@@ -1389,6 +1426,8 @@ export default function App() {
     playbackStartModeRef.current = options.startMode ?? "restart";
     pendingAutoplayRef.current = true;
     setBuffering(true);
+    setRadioDownloadKbps(0);
+    radioDownloadSampleRef.current = { at: 0, ahead: 0 };
     setStreamOffset(0);
     setStreamMode(defaultStreamMode(song));
     setCurrentRadio(null);
@@ -1422,6 +1461,8 @@ export default function App() {
     }
     pendingAutoplayRef.current = true;
     setBuffering(true);
+    setRadioDownloadKbps(0);
+    radioDownloadSampleRef.current = { at: 0, ahead: 0 };
     setCurrent(null);
     const playableStation = radioStationToPlayable(station);
     setCurrentRadio(playableStation);
@@ -1447,6 +1488,8 @@ export default function App() {
     }
     pendingAutoplayRef.current = true;
     setBuffering(true);
+    setRadioDownloadKbps(0);
+    radioDownloadSampleRef.current = { at: 0, ahead: 0 };
     setCurrent(null);
     setCurrentRadio(null);
     setRadioQueue([]);
@@ -2143,11 +2186,33 @@ export default function App() {
     : undefined;
   const currentStreamUrl = currentRadio?.url || currentNetworkTrack?.stream_url || streamUrl(current, streamMode, streamOffset);
   const nowTitle = current?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("nowPlaying");
+  const radioDownloadSpeed = radioDownloadKbps > 0 ? `${t("downloadSpeed")} ${formatDownloadSpeed(radioDownloadKbps)}` : "";
   const nowSubtitle = currentRadio
-    ? [currentRadio.country, currentRadio.codec || currentRadio.tags, currentRadio.bitrate ? `${currentRadio.bitrate}kbps` : ""].filter(Boolean).join(" · ")
+    ? [currentRadio.country, currentRadio.codec || currentRadio.tags, currentRadio.bitrate ? `${currentRadio.bitrate}kbps` : "", radioDownloadSpeed].filter(Boolean).join(" · ")
     : currentNetworkTrack
       ? [t("networkLibrary"), currentNetworkTrack.provider, currentNetworkTrack.artist, currentNetworkTrack.album].filter(Boolean).join(" · ")
     : "";
+  const radioPanelStations = useMemo(() => {
+    const base = radioQueue.length
+      ? radioQueue
+      : radioStations.length
+        ? radioStations
+        : radioSources.map(radioSourceToStation);
+    const out: RadioStation[] = [];
+    const seen = new Set<string>();
+    const add = (station: RadioStation | null | undefined) => {
+      if (!station?.url) return;
+      const playable = radioStationToPlayable(station);
+      const key = `${playable.id || "radio"}:${playable.url}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(playable);
+    };
+    add(currentRadio);
+    base.forEach(add);
+    return out;
+  }, [currentRadio, radioQueue, radioSources, radioStations]);
+  const queuePanelMode = currentRadio ? "radio" : "songs";
   const seekStyle = {
     "--played": playedPercent,
     "--buffered": bufferedPercent,
@@ -2766,8 +2831,8 @@ export default function App() {
           </button>
           <button
             className={queueOpen ? "queue-toggle active" : "queue-toggle"}
-            title={t("queue")}
-            aria-label={t("queue")}
+            title={queuePanelMode === "radio" ? t("onlineRadio") : t("queue")}
+            aria-label={queuePanelMode === "radio" ? t("onlineRadio") : t("queue")}
             onClick={() => setQueueOpen((value) => !value)}
           >
             <Queue />
@@ -2799,6 +2864,7 @@ export default function App() {
           src={currentStreamUrl}
           onLoadedMetadata={(e) => {
             updateBuffered(e.currentTarget);
+            updateRadioDownloadSpeed(e.currentTarget);
             const d = e.currentTarget.duration;
             const mediaDuration = Number.isFinite(d) && d > 0 ? d : 0;
             const libraryDuration = current?.duration_seconds || currentNetworkTrackRef.current?.duration_seconds || 0;
@@ -2828,6 +2894,7 @@ export default function App() {
           }}
           onDurationChange={(e) => {
             updateBuffered(e.currentTarget);
+            updateRadioDownloadSpeed(e.currentTarget);
             const d = e.currentTarget.duration;
             const mediaDuration = Number.isFinite(d) && d > 0 ? d : 0;
             const libraryDuration = current?.duration_seconds || currentNetworkTrackRef.current?.duration_seconds || 0;
@@ -2846,6 +2913,7 @@ export default function App() {
           onCanPlay={(event) => {
             clearStallDowngradeTimer();
             updateBuffered(event.currentTarget);
+            updateRadioDownloadSpeed(event.currentTarget);
             setBuffering(false);
             if (playingRef.current || pendingAutoplayRef.current)
               requestAudioPlay();
@@ -2853,9 +2921,13 @@ export default function App() {
           onPlaying={(event) => {
             clearStallDowngradeTimer();
             updateBuffered(event.currentTarget);
+            updateRadioDownloadSpeed(event.currentTarget);
             setBuffering(false);
           }}
-          onProgress={(event) => updateBuffered(event.currentTarget)}
+          onProgress={(event) => {
+            updateBuffered(event.currentTarget);
+            updateRadioDownloadSpeed(event.currentTarget);
+          }}
           onTimeUpdate={(e) => {
             const nextProgress = streamOffsetRef.current + e.currentTarget.currentTime;
             progressRef.current = nextProgress;
@@ -2865,6 +2937,7 @@ export default function App() {
               setProgress(nextProgress);
             }
             updateBuffered(e.currentTarget);
+            updateRadioDownloadSpeed(e.currentTarget);
             if (bufferedAhead(e.currentTarget) > 1.5) setBuffering(false);
             syncPlaybackProgress(false);
           }}
@@ -2894,6 +2967,8 @@ export default function App() {
             pendingAutoplayRef.current = false;
             event.currentTarget.pause();
             setPlaying(false);
+            setRadioDownloadKbps(0);
+            radioDownloadSampleRef.current = { at: 0, ahead: 0 };
             setStreamOffset(0);
             setProgress(0);
             showMessage(t("playbackFailed"));
@@ -2908,13 +2983,24 @@ export default function App() {
             aria-label={t("close")}
             onClick={() => setQueueOpen(false)}
           />
-          <QueuePanel
-            queue={queue}
-            current={current}
-            t={t}
-            onPlay={(song) => void playSong(song, queue)}
-            onClose={() => setQueueOpen(false)}
-          />
+          {queuePanelMode === "radio" ? (
+            <RadioQueuePanel
+              stations={radioPanelStations}
+              currentRadio={currentRadio}
+              playing={playing}
+              t={t}
+              onPlay={(station) => playRadio(station, radioPanelStations)}
+              onClose={() => setQueueOpen(false)}
+            />
+          ) : (
+            <QueuePanel
+              queue={queue}
+              current={current}
+              t={t}
+              onPlay={(song) => void playSong(song, queue)}
+              onClose={() => setQueueOpen(false)}
+            />
+          )}
         </div>
       )}
       {eqPanelOpen ? (
@@ -4962,6 +5048,56 @@ function EmptyLibrary({
       <small>{t("scanHint")}</small>
       {scanStatus ? <ScanProgress status={scanStatus} t={t} compact /> : null}
     </section>
+  );
+}
+
+function RadioQueuePanel({
+  stations,
+  currentRadio,
+  playing,
+  t,
+  onPlay,
+  onClose,
+}: {
+  stations: RadioStation[];
+  currentRadio: RadioStation | null;
+  playing: boolean;
+  t: ReturnType<typeof createT>;
+  onPlay: (station: RadioStation) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="queue-panel radio-queue-panel">
+      <div className="queue-head radio-queue-head">
+        <strong>{t("onlineRadio")}</strong>
+        <button onClick={onClose}>×</button>
+      </div>
+      <div className="queue-list radio-queue-list">
+        {stations.map((station, index) => {
+          const active = Boolean(currentRadio && (station.url === currentRadio.url || station.id === currentRadio.id));
+          return (
+            <button
+              key={`${station.id || "radio"}-${station.url}-${index}`}
+              className={active ? "active radio-queue-row" : "radio-queue-row"}
+              aria-current={active ? "true" : undefined}
+              onClick={() => onPlay(station)}
+            >
+              <span className="radio-queue-logo"><RadioMiniLogo station={station} playing={active && playing} /></span>
+              <div>
+                <strong>{station.name || t("onlineRadio")}</strong>
+                <small>
+                  {[station.country, station.codec || station.tags, station.bitrate ? `${station.bitrate}kbps` : ""]
+                    .filter(Boolean)
+                    .join(" · ") || t("liveRadio")}
+                </small>
+              </div>
+              <em>{active && playing ? "LIVE" : t("play")}</em>
+            </button>
+          );
+        })}
+        {!stations.length ? <div className="empty">{t("emptyCollection")}</div> : null}
+      </div>
+    </div>
   );
 }
 
