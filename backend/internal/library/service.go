@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/dhowden/tag"
@@ -2264,7 +2263,7 @@ func (s *Service) ensureAlbum(ctx context.Context, title, albumArtist string, ar
 }
 
 func prepareProbeCommand(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	prepareProbeProcessGroup(cmd)
 	cmd.Cancel = func() error {
 		terminateProbeCommand(cmd)
 		return nil
@@ -2279,8 +2278,7 @@ func terminateProbeCommand(cmd *exec.Cmd) {
 	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
 		return
 	}
-	if cmd.SysProcAttr != nil && cmd.SysProcAttr.Setpgid {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	if terminateProbeProcessGroup(cmd) {
 		return
 	}
 	_ = cmd.Process.Kill()

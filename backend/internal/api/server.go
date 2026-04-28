@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"lark/backend/ent"
@@ -564,7 +563,7 @@ func transcodeQuality(raw string) (int, error) {
 }
 
 func prepareExternalCommand(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	prepareExternalProcessGroup(cmd)
 	cmd.Cancel = func() error {
 		terminateExternalCommand(cmd)
 		return nil
@@ -579,8 +578,7 @@ func terminateExternalCommand(cmd *exec.Cmd) {
 	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
 		return
 	}
-	if cmd.SysProcAttr != nil && cmd.SysProcAttr.Setpgid {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	if terminateExternalProcessGroup(cmd) {
 		return
 	}
 	_ = cmd.Process.Kill()
