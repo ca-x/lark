@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -147,6 +148,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 	e.GET("/api/radio/sources", s.handleRadioSources, auth)
 	e.POST("/api/radio/sources", s.handleAddRadioSource, admin)
 	e.DELETE("/api/radio/sources/:id", s.handleDeleteRadioSource, admin)
+	e.GET("/api/radio/sources/:id/stream", s.handleRadioSourceStream, auth)
+	e.GET("/api/radio/stream", s.handleRadioStream, auth)
 	e.GET("/api/radio/top", s.handleTopRadioStations, auth)
 	e.GET("/api/radio/search", s.handleSearchRadioStations, auth)
 	e.POST("/api/library/upload", s.handleUpload, admin)
@@ -1099,6 +1102,89 @@ func (s *Server) handleDeleteRadioSource(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) handleRadioStream(c *echo.Context) error {
+	streamURL := strings.TrimSpace(c.QueryParam("url"))
+	if !validRemoteStreamURL(streamURL) {
+		return echo.NewHTTPError(http.StatusBadRequest, "valid radio stream url is required")
+	}
+	ffmpeg := strings.TrimSpace(s.lib.FFmpegBin())
+	if ffmpeg == "" {
+		return c.Redirect(http.StatusTemporaryRedirect, streamURL)
+	}
+	quality, err := transcodeQuality(c.QueryParam("quality"))
+	if err != nil {
+		return err
+	}
+	return s.pipeRemoteRadio(c, ffmpeg, streamURL, quality)
+}
+
+func validRemoteStreamURL(value string) bool {
+	u, err := url.Parse(strings.TrimSpace(value))
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+}
+
+func (s *Server) handleRadioSourceStream(c *echo.Context) error {
+	item, err := s.lib.RadioSource(c.Request().Context(), c.Param("id"))
+	if err != nil {
+		return mapError(err)
+	}
+	streamURL := strings.TrimSpace(item.URL)
+	if streamURL == "" {
+		return echo.NewHTTPError(http.StatusNotFound, "radio source stream not found")
+	}
+	ffmpeg := strings.TrimSpace(s.lib.FFmpegBin())
+	if ffmpeg == "" {
+		return c.Redirect(http.StatusTemporaryRedirect, streamURL)
+	}
+	quality, err := transcodeQuality(c.QueryParam("quality"))
+	if err != nil {
+		return err
+	}
+	return s.pipeRemoteRadio(c, ffmpeg, streamURL, quality)
+}
+
+func (s *Server) pipeRemoteRadio(c *echo.Context, ffmpeg, streamURL string, quality int) error {
+	ctx, cancel := context.WithCancel(c.Request().Context())
+	defer cancel()
+	args := []string{
+		"-hide_banner", "-loglevel", "error",
+		"-reconnect", "1",
+		"-reconnect_streamed", "1",
+		"-reconnect_delay_max", "5",
+		"-user_agent", library.RadioUserAgent(),
+		"-i", streamURL,
+		"-vn",
+		"-map", "0:a:0",
+		"-acodec", "libmp3lame",
+		"-b:a", fmt.Sprintf("%dk", quality),
+		"-flush_packets", "1",
+		"-f", "mp3",
+		"pipe:1",
+	}
+	cmd := exec.CommandContext(ctx, ffmpeg, args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return mapError(err)
+	}
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return c.Redirect(http.StatusTemporaryRedirect, streamURL)
+	}
+	defer func() {
+		_ = stdout.Close()
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		_ = cmd.Wait()
+	}()
+	c.Response().Header().Set("Content-Type", "audio/mpeg")
+	c.Response().Header().Set("Cache-Control", "no-store")
+	c.Response().Header().Set("X-Lark-Radio-Proxy", fmt.Sprintf("ffmpeg-mp3-%dk", quality))
+	c.Response().WriteHeader(http.StatusOK)
+	_, copyErr := io.Copy(c.Response(), stdout)
+	return copyErr
 }
 
 func (s *Server) handleTopRadioStations(c *echo.Context) error {

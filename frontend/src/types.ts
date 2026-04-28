@@ -150,6 +150,8 @@ export interface RadioSource {
   name: string;
   url: string;
   source_url: string;
+  group_name: string;
+  stream_url: string;
   builtin: boolean;
 }
 

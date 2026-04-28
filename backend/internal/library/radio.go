@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +28,8 @@ const (
 )
 
 var radioHTTPClient = &http.Client{Timeout: 10 * time.Second}
+
+func RadioUserAgent() string { return radioUserAgent }
 
 type radioBrowserStation struct {
 	StationUUID string `json:"stationuuid"`
@@ -124,6 +127,12 @@ func (s *Service) RadioSources(ctx context.Context) ([]models.RadioSource, error
 	for _, item := range stored {
 		item.Name = strings.TrimSpace(item.Name)
 		item.URL = strings.TrimSpace(item.URL)
+		item.SourceURL = strings.TrimSpace(item.SourceURL)
+		item.GroupName = strings.TrimSpace(item.GroupName)
+		if item.GroupName == "" {
+			item.GroupName = firstString(item.SourceURL, item.Name)
+		}
+		item.StreamURL = radioSourceStreamURL(item.ID)
 		if item.Name == "" || item.URL == "" || seen[item.ID] || seen[item.URL] {
 			continue
 		}
@@ -132,6 +141,23 @@ func (s *Service) RadioSources(ctx context.Context) ([]models.RadioSource, error
 		seen[item.URL] = true
 	}
 	return items, nil
+}
+
+func (s *Service) RadioSource(ctx context.Context, id string) (models.RadioSource, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return models.RadioSource{}, errors.New("radio source not found")
+	}
+	items, err := s.RadioSources(ctx)
+	if err != nil {
+		return models.RadioSource{}, err
+	}
+	for _, item := range items {
+		if item.ID == id {
+			return item, nil
+		}
+	}
+	return models.RadioSource{}, errors.New("radio source not found")
 }
 
 func (s *Service) AddRadioSource(ctx context.Context, name, sourceURL string) (models.RadioSource, error) {
@@ -160,7 +186,9 @@ func (s *Service) AddRadioSource(ctx context.Context, name, sourceURL string) (m
 				Name:      entryName,
 				URL:       entry.URL,
 				SourceURL: sourceURL,
+				GroupName: name,
 			}
+			item.StreamURL = radioSourceStreamURL(item.ID)
 			if first.ID == "" {
 				first = item
 			}
@@ -178,7 +206,8 @@ func (s *Service) AddRadioSource(ctx context.Context, name, sourceURL string) (m
 		}
 		return first, s.saveRadioSources(ctx, items)
 	}
-	item := models.RadioSource{ID: radioID(sourceURL), Name: name, URL: resolvePlaylistURL(ctx, sourceURL), SourceURL: sourceURL}
+	item := models.RadioSource{ID: radioID(sourceURL), Name: name, URL: resolvePlaylistURL(ctx, sourceURL), SourceURL: sourceURL, GroupName: name}
+	item.StreamURL = radioSourceStreamURL(item.ID)
 	for i, existing := range items {
 		if existing.ID == item.ID || strings.EqualFold(existing.URL, item.URL) || strings.EqualFold(existing.SourceURL, item.SourceURL) {
 			items[i] = item
@@ -198,10 +227,28 @@ func (s *Service) DeleteRadioSource(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	var target models.RadioSource
+	for _, item := range items {
+		if item.ID == id {
+			target = item
+			break
+		}
+	}
+	if target.ID == "" {
+		return errors.New("radio source not found")
+	}
+	deleteSourceURL := strings.TrimSpace(target.SourceURL)
+	if deleteSourceURL == "" {
+		deleteSourceURL = strings.TrimSpace(target.URL)
+	}
 	out := items[:0]
 	removed := false
 	for _, item := range items {
-		if item.ID == id {
+		itemSourceURL := strings.TrimSpace(item.SourceURL)
+		if itemSourceURL == "" {
+			itemSourceURL = strings.TrimSpace(item.URL)
+		}
+		if item.ID == id || (deleteSourceURL != "" && strings.EqualFold(itemSourceURL, deleteSourceURL)) {
 			removed = true
 			continue
 		}
@@ -238,12 +285,17 @@ func (s *Service) saveRadioSources(ctx context.Context, items []models.RadioSour
 		item.Name = strings.TrimSpace(item.Name)
 		item.URL = strings.TrimSpace(item.URL)
 		item.SourceURL = strings.TrimSpace(item.SourceURL)
+		item.GroupName = strings.TrimSpace(item.GroupName)
 		if item.SourceURL == "" {
 			item.SourceURL = item.URL
+		}
+		if item.GroupName == "" {
+			item.GroupName = firstString(item.SourceURL, item.Name)
 		}
 		if item.ID == "" {
 			item.ID = radioID(item.SourceURL)
 		}
+		item.StreamURL = radioSourceStreamURL(item.ID)
 		if item.Name == "" || item.URL == "" || seen[item.ID] {
 			continue
 		}
@@ -259,7 +311,16 @@ func (s *Service) saveRadioSources(ctx context.Context, items []models.RadioSour
 }
 
 func defaultRadioSource(ctx context.Context) models.RadioSource {
-	return models.RadioSource{ID: "builtin-cliamp", Name: "cliamp", URL: resolvePlaylistURL(ctx, defaultCliampRadioURL), SourceURL: defaultCliampRadioURL, Builtin: true}
+	item := models.RadioSource{ID: "builtin-cliamp", Name: "cliamp", URL: resolvePlaylistURL(ctx, defaultCliampRadioURL), SourceURL: defaultCliampRadioURL, GroupName: "cliamp", Builtin: true}
+	item.StreamURL = radioSourceStreamURL(item.ID)
+	return item
+}
+
+func radioSourceStreamURL(id string) string {
+	if strings.TrimSpace(id) == "" {
+		return ""
+	}
+	return "/api/radio/sources/" + url.PathEscape(id) + "/stream"
 }
 
 func resolvePlaylistURL(ctx context.Context, streamURL string) string {
@@ -327,7 +388,7 @@ type radioPlaylistEntry struct {
 func radioPlaylistEntries(ctx context.Context, playlistURL string) []radioPlaylistEntry {
 	playlistURL = strings.TrimSpace(playlistURL)
 	lower := strings.ToLower(strings.Split(playlistURL, "?")[0])
-	if !strings.HasSuffix(lower, ".m3u") {
+	if !strings.HasSuffix(lower, ".m3u") && !strings.HasSuffix(lower, ".m3u8") {
 		return nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
@@ -345,12 +406,22 @@ func radioPlaylistEntries(ctx context.Context, playlistURL string) []radioPlayli
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		return nil
 	}
-	scanner := bufio.NewScanner(io.LimitReader(res.Body, 2<<20))
-	scanner.Buffer(make([]byte, 64<<10), 512<<10)
+	baseURL, _ := url.Parse(playlistURL)
+	entries := parseRadioM3U(io.LimitReader(res.Body, 4<<20), baseURL)
+	if len(entries) > 200 {
+		return entries[:200]
+	}
+	return entries
+}
+
+func parseRadioM3U(r io.Reader, baseURL *url.URL) []radioPlaylistEntry {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64<<10), 1<<20)
 	var entries []radioPlaylistEntry
 	var title string
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+		line := strings.TrimPrefix(scanner.Text(), "\xef\xbb\xbf")
+		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "[") {
 			continue
 		}
@@ -358,27 +429,47 @@ func radioPlaylistEntries(ctx context.Context, playlistURL string) []radioPlayli
 		if strings.HasPrefix(upper, "#EXT-X-") {
 			return nil
 		}
+		if strings.HasPrefix(upper, "#EXTM3U") {
+			continue
+		}
 		if strings.HasPrefix(upper, "#EXTINF:") {
-			if _, value, ok := strings.Cut(line, ","); ok {
-				title = strings.TrimSpace(value)
-			}
+			title = radioExtinfTitle(line)
 			continue
 		}
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
-		if validStreamLikeURL(line) {
-			entries = append(entries, radioPlaylistEntry{Name: title, URL: resolvePlaylistURL(ctx, line)})
+		entryURL := resolveRadioPlaylistEntryURL(line, baseURL)
+		if validStreamLikeURL(entryURL) {
+			entries = append(entries, radioPlaylistEntry{Name: title, URL: resolvePlaylistURL(context.Background(), entryURL)})
 			title = ""
 		}
 	}
-	if len(entries) == 1 {
-		return entries
-	}
-	if len(entries) > 200 {
-		return entries[:200]
-	}
 	return entries
+}
+
+func radioExtinfTitle(line string) string {
+	_, value, ok := strings.Cut(line, ",")
+	if !ok {
+		return ""
+	}
+	title := strings.TrimSpace(value)
+	if unquoted, err := strconv.Unquote(title); err == nil {
+		return strings.TrimSpace(unquoted)
+	}
+	return title
+}
+
+func resolveRadioPlaylistEntryURL(value string, baseURL *url.URL) string {
+	value = strings.TrimSpace(value)
+	if validStreamLikeURL(value) || baseURL == nil {
+		return value
+	}
+	ref, err := url.Parse(value)
+	if err != nil {
+		return value
+	}
+	return baseURL.ResolveReference(ref).String()
 }
 
 func validStreamLikeURL(value string) bool {

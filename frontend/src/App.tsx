@@ -25,6 +25,7 @@ import {
   Repeat,
   RepeatOnce,
   Shuffle,
+  SlidersHorizontal,
   SkipBack,
   SkipForward,
   SpeakerSimpleHigh,
@@ -72,6 +73,8 @@ import type {
 import { createT } from "./i18n";
 import { RadioReceiver } from "./components/RadioPlayer";
 import { VinylTurntable } from "./components/VinylPlayer";
+import { EqualizerPanel } from "./components/EqualizerPanel";
+import { EQ_FREQUENCIES, EQ_STORAGE_KEY, clampEqGain, storedEqualizer } from "./components/equalizer";
 
 const defaultSettings: Settings = {
   language: "zh-CN",
@@ -257,13 +260,24 @@ function queueWithCurrent(base: Song[], current?: Song | null) {
 function coverUrl(song?: Song | null) {
   return song ? `/api/songs/${song.id}/cover` : undefined;
 }
+function radioPlaybackURL(streamURL: string) {
+  const trimmed = streamURL.trim();
+  if (!trimmed || trimmed.startsWith("/")) return trimmed;
+  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `/api/radio/stream?url=${encodeURIComponent(trimmed)}`;
+}
+
+function radioStationToPlayable(station: RadioStation): RadioStation {
+  return { ...station, url: radioPlaybackURL(station.url) };
+}
+
 function radioSourceToStation(source: RadioSource): RadioStation {
   return {
     id: source.id,
     name: source.name,
-    url: source.url,
+    url: radioPlaybackURL(source.stream_url || source.url),
     country: "",
-    tags: source.source_url || source.url,
+    tags: source.group_name || source.source_url || "",
     codec: "",
     bitrate: 0,
     votes: 0,
@@ -271,6 +285,28 @@ function radioSourceToStation(source: RadioSource): RadioStation {
     favicon: "",
   };
 }
+
+function radioGroupName(source: RadioSource) {
+  return source.group_name || source.source_url || source.name || source.url || "Radio";
+}
+
+function radioSourceGroups(sources: RadioSource[]) {
+  const groups: Array<{ name: string; sources: RadioSource[] }> = [];
+  const index = new Map<string, number>();
+  for (const source of sources) {
+    const name = radioGroupName(source);
+    const key = name.toLowerCase();
+    const groupIndex = index.get(key);
+    if (groupIndex === undefined) {
+      index.set(key, groups.length);
+      groups.push({ name, sources: [source] });
+    } else {
+      groups[groupIndex].sources.push(source);
+    }
+  }
+  return groups;
+}
+
 function albumCoverUrl(album?: Album | null) {
   return album ? `/api/albums/${album.id}/cover` : undefined;
 }
@@ -607,6 +643,10 @@ export default function App() {
   const [bufferedEnd, setBufferedEnd] = useState(0);
   const [buffering, setBuffering] = useState(false);
   const [volume, setVolume] = useState(0.85);
+  const initialEq = useMemo(storedEqualizer, []);
+  const [eqEnabled, setEqEnabled] = useState(initialEq.enabled);
+  const [eqBands, setEqBands] = useState<number[]>(initialEq.bands);
+  const [eqPanelOpen, setEqPanelOpen] = useState(false);
   const [streamMode, setStreamMode] = useState<StreamMode>(() =>
     prefersLowBandwidthStream() ? "adaptive" : "auto",
   );
@@ -614,6 +654,10 @@ export default function App() {
   const [inlineLyrics, setInlineLyrics] = useState(false);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const eqFiltersRef = useRef<BiquadFilterNode[]>([]);
+  const eqAudioNodeRef = useRef<HTMLAudioElement | null>(null);
   const setAudioNode = useCallback((node: HTMLAudioElement | null) => {
     audioRef.current = node;
     if (node) node.volume = volume;
@@ -689,9 +733,72 @@ export default function App() {
     if (audioRef.current) audioRef.current.volume = next;
   }, []);
 
+  const ensureEqualizerGraph = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return null;
+    if (eqAudioNodeRef.current === audio && audioContextRef.current && eqFiltersRef.current.length) {
+      return audioContextRef.current;
+    }
+    audioSourceRef.current?.disconnect();
+    eqFiltersRef.current.forEach((filter) => filter.disconnect());
+    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return null;
+    const ctx = new AudioContextCtor();
+    const source = ctx.createMediaElementSource(audio);
+    const filters = EQ_FREQUENCIES.map((frequency) => {
+      const filter = ctx.createBiquadFilter();
+      filter.type = "peaking";
+      filter.frequency.value = frequency;
+      filter.Q.value = 1;
+      filter.gain.value = 0;
+      return filter;
+    });
+    source.connect(filters[0]);
+    filters.forEach((filter, index) => {
+      const next = filters[index + 1] || ctx.destination;
+      filter.connect(next);
+    });
+    audioContextRef.current = ctx;
+    audioSourceRef.current = source;
+    eqFiltersRef.current = filters;
+    eqAudioNodeRef.current = audio;
+    return ctx;
+  }, []);
+
+  const resumeEqualizer = useCallback(() => {
+    const ctx = audioContextRef.current;
+    if (ctx?.state === "suspended") void ctx.resume().catch(() => undefined);
+  }, []);
+
+  const resetEqualizer = useCallback(() => {
+    setEqBands(EQ_FREQUENCIES.map(() => 0));
+  }, []);
+
+  const updateEqBand = useCallback((index: number, value: number) => {
+    setEqBands((bands) => bands.map((band, bandIndex) => (bandIndex === index ? clampEqGain(value) : band)));
+  }, []);
+
   useEffect(() => {
     void bootstrap();
   }, []);
+  useEffect(() => {
+    window.localStorage.setItem(EQ_STORAGE_KEY, JSON.stringify({ enabled: eqEnabled, bands: eqBands }));
+  }, [eqEnabled, eqBands]);
+
+  useEffect(() => {
+    if (!eqEnabled) {
+      eqFiltersRef.current.forEach((filter) => {
+        filter.gain.value = 0;
+      });
+      return;
+    }
+    const ctx = ensureEqualizerGraph();
+    eqFiltersRef.current.forEach((filter, index) => {
+      filter.gain.value = clampEqGain(eqBands[index] ?? 0);
+    });
+    if (playingRef.current && ctx?.state === "suspended") void ctx.resume().catch(() => undefined);
+  }, [audioEl, eqEnabled, eqBands, ensureEqualizerGraph]);
+
   useEffect(() => {
     if (!auth?.user) return;
     const nextResumeMode = storedResumeMode(auth.user);
@@ -759,6 +866,7 @@ export default function App() {
         ? `radio:${radio.id || radio.url}`
         : `network:${networkTrack?.source_id}:${networkTrack?.id}`;
     pendingAutoplayRef.current = true;
+    if (eqEnabled) resumeEqualizer();
     void audio.play().then(() => {
       const activeKey = currentRef.current
         ? `song:${currentRef.current.id}`
@@ -789,7 +897,7 @@ export default function App() {
       setPlaying(false);
       showMessage(t("playbackFailed"));
     });
-  }, [t]);
+  }, [eqEnabled, resumeEqualizer, t]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -1264,7 +1372,7 @@ export default function App() {
     pendingAutoplayRef.current = true;
     setBuffering(true);
     setCurrent(null);
-    setCurrentRadio(station);
+    setCurrentRadio(radioStationToPlayable(station));
     setCurrentNetworkTrack(null);
     setLyrics(null);
     setLyricCandidates([]);
@@ -1305,7 +1413,7 @@ export default function App() {
       const items = search.trim()
         ? await api.searchRadioStations(search, RADIO_STATION_LIMIT)
         : await api.topRadioStations(RADIO_STATION_LIMIT);
-      setRadioStations(items);
+      setRadioStations(items.map(radioStationToPlayable));
     } catch {
       showMessage(t("loadFailed"));
     } finally {
@@ -2581,6 +2689,14 @@ export default function App() {
           >
             <Queue />
           </button>
+          <button
+            className={eqEnabled ? "eq-toggle active" : "eq-toggle"}
+            title={t("equalizer")}
+            aria-label={t("equalizer")}
+            onClick={() => setEqPanelOpen((value) => !value)}
+          >
+            <SlidersHorizontal />
+          </button>
           <SleepTimerControl
             value={sleepTimerMins}
             left={sleepLeft}
@@ -2600,6 +2716,18 @@ export default function App() {
             }}
           />
         </div>
+        {eqPanelOpen ? (
+          <EqualizerPanel
+            t={t}
+            enabled={eqEnabled}
+            bands={eqBands}
+            onToggle={() => setEqEnabled((value) => !value)}
+            onChange={updateEqBand}
+            onReset={resetEqualizer}
+            onApplyPreset={(presetBands) => setEqBands(presetBands)}
+            onClose={() => setEqPanelOpen(false)}
+          />
+        ) : null}
         {queueOpen && (
           <div className="queue-layer">
             <button
@@ -3023,9 +3151,11 @@ function HomeView({
   const featuredAlbums = albums.slice(0, 4);
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
-  const heroPlaying = playing && current?.id === heroSong?.id;
-  const heroAlbum = heroSong
-    ? albums.find((album) => album.id === heroSong.album_id)
+  const displaySong = current ?? heroSong ?? null;
+  const heroActive = Boolean(current);
+  const heroPlaying = playing && heroActive;
+  const heroAlbum = displaySong
+    ? albums.find((album) => album.id === displaySong.album_id)
     : undefined;
   return (
     <section className="home-view">
@@ -3040,33 +3170,33 @@ function HomeView({
           />
         ) : (
           <VinylTurntable
-            cover={coverUrl(heroSong)}
+            cover={coverUrl(displaySong)}
             playing={heroPlaying}
-            progress={heroPlaying ? progress : 0}
-            duration={heroPlaying ? duration : heroSong?.duration_seconds || 0}
-            title={heroSong?.title}
-            artist={heroSong?.artist}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
             volume={volume}
-            onToggle={heroPlaying ? onTogglePlayback : heroSong ? () => onPlay(heroSong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onPlay(displaySong) : undefined}
             onVolume={onVolume}
-            onSeek={heroPlaying ? onSeek : undefined}
+            onSeek={heroActive ? onSeek : undefined}
           />
         )}
         <div>
           <p>{currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : t("jumpBackIn")}</p>
-          <h1>{currentRadio?.name ?? heroSong?.title ?? `${t("brand")} Music`}</h1>
+          <h1>{currentRadio?.name ?? displaySong?.title ?? `${t("brand")} Music`}</h1>
           {currentRadio ? (
             <h2 className="home-hero-meta">
               {[currentRadio.country, currentRadio.codec, currentRadio.bitrate ? `${currentRadio.bitrate}kbps` : ""].filter(Boolean).join(" · ") || t("onlineRadio")}
             </h2>
-          ) : heroSong ? (
+          ) : displaySong ? (
             <h2 className="home-hero-meta">
               <button
                 type="button"
                 className="hero-meta-link"
-                onClick={() => onOpenArtist(heroSong.artist_id, heroSong.artist)}
+                onClick={() => onOpenArtist(displaySong.artist_id, displaySong.artist)}
               >
-                {heroSong.artist}
+                {displaySong.artist}
               </button>
               <span aria-hidden="true"> · </span>
               {heroAlbum ? (
@@ -3075,10 +3205,10 @@ function HomeView({
                   className="hero-meta-link"
                   onClick={() => onOpenAlbum(heroAlbum)}
                 >
-                  {heroSong.album}
+                  {displaySong.album}
                 </button>
               ) : (
-                <span>{heroSong.album}</span>
+                <span>{displaySong.album}</span>
               )}
             </h2>
           ) : (
@@ -3087,8 +3217,8 @@ function HomeView({
           <div className="hero-actions">
             <button
               className="primary"
-              disabled={!heroSong || Boolean(currentRadio)}
-              onClick={() => heroSong && onPlay(heroSong)}
+              disabled={!displaySong || Boolean(currentRadio)}
+              onClick={() => displaySong && (heroActive ? onTogglePlayback() : onPlay(displaySong))}
             >
               {currentRadio ? <Record weight="fill" /> : heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
               {currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : t("play")}
@@ -4235,24 +4365,29 @@ function LibraryRadioSources({
   onOpenRadio: () => void;
   onPlayRadio: (source: RadioSource) => void;
 }) {
+  const groups = useMemo(() => radioSourceGroups(sources), [sources]);
   return (
-    <div className="source-grid">
-      {sources.map((source) => (
-        <article key={source.id} className="source-card radio-source-card">
-          <span>{source.builtin ? t("defaultSource") : t("customSource")}</span>
-          <strong>{source.name}</strong>
-          <p>{source.source_url || source.url}</p>
-          <div>
-            <button className="primary" onClick={() => onPlayRadio(source)}>
-              <Play weight="fill" /> {t("playRadio")}
-            </button>
-            <button onClick={onOpenRadio}>{t("browseRadio")}</button>
-          </div>
-        </article>
-      ))}
+    <div className="source-grid radio-group-grid">
+      {groups.map((group) => {
+        const first = group.sources[0];
+        return (
+          <article key={group.name} className="source-card radio-source-card">
+            <span>{first?.builtin ? t("defaultSource") : t("customSource")}</span>
+            <strong>{group.name}</strong>
+            <p>{group.sources.length > 1 ? `${group.sources.length} ${t("liveRadio")}` : first?.name}</p>
+            <div>
+              <button className="primary" onClick={() => first && onPlayRadio(first)} disabled={!first}>
+                <Play weight="fill" /> {t("playRadio")}
+              </button>
+              <button onClick={onOpenRadio}>{t("browseRadio")}</button>
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
 }
+
 
 function RadioView({
   t,
@@ -4285,6 +4420,15 @@ function RadioView({
 }) {
   const [name, setName] = useState("");
   const [url, setURL] = useState("");
+  const sourceGroups = useMemo(() => radioSourceGroups(sources), [sources]);
+  const [selectedGroup, setSelectedGroup] = useState("");
+  const activeGroup = sourceGroups.find((group) => group.name === selectedGroup) || sourceGroups[0];
+  useEffect(() => {
+    if (!sourceGroups.length) return;
+    if (!sourceGroups.some((group) => group.name === selectedGroup)) {
+      setSelectedGroup(sourceGroups[0].name);
+    }
+  }, [sourceGroups, selectedGroup]);
   const submitSource = () => {
     if (!name.trim() || !url.trim()) return;
     onAddSource(name, url);
@@ -4316,14 +4460,27 @@ function RadioView({
           <div className="section-head compact">
             <h3>{t("radioSources")}</h3>
           </div>
+          <div className="radio-group-tabs" role="tablist" aria-label={t("radioSources")}>
+            {sourceGroups.map((group) => (
+              <button
+                key={group.name}
+                type="button"
+                className={activeGroup?.name === group.name ? "active" : ""}
+                onClick={() => setSelectedGroup(group.name)}
+              >
+                <strong>{group.name}</strong>
+                <small>{group.sources.length}</small>
+              </button>
+            ))}
+          </div>
           <div className="radio-source-list">
-            {sources.map((source) => (
+            {(activeGroup?.sources ?? []).map((source) => (
               <article key={source.id} className="radio-source-row">
                 <button onClick={() => onPlaySource(source)}>
                   <Play weight="fill" />
                   <span>
                     <strong>{source.name}</strong>
-                    <small>{source.source_url || source.url}</small>
+                    <small>{source.builtin ? t("defaultSource") : (source.source_url || source.url)}</small>
                   </span>
                 </button>
                 {!source.builtin ? (

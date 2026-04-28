@@ -183,6 +183,8 @@ type RadioSource struct {
 	Name      string `json:"name"`
 	URL       string `json:"url"`
 	SourceURL string `json:"source_url"`
+	GroupName string `json:"group_name"`
+	StreamURL string `json:"stream_url"`
 	Builtin   bool   `json:"builtin"`
 }
 
