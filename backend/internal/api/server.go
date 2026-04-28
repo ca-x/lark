@@ -1070,6 +1070,9 @@ func mapError(err error) error {
 	if errors.Is(err, library.ErrForbidden) {
 		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
 	}
+	if errors.Is(err, library.ErrScanRunning) {
+		return echo.NewHTTPError(http.StatusConflict, "library scan already running")
+	}
 	if ent.IsNotFound(err) {
 		return echo.NewHTTPError(http.StatusNotFound, "not found")
 	}

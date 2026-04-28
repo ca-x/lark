@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 type Album struct{ ent.Schema }
@@ -27,5 +28,11 @@ func (Album) Edges() []ent.Edge {
 		edge.From("artist", Artist.Type).Ref("albums").Unique(),
 		edge.To("songs", Song.Type),
 		edge.To("user_favorites", UserAlbumFavorite.Type),
+	}
+}
+
+func (Album) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("title", "album_artist").Unique(),
 	}
 }

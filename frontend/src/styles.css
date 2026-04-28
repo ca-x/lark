@@ -89,21 +89,24 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .filter-pill select { min-height:32px; max-width:min(260px, 54vw); border:0; border-radius:999px; padding:6px 10px; color:var(--text); background:var(--panel); }
 .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(172px,1fr)); gap:16px; align-items:start; }
 .media-card { min-height:0; text-align:left; padding:14px; border-radius:22px; background:var(--panel2); border:1px solid var(--line); display:grid; gap:10px; contain:layout paint; transition:border-color .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease); }
-.media-card:hover { border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); box-shadow:0 12px 34px color-mix(in srgb, var(--accent) 10%, transparent); }
+.media-card:hover, .media-card:focus-within { border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); box-shadow:0 12px 34px color-mix(in srgb, var(--accent) 10%, transparent); }
 .cover { aspect-ratio:1/1; min-height:128px; border-radius:18px; display:grid; place-items:center; background:var(--cover-url), var(--cover); background-size:cover; background-position:center; color:var(--bg); overflow:hidden; }
 .cover svg { width:62%; height:62%; opacity:.82; }
+.card-open { position:absolute; inset:0; z-index:1; width:100%; min-width:0; height:100%; min-height:0; padding:0; display:grid; place-items:center; border-radius:inherit; color:inherit; background:transparent; overflow:hidden; }
 .cover-image { position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover; display:block; background:var(--panel2); transform:translateZ(0); pointer-events:none; }
 .cover-image[hidden] { display:none; }
 .cover-image[data-loaded='true'] ~ svg { opacity:0 !important; }
-.media-card strong, .media-card span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.media-card-title { min-width:0; min-height:0; padding:0; color:var(--text); text-align:left; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.media-card-title:hover, .card-meta-button:hover { color:var(--accent); text-decoration:underline; }
+.media-card span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .media-card span { color:var(--muted); }
 
 .artist-link { display:inline; min-width:0 !important; min-height:0 !important; padding:0 !important; border-radius:0 !important; color:var(--muted) !important; background:transparent !important; text-align:left; text-decoration:none; }
 .artist-link:hover { color:var(--accent) !important; text-decoration:underline; }
 .hero-artist { margin:0; font-size:inherit; }
 .card-meta { display:grid; gap:2px; }
-.card-meta em, .card-meta small { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-style:normal; }
-.card-meta em { color:var(--muted); cursor:pointer; }
+.card-meta em, .card-meta small, .card-meta-button { min-width:0; min-height:0; padding:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-style:normal; }
+.card-meta em, .card-meta-button { color:var(--muted); text-align:left; }
 .card-meta em:hover { color:var(--accent); text-decoration:underline; }
 .card-meta small { color:color-mix(in srgb, var(--muted) 74%, transparent); font-size:12px; }
 .row-check { width:34px; min-height:40px; display:grid; place-items:center; }
@@ -531,7 +534,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 /* Huashu pass: quick play affordances and queue drawer */
 .cover { position:relative; }
 .card-play { position:absolute; z-index:2; right:10px; bottom:10px; width:44px; height:44px; display:grid; place-items:center; border-radius:999px; background:color-mix(in srgb, var(--panel) 82%, #000); color:var(--text); border:1px solid color-mix(in srgb, var(--text) 18%, transparent); box-shadow:0 12px 26px rgba(0,0,0,.28), 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent); backdrop-filter:blur(14px); opacity:0; transform:translateY(8px) scale(.92); transition:opacity .18s var(--ease), transform .18s var(--ease), background .18s var(--ease), color .18s var(--ease); }
-.media-card:hover .card-play, .media-card:focus-visible .card-play { opacity:1; transform:translateY(0) scale(1); }
+.media-card:hover .card-play, .media-card:focus-within .card-play { opacity:1; transform:translateY(0) scale(1); }
 .card-play:hover { background:var(--accent); color:var(--bg); }
 .card-album .plain-cover, .card-artist .plain-cover, .artist-album-card .plain-cover { contain:paint; transform:none !important; transition:none !important; }
 .card-album .card-play, .card-artist .card-play, .artist-album-card .card-play { background:color-mix(in srgb, var(--panel) 94%, #000); backdrop-filter:none; will-change:opacity, transform; }
@@ -690,7 +693,7 @@ body, button, input, select { font-family: var(--app-font); }
 .modal-actions { display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
 .modal-actions .primary, .mcp-actions .primary { margin-top:0; background:var(--accent); color:var(--bg); border-color:transparent; }
 .card-favorite { position:absolute; z-index:3; top:10px; right:10px; width:44px; height:44px; display:grid; place-items:center; border-radius:999px; background:color-mix(in srgb, var(--panel) 94%, #000); color:var(--text); border:1px solid color-mix(in srgb, var(--text) 16%, transparent); box-shadow:0 12px 26px rgba(0,0,0,.22); backdrop-filter:blur(14px); opacity:0; transform:translateY(-6px) scale(.94); transition:opacity .18s var(--ease), transform .18s var(--ease), background .18s var(--ease), color .18s var(--ease); }
-.media-card:hover .card-favorite, .media-card:focus-visible .card-favorite, .card-favorite.active { opacity:1; transform:translateY(0) scale(1); }
+.media-card:hover .card-favorite, .media-card:focus-within .card-favorite, .card-favorite.active { opacity:1; transform:translateY(0) scale(1); }
 .card-favorite:hover, .card-favorite.active { background:var(--accent); color:var(--bg); }
 .favorites-view { display:grid; gap:16px; }
 .lyrics-meta-links { display:flex; align-items:center; gap:8px; min-width:0; color:var(--muted); }

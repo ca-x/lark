@@ -50,6 +50,8 @@ var supportedExts = map[string]bool{
 	".dsf": true, ".dff": true, ".dst": true, ".ape": true, ".alac": true,
 }
 
+var coverHTTPClient = &http.Client{Timeout: 6 * time.Second}
+
 type Service struct {
 	client     *ent.Client
 	dataDir    string
@@ -61,6 +63,7 @@ type Service struct {
 	online     []online.Provider
 	cache      kv.Store
 	cacheTTL   time.Duration
+	scanRunMu  sync.Mutex
 	scanMu     sync.RWMutex
 	scanStatus models.ScanStatus
 }
@@ -311,6 +314,10 @@ func (s *Service) ScanStatus() models.ScanStatus {
 }
 
 func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, error) {
+	if !s.scanRunMu.TryLock() {
+		return models.ScanResult{Errors: []string{ErrScanRunning.Error()}}, ErrScanRunning
+	}
+	defer s.scanRunMu.Unlock()
 	started := time.Now()
 	roots, err := s.effectiveLibraryRoots(ctx, userID)
 	if err != nil {
@@ -669,9 +676,34 @@ func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Son
 	} else if ok {
 		return cached, nil
 	}
-	items, err := s.client.Song.Query().WithArtist().WithAlbum().Order(ent.Asc(song.FieldID)).All(ctx)
+	total, err := s.client.Song.Query().Count(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if total == 0 {
+		return []models.Song{}, nil
+	}
+	candidateLimit := minInt(total, maxInt(limit*8, 200))
+	offset := dailyCandidateOffset(time.Now().Format("2006-01-02"), userID, total, candidateLimit)
+	query := s.client.Song.Query().WithArtist().WithAlbum().Order(ent.Asc(song.FieldID)).Limit(candidateLimit)
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+	items, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) < candidateLimit && offset > 0 {
+		wrapped, err := s.client.Song.Query().
+			WithArtist().
+			WithAlbum().
+			Order(ent.Asc(song.FieldID)).
+			Limit(candidateLimit - len(items)).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, wrapped...)
 	}
 	out, err := s.applySongUserState(ctx, userID, mapSongs(items))
 	if err != nil {
@@ -708,6 +740,23 @@ func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Son
 	}
 	_ = s.cacheSetJSON(ctx, key, selected)
 	return selected, nil
+}
+
+func dailyCandidateOffset(day string, userID, total, candidateLimit int) int {
+	if total <= candidateLimit {
+		return 0
+	}
+	return int(dailySeed(day, userID) % uint64(total-candidateLimit+1))
+}
+
+func dailySeed(day string, userID int) uint64 {
+	seed := fmt.Sprintf("%s:%d", day, userID)
+	var hash uint64 = 1469598103934665603
+	for _, b := range []byte(seed) {
+		hash ^= uint64(b)
+		hash *= 1099511628211
+	}
+	return hash
 }
 
 func dailyScore(day string, userID int, item models.Song) uint64 {
@@ -747,6 +796,13 @@ func recentArtistInMix(items []models.Song, artistID, gap int) bool {
 
 func minInt(a, b int) int {
 	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
 		return a
 	}
 	return b
@@ -810,7 +866,10 @@ func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Fold
 	} else if ok {
 		return cached, nil
 	}
-	items, err := s.client.Song.Query().Order(ent.Desc(song.FieldUpdatedAt), ent.Asc(song.FieldPath)).All(ctx)
+	items, err := s.client.Song.Query().
+		Select(song.FieldID, song.FieldPath, song.FieldDurationSeconds).
+		Order(ent.Desc(song.FieldUpdatedAt), ent.Asc(song.FieldPath)).
+		All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -865,7 +924,12 @@ func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath strin
 	if err != nil {
 		return nil, err
 	}
+	prefix := resolved.Path
+	if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
+		prefix += string(os.PathSeparator)
+	}
 	items, err := s.client.Song.Query().
+		Where(song.Or(song.PathHasPrefix(prefix), song.Path(resolved.Path))).
 		Order(ent.Asc(song.FieldPath)).
 		WithArtist().
 		WithAlbum().
@@ -924,10 +988,11 @@ func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath strin
 				continue
 			}
 			folder := &models.Folder{Path: rootedFolderPath(extraRoot.ID, "."), Name: s.rootDisplayName(extraRoot)}
-			for _, item := range items {
-				if _, ok := relativeFolderPath(extraRoot.Path, filepath.Dir(item.Path)); !ok {
-					continue
-				}
+			rootItems, err := s.folderSummarySongs(ctx, extraRoot.Path)
+			if err != nil {
+				return nil, err
+			}
+			for _, item := range rootItems {
 				folder.SongCount++
 				folder.DurationSeconds += item.DurationSeconds
 				if folder.CoverSongID == 0 {
@@ -967,6 +1032,18 @@ func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath strin
 		DurationSeconds: duration,
 		CoverSongID:     coverID,
 	}, nil
+}
+
+func (s *Service) folderSummarySongs(ctx context.Context, root string) ([]*ent.Song, error) {
+	prefix := root
+	if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
+		prefix += string(os.PathSeparator)
+	}
+	return s.client.Song.Query().
+		Select(song.FieldID, song.FieldPath, song.FieldDurationSeconds).
+		Where(song.Or(song.PathHasPrefix(prefix), song.Path(root))).
+		Order(ent.Asc(song.FieldPath)).
+		All(ctx)
 }
 
 func (s *Service) FolderSongs(ctx context.Context, userID int, relPath string) ([]models.Song, error) {
@@ -1238,6 +1315,10 @@ func (s *Service) cachedRemoteImage(ctx context.Context, kind, key, remoteURL st
 		return nil, "", err
 	}
 	safeKey := strings.NewReplacer("/", "_", "\\", "_", ":", "_").Replace(key)
+	failPath := filepath.Join(cacheDir, safeKey+".fail")
+	if info, err := os.Stat(failPath); err == nil && time.Since(info.ModTime()) < 30*time.Minute {
+		return nil, "", nil
+	}
 	for _, ext := range []string{".jpg", ".png", ".webp"} {
 		path := filepath.Join(cacheDir, safeKey+ext)
 		data, err := os.ReadFile(path)
@@ -1245,17 +1326,21 @@ func (s *Service) cachedRemoteImage(ctx context.Context, kind, key, remoteURL st
 			return data, mime.TypeByExtension(ext), nil
 		}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteURL, nil)
+	downloadCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(downloadCtx, http.MethodGet, remoteURL, nil)
 	if err != nil {
 		return nil, "", err
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 Lark Music Player")
-	res, err := http.DefaultClient.Do(req)
+	res, err := coverHTTPClient.Do(req)
 	if err != nil {
+		recordRemoteCoverFailure(failPath)
 		return nil, "", err
 	}
 	defer res.Body.Close()
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		recordRemoteCoverFailure(failPath)
 		return nil, "", fmt.Errorf("cover status %d", res.StatusCode)
 	}
 	contentType := res.Header.Get("Content-Type")
@@ -1267,16 +1352,23 @@ func (s *Service) cachedRemoteImage(ctx context.Context, kind, key, remoteURL st
 	}
 	data, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
 	if err != nil {
+		recordRemoteCoverFailure(failPath)
 		return nil, "", err
 	}
 	if len(data) == 0 {
+		recordRemoteCoverFailure(failPath)
 		return nil, "", nil
 	}
 	_ = os.WriteFile(filepath.Join(cacheDir, safeKey+ext), data, 0o644)
+	_ = os.Remove(failPath)
 	if contentType == "" {
 		contentType = mime.TypeByExtension(ext)
 	}
 	return data, contentType, nil
+}
+
+func recordRemoteCoverFailure(path string) {
+	_ = os.WriteFile(path, []byte(time.Now().Format(time.RFC3339)), 0o644)
 }
 
 func (s *Service) firstEmbeddedCover(items []*ent.Song) ([]byte, string, error) {
@@ -1766,7 +1858,10 @@ func (s *Service) Playlists(ctx context.Context, userID, limit int) ([]models.Pl
 	} else if ok {
 		return cached, nil
 	}
-	query := s.client.Playlist.Query().Where(playlist.HasOwnerWith(user.ID(userID))).Order(ent.Desc(playlist.FieldUpdatedAt))
+	query := s.client.Playlist.Query().
+		Where(playlist.HasOwnerWith(user.ID(userID))).
+		WithSongs(func(q *ent.SongQuery) { q.Select(song.FieldID) }).
+		Order(ent.Desc(playlist.FieldUpdatedAt))
 	if limit > 0 {
 		query = query.Limit(limit)
 	}
@@ -1776,11 +1871,7 @@ func (s *Service) Playlists(ctx context.Context, userID, limit int) ([]models.Pl
 	}
 	out := make([]models.Playlist, 0, len(items))
 	for _, p := range items {
-		count, err := p.QuerySongs().Count(ctx)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, mapPlaylistWithCount(p, count))
+		out = append(out, mapPlaylistWithCount(p, len(p.Edges.Songs)))
 	}
 	_ = s.cacheSetJSON(ctx, key, out)
 	return out, nil
@@ -2245,7 +2336,11 @@ func (s *Service) ensureAlbum(ctx context.Context, title, albumArtist string, ar
 	if title == "" {
 		title = "Unknown Album"
 	}
-	item, err := s.client.Album.Query().Where(album.Title(title)).Only(ctx)
+	albumArtist = strings.TrimSpace(albumArtist)
+	if albumArtist == "" && ar != nil {
+		albumArtist = strings.TrimSpace(ar.Name)
+	}
+	item, err := s.client.Album.Query().Where(album.Title(title), album.AlbumArtist(albumArtist)).Only(ctx)
 	if err == nil {
 		if item.Year == 0 && year > 0 {
 			updated, updateErr := item.Update().SetYear(year).Save(ctx)

@@ -4,13 +4,17 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"unicode/utf16"
 
 	"lark/backend/ent"
+	"lark/backend/ent/enttest"
 	"lark/backend/internal/models"
+
+	_ "github.com/lib-x/entsqlite"
 )
 
 func TestShouldSkipSharedCenterScanDirBelowRoot(t *testing.T) {
@@ -58,6 +62,49 @@ func TestScanSkipsSharedCenterAndContinuesSiblings(t *testing.T) {
 	}
 	if result.CurrentDir != filepath.Join(root, "album") {
 		t.Fatalf("expected scan to continue into sibling album dir, got %q", result.CurrentDir)
+	}
+}
+
+func TestScanRejectsConcurrentRun(t *testing.T) {
+	service := &Service{}
+	service.scanRunMu.Lock()
+	defer service.scanRunMu.Unlock()
+	_, err := service.Scan(context.Background(), 0)
+	if !errors.Is(err, ErrScanRunning) {
+		t.Fatalf("expected ErrScanRunning, got %v", err)
+	}
+}
+
+func TestEnsureAlbumSeparatesSameTitleByAlbumArtist(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:album-identity?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client}
+
+	artistA, err := service.ensureArtist(context.Background(), "Artist A")
+	if err != nil {
+		t.Fatal(err)
+	}
+	artistB, err := service.ensureArtist(context.Background(), "Artist B")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := service.ensureAlbum(context.Background(), "Greatest Hits", "Artist A", artistA, 2001)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.ensureAlbum(context.Background(), "Greatest Hits", "Artist B", artistB, 2002)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.ID == second.ID {
+		t.Fatalf("expected same-titled albums by different artists to be separate, got id %d", first.ID)
+	}
+	again, err := service.ensureAlbum(context.Background(), "Greatest Hits", "Artist A", artistA, 2001)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.ID != first.ID {
+		t.Fatalf("expected same album artist to reuse album %d, got %d", first.ID, again.ID)
 	}
 }
 

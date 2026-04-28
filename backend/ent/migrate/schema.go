@@ -33,6 +33,13 @@ var (
 				OnDelete:   schema.SetNull,
 			},
 		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "album_title_album_artist",
+				Unique:  true,
+				Columns: []*schema.Column{AlbumsColumns[1], AlbumsColumns[2]},
+			},
+		},
 	}
 	// AppSettingsColumns holds the columns for the "app_settings" table.
 	AppSettingsColumns = []*schema.Column{

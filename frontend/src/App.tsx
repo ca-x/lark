@@ -1819,6 +1819,10 @@ export default function App() {
   }
 
   async function scan() {
+    if (scanStatus?.running) {
+      showMessage(t("scanning"));
+      return;
+    }
     showMessage(`${t("scanning")}...`, 0);
     let refreshBusy = false;
     let lastLibraryRefresh = 0;
@@ -1860,6 +1864,8 @@ export default function App() {
         `${t("done")}: +${result.added}, ↻${result.updated}, errors ${result.errors.length}`,
       );
       await refreshAll();
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : t("loadFailed"));
     } finally {
       window.clearInterval(poll);
     }
@@ -4477,6 +4483,7 @@ function LibraryView({
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [tab, setTabState] = useState<LibraryTab>(() => storedLibraryTab());
+  const scanRunning = Boolean(scanStatus?.running);
   const setTab = (nextTab: LibraryTab) => {
     setTabState(nextTab);
     rememberLibraryTab(nextTab);
@@ -4512,7 +4519,7 @@ function LibraryView({
               </button>
             </div>
           ) : null}
-          <button onClick={onScan}>
+          <button onClick={onScan} disabled={scanRunning}>
             <MagnifyingGlass /> {t("scan")}
           </button>
           <label className="upload">
@@ -5226,6 +5233,7 @@ function EmptyLibrary({
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   scanStatus: ScanStatus | null;
 }) {
+  const scanRunning = Boolean(scanStatus?.running);
   return (
     <section className="empty-library">
       <div className="disc-art">
@@ -5234,7 +5242,7 @@ function EmptyLibrary({
       <h2>{t("emptyTitle")}</h2>
       <p>{t("emptyBody")}</p>
       <div className="empty-actions">
-        <button className="primary" onClick={onScan}>
+        <button className="primary" onClick={onScan} disabled={scanRunning}>
           <MagnifyingGlass /> {t("scan")}
         </button>
         <label className="upload">
@@ -6353,10 +6361,9 @@ const CardGrid = memo(function CardGrid({
           {visibleItems.map((item) => {
             const useLazyCoverImage = variant !== "playlist" && item.coverUrl;
             return (
-              <button
+              <article
                 className={`media-card ${item.theme} card-${variant}`}
                 key={item.id}
-                onClick={item.onClick}
               >
                 <div
                   className={
@@ -6370,81 +6377,68 @@ const CardGrid = memo(function CardGrid({
                       : undefined
                   }
                 >
-                  {useLazyCoverImage ? (
-                    <LazyCoverImage src={item.coverUrl} />
-                  ) : null}
-                  <Record weight="fill" />
+                  <button
+                    type="button"
+                    className="card-open"
+                    onClick={item.onClick}
+                    aria-label={item.title}
+                  >
+                    {useLazyCoverImage ? (
+                      <LazyCoverImage src={item.coverUrl} />
+                    ) : null}
+                    <Record weight="fill" />
+                  </button>
                   {item.onPlay ? (
-                    <span
+                    <button
+                      type="button"
                       className="card-play"
-                      role="button"
-                      tabIndex={0}
                       aria-label={t("play")}
                       onClick={(event) => {
                         event.stopPropagation();
                         item.onPlay?.();
                       }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          item.onPlay?.();
-                        }
-                      }}
                     >
                       <Play weight="fill" />
-                    </span>
+                    </button>
                   ) : null}
                   {item.onFavorite ? (
-                    <span
+                    <button
+                      type="button"
                       className={
                         item.favorite ? "card-favorite active" : "card-favorite"
                       }
-                      role="button"
-                      tabIndex={0}
                       aria-label={t("favorites")}
                       onClick={(event) => {
                         event.stopPropagation();
                         item.onFavorite?.();
                       }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          item.onFavorite?.();
-                        }
-                      }}
                     >
                       <Heart weight={item.favorite ? "fill" : "regular"} />
-                    </span>
+                    </button>
                   ) : null}
                 </div>
-                <strong>{item.title}</strong>
+                <button type="button" className="media-card-title" onClick={item.onClick}>
+                  {item.title}
+                </button>
                 {item.meta ? (
                   <span className="card-meta">
-                    <em
-                      role="button"
-                      tabIndex={0}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        item.onMetaClick?.();
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          item.onMetaClick?.();
-                        }
-                      }}
-                    >
-                      {item.meta}
-                    </em>
+                    {item.onMetaClick ? (
+                      <button
+                        type="button"
+                        className="card-meta-button"
+                        onClick={item.onMetaClick}
+                      >
+                        {item.meta}
+                      </button>
+                    ) : (
+                      <em>{item.meta}</em>
+                    )}
                     <small>{item.subtitle}</small>
                   </span>
                 ) : (
                   <span>{item.subtitle}</span>
                 )}
-              </button>
+              </article>
             );
           })}
           {hasMore ? (
