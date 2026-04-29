@@ -3052,6 +3052,8 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.NeteaseFallback = item.Value != "false"
 		case settingRegistrationEnabled:
 			settings.RegistrationEnabled = item.Value == "true"
+		case "diagnostics_enabled":
+			settings.DiagnosticsEnabled = item.Value == "true"
 		case "web_font_family":
 			settings.WebFontFamily = item.Value
 		case "web_font_url":
@@ -3070,7 +3072,7 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 	}
 	settings.WebFontFamily = sanitizeFontFamily(settings.WebFontFamily)
 	settings.WebFontURL = sanitizeFontURL(settings.WebFontURL)
-	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback), settingRegistrationEnabled: strconv.FormatBool(settings.RegistrationEnabled), "web_font_family": settings.WebFontFamily, "web_font_url": settings.WebFontURL}
+	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback), settingRegistrationEnabled: strconv.FormatBool(settings.RegistrationEnabled), "diagnostics_enabled": strconv.FormatBool(settings.DiagnosticsEnabled), "web_font_family": settings.WebFontFamily, "web_font_url": settings.WebFontURL}
 	for key, value := range pairs {
 		if err := s.setSetting(ctx, key, value); err != nil {
 			return models.Settings{}, err

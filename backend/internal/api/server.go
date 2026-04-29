@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	httppprof "net/http/pprof"
 	"net/url"
 	"os"
 	"os/exec"
@@ -16,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"lark/backend/ent"
@@ -42,6 +44,7 @@ type Server struct {
 	transcodeWarmersActive int
 	transcodeWarmTTL       time.Duration
 	transcodeWarmLimit     int
+	diagnosticsEnabled     atomic.Bool
 }
 
 type transcodeCacheLock struct {
@@ -125,6 +128,7 @@ type settingsRequest struct {
 	SleepTimerMins      int    `json:"sleep_timer_mins"`
 	NeteaseFallback     bool   `json:"netease_fallback"`
 	RegistrationEnabled bool   `json:"registration_enabled"`
+	DiagnosticsEnabled  bool   `json:"diagnostics_enabled"`
 	WebFontFamily       string `json:"web_font_family"`
 	WebFontURL          string `json:"web_font_url"`
 }
@@ -143,6 +147,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 		if opt != nil {
 			opt(s)
 		}
+	}
+	if settings, err := lib.GetSettings(context.Background()); err == nil {
+		s.diagnosticsEnabled.Store(settings.DiagnosticsEnabled)
 	}
 	s.mcp = s.newMCPHandler()
 
@@ -235,6 +242,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 
 	e.GET("/api/settings", s.handleGetSettings, auth)
 	e.PUT("/api/settings", s.handleSaveSettings, admin)
+	e.GET("/api/debug/pprof", s.handlePprof, admin)
+	e.GET("/api/debug/pprof/*", s.handlePprof, admin)
+	e.POST("/api/debug/pprof/symbol", s.handlePprof, admin)
 	s.registerFrontendRoutes()
 	return s
 }
@@ -1206,11 +1216,34 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{Language: req.Language, Theme: req.Theme, SleepTimerMins: req.SleepTimerMins, LibraryPath: s.lib.LibraryDir(), NeteaseFallback: req.NeteaseFallback, RegistrationEnabled: req.RegistrationEnabled, WebFontFamily: req.WebFontFamily, WebFontURL: req.WebFontURL})
+	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{Language: req.Language, Theme: req.Theme, SleepTimerMins: req.SleepTimerMins, LibraryPath: s.lib.LibraryDir(), NeteaseFallback: req.NeteaseFallback, RegistrationEnabled: req.RegistrationEnabled, DiagnosticsEnabled: req.DiagnosticsEnabled, WebFontFamily: req.WebFontFamily, WebFontURL: req.WebFontURL})
 	if err != nil {
 		return mapError(err)
 	}
+	s.diagnosticsEnabled.Store(settings.DiagnosticsEnabled)
 	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handlePprof(c *echo.Context) error {
+	if !s.diagnosticsEnabled.Load() {
+		return echo.NewHTTPError(http.StatusForbidden, "diagnostics are disabled")
+	}
+	suffix := strings.TrimPrefix(c.Request().URL.Path, "/api/debug/pprof")
+	switch suffix {
+	case "", "/":
+		httppprof.Index(c.Response(), c.Request())
+	case "/cmdline":
+		httppprof.Cmdline(c.Response(), c.Request())
+	case "/profile":
+		httppprof.Profile(c.Response(), c.Request())
+	case "/symbol":
+		httppprof.Symbol(c.Response(), c.Request())
+	case "/trace":
+		httppprof.Trace(c.Response(), c.Request())
+	default:
+		httppprof.Handler(strings.TrimPrefix(suffix, "/")).ServeHTTP(c.Response(), c.Request())
+	}
+	return nil
 }
 
 func paramInt(c *echo.Context, name string) (int, error) {

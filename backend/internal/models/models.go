@@ -187,6 +187,7 @@ type Settings struct {
 	LibraryPath         string `json:"library_path"`
 	NeteaseFallback     bool   `json:"netease_fallback"`
 	RegistrationEnabled bool   `json:"registration_enabled"`
+	DiagnosticsEnabled  bool   `json:"diagnostics_enabled"`
 	WebFontFamily       string `json:"web_font_family"`
 	WebFontURL          string `json:"web_font_url"`
 }

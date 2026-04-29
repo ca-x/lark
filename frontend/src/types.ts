@@ -258,6 +258,7 @@ export interface Settings {
   library_path: string;
   netease_fallback: boolean;
   registration_enabled: boolean;
+  diagnostics_enabled: boolean;
   web_font_family: string;
   web_font_url: string;
 }

@@ -667,6 +667,8 @@ body, button, input, select { font-family: var(--app-font); }
 .auth-card:has(.loading-stage) { width:min(720px, 100%); padding:12px; background:transparent; border-color:transparent; box-shadow:none; }
 .auth-loading { width:48px; height:48px; border-radius:50%; border:3px solid color-mix(in srgb, var(--accent) 18%, var(--line)); border-top-color:var(--accent); animation:spin .9s linear infinite; justify-self:center; }
 .switch-row { display:flex !important; align-items:center; justify-content:space-between; gap:12px; min-height:70px; padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--panel2); }
+.switch-row > span { min-width:0; display:grid; gap:4px; }
+.switch-row small { color:var(--muted); line-height:1.45; }
 .switch-row input { width:46px !important; min-height:24px; accent-color:var(--accent); }
 .user-list { display:grid; gap:8px; padding:14px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); }
 .user-list-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
@@ -1025,6 +1027,7 @@ body, button, input, select { font-family: var(--app-font); }
   .lyrics-actions .lyrics-pick:not(.icon-only) { font-size:0; }
   .lyrics-actions .lyrics-pick:not(.icon-only) svg { width:20px; height:20px; }
   .lyrics-actions .lyrics-favorite { display:grid; place-items:center; width:42px; height:42px; min-width:42px; min-height:42px; padding:0; gap:0; line-height:0; }
+  .lyrics-actions .lyrics-favorite span { display:none; }
   .lyrics-actions .lyrics-favorite svg { display:block; margin:0; width:20px; height:20px; }
   .lyrics-candidates { top:82px; right:10px; left:10px; width:auto; max-height:58dvh; background:color-mix(in srgb, var(--panel) 99%, var(--bg)); }
   .full-lyrics-lines { padding:max(22px, 20vh) 3vw max(30px, 28vh); mask-image:linear-gradient(to bottom, transparent 0, #000 6%, #000 94%, transparent 100%); }

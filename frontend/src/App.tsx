@@ -93,6 +93,7 @@ const defaultSettings: Settings = {
   library_path: "",
   netease_fallback: true,
   registration_enabled: false,
+  diagnostics_enabled: false,
   web_font_url: "",
   web_font_family: "",
 };
@@ -5808,7 +5809,7 @@ function FullLyrics({
               aria-label={t("favorites")}
             >
               <Heart weight={song.favorite ? "fill" : "regular"} />
-              {t("favorites")}
+              <span>{t("favorites")}</span>
             </button>
             <button
               className={onlineLyrics ? "lyrics-pick icon-only has-source" : "lyrics-pick icon-only"}
@@ -6628,6 +6629,21 @@ function SettingsPanel({
               </optgroup>
             </select>
           </label>
+          {user.role === "admin" ? (
+            <label className="switch-row settings-wide-row">
+              <span>
+                <span>{t("diagnosticsEnabled")}</span>
+                <small>{t("diagnosticsHint")}</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.diagnostics_enabled}
+                onChange={(e) =>
+                  setSettings({ ...settings, diagnostics_enabled: e.target.checked })
+                }
+              />
+            </label>
+          ) : null}
           <div className="font-settings-card settings-wide-row">
             <div>
               <strong>{t("webFontSettings")}</strong>
