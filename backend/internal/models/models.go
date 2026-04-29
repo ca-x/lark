@@ -181,15 +181,26 @@ type WebFont struct {
 }
 
 type Settings struct {
-	Language            string `json:"language"`
-	Theme               string `json:"theme"`
-	SleepTimerMins      int    `json:"sleep_timer_mins"`
-	LibraryPath         string `json:"library_path"`
-	NeteaseFallback     bool   `json:"netease_fallback"`
-	RegistrationEnabled bool   `json:"registration_enabled"`
-	DiagnosticsEnabled  bool   `json:"diagnostics_enabled"`
-	WebFontFamily       string `json:"web_font_family"`
-	WebFontURL          string `json:"web_font_url"`
+	Language               string `json:"language"`
+	Theme                  string `json:"theme"`
+	SleepTimerMins         int    `json:"sleep_timer_mins"`
+	LibraryPath            string `json:"library_path"`
+	NeteaseFallback        bool   `json:"netease_fallback"`
+	RegistrationEnabled    bool   `json:"registration_enabled"`
+	DiagnosticsEnabled     bool   `json:"diagnostics_enabled"`
+	PlaybackSourceTTLHours int    `json:"playback_source_ttl_hours"`
+	WebFontFamily          string `json:"web_font_family"`
+	WebFontURL             string `json:"web_font_url"`
+}
+
+type PlaybackSource struct {
+	Type      string    `json:"type"`
+	SourceID  int       `json:"source_id"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PlaybackSourceStatus struct {
+	Source *PlaybackSource `json:"source"`
 }
 
 type LibrarySource struct {

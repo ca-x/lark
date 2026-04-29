@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, ScanResult, ScanStatus, Settings, Song, SongPage, User, MCPTokenStatus, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, ScanResult, ScanStatus, Settings, Song, SongPage, User, MCPTokenStatus, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackSourceStatus, PlaybackSourceType } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
@@ -42,6 +42,9 @@ export const api = {
   song: (id: number) => request<Song>(`/api/songs/${id}`),
   favoriteSong: (id: number) => request<Song>(`/api/songs/${id}/favorite`, { method: 'POST' }),
   markPlayed: (id: number) => request<void>(`/api/songs/${id}/played`, { method: 'POST' }),
+  playbackSource: () => request<PlaybackSourceStatus>('/api/playback/source'),
+  savePlaybackSource: (type: PlaybackSourceType, source_id: number) => request<PlaybackSourceStatus>('/api/playback/source', { method: 'PUT', body: JSON.stringify({ type, source_id }) }),
+  clearPlaybackSource: () => request<void>('/api/playback/source', { method: 'DELETE' }),
   lyrics: (id: number, sourceId?: string) => request<Lyrics>(`/api/songs/${id}/lyrics${sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ''}`),
   lyricCandidates: (id: number) => request<LyricCandidate[]>(`/api/songs/${id}/lyrics/candidates`),
   selectLyrics: (id: number, source: string, candidateId: string) => request<Lyrics>(`/api/songs/${id}/lyrics/select`, { method: 'POST', body: JSON.stringify({ source, id: candidateId }) }),

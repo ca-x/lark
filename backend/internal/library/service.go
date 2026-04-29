@@ -1133,9 +1133,11 @@ const libraryCachePrefix = "library:v1:"
 const artistCatalogCacheKey = libraryCachePrefix + "catalog:v2:artists"
 const songCatalogCacheKey = libraryCachePrefix + "catalog:v2:songs"
 const transcodeWarmLeasePrefix = "runtime:v1:transcode-warm:"
+const playbackSourcePrefix = "runtime:v1:playback-source:"
 const remoteAlbumSearchConcurrency = 3
 const searchCatalogBatchSize = 500
 const maxCatalogPredicateIDs = 5000
+const defaultPlaybackSourceTTLHours = 24
 
 type songSearchCatalogEntry struct {
 	ID   int    `json:"id"`
@@ -1224,6 +1226,74 @@ func (s *Service) ReleaseTranscodeWarmLease(ctx context.Context, cachePath strin
 func transcodeWarmLeaseKey(cachePath string) string {
 	sum := sha1.Sum([]byte(cachePath))
 	return transcodeWarmLeasePrefix + hex.EncodeToString(sum[:])
+}
+
+func (s *Service) PlaybackSource(ctx context.Context, userID int) (*models.PlaybackSource, error) {
+	if s.cache == nil {
+		return nil, nil
+	}
+	var source models.PlaybackSource
+	ok, err := s.cacheGetJSON(ctx, playbackSourceKey(userID), &source)
+	if err != nil || !ok {
+		return nil, err
+	}
+	if source.SourceID <= 0 || (source.Type != "album" && source.Type != "artist") {
+		_ = s.ClearPlaybackSource(ctx, userID)
+		return nil, nil
+	}
+	return &source, nil
+}
+
+func (s *Service) SavePlaybackSource(ctx context.Context, userID int, sourceType string, sourceID int) (models.PlaybackSource, error) {
+	sourceType = strings.ToLower(strings.TrimSpace(sourceType))
+	if sourceID <= 0 || (sourceType != "album" && sourceType != "artist") {
+		return models.PlaybackSource{}, errors.New("playback source must be album or artist")
+	}
+	switch sourceType {
+	case "album":
+		if _, err := s.client.Album.Get(ctx, sourceID); err != nil {
+			return models.PlaybackSource{}, err
+		}
+	case "artist":
+		if _, err := s.client.Artist.Get(ctx, sourceID); err != nil {
+			return models.PlaybackSource{}, err
+		}
+	}
+	source := models.PlaybackSource{Type: sourceType, SourceID: sourceID, UpdatedAt: time.Now()}
+	ttl := s.playbackSourceTTL(ctx)
+	if err := s.cacheSetJSONWithTTL(ctx, playbackSourceKey(userID), source, ttl); err != nil {
+		return models.PlaybackSource{}, err
+	}
+	return source, nil
+}
+
+func (s *Service) ClearPlaybackSource(ctx context.Context, userID int) error {
+	if s.cache == nil {
+		return nil
+	}
+	return s.cache.Delete(ctx, playbackSourceKey(userID))
+}
+
+func (s *Service) playbackSourceTTL(ctx context.Context) time.Duration {
+	settings, err := s.GetSettings(ctx)
+	if err != nil {
+		return time.Duration(defaultPlaybackSourceTTLHours) * time.Hour
+	}
+	return time.Duration(normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)) * time.Hour
+}
+
+func playbackSourceKey(userID int) string {
+	return playbackSourcePrefix + strconv.Itoa(userID)
+}
+
+func normalizePlaybackSourceTTLHours(hours int) int {
+	if hours <= 0 {
+		return defaultPlaybackSourceTTLHours
+	}
+	if hours > 720 {
+		return 720
+	}
+	return hours
 }
 
 func (s *Service) invalidateLibraryCache(ctx context.Context) {
@@ -3035,7 +3105,7 @@ func (s *Service) ToggleArtistFavorite(ctx context.Context, userID, id int) (mod
 }
 
 func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
-	settings := models.Settings{Language: "zh-CN", Theme: "deep-space", SleepTimerMins: 0, LibraryPath: s.libraryDir, NeteaseFallback: true, RegistrationEnabled: false}
+	settings := models.Settings{Language: "zh-CN", Theme: "deep-space", SleepTimerMins: 0, LibraryPath: s.libraryDir, NeteaseFallback: true, RegistrationEnabled: false, PlaybackSourceTTLHours: defaultPlaybackSourceTTLHours}
 	items, err := s.client.AppSetting.Query().All(ctx)
 	if err != nil {
 		return settings, err
@@ -3054,12 +3124,15 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.RegistrationEnabled = item.Value == "true"
 		case "diagnostics_enabled":
 			settings.DiagnosticsEnabled = item.Value == "true"
+		case "playback_source_ttl_hours":
+			settings.PlaybackSourceTTLHours, _ = strconv.Atoi(item.Value)
 		case "web_font_family":
 			settings.WebFontFamily = item.Value
 		case "web_font_url":
 			settings.WebFontURL = item.Value
 		}
 	}
+	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
 	return settings, nil
 }
 
@@ -3072,7 +3145,8 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 	}
 	settings.WebFontFamily = sanitizeFontFamily(settings.WebFontFamily)
 	settings.WebFontURL = sanitizeFontURL(settings.WebFontURL)
-	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback), settingRegistrationEnabled: strconv.FormatBool(settings.RegistrationEnabled), "diagnostics_enabled": strconv.FormatBool(settings.DiagnosticsEnabled), "web_font_family": settings.WebFontFamily, "web_font_url": settings.WebFontURL}
+	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
+	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback), settingRegistrationEnabled: strconv.FormatBool(settings.RegistrationEnabled), "diagnostics_enabled": strconv.FormatBool(settings.DiagnosticsEnabled), "playback_source_ttl_hours": strconv.Itoa(settings.PlaybackSourceTTLHours), "web_font_family": settings.WebFontFamily, "web_font_url": settings.WebFontURL}
 	for key, value := range pairs {
 		if err := s.setSetting(ctx, key, value); err != nil {
 			return models.Settings{}, err

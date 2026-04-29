@@ -166,6 +166,18 @@ export interface HealthInfo {
   transcode_backend: string;
 }
 
+export type PlaybackSourceType = "album" | "artist";
+
+export interface PlaybackSource {
+  type: PlaybackSourceType;
+  source_id: number;
+  updated_at: string;
+}
+
+export interface PlaybackSourceStatus {
+  source?: PlaybackSource | null;
+}
+
 export interface LibraryStats {
   songs: number;
   albums: number;
@@ -259,6 +271,7 @@ export interface Settings {
   netease_fallback: boolean;
   registration_enabled: boolean;
   diagnostics_enabled: boolean;
+  playback_source_ttl_hours: number;
   web_font_family: string;
   web_font_url: string;
 }

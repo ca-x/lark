@@ -74,6 +74,7 @@ import type {
   LibraryStats,
   NetworkSource,
   NetworkTrack,
+  PlaybackSourceType,
   RadioSource,
   RadioStation,
 } from "./types";
@@ -94,6 +95,7 @@ const defaultSettings: Settings = {
   netease_fallback: true,
   registration_enabled: false,
   diagnostics_enabled: false,
+  playback_source_ttl_hours: 24,
   web_font_url: "",
   web_font_family: "",
 };
@@ -112,6 +114,12 @@ type View =
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
 type PlaybackStartMode = "resume" | "restart";
+type PlaybackSourceInput = { type: PlaybackSourceType; source_id: number };
+type PlaySongOptions = {
+  startMode?: PlaybackStartMode;
+  source?: PlaybackSourceInput;
+  keepPlaybackSource?: boolean;
+};
 type StreamMode = "auto" | "adaptive";
 type RecentHomeTab = "played" | "added";
 const ADAPTIVE_STREAM_QUALITY = 128;
@@ -125,6 +133,7 @@ const MAX_LIBRARY_PAGE_SIZE = 80;
 const MAX_GRID_PAGE_SIZE = 72;
 const STARTUP_FOLDER_LIMIT = 80;
 const MAX_PLAYBACK_QUEUE_SIZE = 500;
+const RESUME_SOURCE_QUEUE_LIMIT = 50;
 const FAVORITES_FETCH_LIMIT = 500;
 const COLLECTION_DETAIL_SONG_LIMIT = MAX_PLAYBACK_QUEUE_SIZE;
 type PageSizing = {
@@ -1179,6 +1188,7 @@ export default function App() {
   const collectionRequestRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
   const pendingAutoplayRef = useRef(false);
+  const playbackSourceMutationRef = useRef<Promise<void>>(Promise.resolve());
   const stallDowngradeTimerRef = useRef<number | null>(null);
   const currentRef = useRef<Song | null>(null);
   const currentRadioRef = useRef<RadioStation | null>(null);
@@ -2093,10 +2103,62 @@ export default function App() {
     setRecentPlayedSongs(await api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => recentPlayedSongs));
   }
 
+  function queuePlaybackSourceMutation(task: () => Promise<void>) {
+    playbackSourceMutationRef.current = playbackSourceMutationRef.current
+      .catch(() => undefined)
+      .then(task)
+      .catch(() => undefined);
+  }
+
+  function persistPlaybackSourceForPlay(options: PlaySongOptions) {
+    const source = options.source;
+    if (source) {
+      queuePlaybackSourceMutation(async () => {
+        await api.savePlaybackSource(source.type, source.source_id);
+      });
+      return;
+    }
+    if (!options.keepPlaybackSource) {
+      queuePlaybackSourceMutation(api.clearPlaybackSource);
+    }
+  }
+
+  async function resumePlayback(song: Song) {
+    const status = await api.playbackSource().catch(() => null);
+    const source = status?.source;
+    if (!source) {
+      void playSong(song, [song], { startMode: "resume" });
+      return;
+    }
+
+    const sourceMatchesSong =
+      (source.type === "album" && song.album_id === source.source_id) ||
+      (source.type === "artist" && song.artist_id === source.source_id);
+    if (!sourceMatchesSong) {
+      queuePlaybackSourceMutation(api.clearPlaybackSource);
+      void playSong(song, [song], { startMode: "resume" });
+      return;
+    }
+
+    const items = await (
+      source.type === "album"
+        ? api.albumSongs(source.source_id, RESUME_SOURCE_QUEUE_LIMIT)
+        : api.artistSongs(source.source_id, RESUME_SOURCE_QUEUE_LIMIT)
+    ).catch(() => []);
+    const matched = items.find((item) => item.id === song.id);
+    if (matched) {
+      void playSong(matched, items, { startMode: "resume", keepPlaybackSource: true });
+      return;
+    }
+
+    queuePlaybackSourceMutation(api.clearPlaybackSource);
+    void playSong(song, [song], { startMode: "resume" });
+  }
+
   async function playSong(
     song: Song,
     list = songs,
-    options: { startMode?: PlaybackStartMode } = {},
+    options: PlaySongOptions = {},
   ) {
     const sameSong = current?.id === song.id;
     if (current && !sameSong) {
@@ -2132,12 +2194,14 @@ export default function App() {
       window.requestAnimationFrame(requestAudioPlay);
     }
     setPlaying(true);
+    persistPlaybackSourceForPlay(options);
     await api.markPlayed(song.id).catch(() => undefined);
     void refreshRecentPlayed();
   }
 
   function playRadio(station: RadioStation, list?: RadioStation[]) {
     if (!station?.url) return;
+    queuePlaybackSourceMutation(api.clearPlaybackSource);
     if (current) syncPlaybackProgress(false);
     const audio = audioRef.current;
     if (audio) {
@@ -2165,6 +2229,7 @@ export default function App() {
 
   function playNetworkTrack(track: NetworkTrack) {
     if (!track?.stream_url) return;
+    queuePlaybackSourceMutation(api.clearPlaybackSource);
     if (current) syncPlaybackProgress(false);
     const audio = audioRef.current;
     if (audio) {
@@ -2304,7 +2369,7 @@ export default function App() {
       requestAudioPlay();
       return;
     }
-    void playSong(target, activeQueue);
+    void playSong(target, activeQueue, { keepPlaybackSource: true });
   }
 
   function insertNextBatch(items: Song[]) {
@@ -2659,11 +2724,17 @@ export default function App() {
     return withTimeout(api.artistSongs(target.id, limit));
   }
 
+  function playbackSourceForCollection(target: Collection): PlaybackSourceInput | undefined {
+    if (!target.id || (target.type !== "album" && target.type !== "artist")) return undefined;
+    return { type: target.type, source_id: target.id };
+  }
+
   async function playCollection(target: Collection) {
     const items = target.songs.length
       ? target.songs
       : await fetchCollectionSongs(target, MAX_PLAYBACK_QUEUE_SIZE);
-    if (items[0]) void playSong(items[0], items);
+    const source = playbackSourceForCollection(target);
+    if (items[0]) void playSong(items[0], items, source ? { source } : {});
   }
 
   async function insertCollectionNext(target: Collection) {
@@ -2838,12 +2909,12 @@ export default function App() {
 
   async function playAlbum(album: Album) {
     const items = await api.albumSongs(album.id, MAX_PLAYBACK_QUEUE_SIZE);
-    if (items[0]) void playSong(items[0], items);
+    if (items[0]) void playSong(items[0], items, { source: { type: "album", source_id: album.id } });
   }
 
   async function playArtist(artist: Artist) {
     const items = await api.artistSongs(artist.id, MAX_PLAYBACK_QUEUE_SIZE);
-    if (items[0]) void playSong(items[0], items);
+    if (items[0]) void playSong(items[0], items, { source: { type: "artist", source_id: artist.id } });
   }
 
   async function playPlaylist(playlist: Playlist) {
@@ -3089,7 +3160,7 @@ export default function App() {
                 playModeLabel={playModeLabel}
                 t={t}
                 onPlay={playSong}
-                onResume={(song) => void playSong(song, [song], { startMode: "resume" })}
+                onResume={(song) => void resumePlayback(song)}
                 onTogglePlayback={() => setPlaying((value) => !value)}
                 onPrevious={() => next(-1)}
                 onNext={() => next(1)}
@@ -3751,7 +3822,7 @@ export default function App() {
               queue={queue}
               current={current}
               t={t}
-              onPlay={(song) => void playSong(song, queue)}
+              onPlay={(song) => void playSong(song, queue, { keepPlaybackSource: true })}
               onClose={() => setQueueOpen(false)}
             />
           )}
@@ -6642,6 +6713,37 @@ function SettingsPanel({
                   setSettings({ ...settings, diagnostics_enabled: e.target.checked })
                 }
               />
+            </label>
+          ) : null}
+          {user.role === "admin" ? (
+            <label className="settings-number-row settings-wide-row">
+              <span className="settings-label-with-info">
+                <span>{t("playbackSourceRetention")}</span>
+                <span
+                  className="settings-info-icon"
+                  role="img"
+                  aria-label={t("playbackSourceRetentionHint")}
+                  title={t("playbackSourceRetentionHint")}
+                >
+                  <Info />
+                </span>
+              </span>
+              <span className="settings-number-input">
+                <input
+                  type="number"
+                  min={1}
+                  max={720}
+                  step={1}
+                  value={settings.playback_source_ttl_hours || 24}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      playback_source_ttl_hours: Math.max(1, Math.min(720, Number(e.target.value) || 24)),
+                    })
+                  }
+                />
+                <span>{t("hours")}</span>
+              </span>
             </label>
           ) : null}
           <div className="font-settings-card settings-wide-row">

@@ -97,6 +97,11 @@ type playbackProgressRequest struct {
 	Completed       bool    `json:"completed"`
 }
 
+type playbackSourceRequest struct {
+	Type     string `json:"type"`
+	SourceID int    `json:"source_id"`
+}
+
 type lyricSelectRequest struct {
 	Source string `json:"source"`
 	ID     string `json:"id"`
@@ -123,14 +128,15 @@ type networkSourceRequest struct {
 }
 
 type settingsRequest struct {
-	Language            string `json:"language"`
-	Theme               string `json:"theme"`
-	SleepTimerMins      int    `json:"sleep_timer_mins"`
-	NeteaseFallback     bool   `json:"netease_fallback"`
-	RegistrationEnabled bool   `json:"registration_enabled"`
-	DiagnosticsEnabled  bool   `json:"diagnostics_enabled"`
-	WebFontFamily       string `json:"web_font_family"`
-	WebFontURL          string `json:"web_font_url"`
+	Language               string `json:"language"`
+	Theme                  string `json:"theme"`
+	SleepTimerMins         int    `json:"sleep_timer_mins"`
+	NeteaseFallback        bool   `json:"netease_fallback"`
+	RegistrationEnabled    bool   `json:"registration_enabled"`
+	DiagnosticsEnabled     bool   `json:"diagnostics_enabled"`
+	PlaybackSourceTTLHours int    `json:"playback_source_ttl_hours"`
+	WebFontFamily          string `json:"web_font_family"`
+	WebFontURL             string `json:"web_font_url"`
 }
 
 func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts ...Option) *Server {
@@ -181,6 +187,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.POST("/api/songs/:id/favorite", s.handleToggleSongFavorite, auth)
 	e.POST("/api/songs/:id/played", s.handleMarkPlayed, auth)
 	e.PUT("/api/songs/:id/progress", s.handleSavePlaybackProgress, auth)
+	e.GET("/api/playback/source", s.handleGetPlaybackSource, auth)
+	e.PUT("/api/playback/source", s.handleSavePlaybackSource, auth)
+	e.DELETE("/api/playback/source", s.handleClearPlaybackSource, auth)
 	e.GET("/api/songs/:id/stream", s.handleStream, auth)
 	e.GET("/api/songs/:id/cover", s.handleCover, auth)
 	e.GET("/api/songs/:id/lyrics/candidates", s.handleLyricCandidates, auth)
@@ -518,6 +527,37 @@ func (s *Server) handleSavePlaybackProgress(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	if err := s.lib.SavePlaybackProgress(c.Request().Context(), currentUserID(c), id, req.ProgressSeconds, req.DurationSeconds, req.Completed); err != nil {
+		return mapError(err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) handleGetPlaybackSource(c *echo.Context) error {
+	source, err := s.lib.PlaybackSource(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, models.PlaybackSourceStatus{Source: source})
+}
+
+func (s *Server) handleSavePlaybackSource(c *echo.Context) error {
+	var req playbackSourceRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	sourceType := strings.ToLower(strings.TrimSpace(req.Type))
+	if req.SourceID <= 0 || (sourceType != "album" && sourceType != "artist") {
+		return echo.NewHTTPError(http.StatusBadRequest, "playback source must be album or artist")
+	}
+	source, err := s.lib.SavePlaybackSource(c.Request().Context(), currentUserID(c), sourceType, req.SourceID)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, models.PlaybackSourceStatus{Source: &source})
+}
+
+func (s *Server) handleClearPlaybackSource(c *echo.Context) error {
+	if err := s.lib.ClearPlaybackSource(c.Request().Context(), currentUserID(c)); err != nil {
 		return mapError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -1216,7 +1256,7 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{Language: req.Language, Theme: req.Theme, SleepTimerMins: req.SleepTimerMins, LibraryPath: s.lib.LibraryDir(), NeteaseFallback: req.NeteaseFallback, RegistrationEnabled: req.RegistrationEnabled, DiagnosticsEnabled: req.DiagnosticsEnabled, WebFontFamily: req.WebFontFamily, WebFontURL: req.WebFontURL})
+	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{Language: req.Language, Theme: req.Theme, SleepTimerMins: req.SleepTimerMins, LibraryPath: s.lib.LibraryDir(), NeteaseFallback: req.NeteaseFallback, RegistrationEnabled: req.RegistrationEnabled, DiagnosticsEnabled: req.DiagnosticsEnabled, PlaybackSourceTTLHours: req.PlaybackSourceTTLHours, WebFontFamily: req.WebFontFamily, WebFontURL: req.WebFontURL})
 	if err != nil {
 		return mapError(err)
 	}

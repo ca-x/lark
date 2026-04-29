@@ -286,6 +286,13 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .settings-grid label { display:grid; gap:8px; color:var(--muted); }
 .settings-grid input, .settings-grid select { width:100%; border:1px solid var(--line); border-radius:14px; padding:12px; color:var(--text); background:var(--panel2); }
 .settings-wide-row { grid-column:1 / -1; }
+.settings-number-row { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(160px,220px); align-items:center; gap:12px; min-height:70px; padding:12px; border:1px solid var(--line); border-radius:16px; background:var(--panel2); }
+.settings-label-with-info { min-width:0; display:inline-flex; align-items:center; gap:8px; color:var(--muted); }
+.settings-label-with-info > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.settings-info-icon { width:22px; height:22px; flex:0 0 22px; display:inline-grid; place-items:center; border-radius:999px; color:var(--muted); border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 72%, transparent); cursor:help; }
+.settings-info-icon svg { width:13px; height:13px; display:block; }
+.settings-number-input { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; }
+.settings-number-input > span { color:var(--muted); font-size:12px; font-weight:850; }
 .settings-empty { min-height:92px; display:grid; place-items:center; padding:18px; border:1px dashed var(--line); border-radius:18px; color:var(--muted); background:color-mix(in srgb, var(--panel2) 74%, transparent); text-align:center; }
 .collection-view { display:grid; gap:18px; }
 .back-button { width:fit-content; min-height:44px; display:inline-flex; align-items:center; gap:8px; padding:9px 14px; border-radius:999px; color:var(--muted); background:var(--panel2); border:1px solid var(--line); transition: color .18s var(--ease), background .18s var(--ease), transform .18s var(--ease); }
@@ -969,6 +976,7 @@ body, button, input, select { font-family: var(--app-font); }
 
 @media (max-width:720px) {
   body { overscroll-behavior:none; }
+  .settings-number-row { grid-template-columns:1fr; }
   .app-shell {
     --player-h:154px;
     --nav-h:76px;
