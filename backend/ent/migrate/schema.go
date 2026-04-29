@@ -239,6 +239,11 @@ var (
 				Columns: []*schema.Column{SongsColumns[1]},
 			},
 			{
+				Name:    "song_file_name",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[3]},
+			},
+			{
 				Name:    "song_favorite",
 				Unique:  false,
 				Columns: []*schema.Column{SongsColumns[15]},
@@ -247,6 +252,26 @@ var (
 				Name:    "song_netease_id",
 				Unique:  false,
 				Columns: []*schema.Column{SongsColumns[14]},
+			},
+			{
+				Name:    "song_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[18]},
+			},
+			{
+				Name:    "song_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[19]},
+			},
+			{
+				Name:    "song_artist_songs",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[21]},
+			},
+			{
+				Name:    "song_album_songs",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[20]},
 			},
 		},
 	}

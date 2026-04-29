@@ -412,6 +412,12 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 		result.Errors = append(result.Errors, fmt.Sprintf("cleanup missing library entries: %v", err))
 	}
 	s.invalidateLibraryCache(ctx)
+	if err := s.refreshArtistCatalogCache(ctx); err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("refresh artist cache: %v", err))
+	}
+	if err := s.refreshSongCatalogCache(ctx); err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("refresh song cache: %v", err))
+	}
 	return result, nil
 }
 
@@ -604,6 +610,8 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 			Save(ctx)
 		if err == nil && invalidate {
 			s.invalidateLibraryCache(ctx)
+			_ = s.refreshArtistCatalogCache(ctx)
+			_ = s.refreshSongCatalogCache(ctx)
 		}
 		return true, err
 	}
@@ -625,6 +633,8 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		Save(ctx)
 	if err == nil && invalidate {
 		s.invalidateLibraryCache(ctx)
+		_ = s.refreshArtistCatalogCache(ctx)
+		_ = s.refreshSongCatalogCache(ctx)
 	}
 	return false, err
 }
@@ -640,6 +650,9 @@ func (s *Service) Songs(ctx context.Context, userID int, q string, favorites boo
 func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites bool, limit, offset int) (models.SongPage, error) {
 	term := strings.TrimSpace(q)
 	limit, offset = normalizePage(limit, offset)
+	if term != "" {
+		return s.searchSongsPageFromCache(ctx, userID, term, favorites, limit, offset)
+	}
 	cacheable := limit <= 500
 	key := ""
 	if cacheable {
@@ -687,6 +700,57 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 		_ = s.cacheSetJSON(ctx, key, page)
 	}
 	return page, nil
+}
+
+func (s *Service) searchSongsPageFromCache(ctx context.Context, userID int, term string, favorites bool, limit, offset int) (models.SongPage, error) {
+	items, err := s.cachedSongCatalog(ctx)
+	if err != nil {
+		return models.SongPage{}, err
+	}
+	matched := make([]models.Song, 0, minInt(limit+offset, len(items)))
+	for _, item := range items {
+		if songMatchesSearchTerm(item, term) {
+			matched = append(matched, item)
+		}
+	}
+	if favorites {
+		matched, err = s.applySongUserState(ctx, userID, matched)
+		if err != nil {
+			return models.SongPage{}, err
+		}
+		favoriteItems := matched[:0]
+		for _, item := range matched {
+			if item.Favorite {
+				favoriteItems = append(favoriteItems, item)
+			}
+		}
+		matched = favoriteItems
+	}
+	total := len(matched)
+	if offset > total {
+		offset = total
+	}
+	end := minInt(total, offset+limit)
+	pageItems := append([]models.Song(nil), matched[offset:end]...)
+	if !favorites {
+		pageItems, err = s.applySongUserState(ctx, userID, pageItems)
+		if err != nil {
+			return models.SongPage{}, err
+		}
+	}
+	return models.SongPage{Items: pageItems, Total: total, Limit: limit, Offset: offset, Page: offset/limit + 1}, nil
+}
+
+func songMatchesSearchTerm(item models.Song, term string) bool {
+	if term == "" {
+		return true
+	}
+	needle := strings.ToLower(term)
+	return strings.Contains(strings.ToLower(item.Title), needle) ||
+		strings.Contains(strings.ToLower(item.Artist), needle) ||
+		strings.Contains(strings.ToLower(item.Album), needle) ||
+		strings.Contains(strings.ToLower(item.FileName), needle) ||
+		strings.Contains(strings.ToLower(item.Format), needle)
 }
 
 func songListPredicates(userID int, term string, favorites bool) []predicate.Song {
@@ -932,6 +996,8 @@ func maxInt(a, b int) int {
 }
 
 const libraryCachePrefix = "library:v1:"
+const artistCatalogCacheKey = "artist-catalog:v1"
+const songCatalogCacheKey = "song-catalog:v1"
 
 func cacheKey(parts ...any) string {
 	var b strings.Builder
@@ -961,6 +1027,14 @@ func (s *Service) cacheGetJSON(ctx context.Context, key string, out any) (bool, 
 }
 
 func (s *Service) cacheSetJSON(ctx context.Context, key string, value any) error {
+	return s.cacheSetJSONWithTTL(ctx, key, value, s.cacheTTL)
+}
+
+func (s *Service) cacheSetJSONPermanent(ctx context.Context, key string, value any) error {
+	return s.cacheSetJSONWithTTL(ctx, key, value, 0)
+}
+
+func (s *Service) cacheSetJSONWithTTL(ctx context.Context, key string, value any, ttl time.Duration) error {
 	if s.cache == nil {
 		return nil
 	}
@@ -968,7 +1042,7 @@ func (s *Service) cacheSetJSON(ctx context.Context, key string, value any) error
 	if err != nil {
 		return err
 	}
-	return s.cache.Set(ctx, key, data, s.cacheTTL)
+	return s.cache.Set(ctx, key, data, ttl)
 }
 
 func (s *Service) invalidateLibraryCache(ctx context.Context) {
@@ -2205,11 +2279,57 @@ func (s *Service) SearchArtists(ctx context.Context, userID int, term string, li
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
-	query := s.client.Artist.Query().Order(ent.Asc(artist.FieldName)).Limit(limit)
-	if term != "" {
-		query = query.Where(artist.NameContainsFold(term))
+	items, err := s.cachedArtistCatalog(ctx)
+	if err != nil {
+		return nil, err
 	}
-	items, err := query.All(ctx)
+	out := make([]models.Artist, 0, minInt(limit, len(items)))
+	for _, item := range items {
+		if !artistMatchesSearchTerm(item, term) {
+			continue
+		}
+		out = append(out, item)
+		if len(out) >= limit {
+			break
+		}
+	}
+	return s.applyArtistUserState(ctx, userID, out)
+}
+
+func artistMatchesSearchTerm(item models.Artist, term string) bool {
+	if term == "" {
+		return true
+	}
+	return strings.Contains(strings.ToLower(item.Name), strings.ToLower(term))
+}
+
+func (s *Service) cachedArtistCatalog(ctx context.Context) ([]models.Artist, error) {
+	key := artistCatalogCacheKey
+	var cached []models.Artist
+	if ok, err := s.cacheGetJSON(ctx, key, &cached); err == nil && ok {
+		return cached, nil
+	}
+	items, err := s.buildArtistCatalog(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.cacheSetJSONPermanent(ctx, key, items)
+	return items, nil
+}
+
+func (s *Service) refreshArtistCatalogCache(ctx context.Context) error {
+	items, err := s.buildArtistCatalog(ctx)
+	if err != nil {
+		return err
+	}
+	return s.cacheSetJSONPermanent(ctx, artistCatalogCacheKey, items)
+}
+
+func (s *Service) buildArtistCatalog(ctx context.Context) ([]models.Artist, error) {
+	if s.client == nil {
+		return []models.Artist{}, nil
+	}
+	items, err := s.client.Artist.Query().Order(ent.Asc(artist.FieldName)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -2225,7 +2345,43 @@ func (s *Service) SearchArtists(ctx context.Context, userID int, term string, li
 	for _, a := range items {
 		out = append(out, mapArtistWithCounts(a, songCounts[a.ID], albumCounts[a.ID]))
 	}
-	return s.applyArtistUserState(ctx, userID, out)
+	return out, nil
+}
+
+func (s *Service) cachedSongCatalog(ctx context.Context) ([]models.Song, error) {
+	var cached []models.Song
+	if ok, err := s.cacheGetJSON(ctx, songCatalogCacheKey, &cached); err == nil && ok {
+		return cached, nil
+	}
+	items, err := s.buildSongCatalog(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.cacheSetJSONPermanent(ctx, songCatalogCacheKey, items)
+	return items, nil
+}
+
+func (s *Service) refreshSongCatalogCache(ctx context.Context) error {
+	items, err := s.buildSongCatalog(ctx)
+	if err != nil {
+		return err
+	}
+	return s.cacheSetJSONPermanent(ctx, songCatalogCacheKey, items)
+}
+
+func (s *Service) buildSongCatalog(ctx context.Context) ([]models.Song, error) {
+	if s.client == nil {
+		return []models.Song{}, nil
+	}
+	items, err := s.client.Song.Query().
+		WithArtist().
+		WithAlbum().
+		Order(ent.Desc(song.FieldUpdatedAt), ent.Desc(song.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return mapSongs(items), nil
 }
 
 func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (models.ArtistPage, error) {

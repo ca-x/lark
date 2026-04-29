@@ -720,6 +720,329 @@ function parseLyricLines(lyrics?: string): LyricLine[] {
   return sorted;
 }
 
+function AlbumArtistFilter({
+  t,
+  selectedArtistId,
+  selectedArtistName,
+  onSelect,
+  onClear,
+}: {
+  t: ReturnType<typeof createT>;
+  selectedArtistId: number;
+  selectedArtistName: string;
+  onSelect: (artist: Artist) => void;
+  onClear: () => void;
+}) {
+  const [draft, setDraft] = useState(selectedArtistName);
+  const [suggestions, setSuggestions] = useState<Artist[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [composing, setComposing] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const trimmedDraft = draft.trim();
+
+  useEffect(() => {
+    setDraft(selectedArtistName);
+    setSuggestions([]);
+    setOpen(false);
+    setActiveIndex(0);
+  }, [selectedArtistId, selectedArtistName]);
+
+  useEffect(() => {
+    if (!open || composing || trimmedDraft.length < 1) {
+      setSuggestions([]);
+      setLoading(false);
+      return;
+    }
+
+    let alive = true;
+    setLoading(true);
+    const timer = window.setTimeout(() => {
+      api.searchArtists(trimmedDraft, 20)
+        .then((items) => {
+          if (!alive) return;
+          const nextSuggestions = items.filter((item) => item.album_count > 0);
+          setSuggestions(nextSuggestions);
+          setActiveIndex(0);
+        })
+        .catch(() => {
+          if (alive) setSuggestions([]);
+        })
+        .finally(() => {
+          if (alive) setLoading(false);
+        });
+    }, 150);
+
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [composing, open, trimmedDraft]);
+
+  function selectSuggestion(artistItem: Artist) {
+    setDraft(artistItem.name);
+    setOpen(false);
+    setSuggestions([]);
+    onSelect(artistItem);
+  }
+
+  function clearFilter() {
+    setDraft("");
+    setOpen(false);
+    setSuggestions([]);
+    setActiveIndex(0);
+    onClear();
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  return (
+    <div className="artist-filter-combobox">
+      <label>
+        <span>{t("filterByArtist")}</span>
+        <div className={selectedArtistId > 0 ? "is-selected" : undefined}>
+          <MagnifyingGlass aria-hidden="true" />
+          <input
+            ref={inputRef}
+            value={draft}
+            placeholder={t("searchArtist")}
+            aria-label={t("filterByArtist")}
+            aria-expanded={open && trimmedDraft.length > 0}
+            aria-controls="album-artist-filter-options"
+            autoComplete="off"
+            onFocus={() => {
+              if (trimmedDraft) setOpen(true);
+            }}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setOpen(true);
+            }}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={(event) => {
+              setComposing(false);
+              setDraft(event.currentTarget.value);
+              if (event.currentTarget.value.trim()) setOpen(true);
+            }}
+            onKeyDown={(event) => {
+              const nativeEvent = event.nativeEvent as KeyboardEvent;
+              if (nativeEvent.isComposing) return;
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setOpen(true);
+                setActiveIndex((index) => Math.min(index + 1, Math.max(0, suggestions.length - 1)));
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setActiveIndex((index) => Math.max(0, index - 1));
+              } else if (event.key === "Enter" && open && suggestions[activeIndex]) {
+                event.preventDefault();
+                selectSuggestion(suggestions[activeIndex]);
+              } else if (event.key === "Escape") {
+                setOpen(false);
+              }
+            }}
+          />
+          {draft ? (
+            <button
+              type="button"
+              className="artist-filter-clear"
+              onClick={clearFilter}
+              aria-label={t("clearFilter")}
+            >
+              <X />
+            </button>
+          ) : null}
+        </div>
+      </label>
+      {open && trimmedDraft ? (
+        <div
+          id="album-artist-filter-options"
+          className="artist-filter-options"
+          role="listbox"
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          {loading ? (
+            <span>{t("loading")}</span>
+          ) : suggestions.length ? (
+            suggestions.map((artistItem, index) => (
+              <button
+                type="button"
+                key={artistItem.id}
+                className={artistItem.id === selectedArtistId || index === activeIndex ? "active" : ""}
+                role="option"
+                aria-selected={artistItem.id === selectedArtistId}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => selectSuggestion(artistItem)}
+              >
+                <strong>{artistItem.name}</strong>
+                <small>
+                  {artistItem.album_count} {t("album")} · {artistItem.song_count} {t("count")}
+                </small>
+              </button>
+            ))
+          ) : (
+            <span>{t("noResults")}</span>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SongSearchBox({
+  t,
+  value,
+  onSearch,
+}: {
+  t: ReturnType<typeof createT>;
+  value: string;
+  onSearch: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [suggestions, setSuggestions] = useState<Song[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [composing, setComposing] = useState(false);
+  const trimmedDraft = draft.trim();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setDraft(value);
+    setSuggestions([]);
+    setOpen(false);
+    setActiveIndex(0);
+  }, [value]);
+
+  useEffect(() => {
+    if (!open || composing || trimmedDraft.length < 1) {
+      setSuggestions([]);
+      setLoading(false);
+      return;
+    }
+    let alive = true;
+    setLoading(true);
+    const timer = window.setTimeout(() => {
+      api.songs(trimmedDraft, 8)
+        .then((items) => {
+          if (!alive) return;
+          setSuggestions(items);
+          setActiveIndex(0);
+        })
+        .catch(() => {
+          if (alive) setSuggestions([]);
+        })
+        .finally(() => {
+          if (alive) setLoading(false);
+        });
+    }, 150);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [composing, open, trimmedDraft]);
+
+  function commit(nextValue = draft) {
+    const next = nextValue.trim();
+    setDraft(next);
+    setOpen(false);
+    onSearch(next);
+  }
+
+  function selectSuggestion(song: Song) {
+    commit(song.title);
+  }
+
+  function clearSearch() {
+    setDraft("");
+    setSuggestions([]);
+    setOpen(false);
+    onSearch("");
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  return (
+    <div className="song-search-combobox">
+      <label className="search">
+        <MagnifyingGlass />
+        <input
+          ref={inputRef}
+          value={draft}
+          placeholder={t("search")}
+          autoComplete="off"
+          aria-label={t("search")}
+          aria-expanded={open && trimmedDraft.length > 0}
+          aria-controls="song-search-options"
+          onFocus={() => {
+            if (trimmedDraft) setOpen(true);
+          }}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setOpen(true);
+          }}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={(event) => {
+            setComposing(false);
+            setDraft(event.currentTarget.value);
+            if (event.currentTarget.value.trim()) setOpen(true);
+          }}
+          onKeyDown={(event) => {
+            const nativeEvent = event.nativeEvent as KeyboardEvent;
+            if (nativeEvent.isComposing) return;
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setOpen(true);
+              setActiveIndex((index) => Math.min(index + 1, Math.max(0, suggestions.length - 1)));
+            } else if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setActiveIndex((index) => Math.max(0, index - 1));
+            } else if (event.key === "Enter") {
+              event.preventDefault();
+              if (open && suggestions[activeIndex]) selectSuggestion(suggestions[activeIndex]);
+              else commit();
+            } else if (event.key === "Escape") {
+              setOpen(false);
+            }
+          }}
+        />
+        {draft ? (
+          <button type="button" className="search-clear-button" onClick={clearSearch} aria-label={t("clearFilter")}>
+            <X />
+          </button>
+        ) : null}
+      </label>
+      {open && trimmedDraft ? (
+        <div
+          id="song-search-options"
+          className="song-search-options"
+          role="listbox"
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          {loading ? (
+            <span>{t("loading")}</span>
+          ) : suggestions.length ? (
+            suggestions.map((song, index) => (
+              <button
+                type="button"
+                key={song.id}
+                className={index === activeIndex ? "active" : ""}
+                role="option"
+                aria-selected={index === activeIndex}
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => selectSuggestion(song)}
+              >
+                <strong>{song.title}</strong>
+                <small>{[song.artist, song.album, formatDuration(song.duration_seconds)].filter(Boolean).join(" · ")}</small>
+              </button>
+            ))
+          ) : (
+            <span>{t("noResults")}</span>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function App() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [auth, setAuth] = useState<AuthStatus | null>(null);
@@ -758,8 +1081,6 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [albumArtistFilter, setAlbumArtistFilter] = useState(0);
   const [albumArtistQuery, setAlbumArtistQuery] = useState("");
-  const [albumArtistSuggestions, setAlbumArtistSuggestions] = useState<Artist[]>([]);
-  const [albumArtistLoading, setAlbumArtistLoading] = useState(false);
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [lyricCandidates, setLyricCandidates] = useState<LyricCandidate[]>([]);
@@ -1671,38 +1992,9 @@ export default function App() {
     }
   }
 
-  useEffect(() => {
-    const term = albumArtistQuery.trim();
-    if (view !== "albums" || term.length < 1) {
-      setAlbumArtistSuggestions([]);
-      setAlbumArtistLoading(false);
-      return;
-    }
-    let alive = true;
-    setAlbumArtistLoading(true);
-    const timer = window.setTimeout(() => {
-      api.searchArtists(term, 20)
-        .then((items) => {
-          if (!alive) return;
-          setAlbumArtistSuggestions(items.filter((item) => item.album_count > 0));
-        })
-        .catch(() => {
-          if (alive) setAlbumArtistSuggestions([]);
-        })
-        .finally(() => {
-          if (alive) setAlbumArtistLoading(false);
-        });
-    }, 180);
-    return () => {
-      alive = false;
-      window.clearTimeout(timer);
-    };
-  }, [albumArtistQuery, view]);
-
   function selectAlbumArtistFilter(artistItem: Artist) {
     setAlbumArtistFilter(artistItem.id);
     setAlbumArtistQuery(artistItem.name);
-    setAlbumArtistSuggestions([]);
     void loadAlbumPage(1, artistItem.id);
   }
 
@@ -1710,18 +2002,7 @@ export default function App() {
     const hadFilter = albumArtistFilter > 0 || albumArtistQuery.trim() !== "";
     setAlbumArtistFilter(0);
     setAlbumArtistQuery("");
-    setAlbumArtistSuggestions([]);
     if (hadFilter) void loadAlbumPage(1, 0);
-  }
-
-  function updateAlbumArtistQuery(value: string) {
-    setAlbumArtistQuery(value);
-    if (albumArtistFilter > 0 && value.trim() === "") {
-      clearAlbumArtistFilter();
-    } else if (albumArtistFilter > 0) {
-      setAlbumArtistFilter(0);
-      void loadAlbumPage(1, 0);
-    }
   }
 
   async function loadArtistPage(page: number) {
@@ -2738,20 +3019,16 @@ export default function App() {
                 {topbarHasScreenTitle ? <h1>{screenTitle}</h1> : null}
               </div>
               {view !== "radio" && view !== "library" ? (
-                <label className="search">
-                  <MagnifyingGlass />
-                  <input
-                    value={query}
-                    placeholder={t("search")}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        setLibraryPage(1);
-                        void loadLibrarySongsPage(1, query);
-                      }
-                    }}
-                  />
-                </label>
+                <SongSearchBox
+                  t={t}
+                  value={query}
+                  onSearch={(value) => {
+                    setQuery(value);
+                    setLibraryPage(1);
+                    if (value.trim()) setView("library");
+                    void loadLibrarySongsPage(1, value);
+                  }}
+                />
               ) : (
                 <span className="topbar-search-spacer" aria-hidden="true" />
               )}
@@ -2877,6 +3154,12 @@ export default function App() {
                 stats={libraryStats}
                 songPage={librarySongPage}
                 pageLoading={libraryPageLoading}
+                searchQuery={query}
+                onSongSearch={(value) => {
+                  setQuery(value);
+                  setLibraryPage(1);
+                  void loadLibrarySongsPage(1, value);
+                }}
                 onPageChange={loadLibrarySongsPage}
               />
             )}
@@ -2989,56 +3272,15 @@ export default function App() {
                   t={t}
                   title={t("albums")}
                   variant="album"
+                  actionKey={`${settings.language}|${albumArtistFilter}|${albumArtistQuery}`}
                   action={
-                    <div className="artist-filter-combobox">
-                      <label>
-                        <span>{t("filterByArtist")}</span>
-                        <div>
-                          <MagnifyingGlass aria-hidden="true" />
-                          <input
-                            value={albumArtistQuery}
-                            placeholder={t("searchArtist")}
-                            aria-label={t("filterByArtist")}
-                            autoComplete="off"
-                            onChange={(event) => updateAlbumArtistQuery(event.target.value)}
-                          />
-                          {albumArtistQuery ? (
-                            <button
-                              type="button"
-                              className="artist-filter-clear"
-                              onClick={clearAlbumArtistFilter}
-                              aria-label={t("clearFilter")}
-                            >
-                              <X />
-                            </button>
-                          ) : null}
-                        </div>
-                      </label>
-                      {albumArtistQuery.trim() ? (
-                        <div className="artist-filter-options" role="listbox">
-                          {albumArtistLoading ? (
-                            <span>{t("loading")}</span>
-                          ) : albumArtistSuggestions.length ? (
-                            albumArtistSuggestions.map((artistItem) => (
-                              <button
-                                type="button"
-                                key={artistItem.id}
-                                className={artistItem.id === albumArtistFilter ? "active" : ""}
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => selectAlbumArtistFilter(artistItem)}
-                              >
-                                <strong>{artistItem.name}</strong>
-                                <small>
-                                  {artistItem.album_count} {t("album")} · {artistItem.song_count} {t("count")}
-                                </small>
-                              </button>
-                            ))
-                          ) : (
-                            <span>{t("noResults")}</span>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
+                    <AlbumArtistFilter
+                      t={t}
+                      selectedArtistId={albumArtistFilter}
+                      selectedArtistName={albumArtistQuery}
+                      onSelect={selectAlbumArtistFilter}
+                      onClear={clearAlbumArtistFilter}
+                    />
                   }
                   items={albums.map((a) => ({
                     id: a.id,
@@ -4856,6 +5098,7 @@ function LibraryView({
   stats,
   songPage,
   pageLoading,
+  searchQuery,
   current,
   t,
   onPlay,
@@ -4874,6 +5117,7 @@ function LibraryView({
   scanStatus,
   onCancelScan,
   onDismissScan,
+  onSongSearch,
   onPageChange,
 }: {
   songs: Song[];
@@ -4883,6 +5127,7 @@ function LibraryView({
   stats: LibraryStats | null;
   songPage: SongPage | null;
   pageLoading: boolean;
+  searchQuery: string;
   current: Song | null;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list: Song[]) => void;
@@ -4901,6 +5146,7 @@ function LibraryView({
   scanStatus: ScanStatus | null;
   onCancelScan: () => void;
   onDismissScan: () => void;
+  onSongSearch: (value: string) => void;
   onPageChange: (page: number) => void | Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -4910,6 +5156,11 @@ function LibraryView({
     setTabState(nextTab);
     rememberLibraryTab(nextTab);
   };
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    setTabState("songs");
+    rememberLibraryTab("songs");
+  }, [searchQuery]);
   const selectedSongs = songs.filter((song) => selected.has(song.id));
   const toggleSelected = (song: Song) => {
     setSelected((old) => {
@@ -4929,6 +5180,9 @@ function LibraryView({
       <div className="section-head library-actions">
         <h2>{t("library")}</h2>
         <div>
+          {tab === "songs" ? (
+            <SongSearchBox t={t} value={searchQuery} onSearch={onSongSearch} />
+          ) : null}
           {tab === "songs" && selectedSongs.length ? (
             <div className="selection-actions">
               <span>

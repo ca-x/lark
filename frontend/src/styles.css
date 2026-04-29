@@ -69,6 +69,16 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .top-title.compact { min-height:44px; display:flex; align-items:center; }
 .search { display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:0 16px; }
 .search input { width:100%; color:var(--text); background:transparent; border:0; outline:0; }
+.song-search-combobox { position:relative; min-width:0; z-index:30; }
+.song-search-combobox .search { min-height:44px; padding-right:8px; transition:border-color .18s var(--ease), box-shadow .18s var(--ease); }
+.song-search-combobox .search:focus-within { border-color:color-mix(in srgb, var(--accent) 58%, var(--line)); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.search-clear-button { width:30px; min-width:30px !important; height:30px; min-height:30px !important; padding:0 !important; border-radius:999px !important; }
+.song-search-options { position:absolute; top:calc(100% + 8px); left:0; right:0; max-height:min(340px, 52dvh); overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; display:grid; gap:6px; padding:8px; border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius:18px; background:color-mix(in srgb, var(--panel) 98%, var(--bg)); box-shadow:var(--shadow); }
+.song-search-options > button { min-width:0; min-height:50px; display:grid; justify-items:start; gap:2px; padding:9px 10px; border-radius:14px; color:var(--text); background:transparent; text-align:left; touch-action:manipulation; }
+.song-search-options > button:hover, .song-search-options > button.active { background:color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
+.song-search-options strong, .song-search-options small { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.song-search-options small, .song-search-options > span { color:var(--muted); }
+.song-search-options > span { padding:10px; }
 .message { margin-bottom:12px; color:var(--text); text-align:left; padding:12px 14px; border-radius:16px; background:var(--panel2); }
 
 .hero { min-height:360px; padding:34px; border-radius:32px; background:var(--hero); display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:34px; overflow:hidden; position:relative; }
@@ -79,6 +89,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .hero-meta-link { position:relative; z-index:1; min-height:34px; padding:3px 2px; border-radius:8px; color:color-mix(in srgb, var(--text) 78%, transparent); font-weight:800; text-decoration:underline; text-decoration-color:color-mix(in srgb, var(--accent) 42%, transparent); text-underline-offset:4px; }
 .hero-meta-link:hover { color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent); }
 .primary, .topbar button, .upload, .section-head button, .library-actions button, .library-actions .upload { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:12px 16px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); color:var(--text); transition: transform .18s var(--ease), background .18s var(--ease), border-color .18s var(--ease); }
+.topbar .song-search-options > button, .library-actions .song-search-options > button { min-width:0; min-height:50px; display:grid; justify-items:start; gap:2px; padding:9px 10px; border:0; border-radius:14px; color:var(--text); background:transparent; text-align:left; }
 .primary { margin-top:18px; background:var(--accent); color:var(--bg); border-color:transparent; font-weight:850; box-shadow:0 16px 36px color-mix(in srgb, var(--accent) 24%, transparent); }
 .primary:active, .section-head button:active, .upload:active { transform:scale(.97); }
 .upload input { display:none; }
@@ -89,11 +100,13 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .filter-pill select { min-height:32px; max-width:min(260px, 54vw); border:0; border-radius:999px; padding:6px 10px; color:var(--text); background:var(--panel); }
 .artist-filter-combobox { position:relative; min-width:min(360px, 72vw); z-index:20; }
 .artist-filter-combobox label { display:grid; gap:5px; color:var(--muted); font-size:12px; font-weight:800; }
-.artist-filter-combobox label > div { min-height:42px; display:grid; grid-template-columns:20px minmax(0,1fr) auto; align-items:center; gap:8px; padding:0 8px 0 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel2); }
-.artist-filter-combobox input { min-width:0; border:0; outline:0; background:transparent; color:var(--text); font:inherit; }
+.artist-filter-combobox label > div { min-height:42px; display:grid; grid-template-columns:20px minmax(0,1fr) auto; align-items:center; gap:8px; padding:0 8px 0 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel2); transition:border-color .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease); }
+.artist-filter-combobox label > div:focus-within { border-color:color-mix(in srgb, var(--accent) 58%, var(--line)); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.artist-filter-combobox label > div.is-selected { background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
+.artist-filter-combobox input { min-width:0; border:0; outline:0; background:transparent; color:var(--text); font:inherit; caret-color:var(--accent); }
 .artist-filter-clear { width:30px; min-width:30px !important; height:30px; min-height:30px !important; padding:0 !important; border-radius:999px !important; }
-.artist-filter-options { position:absolute; top:calc(100% + 8px); right:0; width:min(360px, calc(100vw - 28px)); max-height:min(320px, 52dvh); overflow:auto; display:grid; gap:6px; padding:8px; border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius:18px; background:color-mix(in srgb, var(--panel) 98%, var(--bg)); box-shadow:var(--shadow); }
-.artist-filter-options > button { min-width:0; min-height:48px; display:grid; justify-items:start; gap:2px; padding:8px 10px; border-radius:14px; color:var(--text); background:transparent; text-align:left; }
+.artist-filter-options { position:absolute; top:calc(100% + 8px); right:0; width:min(360px, calc(100vw - 28px)); max-height:min(320px, 52dvh); overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; display:grid; gap:6px; padding:8px; border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-radius:18px; background:color-mix(in srgb, var(--panel) 98%, var(--bg)); box-shadow:var(--shadow); }
+.artist-filter-options > button { min-width:0; min-height:48px; display:grid; justify-items:start; gap:2px; padding:8px 10px; border-radius:14px; color:var(--text); background:transparent; text-align:left; touch-action:manipulation; }
 .artist-filter-options > button:hover, .artist-filter-options > button.active { background:color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
 .artist-filter-options strong, .artist-filter-options small { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .artist-filter-options small, .artist-filter-options > span { color:var(--muted); }
@@ -159,6 +172,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .empty-actions, .library-actions > div { display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap; }
 .empty-actions .primary { margin-top:0; }
 .library-actions { margin-bottom:10px; }
+.library-actions .song-search-combobox { flex:1 1 280px; max-width:min(520px, 100%); }
 
 .disc-art { width:220px; height:220px; border-radius:50%; display:grid; place-items:center; flex:0 0 auto; color:#050505; background:var(--cover); box-shadow:inset 0 0 0 12px rgba(255,255,255,.08), 0 22px 60px rgba(0,0,0,.35); }
 .disc-art svg { width:78%; height:78%; opacity:.8; animation:spin 12s linear infinite; animation-play-state:paused; }
@@ -533,7 +547,9 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   .filter-pill { width:100%; justify-content:space-between; border-radius:16px; }
   .filter-pill select { max-width:58vw; }
   .artist-filter-combobox { width:100%; min-width:0; }
-  .artist-filter-options { left:0; right:0; width:auto; max-height:45dvh; }
+  .artist-filter-combobox label > div { min-height:48px; border-radius:16px; }
+  .artist-filter-options { left:0; right:0; width:auto; max-height:45dvh; border-radius:18px; }
+  .artist-filter-options > button { min-height:54px; }
   .collection-tabs { width:100%; border-radius:18px; }
   .collection-tabs button { flex:1 0 auto; }
   .artist-album-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
@@ -909,7 +925,7 @@ body, button, input, select { font-family: var(--app-font); }
 .font-actions button:first-child { background:var(--accent); color:var(--bg); border-color:transparent; }
 @media (max-width:1180px) {
   .topbar { grid-template-columns:minmax(0,1fr) auto; }
-  .topbar .search { grid-column:1 / -1; order:3; }
+  .topbar .song-search-combobox { grid-column:1 / -1; order:3; }
   .user-menu { grid-column:2; grid-row:1; }
 }
 @media (max-width:720px) {
@@ -964,7 +980,7 @@ body, button, input, select { font-family: var(--app-font); }
   .sidebar nav button svg { width:22px; height:22px; }
   .sidebar nav button span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .topbar { grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; }
-  .topbar .search { grid-column:1 / -1; order:3; }
+  .topbar .song-search-combobox { grid-column:1 / -1; order:3; }
   .user-menu { grid-column:2; grid-row:1; justify-self:end; }
   .user-menu-trigger { width:46px; min-width:46px; max-width:46px; height:46px; padding:5px !important; justify-content:center; border-radius:16px; }
   .user-menu-trigger > span, .user-menu-trigger > svg { display:none; }

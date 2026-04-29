@@ -48,7 +48,12 @@ func (Song) Edges() []ent.Edge {
 func (Song) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("title"),
+		index.Fields("file_name"),
 		index.Fields("favorite"),
 		index.Fields("netease_id"),
+		index.Fields("created_at"),
+		index.Fields("updated_at"),
+		index.Edges("artist"),
+		index.Edges("album"),
 	}
 }
