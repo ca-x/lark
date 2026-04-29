@@ -21,8 +21,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	entsql "entgo.io/ent/dialect/sql"
+	"github.com/cespare/xxhash/v2"
 	"github.com/dhowden/tag"
 
 	"lark/backend/ent"
@@ -411,6 +413,9 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 	}
 	s.invalidateLibraryCache(ctx)
 	s.invalidateSearchCatalogs(ctx)
+	if err := s.warmSearchCatalogs(ctx); err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("warm search catalogs: %v", err))
+	}
 	return result, nil
 }
 
@@ -609,6 +614,7 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		return false, err
 	}
 	existingNotFound := ent.IsNotFound(err)
+	reusedMissingContent := false
 	if err == nil && existing.SizeBytes == sizeBytes && existing.ModTimeUnixNano == modTimeUnixNano {
 		return false, nil
 	}
@@ -627,6 +633,21 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 	if err != nil {
 		return false, err
 	}
+	contentHash := songContentHash(meta.Artist, meta.Album, meta.Title)
+	if existingNotFound && contentHash != "" {
+		reusable, skipDuplicate, err := s.reusableSongByContentHash(ctx, contentHash, abs)
+		if err != nil {
+			return false, err
+		}
+		if skipDuplicate {
+			return false, nil
+		}
+		if reusable != nil {
+			existing = reusable
+			existingNotFound = false
+			reusedMissingContent = true
+		}
+	}
 	if existingNotFound {
 		_, err = s.client.Song.Create().
 			SetTitle(meta.Title).
@@ -636,6 +657,7 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 			SetMime(mimeType).
 			SetSizeBytes(sizeBytes).
 			SetModTimeUnixNano(modTimeUnixNano).
+			SetContentHash(contentHash).
 			SetDurationSeconds(meta.Duration).
 			SetSampleRate(meta.SampleRate).
 			SetBitRate(meta.BitRate).
@@ -654,11 +676,13 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 	}
 	_, err = existing.Update().
 		SetTitle(meta.Title).
+		SetPath(abs).
 		SetFileName(filepath.Base(abs)).
 		SetFormat(format).
 		SetMime(mimeType).
 		SetSizeBytes(sizeBytes).
 		SetModTimeUnixNano(modTimeUnixNano).
+		SetContentHash(contentHash).
 		SetDurationSeconds(meta.Duration).
 		SetSampleRate(meta.SampleRate).
 		SetBitRate(meta.BitRate).
@@ -673,7 +697,7 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		s.invalidateLibraryCache(ctx)
 		s.invalidateSearchCatalogs(ctx)
 	}
-	return false, err
+	return reusedMissingContent, err
 }
 
 func (s *Service) Songs(ctx context.Context, userID int, q string, favorites bool, limit int) ([]models.Song, error) {
@@ -742,6 +766,19 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 func (s *Service) songListPredicates(ctx context.Context, userID int, term string, favorites bool) ([]predicate.Song, error) {
 	predicates := []predicate.Song{}
 	if term != "" {
+		if ids, ok, err := s.songCatalogIDsForTerm(ctx, term); err != nil {
+			return nil, err
+		} else if ok {
+			if len(ids) == 0 {
+				predicates = append(predicates, song.ID(-1))
+			} else {
+				predicates = append(predicates, song.IDIn(ids...))
+			}
+			if favorites {
+				predicates = append(predicates, song.HasUserFavoritesWith(usersongfavorite.HasUserWith(user.ID(userID))))
+			}
+			return predicates, nil
+		}
 		searchPredicates := []predicate.Song{
 			song.TitleContainsFold(term),
 			song.FileNameContainsFold(term),
@@ -964,6 +1001,49 @@ func dailyCandidateOffset(day string, userID, total, candidateLimit int) int {
 	return int(dailySeed(day, userID) % uint64(total-candidateLimit+1))
 }
 
+func songContentHash(artist, album, title string) string {
+	parts := []string{
+		normalizeSongContentHashPart(artist),
+		normalizeSongContentHashPart(album),
+		normalizeSongContentHashPart(title),
+	}
+	if parts[0] == "" && parts[1] == "" && parts[2] == "" {
+		return ""
+	}
+	return fmt.Sprintf("%x", xxhash.Sum64String(strings.Join(parts, "|")))
+}
+
+func normalizeSongContentHashPart(value string) string {
+	value = strings.TrimSpace(value)
+	var b strings.Builder
+	b.Grow(len(value))
+	for _, r := range value {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(unicode.ToLower(r))
+		}
+	}
+	return b.String()
+}
+
+func (s *Service) reusableSongByContentHash(ctx context.Context, contentHash, newPath string) (*ent.Song, bool, error) {
+	matches, err := s.client.Song.Query().
+		Where(song.ContentHashEQ(contentHash), song.PathNEQ(newPath)).
+		Order(ent.Asc(song.FieldID)).
+		Limit(8).
+		All(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, match := range matches {
+		if _, statErr := os.Stat(match.Path); statErr == nil {
+			return nil, true, nil
+		} else if errors.Is(statErr, os.ErrNotExist) {
+			return match, false, nil
+		}
+	}
+	return nil, false, nil
+}
+
 func dailySeed(day string, userID int) uint64 {
 	seed := fmt.Sprintf("%s:%d", day, userID)
 	var hash uint64 = 1469598103934665603
@@ -1028,6 +1108,19 @@ const artistCatalogCacheKey = libraryCachePrefix + "catalog:v2:artists"
 const songCatalogCacheKey = libraryCachePrefix + "catalog:v2:songs"
 const transcodeWarmLeasePrefix = "runtime:v1:transcode-warm:"
 const remoteAlbumSearchConcurrency = 3
+const searchCatalogBatchSize = 500
+const maxCatalogPredicateIDs = 5000
+
+type songSearchCatalogEntry struct {
+	ID   int    `json:"id"`
+	Text string `json:"text"`
+}
+
+type artistSearchCatalogEntry struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Text string `json:"text"`
+}
 
 func cacheKey(parts ...any) string {
 	var b strings.Builder
@@ -1073,6 +1166,18 @@ func (s *Service) cacheSetJSONWithTTL(ctx context.Context, key string, value any
 		return err
 	}
 	return s.cache.Set(ctx, key, data, ttl)
+}
+
+func (s *Service) searchCatalogCacheEnabled() bool {
+	if s.cache == nil {
+		return false
+	}
+	switch s.cache.(type) {
+	case kv.NoopStore, *kv.MemoryStore:
+		return false
+	default:
+		return true
+	}
 }
 
 func (s *Service) TryAcquireTranscodeWarmLease(ctx context.Context, cachePath string, ttl time.Duration) (bool, error) {
@@ -1148,6 +1253,134 @@ func (s *Service) invalidateSongCatalog(ctx context.Context) {
 func (s *Service) invalidateSearchCatalogs(ctx context.Context) {
 	s.invalidateArtistCatalog(ctx)
 	s.invalidateSongCatalog(ctx)
+}
+
+func (s *Service) warmSearchCatalogs(ctx context.Context) error {
+	if !s.searchCatalogCacheEnabled() || s.client == nil {
+		return nil
+	}
+	if _, err := s.songSearchCatalog(ctx); err != nil {
+		return err
+	}
+	_, err := s.artistSearchCatalog(ctx)
+	return err
+}
+
+func (s *Service) songSearchCatalog(ctx context.Context) ([]songSearchCatalogEntry, error) {
+	if !s.searchCatalogCacheEnabled() || s.client == nil {
+		return nil, nil
+	}
+	var cached []songSearchCatalogEntry
+	if ok, err := s.cacheGetJSON(ctx, songCatalogCacheKey, &cached); err != nil {
+		return nil, err
+	} else if ok {
+		return cached, nil
+	}
+	out := []songSearchCatalogEntry{}
+	lastID := 0
+	for {
+		items, err := s.client.Song.Query().
+			Where(song.IDGT(lastID)).
+			WithArtist().
+			WithAlbum().
+			Order(ent.Asc(song.FieldID)).
+			Limit(searchCatalogBatchSize).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(items) == 0 {
+			break
+		}
+		for _, item := range items {
+			lastID = item.ID
+			artistName := ""
+			if item.Edges.Artist != nil {
+				artistName = item.Edges.Artist.Name
+			}
+			albumTitle := ""
+			albumArtist := ""
+			if item.Edges.Album != nil {
+				albumTitle = item.Edges.Album.Title
+				albumArtist = item.Edges.Album.AlbumArtist
+			}
+			out = append(out, songSearchCatalogEntry{
+				ID: item.ID,
+				Text: searchCatalogText(
+					item.Title,
+					item.FileName,
+					item.Format,
+					artistName,
+					albumTitle,
+					albumArtist,
+				),
+			})
+		}
+	}
+	if err := s.cacheSetJSONPermanent(ctx, songCatalogCacheKey, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Service) songCatalogIDsForTerm(ctx context.Context, term string) ([]int, bool, error) {
+	term = searchCatalogTerm(term)
+	if term == "" || !s.searchCatalogCacheEnabled() {
+		return nil, false, nil
+	}
+	catalog, err := s.songSearchCatalog(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	ids := make([]int, 0, minInt(len(catalog), maxCatalogPredicateIDs))
+	for _, item := range catalog {
+		if strings.Contains(item.Text, term) {
+			ids = append(ids, item.ID)
+			if len(ids) > maxCatalogPredicateIDs {
+				return nil, false, nil
+			}
+		}
+	}
+	return ids, true, nil
+}
+
+func (s *Service) artistSearchCatalog(ctx context.Context) ([]artistSearchCatalogEntry, error) {
+	if !s.searchCatalogCacheEnabled() || s.client == nil {
+		return nil, nil
+	}
+	var cached []artistSearchCatalogEntry
+	if ok, err := s.cacheGetJSON(ctx, artistCatalogCacheKey, &cached); err != nil {
+		return nil, err
+	} else if ok {
+		return cached, nil
+	}
+	items, err := s.client.Artist.Query().Order(ent.Asc(artist.FieldName)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]artistSearchCatalogEntry, 0, len(items))
+	for _, item := range items {
+		out = append(out, artistSearchCatalogEntry{ID: item.ID, Name: item.Name, Text: searchCatalogText(item.Name)})
+	}
+	if err := s.cacheSetJSONPermanent(ctx, artistCatalogCacheKey, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func searchCatalogTerm(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func searchCatalogText(values ...string) string {
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		value = searchCatalogTerm(value)
+		if value != "" {
+			parts = append(parts, value)
+		}
+	}
+	return strings.Join(parts, "\x00")
 }
 
 func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Folder, error) {
@@ -2419,6 +2652,43 @@ func (s *Service) Albums(ctx context.Context, userID, limit int) ([]models.Album
 	return page.Items, nil
 }
 
+func (s *Service) FavoriteAlbums(ctx context.Context, userID, limit int) ([]models.Album, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 500
+	}
+	favorites, err := s.client.UserAlbumFavorite.Query().
+		Where(useralbumfavorite.HasUserWith(user.ID(userID))).
+		WithAlbum(func(q *ent.AlbumQuery) {
+			q.WithArtist().Where(album.HasSongs())
+		}).
+		Order(ent.Desc(useralbumfavorite.FieldCreatedAt)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int, 0, len(favorites))
+	for _, favorite := range favorites {
+		if favorite.Edges.Album != nil {
+			ids = append(ids, favorite.Edges.Album.ID)
+		}
+	}
+	counts, err := s.albumSongCountsForIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.Album, 0, len(favorites))
+	for _, favorite := range favorites {
+		if favorite.Edges.Album == nil {
+			continue
+		}
+		item := mapAlbumWithCount(favorite.Edges.Album, counts[favorite.Edges.Album.ID])
+		item.Favorite = true
+		out = append(out, item)
+	}
+	return out, nil
+}
+
 func (s *Service) Album(ctx context.Context, userID, id int) (models.Album, error) {
 	item, err := s.client.Album.Query().Where(album.ID(id), album.HasSongs()).WithArtist().Only(ctx)
 	if err != nil {
@@ -2543,6 +2813,42 @@ func (s *Service) SearchArtists(ctx context.Context, userID int, term string, li
 	term = strings.TrimSpace(term)
 	if limit <= 0 || limit > 50 {
 		limit = 20
+	}
+	if term != "" && s.searchCatalogCacheEnabled() {
+		catalog, err := s.artistSearchCatalog(ctx)
+		if err != nil {
+			return nil, err
+		}
+		needle := searchCatalogTerm(term)
+		ids := make([]int, 0, limit)
+		for _, item := range catalog {
+			if strings.Contains(item.Text, needle) {
+				ids = append(ids, item.ID)
+				if len(ids) >= limit {
+					break
+				}
+			}
+		}
+		if len(ids) == 0 {
+			return []models.Artist{}, nil
+		}
+		items, err := s.client.Artist.Query().Where(artist.IDIn(ids...)).Order(ent.Asc(artist.FieldName)).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		songCounts, err := s.artistSongCountsForIDs(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		albumCounts, err := s.artistAlbumCountsForIDs(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]models.Artist, 0, len(items))
+		for _, item := range items {
+			out = append(out, mapArtistWithCounts(item, songCounts[item.ID], albumCounts[item.ID]))
+		}
+		return s.applyArtistUserState(ctx, userID, out)
 	}
 	query := s.client.Artist.Query().Order(ent.Asc(artist.FieldName)).Limit(limit)
 	if term != "" {

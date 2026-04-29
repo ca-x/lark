@@ -28,6 +28,8 @@ const (
 	FieldSizeBytes = "size_bytes"
 	// FieldModTimeUnixNano holds the string denoting the mod_time_unix_nano field in the database.
 	FieldModTimeUnixNano = "mod_time_unix_nano"
+	// FieldContentHash holds the string denoting the content_hash field in the database.
+	FieldContentHash = "content_hash"
 	// FieldDurationSeconds holds the string denoting the duration_seconds field in the database.
 	FieldDurationSeconds = "duration_seconds"
 	// FieldSampleRate holds the string denoting the sample_rate field in the database.
@@ -111,6 +113,7 @@ var Columns = []string{
 	FieldMime,
 	FieldSizeBytes,
 	FieldModTimeUnixNano,
+	FieldContentHash,
 	FieldDurationSeconds,
 	FieldSampleRate,
 	FieldBitRate,
@@ -169,6 +172,8 @@ var (
 	DefaultSizeBytes int64
 	// DefaultModTimeUnixNano holds the default value on creation for the "mod_time_unix_nano" field.
 	DefaultModTimeUnixNano int64
+	// DefaultContentHash holds the default value on creation for the "content_hash" field.
+	DefaultContentHash string
 	// DefaultDurationSeconds holds the default value on creation for the "duration_seconds" field.
 	DefaultDurationSeconds float64
 	// DefaultSampleRate holds the default value on creation for the "sample_rate" field.
@@ -238,6 +243,11 @@ func BySizeBytes(opts ...sql.OrderTermOption) OrderOption {
 // ByModTimeUnixNano orders the results by the mod_time_unix_nano field.
 func ByModTimeUnixNano(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldModTimeUnixNano, opts...).ToFunc()
+}
+
+// ByContentHash orders the results by the content_hash field.
+func ByContentHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContentHash, opts...).ToFunc()
 }
 
 // ByDurationSeconds orders the results by the duration_seconds field.

@@ -90,6 +90,11 @@ func ModTimeUnixNano(v int64) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldModTimeUnixNano, v))
 }
 
+// ContentHash applies equality check predicate on the "content_hash" field. It's identical to ContentHashEQ.
+func ContentHash(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldContentHash, v))
+}
+
 // DurationSeconds applies equality check predicate on the "duration_seconds" field. It's identical to DurationSecondsEQ.
 func DurationSeconds(v float64) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldDurationSeconds, v))
@@ -558,6 +563,71 @@ func ModTimeUnixNanoLT(v int64) predicate.Song {
 // ModTimeUnixNanoLTE applies the LTE predicate on the "mod_time_unix_nano" field.
 func ModTimeUnixNanoLTE(v int64) predicate.Song {
 	return predicate.Song(sql.FieldLTE(FieldModTimeUnixNano, v))
+}
+
+// ContentHashEQ applies the EQ predicate on the "content_hash" field.
+func ContentHashEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldContentHash, v))
+}
+
+// ContentHashNEQ applies the NEQ predicate on the "content_hash" field.
+func ContentHashNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldContentHash, v))
+}
+
+// ContentHashIn applies the In predicate on the "content_hash" field.
+func ContentHashIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldContentHash, vs...))
+}
+
+// ContentHashNotIn applies the NotIn predicate on the "content_hash" field.
+func ContentHashNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldContentHash, vs...))
+}
+
+// ContentHashGT applies the GT predicate on the "content_hash" field.
+func ContentHashGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldContentHash, v))
+}
+
+// ContentHashGTE applies the GTE predicate on the "content_hash" field.
+func ContentHashGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldContentHash, v))
+}
+
+// ContentHashLT applies the LT predicate on the "content_hash" field.
+func ContentHashLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldContentHash, v))
+}
+
+// ContentHashLTE applies the LTE predicate on the "content_hash" field.
+func ContentHashLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldContentHash, v))
+}
+
+// ContentHashContains applies the Contains predicate on the "content_hash" field.
+func ContentHashContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldContentHash, v))
+}
+
+// ContentHashHasPrefix applies the HasPrefix predicate on the "content_hash" field.
+func ContentHashHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldContentHash, v))
+}
+
+// ContentHashHasSuffix applies the HasSuffix predicate on the "content_hash" field.
+func ContentHashHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldContentHash, v))
+}
+
+// ContentHashEqualFold applies the EqualFold predicate on the "content_hash" field.
+func ContentHashEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldContentHash, v))
+}
+
+// ContentHashContainsFold applies the ContainsFold predicate on the "content_hash" field.
+func ContentHashContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldContentHash, v))
 }
 
 // DurationSecondsEQ applies the EQ predicate on the "duration_seconds" field.

@@ -19,7 +19,9 @@ import (
 	"lark/backend/internal/netease"
 	"lark/backend/internal/qqmusic"
 
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib-x/entsqlite"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -30,9 +32,12 @@ func main() {
 	if err := config.EnsureRuntimeDirs(cfg); err != nil {
 		log.Fatal(err)
 	}
+	if cfg.DatabaseDSN == "" {
+		log.Fatalf("database DSN is required for LARK_DB_TYPE=%s", cfg.DatabaseType)
+	}
 	client, err := ent.Open(cfg.DatabaseDriver, cfg.DatabaseDSN)
 	if err != nil {
-		log.Fatalf("open database: %v", err)
+		log.Fatalf("open %s database: %v", cfg.DatabaseType, err)
 	}
 	defer client.Close()
 	if err := client.Schema.Create(context.Background(), migrate.WithForeignKeys(true)); err != nil {

@@ -20,6 +20,7 @@ func (Song) Fields() []ent.Field {
 		field.String("mime").Default("application/octet-stream"),
 		field.Int64("size_bytes").Default(0),
 		field.Int64("mod_time_unix_nano").Default(0),
+		field.String("content_hash").Default(""),
 		field.Float("duration_seconds").Default(0),
 		field.Int("sample_rate").Default(0),
 		field.Int("bit_rate").Default(0),
@@ -48,6 +49,7 @@ func (Song) Edges() []ent.Edge {
 
 func (Song) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("content_hash"),
 		index.Fields("title"),
 		index.Fields("file_name"),
 		index.Fields("favorite"),

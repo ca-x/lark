@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"lark/backend/ent"
+	"lark/backend/ent/album"
 	"lark/backend/ent/enttest"
+	"lark/backend/internal/kv"
 
 	_ "github.com/lib-x/entsqlite"
 )
@@ -51,6 +53,85 @@ func BenchmarkSongsPageSearchMemory(b *testing.B) {
 		if len(page.Items) == 0 {
 			b.Fatal("expected search results")
 		}
+	}
+}
+
+func TestSongsPageSearchCanUsePersistentCatalog(t *testing.T) {
+	ctx := context.Background()
+	service, userID := newSearchBenchmarkService(t, 36)
+	store, err := kv.OpenBadger(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	service.cache = store
+	first, err := service.client.Song.Query().First(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.cacheSetJSONPermanent(ctx, songCatalogCacheKey, []songSearchCatalogEntry{{ID: first.ID, Text: "synthetic-only-term"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	page, err := service.SongsPage(ctx, userID, "synthetic-only-term", false, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 1 || len(page.Items) != 1 || page.Items[0].ID != first.ID {
+		t.Fatalf("expected catalog-only search to return song %d, got total=%d items=%+v", first.ID, page.Total, page.Items)
+	}
+}
+
+func TestSearchArtistsCanUsePersistentCatalog(t *testing.T) {
+	ctx := context.Background()
+	service, userID := newSearchBenchmarkService(t, 36)
+	store, err := kv.OpenBadger(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	service.cache = store
+	first, err := service.client.Artist.Query().First(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.cacheSetJSONPermanent(ctx, artistCatalogCacheKey, []artistSearchCatalogEntry{{ID: first.ID, Name: first.Name, Text: "synthetic-artist-term"}}); err != nil {
+		t.Fatal(err)
+	}
+
+	items, err := service.SearchArtists(ctx, userID, "synthetic-artist-term", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].ID != first.ID {
+		t.Fatalf("expected catalog-only artist search to return artist %d, got %+v", first.ID, items)
+	}
+}
+
+func TestFavoriteAlbumsReturnsFavoritedAlbumOutsideCurrentPage(t *testing.T) {
+	ctx := context.Background()
+	service, userID := newSearchBenchmarkService(t, 36)
+	albums, err := service.client.Album.Query().Where(album.HasSongs()).Order(ent.Asc(album.FieldID)).All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(albums) < 2 {
+		t.Fatal("expected multiple albums")
+	}
+	favorited := albums[len(albums)-1]
+	if _, err := service.client.UserAlbumFavorite.Create().SetUserID(userID).SetAlbumID(favorited.ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	items, err := service.FavoriteAlbums(ctx, userID, 500)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected one favorite album, got %d", len(items))
+	}
+	if items[0].ID != favorited.ID || !items[0].Favorite {
+		t.Fatalf("expected favorite album %d with favorite=true, got %+v", favorited.ID, items[0])
 	}
 }
 

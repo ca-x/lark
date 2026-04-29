@@ -336,6 +336,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .full-lyrics-head span { color:var(--muted); }
 .lyrics-pick { margin-left:auto; min-height:40px; padding:9px 14px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); color:var(--text); }
 .lyrics-pick:hover { border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
+.lyrics-source-icon { color:var(--accent); filter:drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 42%, transparent)); }
 .lyrics-candidates { position:absolute; z-index:4; top:116px; right:34px; width:min(420px, calc(100% - 68px)); max-height:min(520px, calc(100% - 150px)); overflow:auto; display:grid; gap:8px; padding:14px; border-radius:22px; border:1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); background:color-mix(in srgb, var(--panel) 94%, transparent); box-shadow:0 26px 80px rgba(0,0,0,.34); backdrop-filter:blur(18px); }
 .lyrics-candidates > div { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .lyrics-candidates > div button { min-height:34px; padding:6px 10px; border-radius:999px; color:var(--muted); }
@@ -779,6 +780,7 @@ body, button, input, select { font-family: var(--app-font); }
   .mcp-card-head { display:grid; }
 }
 .lyrics-actions .lyrics-pick.icon-only { width:42px; min-width:42px; padding:0; justify-content:center; }
+.lyrics-actions .lyrics-pick.icon-only.has-source { width:72px; min-width:72px; gap:8px; }
 .player-waveform { grid-template-rows:auto 34px auto; }
 .player-waveform > div:not(.wave-fallback) { min-height:34px; align-self:center; overflow:hidden; }
 .player-waveform wave { overflow:hidden !important; }

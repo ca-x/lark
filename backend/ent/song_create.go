@@ -99,6 +99,20 @@ func (_c *SongCreate) SetNillableModTimeUnixNano(v *int64) *SongCreate {
 	return _c
 }
 
+// SetContentHash sets the "content_hash" field.
+func (_c *SongCreate) SetContentHash(v string) *SongCreate {
+	_c.mutation.SetContentHash(v)
+	return _c
+}
+
+// SetNillableContentHash sets the "content_hash" field if the given value is not nil.
+func (_c *SongCreate) SetNillableContentHash(v *string) *SongCreate {
+	if v != nil {
+		_c.SetContentHash(*v)
+	}
+	return _c
+}
+
 // SetDurationSeconds sets the "duration_seconds" field.
 func (_c *SongCreate) SetDurationSeconds(v float64) *SongCreate {
 	_c.mutation.SetDurationSeconds(v)
@@ -415,6 +429,10 @@ func (_c *SongCreate) defaults() {
 		v := song.DefaultModTimeUnixNano
 		_c.mutation.SetModTimeUnixNano(v)
 	}
+	if _, ok := _c.mutation.ContentHash(); !ok {
+		v := song.DefaultContentHash
+		_c.mutation.SetContentHash(v)
+	}
 	if _, ok := _c.mutation.DurationSeconds(); !ok {
 		v := song.DefaultDurationSeconds
 		_c.mutation.SetDurationSeconds(v)
@@ -502,6 +520,9 @@ func (_c *SongCreate) check() error {
 	}
 	if _, ok := _c.mutation.ModTimeUnixNano(); !ok {
 		return &ValidationError{Name: "mod_time_unix_nano", err: errors.New(`ent: missing required field "Song.mod_time_unix_nano"`)}
+	}
+	if _, ok := _c.mutation.ContentHash(); !ok {
+		return &ValidationError{Name: "content_hash", err: errors.New(`ent: missing required field "Song.content_hash"`)}
 	}
 	if _, ok := _c.mutation.DurationSeconds(); !ok {
 		return &ValidationError{Name: "duration_seconds", err: errors.New(`ent: missing required field "Song.duration_seconds"`)}
@@ -592,6 +613,10 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ModTimeUnixNano(); ok {
 		_spec.SetField(song.FieldModTimeUnixNano, field.TypeInt64, value)
 		_node.ModTimeUnixNano = value
+	}
+	if value, ok := _c.mutation.ContentHash(); ok {
+		_spec.SetField(song.FieldContentHash, field.TypeString, value)
+		_node.ContentHash = value
 	}
 	if value, ok := _c.mutation.DurationSeconds(); ok {
 		_spec.SetField(song.FieldDurationSeconds, field.TypeFloat64, value)

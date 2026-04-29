@@ -192,6 +192,77 @@ func TestImportFileSkipsUnchangedExistingPath(t *testing.T) {
 	}
 }
 
+func TestImportFileReusesMissingSongWithSameContentHash(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	albumDir := filepath.Join(root, "周杰伦", "叶惠美")
+	if err := os.MkdirAll(albumDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	audioPath := filepath.Join(albumDir, "周杰伦 - 晴天.mp3")
+	if err := os.WriteFile(audioPath, []byte("duplicate location"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:scan-content-hash-reuse?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: root}
+	artistItem, err := service.ensureArtist(ctx, "周杰伦")
+	if err != nil {
+		t.Fatal(err)
+	}
+	albumItem, err := service.ensureAlbum(ctx, "叶惠美", "周杰伦", artistItem, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	missingPath := filepath.Join(root, "old", "missing.mp3")
+	existing, err := client.Song.Create().
+		SetTitle("晴天").
+		SetPath(missingPath).
+		SetFileName("missing.mp3").
+		SetArtist(artistItem).
+		SetAlbum(albumItem).
+		SetContentHash(songContentHash("周杰伦", "叶惠美", "晴天")).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	added, err := service.importFile(ctx, audioPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added {
+		t.Fatal("expected missing duplicate content import to count as a new visible file")
+	}
+	items, err := client.Song.Query().All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected one reused song, got %d", len(items))
+	}
+	if items[0].ID != existing.ID || items[0].Path != audioPath {
+		t.Fatalf("expected song %d path to move to %q, got id=%d path=%q", existing.ID, audioPath, items[0].ID, items[0].Path)
+	}
+	if items[0].ContentHash == "" {
+		t.Fatal("expected reused song to keep content hash")
+	}
+}
+
+func TestSongContentHashNormalizesUnicodeMetadata(t *testing.T) {
+	base := songContentHash("周杰伦", "叶惠美", "晴天")
+	if base == "" {
+		t.Fatal("expected Chinese metadata to produce a content hash")
+	}
+	same := songContentHash(" 周 杰伦 ", "叶-惠 美", "晴 天")
+	if same != base {
+		t.Fatalf("expected spacing and punctuation to normalize, got %q want %q", same, base)
+	}
+	if songContentHash("周杰伦", "叶惠美", "七里香") == base {
+		t.Fatal("expected different title to produce different hash")
+	}
+}
+
 func TestCleanupMissingLibraryEntriesRemovesEmptyAlbumsWithoutMissingSongs(t *testing.T) {
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", "file:scan-empty-albums?mode=memory&cache=shared&_pragma=foreign_keys(1)")
@@ -641,6 +712,14 @@ func id3Frame(id string, payload []byte) []byte {
 	return out
 }
 
+func minimalID3v2(artist, album, title string) []byte {
+	return buildID3Tag(
+		id3TextFrame("TPE1", artist),
+		id3TextFrame("TALB", album),
+		id3TextFrame("TIT2", title),
+	)
+}
+
 func utf16LEBOMString(value string) []byte {
 	return append([]byte{0xff, 0xfe}, utf16LEString(value)...)
 }
@@ -655,4 +734,143 @@ func utf16LEString(value string) []byte {
 
 func syncsafeBytes(value int) []byte {
 	return []byte{byte(value >> 21 & 0x7f), byte(value >> 14 & 0x7f), byte(value >> 7 & 0x7f), byte(value & 0x7f)}
+}
+
+func TestImportFileSkipsDuplicateContentAcrossPaths(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dirA := filepath.Join(root, "a")
+	dirB := filepath.Join(root, "b")
+	if err := os.MkdirAll(dirA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dirB, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:content-dedup?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: root}
+
+	data := minimalID3v2("Test Artist", "Test Album", "Test Title")
+	pathA := filepath.Join(dirA, "Test Artist - Test Title.mp3")
+	if err := os.WriteFile(pathA, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	added, err := service.importFile(ctx, pathA, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added {
+		t.Fatal("expected first import to add song")
+	}
+
+	pathB := filepath.Join(dirB, "Test Artist - Test Title.mp3")
+	if err := os.WriteFile(pathB, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	added, err = service.importFile(ctx, pathB, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if added {
+		t.Fatal("expected duplicate content to be skipped")
+	}
+
+	count, err := client.Song.Query().Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 song after importing duplicate content, got %d", count)
+	}
+}
+
+func TestImportFileReusesOrphanedContentRecord(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	dirA := filepath.Join(root, "a")
+	dirB := filepath.Join(root, "b")
+	if err := os.MkdirAll(dirA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dirB, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:content-reuse?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: root}
+
+	data := minimalID3v2("Test Artist", "Test Album", "Test Title")
+	pathA := filepath.Join(dirA, "Test Artist - Test Title.mp3")
+	if err := os.WriteFile(pathA, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	added, err := service.importFile(ctx, pathA, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added {
+		t.Fatal("expected first import to add song")
+	}
+
+	if err := os.Remove(pathA); err != nil {
+		t.Fatal(err)
+	}
+
+	pathB := filepath.Join(dirB, "Test Artist - Test Title.mp3")
+	if err := os.WriteFile(pathB, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	added, err = service.importFile(ctx, pathB, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added {
+		t.Fatal("expected orphaned content record to be reused as new import")
+	}
+
+	count, err := client.Song.Query().Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 song after reusing orphaned content record, got %d", count)
+	}
+	song, err := client.Song.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if song.Path != pathB {
+		t.Fatalf("expected reused record path %q, got %q", pathB, song.Path)
+	}
+}
+
+func TestContentHashSkipsASCIIOnlyTracks(t *testing.T) {
+	if h := songContentHash("", "", ""); h != "" {
+		t.Fatalf("expected empty hash for empty inputs, got %q", h)
+	}
+	hashA := songContentHash("Artist", "Album", "Title")
+	hashB := songContentHash("artist", "album", "title")
+	if hashA != hashB {
+		t.Fatalf("expected case-insensitive hash, got %q vs %q", hashA, hashB)
+	}
+	hashC := songContentHash(" Artist ", " Album ", " Title ")
+	if hashA != hashC {
+		t.Fatalf("expected whitespace-insensitive hash, got %q vs %q", hashA, hashC)
+	}
+	hashD := songContentHash("Artist!", "Album#", "Title*")
+	if hashA != hashD {
+		t.Fatalf("expected punctuation-stripped hash, got %q vs %q", hashA, hashD)
+	}
+}
+
+func TestContentHashHandlesUnicode(t *testing.T) {
+	h := songContentHash("周杰伦", "七里香", "晴天")
+	if h == "" {
+		t.Fatal("expected non-empty hash for Chinese metadata")
+	}
+	dup := songContentHash("周杰伦", "七里香", "晴天")
+	if h != dup {
+		t.Fatalf("expected deterministic hash for Chinese, got %q vs %q", h, dup)
+	}
 }

@@ -9,12 +9,15 @@ services:
       LARK_DATA_DIR: /app/data
       LARK_LIBRARY_DIR: ${LARK_LIBRARY_DIR:-/app/data/music}
       LARK_DB_PATH: /app/data/lark.db
+      LARK_DB_TYPE: ${LARK_DB_TYPE:-sqlite}
+      LARK_DB_DSN: ${LARK_DB_DSN:-}
       LARK_FRONTEND_ORIGIN: ${LARK_FRONTEND_ORIGIN:-*}
       # Cache defaults to the built-in Badger KV. To use Redis, set LARK_REDIS_ADDR or
       # LARK_REDIS_URL (or explicitly set LARK_CACHE_BACKEND=redis) and provide a Redis service.
       LARK_CACHE_BACKEND: ${LARK_CACHE_BACKEND:-}
       LARK_CACHE_TTL_SECONDS: ${LARK_CACHE_TTL_SECONDS:-120}
       LARK_CACHE_DIR: /app/data/cache/badger
+      LARK_BADGER_CACHE_MB: ${LARK_BADGER_CACHE_MB:-}
       LARK_REDIS_URL: ${LARK_REDIS_URL:-}
       LARK_REDIS_ADDR: ${LARK_REDIS_ADDR:-}
       LARK_REDIS_PASSWORD: ${LARK_REDIS_PASSWORD:-}

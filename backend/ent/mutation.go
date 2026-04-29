@@ -4709,6 +4709,7 @@ type SongMutation struct {
 	addsize_bytes         *int64
 	mod_time_unix_nano    *int64
 	addmod_time_unix_nano *int64
+	content_hash          *string
 	duration_seconds      *float64
 	addduration_seconds   *float64
 	sample_rate           *int
@@ -5135,6 +5136,42 @@ func (m *SongMutation) AddedModTimeUnixNano() (r int64, exists bool) {
 func (m *SongMutation) ResetModTimeUnixNano() {
 	m.mod_time_unix_nano = nil
 	m.addmod_time_unix_nano = nil
+}
+
+// SetContentHash sets the "content_hash" field.
+func (m *SongMutation) SetContentHash(s string) {
+	m.content_hash = &s
+}
+
+// ContentHash returns the value of the "content_hash" field in the mutation.
+func (m *SongMutation) ContentHash() (r string, exists bool) {
+	v := m.content_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContentHash returns the old "content_hash" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldContentHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContentHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContentHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContentHash: %w", err)
+	}
+	return oldValue.ContentHash, nil
+}
+
+// ResetContentHash resets all changes to the "content_hash" field.
+func (m *SongMutation) ResetContentHash() {
+	m.content_hash = nil
 }
 
 // SetDurationSeconds sets the "duration_seconds" field.
@@ -6012,7 +6049,7 @@ func (m *SongMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SongMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.title != nil {
 		fields = append(fields, song.FieldTitle)
 	}
@@ -6033,6 +6070,9 @@ func (m *SongMutation) Fields() []string {
 	}
 	if m.mod_time_unix_nano != nil {
 		fields = append(fields, song.FieldModTimeUnixNano)
+	}
+	if m.content_hash != nil {
+		fields = append(fields, song.FieldContentHash)
 	}
 	if m.duration_seconds != nil {
 		fields = append(fields, song.FieldDurationSeconds)
@@ -6095,6 +6135,8 @@ func (m *SongMutation) Field(name string) (ent.Value, bool) {
 		return m.SizeBytes()
 	case song.FieldModTimeUnixNano:
 		return m.ModTimeUnixNano()
+	case song.FieldContentHash:
+		return m.ContentHash()
 	case song.FieldDurationSeconds:
 		return m.DurationSeconds()
 	case song.FieldSampleRate:
@@ -6144,6 +6186,8 @@ func (m *SongMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldSizeBytes(ctx)
 	case song.FieldModTimeUnixNano:
 		return m.OldModTimeUnixNano(ctx)
+	case song.FieldContentHash:
+		return m.OldContentHash(ctx)
 	case song.FieldDurationSeconds:
 		return m.OldDurationSeconds(ctx)
 	case song.FieldSampleRate:
@@ -6227,6 +6271,13 @@ func (m *SongMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetModTimeUnixNano(v)
+		return nil
+	case song.FieldContentHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContentHash(v)
 		return nil
 	case song.FieldDurationSeconds:
 		v, ok := value.(float64)
@@ -6496,6 +6547,9 @@ func (m *SongMutation) ResetField(name string) error {
 		return nil
 	case song.FieldModTimeUnixNano:
 		m.ResetModTimeUnixNano()
+		return nil
+	case song.FieldContentHash:
+		m.ResetContentHash()
 		return nil
 	case song.FieldDurationSeconds:
 		m.ResetDurationSeconds()

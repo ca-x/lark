@@ -10,6 +10,7 @@ import {
   CaretUp,
   CaretRight,
   ChatText,
+  Cloud,
   FolderSimple,
   Heart,
   HeartStraight,
@@ -123,6 +124,7 @@ const MAX_LIBRARY_PAGE_SIZE = 80;
 const MAX_GRID_PAGE_SIZE = 72;
 const STARTUP_FOLDER_LIMIT = 80;
 const MAX_PLAYBACK_QUEUE_SIZE = 500;
+const FAVORITES_FETCH_LIMIT = 500;
 const COLLECTION_DETAIL_SONG_LIMIT = MAX_PLAYBACK_QUEUE_SIZE;
 type PageSizing = {
   songs: number;
@@ -449,6 +451,11 @@ function formatDuration(seconds: number) {
     .toString()
     .padStart(2, "0");
   return `${m}:${s}`;
+}
+
+function hasOnlineLyricsSource(source: string) {
+  const value = source.trim().toLowerCase();
+  return value !== "" && !value.startsWith("embedded");
 }
 
 function formatBytes(bytes: number) {
@@ -1069,6 +1076,8 @@ export default function App() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [libraryDirectories, setLibraryDirectories] = useState<LibraryDirectory[]>([]);
   const [libraryStats, setLibraryStats] = useState<LibraryStats | null>(null);
+  const [favoriteSongs, setFavoriteSongs] = useState<Song[]>([]);
+  const [favoriteAlbums, setFavoriteAlbums] = useState<Album[]>([]);
   const [favoriteArtists, setFavoriteArtists] = useState<Artist[]>([]);
   const [networkSources, setNetworkSources] = useState<NetworkSource[]>([]);
   const [radioSources, setRadioSources] = useState<RadioSource[]>([]);
@@ -1770,6 +1779,9 @@ export default function App() {
   async function logout() {
     await api.logout().catch(() => undefined);
     setSongs([]);
+    setFavoriteSongs([]);
+    setFavoriteAlbums([]);
+    setFavoriteArtists([]);
     setDailyMix([]);
     setFolders([]);
     setNetworkSources([]);
@@ -1902,7 +1914,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
+    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
       await Promise.all([
         api.songsPage(query, libraryPage, libraryPageSize),
         api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
@@ -1914,6 +1926,14 @@ export default function App() {
         api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
         api.libraryStats().catch(() => null),
         api.libraryDirectories().catch(() => []),
+        api.songsPage("", 1, FAVORITES_FETCH_LIMIT, true).catch(() => ({
+          items: [],
+          total: 0,
+          limit: FAVORITES_FETCH_LIMIT,
+          offset: 0,
+          page: 1,
+        })),
+        api.favoriteAlbums(FAVORITES_FETCH_LIMIT).catch(() => []),
         api.favoriteArtists().catch(() => []),
         api.networkSources().catch(() => []),
         api.radioSources().catch(() => []),
@@ -1929,6 +1949,8 @@ export default function App() {
     setFolders(folderItems);
     setLibraryStats(libraryStatsItem);
     setLibraryDirectories(libraryDirectoryItems);
+    setFavoriteSongs(favoriteSongPageItem.items);
+    setFavoriteAlbums(favoriteAlbumItems);
     setFavoriteArtists(favoriteArtistItems);
     setNetworkSources(networkSourceItems);
     setRadioSources(radioSourceItems);
@@ -2458,6 +2480,13 @@ export default function App() {
   }
 
   function updateSongState(updated: Song) {
+    setFavoriteSongs((old) => {
+      if (!updated.favorite) return old.filter((item) => item.id !== updated.id);
+      const exists = old.some((item) => item.id === updated.id);
+      return exists
+        ? old.map((item) => (item.id === updated.id ? updated : item))
+        : [updated, ...old];
+    });
     setSongs((old) =>
       old.map((item) => (item.id === updated.id ? updated : item)),
     );
@@ -2483,6 +2512,13 @@ export default function App() {
   }
 
   function updateAlbumFavoriteState(updated: Album) {
+    setFavoriteAlbums((old) => {
+      if (!updated.favorite) return old.filter((item) => item.id !== updated.id);
+      const exists = old.some((item) => item.id === updated.id);
+      return exists
+        ? old.map((item) => (item.id === updated.id ? updated : item))
+        : [updated, ...old];
+    });
     setAlbums((old) =>
       old.map((item) => (item.id === updated.id ? updated : item)),
     );
@@ -2841,14 +2877,6 @@ export default function App() {
     (view === "collection" &&
       collection?.type === "artist" &&
       id === "artists");
-  const favoriteSongs = useMemo(
-    () => songs.filter((song) => song.favorite),
-    [songs],
-  );
-  const favoriteAlbums = useMemo(
-    () => albums.filter((album) => album.favorite),
-    [albums],
-  );
   const heroSong = current ?? (resumePosition(recentPlayedSongs[0]) ? recentPlayedSongs[0] : null);
   const playModeLabel =
     playMode === "sequence"
@@ -2976,6 +3004,7 @@ export default function App() {
             song={current}
             lines={lyricLines}
             activeLyric={activeLyric}
+            lyricsSource={lyrics?.source || current?.lyrics_source || ""}
             loading={lyricsLoading}
             t={t}
             scrollRef={lyricsScrollRef}
@@ -5660,6 +5689,7 @@ function FullLyrics({
   song,
   lines,
   activeLyric,
+  lyricsSource,
   loading,
   t,
   scrollRef,
@@ -5679,6 +5709,7 @@ function FullLyrics({
   song: Song | null;
   lines: ReturnType<typeof parseLyricLines>;
   activeLyric: string;
+  lyricsSource: string;
   loading: boolean;
   t: ReturnType<typeof createT>;
   scrollRef: React.RefObject<HTMLDivElement | null>;
@@ -5699,6 +5730,7 @@ function FullLyrics({
   const userScrollUntil = useRef(0);
   const seekTimer = useRef<number | null>(null);
   const lyricsTitle = song?.title ?? `${t("brand")} Music`;
+  const onlineLyrics = hasOnlineLyricsSource(lyricsSource) && lines.length > 0;
   const backgroundStyle = coverUrl(song)
     ? ({ "--cover-url": `url(${coverUrl(song)})` } as React.CSSProperties)
     : undefined;
@@ -5779,11 +5811,18 @@ function FullLyrics({
               {t("favorites")}
             </button>
             <button
-              className="lyrics-pick icon-only"
+              className={onlineLyrics ? "lyrics-pick icon-only has-source" : "lyrics-pick icon-only"}
               onClick={onOpenCandidates}
               title={t("chooseLyrics")}
               aria-label={t("chooseLyrics")}
             >
+              {onlineLyrics ? (
+                <Cloud
+                  className="lyrics-source-icon"
+                  weight="fill"
+                  aria-label={t("onlineLyrics")}
+                />
+              ) : null}
               <GearSix weight="bold" />
             </button>
           </div>

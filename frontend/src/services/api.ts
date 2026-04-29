@@ -64,6 +64,7 @@ export const api = {
     return request<Song[]>(`/api/folders/songs?${params.toString()}`)
   },
   albums: (limit = 0) => request<Album[]>(`/api/albums${limit > 0 ? `?limit=${limit}` : ''}`),
+  favoriteAlbums: (limit = 500) => request<Album[]>(`/api/albums/favorites?limit=${limit}`),
   albumsPage: (page = 1, limit = 100, artistId = 0) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     if (artistId > 0) params.set('artist_id', String(artistId))

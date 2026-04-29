@@ -145,6 +145,20 @@ func (_u *SongUpdate) AddModTimeUnixNano(v int64) *SongUpdate {
 	return _u
 }
 
+// SetContentHash sets the "content_hash" field.
+func (_u *SongUpdate) SetContentHash(v string) *SongUpdate {
+	_u.mutation.SetContentHash(v)
+	return _u
+}
+
+// SetNillableContentHash sets the "content_hash" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableContentHash(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetContentHash(*v)
+	}
+	return _u
+}
+
 // SetDurationSeconds sets the "duration_seconds" field.
 func (_u *SongUpdate) SetDurationSeconds(v float64) *SongUpdate {
 	_u.mutation.ResetDurationSeconds()
@@ -625,6 +639,9 @@ func (_u *SongUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedModTimeUnixNano(); ok {
 		_spec.AddField(song.FieldModTimeUnixNano, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.ContentHash(); ok {
+		_spec.SetField(song.FieldContentHash, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.DurationSeconds(); ok {
 		_spec.SetField(song.FieldDurationSeconds, field.TypeFloat64, value)
 	}
@@ -1007,6 +1024,20 @@ func (_u *SongUpdateOne) SetNillableModTimeUnixNano(v *int64) *SongUpdateOne {
 // AddModTimeUnixNano adds value to the "mod_time_unix_nano" field.
 func (_u *SongUpdateOne) AddModTimeUnixNano(v int64) *SongUpdateOne {
 	_u.mutation.AddModTimeUnixNano(v)
+	return _u
+}
+
+// SetContentHash sets the "content_hash" field.
+func (_u *SongUpdateOne) SetContentHash(v string) *SongUpdateOne {
+	_u.mutation.SetContentHash(v)
+	return _u
+}
+
+// SetNillableContentHash sets the "content_hash" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableContentHash(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetContentHash(*v)
+	}
 	return _u
 }
 
@@ -1519,6 +1550,9 @@ func (_u *SongUpdateOne) sqlSave(ctx context.Context) (_node *Song, err error) {
 	}
 	if value, ok := _u.mutation.AddedModTimeUnixNano(); ok {
 		_spec.AddField(song.FieldModTimeUnixNano, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ContentHash(); ok {
+		_spec.SetField(song.FieldContentHash, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.DurationSeconds(); ok {
 		_spec.SetField(song.FieldDurationSeconds, field.TypeFloat64, value)

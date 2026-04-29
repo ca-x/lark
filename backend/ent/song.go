@@ -33,6 +33,8 @@ type Song struct {
 	SizeBytes int64 `json:"size_bytes,omitempty"`
 	// ModTimeUnixNano holds the value of the "mod_time_unix_nano" field.
 	ModTimeUnixNano int64 `json:"mod_time_unix_nano,omitempty"`
+	// ContentHash holds the value of the "content_hash" field.
+	ContentHash string `json:"content_hash,omitempty"`
 	// DurationSeconds holds the value of the "duration_seconds" field.
 	DurationSeconds float64 `json:"duration_seconds,omitempty"`
 	// SampleRate holds the value of the "sample_rate" field.
@@ -144,7 +146,7 @@ func (*Song) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case song.FieldID, song.FieldSizeBytes, song.FieldModTimeUnixNano, song.FieldSampleRate, song.FieldBitRate, song.FieldBitDepth, song.FieldYear, song.FieldPlayCount:
 			values[i] = new(sql.NullInt64)
-		case song.FieldTitle, song.FieldPath, song.FieldFileName, song.FieldFormat, song.FieldMime, song.FieldLyricsEmbedded, song.FieldLyricsSource, song.FieldNeteaseID:
+		case song.FieldTitle, song.FieldPath, song.FieldFileName, song.FieldFormat, song.FieldMime, song.FieldContentHash, song.FieldLyricsEmbedded, song.FieldLyricsSource, song.FieldNeteaseID:
 			values[i] = new(sql.NullString)
 		case song.FieldLastPlayedAt, song.FieldCreatedAt, song.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -214,6 +216,12 @@ func (_m *Song) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field mod_time_unix_nano", values[i])
 			} else if value.Valid {
 				_m.ModTimeUnixNano = value.Int64
+			}
+		case song.FieldContentHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field content_hash", values[i])
+			} else if value.Valid {
+				_m.ContentHash = value.String
 			}
 		case song.FieldDurationSeconds:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -389,6 +397,9 @@ func (_m *Song) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("mod_time_unix_nano=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ModTimeUnixNano))
+	builder.WriteString(", ")
+	builder.WriteString("content_hash=")
+	builder.WriteString(_m.ContentHash)
 	builder.WriteString(", ")
 	builder.WriteString("duration_seconds=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DurationSeconds))

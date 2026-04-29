@@ -2,7 +2,7 @@
 
 [中文说明](README_ZH.md)
 
-Lark is a self-hosted web music player for personal high-resolution music libraries. The backend is Go + Echo v5 + Ent ORM + SQLite, and the frontend is React/Vite with an embedded production build served by the Go binary.
+Lark is a self-hosted web music player for personal high-resolution music libraries. The backend is Go + Echo v5 + Ent ORM with SQLite by default, and the frontend is React/Vite with an embedded production build served by the Go binary.
 
 ---
 
@@ -52,7 +52,7 @@ Lark is a self-hosted web music player for personal high-resolution music librar
 ### Stack
 
 - Backend: Go, Echo v5, Ent ORM
-- Database: SQLite via `github.com/lib-x/entsqlite`
+- Database: SQLite by default via `github.com/lib-x/entsqlite`; PostgreSQL and MySQL can be selected by environment variables
 - Frontend: React, TypeScript, Vite
 - Audio metadata: `github.com/dhowden/tag`
 - Optional media tools: `ffprobe` for metadata and `ffmpeg` for fallback stream transcoding
@@ -95,6 +95,8 @@ Default server settings:
 | `LARK_DATA_DIR` | `./data` | App data directory |
 | `LARK_LIBRARY_DIR` | `./data/music` | Music library scan/upload directory |
 | `LARK_DB_PATH` | `./data/lark.db` | SQLite database path |
+| `LARK_DB_TYPE` | `sqlite` | Database type: `sqlite` / `sqlite3`, `postgres` / `postgresql`, or `mysql` / `mariadb` |
+| `LARK_DB_DSN` | empty | Database connection string. Leave empty for SQLite to derive the DSN from `LARK_DB_PATH`; required for PostgreSQL/MySQL. |
 | `LARK_FRONTEND_ORIGIN` | `*` | CORS origin |
 | `LARK_ADMIN_USERNAME` | empty | Create the first admin automatically when the database has no users |
 | `LARK_ADMIN_PASSWORD` | empty | Password for `LARK_ADMIN_USERNAME`; must be set together with username |
@@ -104,6 +106,7 @@ Default server settings:
 | `LARK_CACHE_BACKEND` | `badger` | Cache backend: `badger`, `redis`, `memory`, or `none`. If unset and Redis env vars are present, Redis is selected automatically. |
 | `LARK_CACHE_TTL_SECONDS` | `120` | TTL for cached library list/query responses |
 | `LARK_CACHE_DIR` | `./data/cache/badger` | Badger cache directory when using the built-in KV backend |
+| `LARK_BADGER_CACHE_MB` | empty | Advanced override for the built-in Badger cache memory budget in MB. Leave empty to auto-size from physical memory. |
 | `LARK_REDIS_URL` | empty | Optional Redis URL, e.g. `redis://:password@redis:6379/0`. Takes precedence over host/password/db settings. |
 | `LARK_REDIS_ADDR` | empty | Redis address. Setting this env var enables Redis when `LARK_CACHE_BACKEND` is unset; if Redis is explicitly selected without an address, runtime falls back to `localhost:6379`. |
 | `LARK_REDIS_PASSWORD` | empty | Redis password |
@@ -152,9 +155,21 @@ The default compose file stores app data and uploaded music in the `lark_data` v
 LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d
 ```
 
+SQLite is used by default. To use another database, set both `LARK_DB_TYPE` and `LARK_DB_DSN`:
+
+```bash
+LARK_DB_TYPE=postgres \
+LARK_DB_DSN='postgres://lark:secret@postgres:5432/lark?sslmode=disable' \
+docker compose up -d
+
+LARK_DB_TYPE=mysql \
+LARK_DB_DSN='lark:secret@tcp(mysql:3306)/lark?parseTime=true&charset=utf8mb4&loc=Local' \
+docker compose up -d
+```
+
 ### Cache backend
 
-By default Lark uses the built-in Badger KV cache under `LARK_CACHE_DIR`; no external service is required. Redis is only used when you explicitly configure Redis-related environment variables or set `LARK_CACHE_BACKEND=redis`.
+By default Lark uses the built-in Badger KV cache under `LARK_CACHE_DIR`; no external service is required. Badger memory is auto-sized from physical memory, and `LARK_BADGER_CACHE_MB` is only an advanced override for constrained or unusually large deployments. Redis is only used when you explicitly configure Redis-related environment variables or set `LARK_CACHE_BACKEND=redis`.
 
 Use an external Redis:
 

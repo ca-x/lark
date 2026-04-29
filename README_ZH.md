@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-百灵是一个面向个人高清曲库的自托管 Web 音乐播放器。后端使用 Go + Echo v5 + Ent ORM + SQLite，前端使用 React/Vite，生产构建会嵌入到 Go 服务中统一启动。
+百灵是一个面向个人高清曲库的自托管 Web 音乐播放器。后端使用 Go + Echo v5 + Ent ORM，默认 SQLite，前端使用 React/Vite，生产构建会嵌入到 Go 服务中统一启动。
 
 ---
 
@@ -52,7 +52,7 @@
 ### 技术栈
 
 - 后端：Go、Echo v5、Ent ORM
-- 数据库：SQLite（通过 `github.com/lib-x/entsqlite`）
+- 数据库：默认 SQLite（通过 `github.com/lib-x/entsqlite`），也可通过环境变量选择 PostgreSQL / MySQL
 - 前端：React、TypeScript、Vite
 - 音频元数据：`github.com/dhowden/tag`
 - 可选媒体工具：`ffprobe` 读取增强元数据，`ffmpeg` 处理兜底转码
@@ -95,6 +95,8 @@ go run ./cmd/server
 | `LARK_DATA_DIR` | `./data` | 应用数据目录 |
 | `LARK_LIBRARY_DIR` | `./data/music` | 曲库扫描/上传目录 |
 | `LARK_DB_PATH` | `./data/lark.db` | SQLite 数据库路径 |
+| `LARK_DB_TYPE` | `sqlite` | 数据库类型：`sqlite` / `sqlite3`、`postgres` / `postgresql` 或 `mysql` / `mariadb` |
+| `LARK_DB_DSN` | 空 | 数据库连接字符串。SQLite 可留空并由 `LARK_DB_PATH` 自动生成；PostgreSQL/MySQL 必填。 |
 | `LARK_FRONTEND_ORIGIN` | `*` | CORS 来源 |
 | `LARK_ADMIN_USERNAME` | 空 | 数据库暂无用户时，自动创建首个管理员 |
 | `LARK_ADMIN_PASSWORD` | 空 | 首个管理员密码；必须和用户名一起设置 |
@@ -104,6 +106,7 @@ go run ./cmd/server
 | `LARK_CACHE_BACKEND` | `badger` | 缓存后端：`badger`、`redis`、`memory` 或 `none`。未设置时如果检测到 Redis 环境变量，会自动使用 Redis。 |
 | `LARK_CACHE_TTL_SECONDS` | `120` | 曲库列表/查询响应的缓存 TTL |
 | `LARK_CACHE_DIR` | `./data/cache/badger` | 使用内置 KV 后端时的 Badger 缓存目录 |
+| `LARK_BADGER_CACHE_MB` | 空 | 内置 Badger 缓存内存预算的高级覆盖参数，单位 MB。留空时会按物理内存自动调整。 |
 | `LARK_REDIS_URL` | 空 | 可选 Redis URL，例如 `redis://:password@redis:6379/0`，优先级高于地址/密码/DB 配置。 |
 | `LARK_REDIS_ADDR` | 空 | Redis 地址。设置该环境变量且未显式指定缓存后端时，会启用 Redis；如果显式选择 Redis 但未配置地址，运行时回退到 `localhost:6379`。 |
 | `LARK_REDIS_PASSWORD` | 空 | Redis 密码 |
@@ -152,9 +155,21 @@ docker compose up -d
 LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d
 ```
 
+默认使用 SQLite。如需使用其他数据库，请同时设置 `LARK_DB_TYPE` 和 `LARK_DB_DSN`：
+
+```bash
+LARK_DB_TYPE=postgres \
+LARK_DB_DSN='postgres://lark:secret@postgres:5432/lark?sslmode=disable' \
+docker compose up -d
+
+LARK_DB_TYPE=mysql \
+LARK_DB_DSN='lark:secret@tcp(mysql:3306)/lark?parseTime=true&charset=utf8mb4&loc=Local' \
+docker compose up -d
+```
+
 ### 缓存后端
 
-默认情况下百灵使用内置 Badger KV 缓存，数据位于 `LARK_CACHE_DIR`，不需要任何外部服务。只有当你显式配置 Redis 相关环境变量，或设置 `LARK_CACHE_BACKEND=redis` 时，才会启用 Redis。
+默认情况下百灵使用内置 Badger KV 缓存，数据位于 `LARK_CACHE_DIR`，不需要任何外部服务。Badger 内存会按物理内存自动调整，`LARK_BADGER_CACHE_MB` 只是给受限设备或超大库准备的高级覆盖参数。只有当你显式配置 Redis 相关环境变量，或设置 `LARK_CACHE_BACKEND=redis` 时，才会启用 Redis。
 
 使用外部 Redis：
 

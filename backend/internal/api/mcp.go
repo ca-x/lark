@@ -290,15 +290,11 @@ func (s *Server) mcpFavorites(ctx context.Context, userID int, favoriteType stri
 		out.Songs = items
 	}
 	if favoriteType == "all" || favoriteType == "albums" {
-		items, err := s.lib.Albums(ctx, userID, 500)
+		items, err := s.lib.FavoriteAlbums(ctx, userID, 500)
 		if err != nil {
 			return out, err
 		}
-		for _, item := range items {
-			if item.Favorite {
-				out.Albums = append(out.Albums, item)
-			}
-		}
+		out.Albums = items
 	}
 	if favoriteType == "all" || favoriteType == "artists" {
 		items, err := s.lib.Artists(ctx, userID, 500)

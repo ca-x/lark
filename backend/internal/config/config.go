@@ -13,6 +13,7 @@ type Config struct {
 	DataDir            string
 	LibraryDir         string
 	DatabasePath       string
+	DatabaseType       string
 	DatabaseDriver     string
 	DatabaseDSN        string
 	FrontendOrigin     string
@@ -37,6 +38,8 @@ func Load() (Config, error) {
 	dataDir := getEnv("LARK_DATA_DIR", "./data")
 	libraryDir := getEnv("LARK_LIBRARY_DIR", filepath.Join(dataDir, "music"))
 	databasePath := getEnv("LARK_DB_PATH", filepath.Join(dataDir, "lark.db"))
+	databaseType := normalizeDatabaseType(getEnv("LARK_DB_TYPE", "sqlite"))
+	databaseDSN := getEnv("LARK_DB_DSN", defaultDatabaseDSN(databaseType, databasePath))
 	cacheDir := getEnv("LARK_CACHE_DIR", filepath.Join(dataDir, "cache", "badger"))
 	cacheBackend := strings.ToLower(strings.TrimSpace(os.Getenv("LARK_CACHE_BACKEND")))
 	if cacheBackend == "" && redisCacheConfigured() {
@@ -50,8 +53,9 @@ func Load() (Config, error) {
 		DataDir:            dataDir,
 		LibraryDir:         libraryDir,
 		DatabasePath:       databasePath,
-		DatabaseDriver:     "sqlite3",
-		DatabaseDSN:        getEnv("LARK_DB_DSN", sqliteDSN(databasePath)),
+		DatabaseType:       databaseType,
+		DatabaseDriver:     entDriverName(databaseType),
+		DatabaseDSN:        databaseDSN,
 		FrontendOrigin:     getEnv("LARK_FRONTEND_ORIGIN", "*"),
 		FFmpegBin:          strings.TrimSpace(getEnv("FFMPEG_BIN", "ffmpeg")),
 		FFprobeBin:         strings.TrimSpace(getEnv("FFPROBE_BIN", "ffprobe")),
@@ -85,7 +89,40 @@ func EnsureRuntimeDirs(cfg Config) error {
 }
 
 func sqliteDSN(path string) string {
-	return fmt.Sprintf("file:%s?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)", path)
+	return fmt.Sprintf("file:%s?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-10000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)", path)
+}
+
+func normalizeDatabaseType(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "sqlite", "sqlite3":
+		return "sqlite"
+	case "postgres", "postgresql", "pg":
+		return "postgres"
+	case "mysql", "mariadb":
+		return "mysql"
+	default:
+		return strings.ToLower(strings.TrimSpace(value))
+	}
+}
+
+func entDriverName(databaseType string) string {
+	switch normalizeDatabaseType(databaseType) {
+	case "sqlite":
+		return "sqlite3"
+	case "postgres":
+		return "postgres"
+	case "mysql":
+		return "mysql"
+	default:
+		return normalizeDatabaseType(databaseType)
+	}
+}
+
+func defaultDatabaseDSN(databaseType, sqlitePath string) string {
+	if normalizeDatabaseType(databaseType) == "sqlite" {
+		return sqliteDSN(sqlitePath)
+	}
+	return ""
 }
 
 func getEnv(key, fallback string) string {

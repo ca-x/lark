@@ -213,6 +213,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 
 	e.GET("/api/albums", s.handleAlbums, auth)
 	e.GET("/api/albums/page", s.handleAlbumsPage, auth)
+	e.GET("/api/albums/favorites", s.handleFavoriteAlbums, auth)
 	e.GET("/api/albums/:id", s.handleAlbum, auth)
 	e.GET("/api/albums/:id/cover", s.handleAlbumCover, auth)
 	e.GET("/api/albums/:id/songs", s.handleAlbumSongs, auth)
@@ -983,6 +984,14 @@ func (s *Server) handleAlbums(c *echo.Context) error {
 
 func (s *Server) handleAlbumsPage(c *echo.Context) error {
 	items, err := s.lib.AlbumsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c), queryInt(c, "artist_id", 0))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleFavoriteAlbums(c *echo.Context) error {
+	items, err := s.lib.FavoriteAlbums(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 500))
 	if err != nil {
 		return mapError(err)
 	}
