@@ -5803,7 +5803,7 @@ function FullLyrics({
         {song ? (
           <div className="lyrics-actions">
             <button
-              className={song.favorite ? "lyrics-pick active" : "lyrics-pick"}
+              className={song.favorite ? "lyrics-pick lyrics-favorite active" : "lyrics-pick lyrics-favorite"}
               onClick={() => onFavoriteSong(song)}
               aria-label={t("favorites")}
             >
@@ -7135,40 +7135,43 @@ function PaginationControls({
   };
 
   return (
-    <div
-      className={controlsVisible ? "pagination-controls is-visible" : "pagination-controls"}
-      ref={controlsRef}
-      onMouseEnter={revealControls}
-      onFocus={revealControls}
-    >
-      <span>{start}-{end} / {page.total}</span>
-      <div>
-        <button disabled={!canPrevious} onClick={() => void changePage(currentPage - 1, "bottom")}>
-          {t("previousPage")}
-        </button>
-        <strong>{t("pageStatus").replace("{current}", String(currentPage)).replace("{total}", String(totalPages))}</strong>
-        <button disabled={!canNext} onClick={() => void changePage(currentPage + 1, "top")}>
-          {loading ? t("loading") : t("nextPage")}
-        </button>
-        <label>
-          <span>{t("goToPage")}</span>
-          <input
-            inputMode="numeric"
-            min={1}
-            max={totalPages}
-            type="number"
-            value={jumpValue}
-            onChange={(event) => setJumpValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") jumpToPage();
-            }}
-          />
-        </label>
-        <button disabled={loading || !jumpValue} onClick={jumpToPage}>
-          {t("jump")}
-        </button>
+    <>
+      <div
+        className={controlsVisible ? "pagination-controls is-visible" : "pagination-controls"}
+        ref={controlsRef}
+        onMouseEnter={revealControls}
+        onFocus={revealControls}
+      >
+        <span>{start}-{end} / {page.total}</span>
+        <div>
+          <button disabled={!canPrevious} onClick={() => void changePage(currentPage - 1, "bottom")}>
+            {t("previousPage")}
+          </button>
+          <strong>{t("pageStatus").replace("{current}", String(currentPage)).replace("{total}", String(totalPages))}</strong>
+          <button disabled={!canNext} onClick={() => void changePage(currentPage + 1, "top")}>
+            {loading ? t("loading") : t("nextPage")}
+          </button>
+          <label>
+            <span>{t("goToPage")}</span>
+            <input
+              inputMode="numeric"
+              min={1}
+              max={totalPages}
+              type="number"
+              value={jumpValue}
+              onChange={(event) => setJumpValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") jumpToPage();
+              }}
+            />
+          </label>
+          <button disabled={loading || !jumpValue} onClick={jumpToPage}>
+            {t("jump")}
+          </button>
+        </div>
       </div>
-    </div>
+      <div className="pagination-spacer" aria-hidden="true" />
+    </>
   );
 }
 

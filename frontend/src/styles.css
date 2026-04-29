@@ -145,6 +145,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .pagination-controls strong { color:var(--text); font-variant-numeric:tabular-nums; }
 .pagination-controls label { display:inline-flex; align-items:center; gap:6px; }
 .pagination-controls input { width:72px; min-height:34px; padding:6px 8px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--text); text-align:center; }
+.pagination-spacer { height:86px; flex:0 0 auto; pointer-events:none; }
 .recent-tabs { display:inline-flex; align-items:center; gap:4px; padding:4px; border-radius:999px; background:var(--panel); border:1px solid var(--line); }
 .recent-tabs button { min-height:32px; padding:7px 12px; border-radius:999px; color:var(--muted); }
 .recent-tabs button.active { background:var(--accent); color:var(--bg); }
@@ -1023,6 +1024,8 @@ body, button, input, select { font-family: var(--app-font); }
   .lyrics-actions .lyrics-pick:not(.icon-only) svg { margin:0; }
   .lyrics-actions .lyrics-pick:not(.icon-only) { font-size:0; }
   .lyrics-actions .lyrics-pick:not(.icon-only) svg { width:20px; height:20px; }
+  .lyrics-actions .lyrics-favorite { display:grid; place-items:center; width:42px; height:42px; min-width:42px; min-height:42px; padding:0; gap:0; line-height:0; }
+  .lyrics-actions .lyrics-favorite svg { display:block; margin:0; width:20px; height:20px; }
   .lyrics-candidates { top:82px; right:10px; left:10px; width:auto; max-height:58dvh; background:color-mix(in srgb, var(--panel) 99%, var(--bg)); }
   .full-lyrics-lines { padding:max(22px, 20vh) 3vw max(30px, 28vh); mask-image:linear-gradient(to bottom, transparent 0, #000 6%, #000 94%, transparent 100%); }
   .segmented-control { grid-template-columns:1fr; }
@@ -1917,6 +1920,7 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   .queue-layer-root { z-index:9500; }
   .queue-layer-root .queue-scrim { background:rgba(0,0,0,.62); backdrop-filter:blur(8px); }
   .pagination-controls { left:10px; right:10px; bottom:calc(var(--player-h) + var(--nav-h) + var(--safe-bottom) + 12px); align-items:stretch; flex-direction:column; border-radius:18px; padding:10px; }
+  .pagination-spacer { height:136px; }
   .pagination-controls div { justify-content:space-between; }
   .pagination-controls label { flex:1 1 auto; }
   .pagination-controls input { width:64px; }
