@@ -7360,7 +7360,7 @@ const CardGrid = memo(function CardGrid({
   }, [hasMore, items.length, visibleCount]);
 
   return (
-    <section>
+    <section className={`card-grid-section card-grid-${variant}`} data-has-action={action ? "true" : "false"}>
       <div className="section-head">
         <h2>{title}</h2>
         {action}

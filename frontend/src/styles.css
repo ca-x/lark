@@ -2152,3 +2152,31 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
     border-radius:20px 20px 0 0;
   }
 }
+
+/* Desktop-only chrome simplification; mobile keeps the existing title layout. */
+@media (min-width:721px) {
+  .sidebar > .brand { justify-content:center; }
+  .sidebar > .brand span { display:none; }
+  .sidebar > .brand img {
+    width:68px;
+    height:68px;
+    border-radius:20px;
+  }
+  .top-title { display:none; }
+  .topbar {
+    grid-template-columns:minmax(260px, 520px) auto;
+    justify-content:end;
+  }
+  .favorites-view > .section-head,
+  .card-grid-section[data-has-action='false'] > .section-head {
+    display:none;
+  }
+  .library-view > .section-head > h2,
+  .card-grid-section > .section-head > h2 {
+    display:none;
+  }
+  .library-view > .section-head,
+  .card-grid-section > .section-head {
+    justify-content:flex-end;
+  }
+}
