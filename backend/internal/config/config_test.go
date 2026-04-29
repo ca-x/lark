@@ -38,8 +38,8 @@ func TestLoadUsesRedisWhenRedisEnvConfigured(t *testing.T) {
 func TestLoadDatabaseDefaultsToSQLiteDSN(t *testing.T) {
 	t.Setenv("LARK_DB_TYPE", "")
 	t.Setenv("LARK_DB_DSN", "")
-	dbPath := "/tmp/lark-default.db"
-	t.Setenv("LARK_DB_PATH", dbPath)
+	t.Setenv("LARK_DB_PATH", "")
+	t.Setenv("LARK_DATA_DIR", "/tmp/lark-data")
 
 	cfg, err := Load()
 	if err != nil {
@@ -51,7 +51,48 @@ func TestLoadDatabaseDefaultsToSQLiteDSN(t *testing.T) {
 	if cfg.DatabaseDriver != "sqlite3" {
 		t.Fatalf("DatabaseDriver = %q, want sqlite3", cfg.DatabaseDriver)
 	}
-	if want := sqliteDSN(dbPath); cfg.DatabaseDSN != want {
+	if want := sqliteDSN("/tmp/lark-data/lark.db"); cfg.DatabaseDSN != want {
+		t.Fatalf("DatabaseDSN = %q, want %q", cfg.DatabaseDSN, want)
+	}
+}
+
+func TestLoadSQLiteDSNCanBePlainPath(t *testing.T) {
+	t.Setenv("LARK_DB_TYPE", "sqlite")
+	t.Setenv("LARK_DB_DSN", "/tmp/lark-direct.db")
+	t.Setenv("LARK_DB_PATH", "/tmp/lark-legacy.db")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := sqliteDSN("/tmp/lark-direct.db"); cfg.DatabaseDSN != want {
+		t.Fatalf("DatabaseDSN = %q, want %q", cfg.DatabaseDSN, want)
+	}
+}
+
+func TestLoadSQLiteDSNPreservesExplicitFileDSN(t *testing.T) {
+	t.Setenv("LARK_DB_TYPE", "sqlite")
+	t.Setenv("LARK_DB_DSN", "file:/tmp/lark-direct.db?cache=shared")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DatabaseDSN != "file:/tmp/lark-direct.db?cache=shared" {
+		t.Fatalf("DatabaseDSN = %q", cfg.DatabaseDSN)
+	}
+}
+
+func TestLoadSQLiteFallsBackToLegacyDBPath(t *testing.T) {
+	t.Setenv("LARK_DB_TYPE", "")
+	t.Setenv("LARK_DB_DSN", "")
+	t.Setenv("LARK_DB_PATH", "/tmp/lark-legacy.db")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := sqliteDSN("/tmp/lark-legacy.db"); cfg.DatabaseDSN != want {
 		t.Fatalf("DatabaseDSN = %q, want %q", cfg.DatabaseDSN, want)
 	}
 }

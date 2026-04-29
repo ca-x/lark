@@ -94,9 +94,8 @@ Default server settings:
 | `LARK_PORT` | `8080` | HTTP port |
 | `LARK_DATA_DIR` | `./data` | App data directory |
 | `LARK_LIBRARY_DIR` | `./data/music` | Music library scan/upload directory |
-| `LARK_DB_PATH` | `./data/lark.db` | SQLite database path |
 | `LARK_DB_TYPE` | `sqlite` | Database type: `sqlite` / `sqlite3`, `postgres` / `postgresql`, or `mysql` / `mariadb` |
-| `LARK_DB_DSN` | empty | Database connection string. Leave empty for SQLite to derive the DSN from `LARK_DB_PATH`; required for PostgreSQL/MySQL. |
+| `LARK_DB_DSN` | empty | Database connection string. Leave empty for SQLite to use `./data/lark.db`; for SQLite this can be a `file:` DSN or a plain file path. Required for PostgreSQL/MySQL. |
 | `LARK_FRONTEND_ORIGIN` | `*` | CORS origin |
 | `LARK_ADMIN_USERNAME` | empty | Create the first admin automatically when the database has no users |
 | `LARK_ADMIN_PASSWORD` | empty | Password for `LARK_ADMIN_USERNAME`; must be set together with username |
@@ -155,7 +154,17 @@ The default compose file stores app data and uploaded music in the `lark_data` v
 LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d
 ```
 
-SQLite is used by default. To use another database, set both `LARK_DB_TYPE` and `LARK_DB_DSN`:
+SQLite is used by default. To place the SQLite database somewhere else, set `LARK_DB_DSN`:
+
+```bash
+LARK_DB_TYPE=sqlite \
+LARK_DB_DSN='file:/app/data/lark.db?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-10000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)' \
+docker compose up -d
+```
+
+For SQLite, a plain path such as `LARK_DB_DSN=/app/data/lark.db` is also accepted; Lark will expand it to the tuned SQLite `file:` DSN above.
+
+To use another database, set both `LARK_DB_TYPE` and `LARK_DB_DSN`:
 
 ```bash
 LARK_DB_TYPE=postgres \

@@ -32,7 +32,6 @@ RUN mkdir -p /app/data/music
 ENV LARK_PORT=8080 \
     LARK_DATA_DIR=/app/data \
     LARK_LIBRARY_DIR=/app/data/music \
-    LARK_DB_PATH=/app/data/lark.db \
     LARK_DB_TYPE=sqlite \
     LARK_DB_DSN= \
     LARK_BADGER_CACHE_MB= \

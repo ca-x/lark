@@ -12,7 +12,6 @@ type Config struct {
 	Port               string
 	DataDir            string
 	LibraryDir         string
-	DatabasePath       string
 	DatabaseType       string
 	DatabaseDriver     string
 	DatabaseDSN        string
@@ -37,9 +36,9 @@ type Config struct {
 func Load() (Config, error) {
 	dataDir := getEnv("LARK_DATA_DIR", "./data")
 	libraryDir := getEnv("LARK_LIBRARY_DIR", filepath.Join(dataDir, "music"))
-	databasePath := getEnv("LARK_DB_PATH", filepath.Join(dataDir, "lark.db"))
+	sqlitePath := legacySQLitePath(dataDir)
 	databaseType := normalizeDatabaseType(getEnv("LARK_DB_TYPE", "sqlite"))
-	databaseDSN := getEnv("LARK_DB_DSN", defaultDatabaseDSN(databaseType, databasePath))
+	databaseDSN := normalizeDatabaseDSN(databaseType, strings.TrimSpace(os.Getenv("LARK_DB_DSN")), sqlitePath)
 	cacheDir := getEnv("LARK_CACHE_DIR", filepath.Join(dataDir, "cache", "badger"))
 	cacheBackend := strings.ToLower(strings.TrimSpace(os.Getenv("LARK_CACHE_BACKEND")))
 	if cacheBackend == "" && redisCacheConfigured() {
@@ -52,7 +51,6 @@ func Load() (Config, error) {
 		Port:               getEnv("LARK_PORT", "8080"),
 		DataDir:            dataDir,
 		LibraryDir:         libraryDir,
-		DatabasePath:       databasePath,
 		DatabaseType:       databaseType,
 		DatabaseDriver:     entDriverName(databaseType),
 		DatabaseDSN:        databaseDSN,
@@ -77,7 +75,7 @@ func Load() (Config, error) {
 }
 
 func EnsureRuntimeDirs(cfg Config) error {
-	for _, dir := range []string{cfg.DataDir, cfg.LibraryDir, filepath.Dir(cfg.DatabasePath), cacheRuntimeDir(cfg)} {
+	for _, dir := range []string{cfg.DataDir, cfg.LibraryDir, sqliteRuntimeDir(cfg), cacheRuntimeDir(cfg)} {
 		if strings.TrimSpace(dir) == "" {
 			continue
 		}
@@ -86,6 +84,10 @@ func EnsureRuntimeDirs(cfg Config) error {
 		}
 	}
 	return nil
+}
+
+func legacySQLitePath(dataDir string) string {
+	return getEnv("LARK_DB_PATH", filepath.Join(dataDir, "lark.db"))
 }
 
 func sqliteDSN(path string) string {
@@ -118,11 +120,17 @@ func entDriverName(databaseType string) string {
 	}
 }
 
-func defaultDatabaseDSN(databaseType, sqlitePath string) string {
-	if normalizeDatabaseType(databaseType) == "sqlite" {
+func normalizeDatabaseDSN(databaseType, dsn, sqlitePath string) string {
+	if normalizeDatabaseType(databaseType) != "sqlite" {
+		return dsn
+	}
+	if dsn == "" {
 		return sqliteDSN(sqlitePath)
 	}
-	return ""
+	if strings.HasPrefix(dsn, "file:") || strings.Contains(dsn, "://") || strings.Contains(dsn, "?") {
+		return dsn
+	}
+	return sqliteDSN(dsn)
 }
 
 func getEnv(key, fallback string) string {
@@ -149,6 +157,24 @@ func cacheRuntimeDir(cfg Config) string {
 		return cfg.CacheDir
 	}
 	return ""
+}
+
+func sqliteRuntimeDir(cfg Config) string {
+	if cfg.DatabaseType != "sqlite" {
+		return ""
+	}
+	return filepath.Dir(sqlitePathFromDSN(cfg.DatabaseDSN))
+}
+
+func sqlitePathFromDSN(dsn string) string {
+	if strings.HasPrefix(dsn, "file:") {
+		path := strings.TrimPrefix(dsn, "file:")
+		if idx := strings.Index(path, "?"); idx >= 0 {
+			path = path[:idx]
+		}
+		return path
+	}
+	return dsn
 }
 
 func redisCacheConfigured() bool {

@@ -94,9 +94,8 @@ go run ./cmd/server
 | `LARK_PORT` | `8080` | HTTP 端口 |
 | `LARK_DATA_DIR` | `./data` | 应用数据目录 |
 | `LARK_LIBRARY_DIR` | `./data/music` | 曲库扫描/上传目录 |
-| `LARK_DB_PATH` | `./data/lark.db` | SQLite 数据库路径 |
 | `LARK_DB_TYPE` | `sqlite` | 数据库类型：`sqlite` / `sqlite3`、`postgres` / `postgresql` 或 `mysql` / `mariadb` |
-| `LARK_DB_DSN` | 空 | 数据库连接字符串。SQLite 可留空并由 `LARK_DB_PATH` 自动生成；PostgreSQL/MySQL 必填。 |
+| `LARK_DB_DSN` | 空 | 数据库连接字符串。SQLite 留空时使用 `./data/lark.db`，也可以填写 `file:` DSN 或普通文件路径；PostgreSQL/MySQL 必填。 |
 | `LARK_FRONTEND_ORIGIN` | `*` | CORS 来源 |
 | `LARK_ADMIN_USERNAME` | 空 | 数据库暂无用户时，自动创建首个管理员 |
 | `LARK_ADMIN_PASSWORD` | 空 | 首个管理员密码；必须和用户名一起设置 |
@@ -155,7 +154,17 @@ docker compose up -d
 LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d
 ```
 
-默认使用 SQLite。如需使用其他数据库，请同时设置 `LARK_DB_TYPE` 和 `LARK_DB_DSN`：
+默认使用 SQLite。如需自定义 SQLite 文件位置，请设置 `LARK_DB_DSN`：
+
+```bash
+LARK_DB_TYPE=sqlite \
+LARK_DB_DSN='file:/app/data/lark.db?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-10000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)' \
+docker compose up -d
+```
+
+SQLite 也支持直接写普通路径，例如 `LARK_DB_DSN=/app/data/lark.db`；百灵会自动扩展为上面带调优参数的 `file:` DSN。
+
+如需使用其他数据库，请同时设置 `LARK_DB_TYPE` 和 `LARK_DB_DSN`：
 
 ```bash
 LARK_DB_TYPE=postgres \
