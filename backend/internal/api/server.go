@@ -28,16 +28,44 @@ import (
 )
 
 type Server struct {
-	echo                  *echo.Echo
-	client                *ent.Client
-	lib                   *library.Service
-	mcp                   http.Handler
-	ctx                   context.Context
-	cancel                context.CancelFunc
-	transcodeCacheLocks   sync.Map
-	transcodeCacheWarmers sync.Map
-	transcodeWarmersMu    sync.Mutex
-	transcodeWarmersWG    sync.WaitGroup
+	echo                   *echo.Echo
+	client                 *ent.Client
+	lib                    *library.Service
+	mcp                    http.Handler
+	ctx                    context.Context
+	cancel                 context.CancelFunc
+	transcodeCacheLocksMu  sync.Mutex
+	transcodeCacheLocks    map[string]*transcodeCacheLock
+	transcodeCacheWarmers  sync.Map
+	transcodeWarmersMu     sync.Mutex
+	transcodeWarmersWG     sync.WaitGroup
+	transcodeWarmersActive int
+	transcodeWarmTTL       time.Duration
+	transcodeWarmLimit     int
+}
+
+type transcodeCacheLock struct {
+	mu   sync.Mutex
+	refs int
+}
+
+const (
+	defaultTranscodeWarmTTL   = 2 * time.Minute
+	defaultTranscodeWarmLimit = 2
+)
+
+type Option func(*Server)
+
+func WithTranscodeWarmTTL(ttl time.Duration) Option {
+	return func(s *Server) {
+		s.transcodeWarmTTL = ttl
+	}
+}
+
+func WithTranscodeWarmLimit(limit int) Option {
+	return func(s *Server) {
+		s.transcodeWarmLimit = limit
+	}
 }
 
 type playlistRequest struct {
@@ -101,7 +129,7 @@ type settingsRequest struct {
 	WebFontURL          string `json:"web_font_url"`
 }
 
-func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Server {
+func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts ...Option) *Server {
 	e := echo.New()
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
@@ -110,7 +138,12 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string) *Serve
 		cors.AllowCredentials = true
 	}
 	e.Use(middleware.CORSWithConfig(cors))
-	s := &Server{echo: e, client: client, lib: lib}
+	s := &Server{echo: e, client: client, lib: lib, transcodeWarmTTL: defaultTranscodeWarmTTL, transcodeWarmLimit: defaultTranscodeWarmLimit}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(s)
+		}
+	}
 	s.mcp = s.newMCPHandler()
 
 	auth := s.requireAuth
@@ -661,6 +694,10 @@ func (s *Server) pipeTranscodedAudio(c *echo.Context, ffmpeg, sourcePath string,
 }
 
 func (s *Server) startTranscodeCacheWarm(ffmpeg, sourcePath string, quality int) {
+	ttl := s.transcodeWarmTTL
+	if ttl <= 0 || s.transcodeWarmLimit <= 0 {
+		return
+	}
 	parent := s.ctx
 	if parent == nil {
 		parent = context.Background()
@@ -674,24 +711,49 @@ func (s *Server) startTranscodeCacheWarm(ffmpeg, sourcePath string, quality int)
 	if err != nil {
 		return
 	}
-	s.transcodeWarmersMu.Lock()
-	defer s.transcodeWarmersMu.Unlock()
 	select {
 	case <-parent.Done():
 		return
 	default:
 	}
-	if _, loaded := s.transcodeCacheWarmers.LoadOrStore(cachePath, struct{}{}); loaded {
+	if !s.reserveTranscodeWarmer(cachePath) {
+		return
+	}
+	acquired, err := s.lib.TryAcquireTranscodeWarmLease(parent, cachePath, ttl)
+	if err != nil || !acquired {
+		s.releaseTranscodeWarmer(cachePath)
 		return
 	}
 	s.transcodeWarmersWG.Add(1)
 	go func() {
 		defer s.transcodeWarmersWG.Done()
-		defer s.transcodeCacheWarmers.Delete(cachePath)
-		ctx, cancel := context.WithTimeout(parent, 30*time.Minute)
+		defer s.releaseTranscodeWarmer(cachePath)
+		ctx, cancel := context.WithTimeout(parent, ttl)
 		defer cancel()
 		_, _ = s.ensureTranscodeCache(ctx, ffmpeg, sourcePath, quality)
 	}()
+}
+
+func (s *Server) reserveTranscodeWarmer(cachePath string) bool {
+	s.transcodeWarmersMu.Lock()
+	defer s.transcodeWarmersMu.Unlock()
+	if _, loaded := s.transcodeCacheWarmers.Load(cachePath); loaded {
+		return false
+	}
+	if s.transcodeWarmersActive >= s.transcodeWarmLimit {
+		return false
+	}
+	s.transcodeCacheWarmers.Store(cachePath, struct{}{})
+	s.transcodeWarmersActive++
+	return true
+}
+
+func (s *Server) releaseTranscodeWarmer(cachePath string) {
+	s.transcodeWarmersMu.Lock()
+	defer s.transcodeWarmersMu.Unlock()
+	if _, loaded := s.transcodeCacheWarmers.LoadAndDelete(cachePath); loaded && s.transcodeWarmersActive > 0 {
+		s.transcodeWarmersActive--
+	}
 }
 
 func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath string, quality int) (string, error) {
@@ -699,10 +761,8 @@ func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath st
 	if err != nil {
 		return "", mapError(err)
 	}
-	lockValue, _ := s.transcodeCacheLocks.LoadOrStore(cachePath, &sync.Mutex{})
-	lock := lockValue.(*sync.Mutex)
-	lock.Lock()
-	defer lock.Unlock()
+	lock := s.acquireTranscodeCacheLock(cachePath)
+	defer s.releaseTranscodeCacheLock(cachePath, lock)
 	if validCachedFile(cachePath) {
 		return cachePath, nil
 	}
@@ -735,6 +795,34 @@ func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath st
 		return "", mapError(err)
 	}
 	return cachePath, nil
+}
+
+func (s *Server) acquireTranscodeCacheLock(cachePath string) *transcodeCacheLock {
+	s.transcodeCacheLocksMu.Lock()
+	if s.transcodeCacheLocks == nil {
+		s.transcodeCacheLocks = make(map[string]*transcodeCacheLock)
+	}
+	lock := s.transcodeCacheLocks[cachePath]
+	if lock == nil {
+		lock = &transcodeCacheLock{}
+		s.transcodeCacheLocks[cachePath] = lock
+	}
+	lock.refs++
+	s.transcodeCacheLocksMu.Unlock()
+
+	lock.mu.Lock()
+	return lock
+}
+
+func (s *Server) releaseTranscodeCacheLock(cachePath string, lock *transcodeCacheLock) {
+	lock.mu.Unlock()
+
+	s.transcodeCacheLocksMu.Lock()
+	defer s.transcodeCacheLocksMu.Unlock()
+	lock.refs--
+	if lock.refs == 0 && s.transcodeCacheLocks[cachePath] == lock {
+		delete(s.transcodeCacheLocks, cachePath)
+	}
 }
 
 func (s *Server) transcodeCachePath(sourcePath string, quality int) (string, error) {
@@ -878,7 +966,7 @@ func (s *Server) handleFolderDirectory(c *echo.Context) error {
 }
 
 func (s *Server) handleFolderSongs(c *echo.Context) error {
-	items, err := s.lib.FolderSongs(c.Request().Context(), currentUserID(c), c.QueryParam("path"))
+	items, err := s.lib.FolderSongs(c.Request().Context(), currentUserID(c), c.QueryParam("path"), queryInt(c, "limit", 0))
 	if err != nil {
 		return mapError(err)
 	}
@@ -918,7 +1006,7 @@ func (s *Server) handleAlbumSongs(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.AlbumSongs(c.Request().Context(), currentUserID(c), id)
+	items, err := s.lib.AlbumSongs(c.Request().Context(), currentUserID(c), id, queryInt(c, "limit", 0))
 	if err != nil {
 		return mapError(err)
 	}
@@ -985,7 +1073,7 @@ func (s *Server) handleArtistSongs(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.ArtistSongs(c.Request().Context(), currentUserID(c), id)
+	items, err := s.lib.ArtistSongs(c.Request().Context(), currentUserID(c), id, queryInt(c, "limit", 0))
 	if err != nil {
 		return mapError(err)
 	}
@@ -1024,7 +1112,7 @@ func (s *Server) handlePlaylistSongs(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.PlaylistSongs(c.Request().Context(), currentUserID(c), id)
+	items, err := s.lib.PlaylistSongs(c.Request().Context(), currentUserID(c), id, queryInt(c, "limit", 0))
 	if err != nil {
 		return mapError(err)
 	}

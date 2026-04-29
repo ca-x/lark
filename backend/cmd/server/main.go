@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -37,7 +38,7 @@ func main() {
 	if err := client.Schema.Create(context.Background(), migrate.WithForeignKeys(true)); err != nil {
 		log.Fatal(err)
 	}
-	cacheStore, err := openCacheStore(cfg)
+	cacheStore, err := openCacheStore(cfg, client)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -46,7 +47,13 @@ func main() {
 	if err := ensureInitialAdminFromEnv(context.Background(), lib, cfg); err != nil {
 		log.Fatal(err)
 	}
-	server := api.New(client, lib, cfg.FrontendOrigin)
+	server := api.New(
+		client,
+		lib,
+		cfg.FrontendOrigin,
+		api.WithTranscodeWarmTTL(time.Duration(cfg.TranscodeWarmTTL)*time.Second),
+		api.WithTranscodeWarmLimit(cfg.TranscodeWarmLimit),
+	)
 	serverErr := make(chan error, 1)
 	go func() {
 		serverErr <- server.Start(":" + cfg.Port)
@@ -94,10 +101,10 @@ func ensureInitialAdminFromEnv(ctx context.Context, lib *library.Service, cfg co
 	return nil
 }
 
-func openCacheStore(cfg config.Config) (kv.Store, error) {
+func openCacheStore(cfg config.Config, client *ent.Client) (kv.Store, error) {
 	switch cfg.CacheBackend {
 	case "", "badger":
-		return kv.OpenBadger(cfg.CacheDir)
+		return kv.OpenBadger(cfg.CacheDir, kv.BadgerOpenOptions{EstimatedItems: estimateCacheItemCount(context.Background(), cfg, client)})
 	case "redis":
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -109,4 +116,45 @@ func openCacheStore(cfg config.Config) (kv.Store, error) {
 	default:
 		return nil, errors.New("unsupported LARK_CACHE_BACKEND: " + cfg.CacheBackend)
 	}
+}
+
+func estimateCacheItemCount(ctx context.Context, cfg config.Config, client *ent.Client) int {
+	if client != nil {
+		countCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		if count, err := client.Song.Query().Count(countCtx); err == nil && count > 0 {
+			return count
+		}
+	}
+	return estimateSupportedFiles(cfg.LibraryDir, 50000)
+}
+
+func estimateSupportedFiles(root string, capCount int) int {
+	if capCount <= 0 {
+		return 0
+	}
+	root = filepath.Clean(root)
+	count := 0
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if path != root && d.Name() == ".shared-center" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if library.IsSupported(path) {
+			count++
+			if count >= capCount {
+				return filepath.SkipAll
+			}
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, filepath.SkipAll) {
+		return count
+	}
+	return count
 }

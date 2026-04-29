@@ -9,26 +9,28 @@ import (
 )
 
 type Config struct {
-	Port           string
-	DataDir        string
-	LibraryDir     string
-	DatabasePath   string
-	DatabaseDriver string
-	DatabaseDSN    string
-	FrontendOrigin string
-	FFmpegBin      string
-	FFprobeBin     string
-	CacheBackend   string
-	CacheDir       string
-	CacheTTL       int
-	RedisURL       string
-	RedisAddr      string
-	RedisPassword  string
-	RedisDB        int
-	RedisKeyPrefix string
-	AdminUsername  string
-	AdminPassword  string
-	AdminNickname  string
+	Port               string
+	DataDir            string
+	LibraryDir         string
+	DatabasePath       string
+	DatabaseDriver     string
+	DatabaseDSN        string
+	FrontendOrigin     string
+	FFmpegBin          string
+	FFprobeBin         string
+	CacheBackend       string
+	CacheDir           string
+	CacheTTL           int
+	RedisURL           string
+	RedisAddr          string
+	RedisPassword      string
+	RedisDB            int
+	RedisKeyPrefix     string
+	TranscodeWarmTTL   int
+	TranscodeWarmLimit int
+	AdminUsername      string
+	AdminPassword      string
+	AdminNickname      string
 }
 
 func Load() (Config, error) {
@@ -44,26 +46,28 @@ func Load() (Config, error) {
 		cacheBackend = "badger"
 	}
 	cfg := Config{
-		Port:           getEnv("LARK_PORT", "8080"),
-		DataDir:        dataDir,
-		LibraryDir:     libraryDir,
-		DatabasePath:   databasePath,
-		DatabaseDriver: "sqlite3",
-		DatabaseDSN:    getEnv("LARK_DB_DSN", sqliteDSN(databasePath)),
-		FrontendOrigin: getEnv("LARK_FRONTEND_ORIGIN", "*"),
-		FFmpegBin:      strings.TrimSpace(getEnv("FFMPEG_BIN", "ffmpeg")),
-		FFprobeBin:     strings.TrimSpace(getEnv("FFPROBE_BIN", "ffprobe")),
-		CacheBackend:   cacheBackend,
-		CacheDir:       cacheDir,
-		CacheTTL:       GetEnvInt("LARK_CACHE_TTL_SECONDS", 120),
-		RedisURL:       strings.TrimSpace(os.Getenv("LARK_REDIS_URL")),
-		RedisAddr:      strings.TrimSpace(getEnv("LARK_REDIS_ADDR", "localhost:6379")),
-		RedisPassword:  os.Getenv("LARK_REDIS_PASSWORD"),
-		RedisDB:        GetEnvInt("LARK_REDIS_DB", 0),
-		RedisKeyPrefix: strings.TrimSpace(getEnv("LARK_REDIS_KEY_PREFIX", "lark:cache:")),
-		AdminUsername:  strings.TrimSpace(os.Getenv("LARK_ADMIN_USERNAME")),
-		AdminPassword:  os.Getenv("LARK_ADMIN_PASSWORD"),
-		AdminNickname:  strings.TrimSpace(os.Getenv("LARK_ADMIN_NICKNAME")),
+		Port:               getEnv("LARK_PORT", "8080"),
+		DataDir:            dataDir,
+		LibraryDir:         libraryDir,
+		DatabasePath:       databasePath,
+		DatabaseDriver:     "sqlite3",
+		DatabaseDSN:        getEnv("LARK_DB_DSN", sqliteDSN(databasePath)),
+		FrontendOrigin:     getEnv("LARK_FRONTEND_ORIGIN", "*"),
+		FFmpegBin:          strings.TrimSpace(getEnv("FFMPEG_BIN", "ffmpeg")),
+		FFprobeBin:         strings.TrimSpace(getEnv("FFPROBE_BIN", "ffprobe")),
+		CacheBackend:       cacheBackend,
+		CacheDir:           cacheDir,
+		CacheTTL:           GetEnvInt("LARK_CACHE_TTL_SECONDS", 120),
+		RedisURL:           strings.TrimSpace(os.Getenv("LARK_REDIS_URL")),
+		RedisAddr:          strings.TrimSpace(getEnv("LARK_REDIS_ADDR", "localhost:6379")),
+		RedisPassword:      os.Getenv("LARK_REDIS_PASSWORD"),
+		RedisDB:            GetEnvInt("LARK_REDIS_DB", 0),
+		RedisKeyPrefix:     strings.TrimSpace(getEnv("LARK_REDIS_KEY_PREFIX", "lark:cache:")),
+		TranscodeWarmTTL:   GetEnvInt("LARK_TRANSCODE_WARM_TTL_SECONDS", 120),
+		TranscodeWarmLimit: GetEnvInt("LARK_TRANSCODE_WARM_MAX_CONCURRENCY", 2),
+		AdminUsername:      strings.TrimSpace(os.Getenv("LARK_ADMIN_USERNAME")),
+		AdminPassword:      os.Getenv("LARK_ADMIN_PASSWORD"),
+		AdminNickname:      strings.TrimSpace(os.Getenv("LARK_ADMIN_NICKNAME")),
 	}
 	return cfg, nil
 }

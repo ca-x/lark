@@ -154,7 +154,7 @@ func TestCleanupMissingLibraryEntriesRemovesEmptyAlbumsWithoutMissingSongs(t *te
 		Save(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err := service.cleanupMissingLibraryEntries(ctx, nil, map[string]bool{}); err != nil {
+	if err := service.cleanupMissingLibraryEntries(ctx, nil); err != nil {
 		t.Fatal(err)
 	}
 	page, err := service.AlbumsPage(ctx, 0, 10, 0, 0)
@@ -224,50 +224,10 @@ func TestPreferredEmbeddedLyricsTrustsStoredEmbeddedLyrics(t *testing.T) {
 	}
 }
 
-func TestSongCatalogSnapshotIsIsolatedFromCallers(t *testing.T) {
-	service := &Service{}
-	service.storeSongCatalogSnapshot([]models.Song{{ID: 1, Title: "Original"}})
-
-	first, err := service.cachedSongCatalog(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	first[0].Title = "mutated by caller"
-
-	second, err := service.cachedSongCatalog(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if second[0].Title != "Original" {
-		t.Fatalf("expected catalog snapshot to be immutable to callers, got %q", second[0].Title)
-	}
-}
-
-func TestArtistCatalogSnapshotIsIsolatedFromCallers(t *testing.T) {
-	service := &Service{}
-	service.storeArtistCatalogSnapshot([]models.Artist{{ID: 1, Name: "Original"}})
-
-	first, err := service.cachedArtistCatalog(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	first[0].Name = "mutated by caller"
-
-	second, err := service.cachedArtistCatalog(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if second[0].Name != "Original" {
-		t.Fatalf("expected catalog snapshot to be immutable to callers, got %q", second[0].Name)
-	}
-}
-
-func TestInvalidateSearchCatalogsClearsMemoryAndPersistentCache(t *testing.T) {
+func TestInvalidateSearchCatalogsClearsPersistentCache(t *testing.T) {
 	ctx := context.Background()
 	store := kv.NewMemoryStore()
 	service := &Service{cache: store}
-	service.storeArtistCatalogSnapshot([]models.Artist{{ID: 1, Name: "Artist"}})
-	service.storeSongCatalogSnapshot([]models.Song{{ID: 1, Title: "Song"}})
 	if err := service.cacheSetJSONPermanent(ctx, artistCatalogCacheKey, []models.Artist{{ID: 1, Name: "Artist"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -277,9 +237,6 @@ func TestInvalidateSearchCatalogsClearsMemoryAndPersistentCache(t *testing.T) {
 
 	service.invalidateSearchCatalogs(ctx)
 
-	if service.artistCatalogLoaded || service.songCatalogLoaded {
-		t.Fatal("expected in-memory search catalogs to be marked unloaded")
-	}
 	if _, ok, err := store.Get(ctx, artistCatalogCacheKey); err != nil || ok {
 		t.Fatalf("expected artist catalog cache deleted, ok=%v err=%v", ok, err)
 	}

@@ -123,6 +123,7 @@ const MAX_LIBRARY_PAGE_SIZE = 80;
 const MAX_GRID_PAGE_SIZE = 72;
 const STARTUP_ALBUM_LIMIT = 300;
 const STARTUP_FOLDER_LIMIT = 80;
+const MAX_PLAYBACK_QUEUE_SIZE = 500;
 type PageSizing = {
   songs: number;
   cards: number;
@@ -322,19 +323,23 @@ function randomQueueIndex(length: number, currentIndex: number) {
   return nextIndex;
 }
 
-function uniqueSongs(items: Song[]) {
+function uniqueSongs(items: Song[], limit = Number.POSITIVE_INFINITY) {
   const seen = new Set<number>();
-  return items.filter((item) => {
-    if (!item || seen.has(item.id)) return false;
+  const out: Song[] = [];
+  for (const item of items) {
+    if (!item || seen.has(item.id)) continue;
     seen.add(item.id);
-    return true;
-  });
+    out.push(item);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
-function queueWithCurrent(base: Song[], current?: Song | null) {
-  const unique = uniqueSongs(base);
+function queueWithCurrent(base: Song[], current?: Song | null, limit = MAX_PLAYBACK_QUEUE_SIZE) {
+  const unique = uniqueSongs(base, limit);
   if (!current) return unique;
-  return unique.some((item) => item.id === current.id) ? unique : [current, ...unique];
+  if (unique.some((item) => item.id === current.id)) return unique;
+  return [current, ...unique.filter((item) => item.id !== current.id)].slice(0, limit);
 }
 
 function coverUrl(song?: Song | null) {
@@ -2273,7 +2278,7 @@ export default function App() {
   }
 
   function insertNextBatch(items: Song[]) {
-    const requested = uniqueSongs(items.filter(Boolean));
+    const requested = uniqueSongs(items.filter(Boolean), MAX_PLAYBACK_QUEUE_SIZE);
     if (!requested.length) return;
     if (!current) {
       setQueue(requested);
@@ -2285,11 +2290,20 @@ export default function App() {
     setQueue((old) => {
       const base = queueWithCurrent(old.length ? old : [current], current);
       const baseIDs = new Set(base.map((song) => song.id));
-      const batch = requested.filter((song) => song.id !== current.id && !baseIDs.has(song.id));
+      const batch = requested
+        .filter((song) => song.id !== current.id && !baseIDs.has(song.id))
+        .slice(0, MAX_PLAYBACK_QUEUE_SIZE - 1);
       inserted = batch.length;
       if (!batch.length) return base;
       const idx = Math.max(0, base.findIndex((song) => song.id === current.id));
-      return [...base.slice(0, idx + 1), ...batch, ...base.slice(idx + 1)];
+      const headCapacity = MAX_PLAYBACK_QUEUE_SIZE - batch.length;
+      const head = base.slice(Math.max(0, idx + 1 - headCapacity), idx + 1);
+      const tailCapacity = MAX_PLAYBACK_QUEUE_SIZE - head.length - batch.length;
+      return [
+        ...head,
+        ...batch,
+        ...base.slice(idx + 1, idx + 1 + tailCapacity),
+      ];
     });
     if (inserted || requested.length) showMessage(t("queueInserted"));
   }
@@ -2594,69 +2608,24 @@ export default function App() {
     return Boolean(right && left.type === right.type && left.id === right.id);
   }
 
-  function collectionSubtitleForItems(target: Collection, items: Song[]) {
-    if (target.type === "album") {
-      return [
-        target.artistName,
-        items[0]?.year ? String(items[0].year) : "",
-        `${items.length} ${t("count")}`,
-      ].filter(Boolean).join(" · ");
-    }
-    return `${items.length} ${t("count")}`;
-  }
-
-  async function fetchCollectionSongs(target: Collection) {
+  async function fetchCollectionSongs(target: Collection, limit = 0) {
     if (!target.id) return [];
-    if (target.type === "playlist") return withTimeout(api.playlistSongs(target.id));
-    if (target.type === "album") return withTimeout(api.albumSongs(target.id));
-    return withTimeout(api.artistSongs(target.id));
-  }
-
-  async function resolveCollectionSongs(target: Collection) {
-    if (target.songs.length) return target.songs;
-    setCollection((old) =>
-      isSameCollection(target, old)
-        ? { ...old, loading: true, error: undefined }
-        : old,
-    );
-    try {
-      const items = await fetchCollectionSongs(target);
-      setCollection((old) =>
-        isSameCollection(target, old)
-          ? {
-              ...old,
-              loading: false,
-              error: undefined,
-              songs: items,
-              subtitle: collectionSubtitleForItems(old, items),
-              coverUrl: old.coverUrl || (items[0] ? coverUrl(items[0]) : undefined),
-              albums:
-                old.type === "artist" && (!old.albums || !old.albums.length)
-                  ? albumsFromSongs(items, old.artistId, old.artistName)
-                  : old.albums,
-            }
-          : old,
-      );
-      return items;
-    } catch (error) {
-      const message = friendlyLoadError(error, t);
-      setCollection((old) =>
-        isSameCollection(target, old)
-          ? { ...old, loading: false, error: message }
-          : old,
-      );
-      showMessage(message);
-      return [];
-    }
+    if (target.type === "playlist") return withTimeout(api.playlistSongs(target.id, limit));
+    if (target.type === "album") return withTimeout(api.albumSongs(target.id, limit));
+    return withTimeout(api.artistSongs(target.id, limit));
   }
 
   async function playCollection(target: Collection) {
-    const items = await resolveCollectionSongs(target);
+    const items = target.songs.length
+      ? target.songs
+      : await fetchCollectionSongs(target, MAX_PLAYBACK_QUEUE_SIZE);
     if (items[0]) void playSong(items[0], items);
   }
 
   async function insertCollectionNext(target: Collection) {
-    const items = await resolveCollectionSongs(target);
+    const items = target.songs.length
+      ? target.songs
+      : await fetchCollectionSongs(target, MAX_PLAYBACK_QUEUE_SIZE);
     if (items.length) insertNextBatch(items);
   }
 
@@ -2811,22 +2780,22 @@ export default function App() {
   }
 
   async function playAlbum(album: Album) {
-    const items = await api.albumSongs(album.id);
+    const items = await api.albumSongs(album.id, MAX_PLAYBACK_QUEUE_SIZE);
     if (items[0]) void playSong(items[0], items);
   }
 
   async function playArtist(artist: Artist) {
-    const items = await api.artistSongs(artist.id);
+    const items = await api.artistSongs(artist.id, MAX_PLAYBACK_QUEUE_SIZE);
     if (items[0]) void playSong(items[0], items);
   }
 
   async function playPlaylist(playlist: Playlist) {
-    const items = await api.playlistSongs(playlist.id);
+    const items = await api.playlistSongs(playlist.id, MAX_PLAYBACK_QUEUE_SIZE);
     if (items[0]) void playSong(items[0], items);
   }
 
   async function playFolder(folder: Folder) {
-    const items = await api.folderSongs(folder.path);
+    const items = await api.folderSongs(folder.path, MAX_PLAYBACK_QUEUE_SIZE);
     if (items[0]) void playSong(items[0], items);
   }
 
@@ -5544,7 +5513,7 @@ function FolderBrowser({
     : null;
 
   const insertFolderNext = async (folder: Folder) => {
-    const items = await api.folderSongs(folder.path);
+    const items = await api.folderSongs(folder.path, MAX_PLAYBACK_QUEUE_SIZE);
     if (items.length) onInsertNext(items);
   };
 

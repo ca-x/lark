@@ -76,6 +76,10 @@ func (s *RedisStore) Set(ctx context.Context, key string, value []byte, ttl time
 	return s.client.Set(ctx, s.redisKey(key), value, ttl).Err()
 }
 
+func (s *RedisStore) SetNX(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	return s.client.SetNX(ctx, s.redisKey(key), value, ttl).Result()
+}
+
 func (s *RedisStore) Delete(ctx context.Context, key string) error {
 	return s.client.Del(ctx, s.redisKey(key)).Err()
 }
