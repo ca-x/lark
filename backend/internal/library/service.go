@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -51,6 +52,10 @@ var supportedExts = map[string]bool{
 	".mp3": true, ".flac": true, ".wav": true, ".aiff": true, ".aif": true,
 	".m4a": true, ".aac": true, ".ogg": true, ".oga": true, ".opus": true,
 	".dsf": true, ".dff": true, ".dst": true, ".ape": true, ".alac": true,
+}
+
+var embeddedLyricsExts = map[string]bool{
+	".mp3": true, ".flac": true, ".m4a": true, ".aac": true, ".alac": true,
 }
 
 var coverHTTPClient = &http.Client{Timeout: 6 * time.Second}
@@ -91,6 +96,7 @@ type fileMetadata struct {
 	Artist      string
 	Album       string
 	AlbumArtist string
+	HasLyrics   bool
 	Duration    float64
 	SampleRate  int
 	BitRate     int
@@ -389,6 +395,9 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 			} else {
 				result.Updated++
 			}
+			if result.Scanned%500 == 0 {
+				debug.FreeOSMemory()
+			}
 			s.updateScanProgress(path, result.CurrentDir, &result)
 			return nil
 		})
@@ -413,9 +422,7 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 	}
 	s.invalidateLibraryCache(ctx)
 	s.invalidateSearchCatalogs(ctx)
-	if err := s.warmSearchCatalogs(ctx); err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("warm search catalogs: %v", err))
-	}
+	debug.FreeOSMemory()
 	return result, nil
 }
 
@@ -576,8 +583,16 @@ func (s *Service) updateScanProgress(currentPath, currentDir string, result *mod
 		status.Updated = result.Updated
 		status.Skipped = result.Skipped
 		status.Canceled = result.Canceled
-		status.Errors = append(status.Errors[:0], result.Errors...)
+		status.Errors = append(status.Errors[:0], recentScanErrors(result.Errors)...)
 	})
+}
+
+func recentScanErrors(errors []string) []string {
+	const maxScanStatusErrors = 50
+	if len(errors) <= maxScanStatusErrors {
+		return errors
+	}
+	return errors[len(errors)-maxScanStatusErrors:]
 }
 
 func (s *Service) setScanStatus(update func(*models.ScanStatus)) {
@@ -618,7 +633,10 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 	if err == nil && existing.SizeBytes == sizeBytes && existing.ModTimeUnixNano == modTimeUnixNano {
 		return false, nil
 	}
-	meta := s.probe(ctx, abs)
+	meta := s.probe(ctx, abs, probeOptions{
+		DetectLyrics: supportsEmbeddedLyrics(abs),
+		ReadLyrics:   false,
+	})
 	applyMetadataFallback(abs, s.libraryDir, &meta)
 	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(abs)), ".")
 	mimeType := mime.TypeByExtension(filepath.Ext(abs))
@@ -648,8 +666,12 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 			reusedMissingContent = true
 		}
 	}
+	lyricsSource := ""
+	if meta.HasLyrics {
+		lyricsSource = "embedded"
+	}
 	if existingNotFound {
-		_, err = s.client.Song.Create().
+		create := s.client.Song.Create().
 			SetTitle(meta.Title).
 			SetPath(abs).
 			SetFileName(filepath.Base(abs)).
@@ -663,18 +685,19 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 			SetBitRate(meta.BitRate).
 			SetBitDepth(meta.BitDepth).
 			SetYear(meta.Year).
-			SetLyricsEmbedded(meta.Lyrics).
-			SetLyricsSource(sourceIf(meta.Lyrics != "", "embedded", "")).
 			SetArtist(artistEntity).
-			SetAlbum(albumEntity).
-			Save(ctx)
+			SetAlbum(albumEntity)
+		if lyricsSource != "" {
+			create.SetLyricsSource(lyricsSource)
+		}
+		_, err = create.Save(ctx)
 		if err == nil && invalidate {
 			s.invalidateLibraryCache(ctx)
 			s.invalidateSearchCatalogs(ctx)
 		}
 		return true, err
 	}
-	_, err = existing.Update().
+	update := existing.Update().
 		SetTitle(meta.Title).
 		SetPath(abs).
 		SetFileName(filepath.Base(abs)).
@@ -688,11 +711,14 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		SetBitRate(meta.BitRate).
 		SetBitDepth(meta.BitDepth).
 		SetYear(meta.Year).
-		SetLyricsEmbedded(meta.Lyrics).
-		SetLyricsSource(sourceIf(meta.Lyrics != "", "embedded", existing.LyricsSource)).
 		SetArtist(artistEntity).
-		SetAlbum(albumEntity).
-		Save(ctx)
+		SetAlbum(albumEntity)
+	if meta.HasLyrics {
+		update.SetLyricsEmbedded("").SetLyricsSource("embedded")
+	} else if existing.LyricsSource == "embedded" {
+		update.SetLyricsEmbedded("").SetLyricsSource("")
+	}
+	_, err = update.Save(ctx)
 	if err == nil && invalidate {
 		s.invalidateLibraryCache(ctx)
 		s.invalidateSearchCatalogs(ctx)
@@ -2214,7 +2240,12 @@ func (s *Service) preferredLocalLyrics(ctx context.Context, item *ent.Song, incl
 	if item != nil && item.LyricsSource == "embedded" && strings.TrimSpace(item.LyricsEmbedded) != "" {
 		return strings.TrimSpace(item.LyricsEmbedded), "embedded"
 	}
-	if lyric := strings.TrimSpace(s.probe(ctx, item.Path).Lyrics); lyric != "" {
+	if !supportsEmbeddedLyrics(item.Path) {
+		return "", ""
+	}
+	if lyric := strings.TrimSpace(s.probe(ctx, item.Path, probeOptions{DetectLyrics: true, ReadLyrics: true}).Lyrics); lyric != "" {
+		_, _ = item.Update().SetLyricsEmbedded(lyric).SetLyricsSource("embedded").Save(ctx)
+		s.invalidateSongCatalog(ctx)
 		return lyric, "embedded"
 	}
 	return "", ""
@@ -3331,15 +3362,24 @@ func terminateProbeCommand(cmd *exec.Cmd) {
 	_ = cmd.Process.Kill()
 }
 
-func (s *Service) probe(ctx context.Context, path string) fileMetadata {
+type probeOptions struct {
+	DetectLyrics bool
+	ReadLyrics   bool
+}
+
+func supportsEmbeddedLyrics(path string) bool {
+	return embeddedLyricsExts[strings.ToLower(filepath.Ext(path))]
+}
+
+func (s *Service) probe(ctx context.Context, path string, options probeOptions) fileMetadata {
 	if s.ffprobe != "" {
-		if meta := s.probeViaFFprobe(ctx, path); !meta.empty() {
-			s.enrichMetadataViaTags(path, &meta)
+		if meta := s.probeViaFFprobe(ctx, path, options); !meta.empty() {
+			s.enrichMetadataViaTags(path, &meta, options)
 			mergeFileMetadata(&meta, probeWAVMetadata(path))
 			return meta
 		}
 	}
-	meta := s.probeTags(path)
+	meta := s.probeTags(path, options)
 	mergeFileMetadata(&meta, probeWAVMetadata(path))
 	return meta
 }
@@ -3357,7 +3397,7 @@ func (meta fileMetadata) empty() bool {
 		meta.Year <= 0
 }
 
-func (s *Service) probeViaFFprobe(ctx context.Context, path string) fileMetadata {
+func (s *Service) probeViaFFprobe(ctx context.Context, path string, options probeOptions) fileMetadata {
 	probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(probeCtx, s.ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path)
@@ -3376,8 +3416,13 @@ func (s *Service) probeViaFFprobe(ctx context.Context, path string) fileMetadata
 		Artist:      first(tags, "artist", "album_artist", "albumartist"),
 		Album:       first(tags, "album"),
 		AlbumArtist: first(tags, "album_artist", "albumartist"),
-		Lyrics:      first(tags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics"),
 		Year:        parseYear(first(tags, "date", "year", "originaldate", "originalyear", "releasedate")),
+	}
+	if options.ReadLyrics {
+		meta.Lyrics = first(tags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
+		meta.HasLyrics = strings.TrimSpace(meta.Lyrics) != ""
+	} else if options.DetectLyrics {
+		meta.HasLyrics = hasAnyTag(tags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
 	}
 	if duration, _ := strconv.ParseFloat(probed.Format.Duration, 64); duration > 0 {
 		meta.Duration = duration
@@ -3396,8 +3441,11 @@ func (s *Service) probeViaFFprobe(ctx context.Context, path string) fileMetadata
 			meta.BitDepth = stream.Bits
 		}
 		streamTags := normalizeTags(map[string]string(stream.Tags))
-		if meta.Lyrics == "" {
+		if options.ReadLyrics && meta.Lyrics == "" {
 			meta.Lyrics = first(streamTags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
+			meta.HasLyrics = strings.TrimSpace(meta.Lyrics) != ""
+		} else if options.DetectLyrics && !meta.HasLyrics {
+			meta.HasLyrics = hasAnyTag(streamTags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
 		}
 		if meta.Year == 0 {
 			meta.Year = parseYear(first(streamTags, "date", "year", "originaldate", "originalyear", "releasedate"))
@@ -3407,11 +3455,15 @@ func (s *Service) probeViaFFprobe(ctx context.Context, path string) fileMetadata
 	return meta
 }
 
-func (s *Service) enrichMetadataViaTags(path string, meta *fileMetadata) {
-	if meta.Title != "" && meta.Artist != "" && meta.Album != "" && meta.Lyrics != "" {
+func (s *Service) enrichMetadataViaTags(path string, meta *fileMetadata, options probeOptions) {
+	hasLyrics := meta.HasLyrics
+	if options.ReadLyrics {
+		hasLyrics = strings.TrimSpace(meta.Lyrics) != ""
+	}
+	if meta.Title != "" && meta.Artist != "" && meta.Album != "" && (!options.DetectLyrics || hasLyrics) {
 		return
 	}
-	tags := s.probeTags(path)
+	tags := s.probeTags(path, options)
 	if meta.Title == "" {
 		meta.Title = tags.Title
 	}
@@ -3424,15 +3476,18 @@ func (s *Service) enrichMetadataViaTags(path string, meta *fileMetadata) {
 	if meta.AlbumArtist == "" {
 		meta.AlbumArtist = tags.AlbumArtist
 	}
-	if meta.Lyrics == "" {
+	if options.ReadLyrics && meta.Lyrics == "" {
 		meta.Lyrics = tags.Lyrics
+	}
+	if options.DetectLyrics && !meta.HasLyrics {
+		meta.HasLyrics = tags.HasLyrics || strings.TrimSpace(tags.Lyrics) != ""
 	}
 	if meta.Year == 0 && tags.Year > 0 {
 		meta.Year = tags.Year
 	}
 }
 
-func (s *Service) probeTags(path string) fileMetadata {
+func (s *Service) probeTags(path string, options probeOptions) fileMetadata {
 	f, err := os.Open(path)
 	if err != nil {
 		return fileMetadata{}
@@ -3448,7 +3503,12 @@ func (s *Service) probeTags(path string) fileMetadata {
 		Album:       cleanMetadataText(m.Album()),
 		AlbumArtist: cleanMetadataText(m.AlbumArtist()),
 		Year:        m.Year(),
-		Lyrics:      cleanMetadataText(m.Lyrics()),
+	}
+	if options.ReadLyrics {
+		meta.Lyrics = cleanMetadataText(m.Lyrics())
+		meta.HasLyrics = strings.TrimSpace(meta.Lyrics) != ""
+	} else if options.DetectLyrics {
+		meta.HasLyrics = strings.TrimSpace(m.Lyrics()) != ""
 	}
 	if meta.Artist == "" {
 		meta.Artist = cleanMetadataText(m.Composer())
@@ -3749,6 +3809,15 @@ func first(tags map[string]string, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func hasAnyTag(tags map[string]string, keys ...string) bool {
+	for _, k := range keys {
+		if strings.TrimSpace(tags[k]) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func parseYear(value string) int {
