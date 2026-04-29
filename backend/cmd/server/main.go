@@ -126,7 +126,7 @@ func estimateCacheItemCount(ctx context.Context, cfg config.Config, client *ent.
 			return count
 		}
 	}
-	return estimateSupportedFiles(cfg.LibraryDir, 50000)
+	return estimateSupportedFiles(cfg.LibraryDir, 20000)
 }
 
 func estimateSupportedFiles(root string, capCount int) int {

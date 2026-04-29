@@ -121,9 +121,9 @@ const DEFAULT_GRID_PAGE_SIZE = 24;
 const MIN_PAGE_SIZE = 10;
 const MAX_LIBRARY_PAGE_SIZE = 80;
 const MAX_GRID_PAGE_SIZE = 72;
-const STARTUP_ALBUM_LIMIT = 300;
 const STARTUP_FOLDER_LIMIT = 80;
 const MAX_PLAYBACK_QUEUE_SIZE = 500;
+const COLLECTION_DETAIL_SONG_LIMIT = MAX_PLAYBACK_QUEUE_SIZE;
 type PageSizing = {
   songs: number;
   cards: number;
@@ -617,6 +617,13 @@ function albumsFromSongs(
   return Array.from(grouped.values()).sort((a, b) =>
     a.title.localeCompare(b.title),
   );
+}
+
+function mergeAlbums(current: Album[], incoming: Album[]) {
+  if (!incoming.length) return current;
+  const byID = new Map(current.map((item) => [item.id, item]));
+  incoming.forEach((item) => byID.set(item.id, item));
+  return Array.from(byID.values());
 }
 
 function formatQuality(song: Song) {
@@ -2660,13 +2667,13 @@ export default function App() {
     setCollection(nextCollection);
     setView("collection");
     try {
-      const items = await withTimeout(api.playlistSongs(playlist.id));
+      const items = await withTimeout(api.playlistSongs(playlist.id, COLLECTION_DETAIL_SONG_LIMIT));
       if (requestId !== collectionRequestRef.current) return;
       setCollection({
         type: "playlist",
         id: playlist.id,
         title: playlist.name,
-        subtitle: `${items.length} ${t("count")}`,
+        subtitle: `${playlist.song_count || items.length} ${t("count")}`,
         favorite: playlist.favorite,
         songs: items,
         coverUrl: items[0] ? coverUrl(items[0]) : undefined,
@@ -2698,10 +2705,16 @@ export default function App() {
     setCollection(nextCollection);
     setView("collection");
     try {
-      const items = await withTimeout(api.albumSongs(album.id), 20_000);
-      const refreshedAlbums = await api.albums(STARTUP_ALBUM_LIMIT).catch(() => null);
-      const refreshedAlbum = refreshedAlbums?.find((item) => item.id === album.id) ?? album;
-      if (refreshedAlbums) setAlbums(refreshedAlbums);
+      const [items, refreshedAlbum] = await Promise.all([
+        withTimeout(api.albumSongs(album.id, COLLECTION_DETAIL_SONG_LIMIT), 20_000),
+        api.album(album.id).catch(() => album),
+      ]);
+      setAlbums((old) => {
+        const exists = old.some((item) => item.id === refreshedAlbum.id);
+        return exists
+          ? old.map((item) => (item.id === refreshedAlbum.id ? refreshedAlbum : item))
+          : [refreshedAlbum, ...old];
+      });
       if (requestId !== collectionRequestRef.current) return;
       setCollection({
         type: "album",
@@ -2710,7 +2723,7 @@ export default function App() {
         subtitle: [
           refreshedAlbum.artist,
           refreshedAlbum.year ? String(refreshedAlbum.year) : "",
-          `${items.length} ${t("count")}`,
+          `${refreshedAlbum.song_count || items.length} ${t("count")}`,
         ].filter(Boolean).join(" · "),
         favorite: refreshedAlbum.favorite,
         songs: items,
@@ -2758,22 +2771,29 @@ export default function App() {
     setCollection(nextCollection);
     setView("collection");
     try {
-      const items = await withTimeout(api.artistSongs(id));
+      const [items, artistAlbumPage] = await Promise.all([
+        withTimeout(api.artistSongs(id, COLLECTION_DETAIL_SONG_LIMIT)),
+        api.albumsPage(1, MAX_GRID_PAGE_SIZE, id).catch(() => null),
+      ]);
       if (requestId !== collectionRequestRef.current) return;
       const resolvedTitle =
         artist?.name || fallbackName || items[0]?.artist || t("artists");
+      const resolvedAlbums = artistAlbumPage?.items ?? albumsFromSongs(items, id, resolvedTitle);
       setCollection({
         type: "artist",
         id,
         title: resolvedTitle,
-        subtitle: `${items.length} ${t("count")}`,
+        subtitle: `${artist?.song_count || items.length} ${t("count")}`,
         favorite: artist?.favorite ?? false,
         songs: items,
-        albums: albumsFromSongs(items, id, resolvedTitle),
+        albums: resolvedAlbums,
         coverUrl: `/api/artists/${id}/cover`,
         artistId: id,
         artistName: resolvedTitle,
       });
+      if (artistAlbumPage?.items.length) {
+        setAlbums((old) => mergeAlbums(old, artistAlbumPage.items));
+      }
     } catch (error) {
       setCollectionLoadError(nextCollection, requestId, error);
     }

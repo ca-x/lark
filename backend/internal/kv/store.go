@@ -27,10 +27,37 @@ type entry struct {
 type MemoryStore struct {
 	mu     sync.RWMutex
 	values map[string]entry
+	stopCh chan struct{}
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{values: make(map[string]entry)}
+	s := &MemoryStore{values: make(map[string]entry), stopCh: make(chan struct{})}
+	go s.cleanupLoop()
+	return s
+}
+
+func (s *MemoryStore) cleanupLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			s.cleanExpired()
+		case <-s.stopCh:
+			return
+		}
+	}
+}
+
+func (s *MemoryStore) cleanExpired() {
+	now := time.Now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for key, item := range s.values {
+		if !item.expiresAt.IsZero() && now.After(item.expiresAt) {
+			delete(s.values, key)
+		}
+	}
 }
 
 func (s *MemoryStore) Get(ctx context.Context, key string) ([]byte, bool, error) {
@@ -109,7 +136,14 @@ func (s *MemoryStore) DeletePrefix(ctx context.Context, prefix string) error {
 	return nil
 }
 
-func (s *MemoryStore) Close() error { return nil }
+func (s *MemoryStore) Close() error {
+	select {
+	case <-s.stopCh:
+	default:
+		close(s.stopCh)
+	}
+	return nil
+}
 
 type NoopStore struct{}
 

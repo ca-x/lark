@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	badger "github.com/dgraph-io/badger/v4"
@@ -57,41 +59,130 @@ func OpenBadger(path string, openOptions ...BadgerOpenOptions) (*BadgerStore, er
 }
 
 func badgerProfileForItems(estimatedItems int) badgerMemoryProfile {
-	switch {
-	case estimatedItems >= 50000:
-		return badgerMemoryProfile{
-			numGoroutines:  2,
-			numCompactors:  2,
-			numMemtables:   2,
-			memTableSize:   16 << 20,
-			blockCache:     32 << 20,
-			indexCache:     16 << 20,
-			valueThreshold: 1 << 20,
-			valueLogFile:   64 << 20,
-		}
-	case estimatedItems >= 5000:
-		return badgerMemoryProfile{
-			numGoroutines:  2,
-			numCompactors:  2,
-			numMemtables:   2,
-			memTableSize:   8 << 20,
-			blockCache:     16 << 20,
-			indexCache:     8 << 20,
-			valueThreshold: 1 << 20,
-			valueLogFile:   32 << 20,
-		}
-	default:
-		return badgerMemoryProfile{
-			numGoroutines:  1,
-			numCompactors:  2,
-			numMemtables:   1,
-			memTableSize:   4 << 20,
-			blockCache:     8 << 20,
-			indexCache:     4 << 20,
-			valueThreshold: 512 << 10,
-			valueLogFile:   16 << 20,
-		}
+	memBytes := detectSystemMemoryBytes()
+	memMB := int(memBytes / (1 << 20))
+	p := badgerMemoryProfile{
+		numGoroutines:  2,
+		numCompactors:  2,
+		numMemtables:   2,
+		valueThreshold: 128 << 10,
 	}
+	switch {
+	case memMB <= 512:
+		limit := int64(2 << 20)
+		p.memTableSize = limit
+		p.blockCache = limit
+		p.indexCache = limit / 2
+		p.valueLogFile = 8 << 20
+	case memMB <= 1024:
+		p.memTableSize = 4 << 20
+		p.blockCache = 8 << 20
+		p.indexCache = 4 << 20
+		p.valueLogFile = 16 << 20
+	case memMB <= 2048:
+		p.memTableSize = 6 << 20
+		p.blockCache = 12 << 20
+		p.indexCache = 6 << 20
+		p.valueLogFile = 24 << 20
+	default:
+		cacheBudget := clampInt64(memBytes/128, 32<<20, 256<<20)
+		p.memTableSize = cacheBudget / 4
+		p.blockCache = cacheBudget / 2
+		p.indexCache = cacheBudget / 4
+		p.valueLogFile = clampInt64(cacheBudget, 32<<20, 128<<20)
+	}
+	if overrideMB, ok := badgerCacheOverrideMB(); ok {
+		cacheBudget := int64(overrideMB) << 20
+		p.memTableSize = cacheBudget / 4
+		p.blockCache = cacheBudget / 2
+		p.indexCache = cacheBudget / 4
+		p.valueLogFile = clampInt64(cacheBudget, 8<<20, 256<<20)
+	}
+	if estimatedItems < 5000 {
+		p.numGoroutines = 1
+		p.numMemtables = 1
+		p.memTableSize /= 2
+		p.blockCache /= 2
+		p.indexCache /= 2
+		p.valueLogFile /= 2
+	} else if estimatedItems >= 50000 {
+		p.blockCache += p.blockCache / 2
+		p.indexCache += p.indexCache / 2
+		p.valueLogFile *= 2
+	}
+	if p.memTableSize < 1<<20 {
+		p.memTableSize = 1 << 20
+	}
+	if p.blockCache < 1<<20 {
+		p.blockCache = 1 << 20
+	}
+	if p.indexCache < 512<<10 {
+		p.indexCache = 512 << 10
+	}
+	if p.valueLogFile < 8<<20 {
+		p.valueLogFile = 8 << 20
+	}
+	return p
+}
+
+func badgerCacheOverrideMB() (int, bool) {
+	raw := strings.TrimSpace(os.Getenv("LARK_BADGER_CACHE_MB"))
+	if raw == "" {
+		return 0, false
+	}
+	mb, err := strconv.Atoi(raw)
+	if err != nil || mb <= 0 {
+		return 0, false
+	}
+	if mb < 8 {
+		mb = 8
+	}
+	if mb > 512 {
+		mb = 512
+	}
+	return mb, true
+}
+
+func clampInt64(v, min, max int64) int64 {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}
+
+func detectSystemMemoryBytes() int64 {
+	data, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 2 << 30
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.HasPrefix(line, "MemTotal:") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		if kb, err := parseInt64(fields[1]); err == nil {
+			return kb * 1024
+		}
+		break
+	}
+	return 2 << 30
+}
+
+func parseInt64(s string) (int64, error) {
+	var n int64
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			break
+		}
+		n = n*10 + int64(c-'0')
+	}
+	return n, nil
 }
 
 func (s *BadgerStore) Get(ctx context.Context, key string) ([]byte, bool, error) {
@@ -177,29 +268,46 @@ func (s *BadgerStore) DeletePrefix(ctx context.Context, prefix string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	keys := make([][]byte, 0)
 	prefixBytes := []byte(prefix)
-	if err := s.db.View(func(txn *badger.Txn) error {
-		it := txn.NewIterator(badger.IteratorOptions{PrefetchValues: false, Prefix: prefixBytes})
-		defer it.Close()
-		for it.Rewind(); it.Valid(); it.Next() {
+	const batchSize = 500
+	for {
+		keys := make([][]byte, 0, batchSize)
+		if err := s.db.View(func(txn *badger.Txn) error {
+			it := txn.NewIterator(badger.IteratorOptions{PrefetchValues: false, Prefix: prefixBytes})
+			defer it.Close()
+			for it.Rewind(); it.Valid(); it.Next() {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				keys = append(keys, append([]byte(nil), it.Item().Key()...))
+				if len(keys) >= batchSize {
+					break
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+		if len(keys) == 0 {
+			return nil
+		}
+		if err := s.db.Update(func(txn *badger.Txn) error {
+			for _, key := range keys {
+				if err := txn.Delete(key); err != nil && !errors.Is(err, badger.ErrKeyNotFound) {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+		if len(keys) < batchSize {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			keys = append(keys, append([]byte(nil), it.Item().Key()...))
+			return nil
 		}
-		return nil
-	}); err != nil {
-		return err
 	}
-	return s.db.Update(func(txn *badger.Txn) error {
-		for _, key := range keys {
-			if err := txn.Delete(key); err != nil && !errors.Is(err, badger.ErrKeyNotFound) {
-				return err
-			}
-		}
-		return nil
-	})
 }
 
 func (s *BadgerStore) Close() error {

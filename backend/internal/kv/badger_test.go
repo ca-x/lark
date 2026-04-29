@@ -48,7 +48,7 @@ func TestBadgerStoreSetNXRespectsTTL(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	ok, err := store.SetNX(ctx, "lease", []byte("first"), 200*time.Millisecond)
+	ok, err := store.SetNX(ctx, "lease", []byte("first"), time.Second)
 	if err != nil || !ok {
 		t.Fatalf("expected first SetNX to acquire lease, ok=%v err=%v", ok, err)
 	}
@@ -60,7 +60,7 @@ func TestBadgerStoreSetNXRespectsTTL(t *testing.T) {
 		t.Fatal("expected live lease to reject second SetNX")
 	}
 
-	deadline := time.Now().Add(time.Second)
+	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
 		ok, err = store.SetNX(ctx, "lease", []byte("second"), time.Minute)
 		if err != nil {
