@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestLoadDefaultsToBadgerWithoutRedisEnv(t *testing.T) {
 	t.Setenv("LARK_CACHE_BACKEND", "")
@@ -29,5 +32,20 @@ func TestLoadUsesRedisWhenRedisEnvConfigured(t *testing.T) {
 	}
 	if cfg.CacheBackend != "redis" {
 		t.Fatalf("CacheBackend = %q, want redis", cfg.CacheBackend)
+	}
+}
+
+func TestSQLiteDSNBoundsMemoryOrientedPragmas(t *testing.T) {
+	dsn := sqliteDSN("/tmp/lark.db")
+	for _, want := range []string{
+		"_pragma=journal_mode(WAL)",
+		"_pragma=synchronous(NORMAL)",
+		"_pragma=busy_timeout(10000)",
+		"_pragma=temp_store(FILE)",
+		"_pragma=mmap_size(0)",
+	} {
+		if !strings.Contains(dsn, want) {
+			t.Fatalf("sqliteDSN missing %q in %q", want, dsn)
+		}
 	}
 }

@@ -602,6 +602,16 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 	if info.IsDir() || !IsSupported(abs) {
 		return false, fmt.Errorf("unsupported audio file")
 	}
+	sizeBytes := info.Size()
+	modTimeUnixNano := info.ModTime().UnixNano()
+	existing, err := s.client.Song.Query().Where(song.Path(abs)).Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return false, err
+	}
+	existingNotFound := ent.IsNotFound(err)
+	if err == nil && existing.SizeBytes == sizeBytes && existing.ModTimeUnixNano == modTimeUnixNano {
+		return false, nil
+	}
 	meta := s.probe(ctx, abs)
 	applyMetadataFallback(abs, s.libraryDir, &meta)
 	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(abs)), ".")
@@ -617,18 +627,15 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 	if err != nil {
 		return false, err
 	}
-	existing, err := s.client.Song.Query().Where(song.Path(abs)).Only(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return false, err
-	}
-	if ent.IsNotFound(err) {
+	if existingNotFound {
 		_, err = s.client.Song.Create().
 			SetTitle(meta.Title).
 			SetPath(abs).
 			SetFileName(filepath.Base(abs)).
 			SetFormat(format).
 			SetMime(mimeType).
-			SetSizeBytes(info.Size()).
+			SetSizeBytes(sizeBytes).
+			SetModTimeUnixNano(modTimeUnixNano).
 			SetDurationSeconds(meta.Duration).
 			SetSampleRate(meta.SampleRate).
 			SetBitRate(meta.BitRate).
@@ -650,7 +657,8 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		SetFileName(filepath.Base(abs)).
 		SetFormat(format).
 		SetMime(mimeType).
-		SetSizeBytes(info.Size()).
+		SetSizeBytes(sizeBytes).
+		SetModTimeUnixNano(modTimeUnixNano).
 		SetDurationSeconds(meta.Duration).
 		SetSampleRate(meta.SampleRate).
 		SetBitRate(meta.BitRate).

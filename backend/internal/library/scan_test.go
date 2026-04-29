@@ -129,6 +129,69 @@ func TestScanPreservesSongFavoriteForExistingPath(t *testing.T) {
 	}
 }
 
+func TestImportFileSkipsUnchangedExistingPath(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	audioPath := filepath.Join(root, "Artist - Title.mp3")
+	if err := os.WriteFile(audioPath, []byte("first scan"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:scan-skip-unchanged?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: root}
+	added, err := service.importFile(ctx, audioPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added {
+		t.Fatal("expected first import to add song")
+	}
+	existing, err := client.Song.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if existing.ModTimeUnixNano == 0 {
+		t.Fatal("expected import to store file modification time")
+	}
+	if _, err := existing.Update().SetTitle("Manual Title").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	added, err = service.importFile(ctx, audioPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if added {
+		t.Fatal("expected unchanged import to reuse existing song")
+	}
+	unchanged, err := client.Song.Get(ctx, existing.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unchanged.Title != "Manual Title" {
+		t.Fatalf("expected unchanged import to skip metadata rewrite, got title %q", unchanged.Title)
+	}
+	if err := os.WriteFile(audioPath, []byte("second scan with changed bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	added, err = service.importFile(ctx, audioPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if added {
+		t.Fatal("expected changed import to update existing song")
+	}
+	changed, err := client.Song.Get(ctx, existing.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed.Title == "Manual Title" {
+		t.Fatal("expected changed import to refresh metadata")
+	}
+	if changed.ModTimeUnixNano == 0 || changed.SizeBytes == unchanged.SizeBytes {
+		t.Fatalf("expected changed import to persist file stats, size=%d mod=%d", changed.SizeBytes, changed.ModTimeUnixNano)
+	}
+}
+
 func TestCleanupMissingLibraryEntriesRemovesEmptyAlbumsWithoutMissingSongs(t *testing.T) {
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", "file:scan-empty-albums?mode=memory&cache=shared&_pragma=foreign_keys(1)")

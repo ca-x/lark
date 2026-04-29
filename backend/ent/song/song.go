@@ -26,6 +26,8 @@ const (
 	FieldMime = "mime"
 	// FieldSizeBytes holds the string denoting the size_bytes field in the database.
 	FieldSizeBytes = "size_bytes"
+	// FieldModTimeUnixNano holds the string denoting the mod_time_unix_nano field in the database.
+	FieldModTimeUnixNano = "mod_time_unix_nano"
 	// FieldDurationSeconds holds the string denoting the duration_seconds field in the database.
 	FieldDurationSeconds = "duration_seconds"
 	// FieldSampleRate holds the string denoting the sample_rate field in the database.
@@ -108,6 +110,7 @@ var Columns = []string{
 	FieldFormat,
 	FieldMime,
 	FieldSizeBytes,
+	FieldModTimeUnixNano,
 	FieldDurationSeconds,
 	FieldSampleRate,
 	FieldBitRate,
@@ -164,6 +167,8 @@ var (
 	DefaultMime string
 	// DefaultSizeBytes holds the default value on creation for the "size_bytes" field.
 	DefaultSizeBytes int64
+	// DefaultModTimeUnixNano holds the default value on creation for the "mod_time_unix_nano" field.
+	DefaultModTimeUnixNano int64
 	// DefaultDurationSeconds holds the default value on creation for the "duration_seconds" field.
 	DefaultDurationSeconds float64
 	// DefaultSampleRate holds the default value on creation for the "sample_rate" field.
@@ -228,6 +233,11 @@ func ByMime(opts ...sql.OrderTermOption) OrderOption {
 // BySizeBytes orders the results by the size_bytes field.
 func BySizeBytes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSizeBytes, opts...).ToFunc()
+}
+
+// ByModTimeUnixNano orders the results by the mod_time_unix_nano field.
+func ByModTimeUnixNano(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModTimeUnixNano, opts...).ToFunc()
 }
 
 // ByDurationSeconds orders the results by the duration_seconds field.

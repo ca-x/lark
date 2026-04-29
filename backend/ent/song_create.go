@@ -85,6 +85,20 @@ func (_c *SongCreate) SetNillableSizeBytes(v *int64) *SongCreate {
 	return _c
 }
 
+// SetModTimeUnixNano sets the "mod_time_unix_nano" field.
+func (_c *SongCreate) SetModTimeUnixNano(v int64) *SongCreate {
+	_c.mutation.SetModTimeUnixNano(v)
+	return _c
+}
+
+// SetNillableModTimeUnixNano sets the "mod_time_unix_nano" field if the given value is not nil.
+func (_c *SongCreate) SetNillableModTimeUnixNano(v *int64) *SongCreate {
+	if v != nil {
+		_c.SetModTimeUnixNano(*v)
+	}
+	return _c
+}
+
 // SetDurationSeconds sets the "duration_seconds" field.
 func (_c *SongCreate) SetDurationSeconds(v float64) *SongCreate {
 	_c.mutation.SetDurationSeconds(v)
@@ -397,6 +411,10 @@ func (_c *SongCreate) defaults() {
 		v := song.DefaultSizeBytes
 		_c.mutation.SetSizeBytes(v)
 	}
+	if _, ok := _c.mutation.ModTimeUnixNano(); !ok {
+		v := song.DefaultModTimeUnixNano
+		_c.mutation.SetModTimeUnixNano(v)
+	}
 	if _, ok := _c.mutation.DurationSeconds(); !ok {
 		v := song.DefaultDurationSeconds
 		_c.mutation.SetDurationSeconds(v)
@@ -481,6 +499,9 @@ func (_c *SongCreate) check() error {
 	}
 	if _, ok := _c.mutation.SizeBytes(); !ok {
 		return &ValidationError{Name: "size_bytes", err: errors.New(`ent: missing required field "Song.size_bytes"`)}
+	}
+	if _, ok := _c.mutation.ModTimeUnixNano(); !ok {
+		return &ValidationError{Name: "mod_time_unix_nano", err: errors.New(`ent: missing required field "Song.mod_time_unix_nano"`)}
 	}
 	if _, ok := _c.mutation.DurationSeconds(); !ok {
 		return &ValidationError{Name: "duration_seconds", err: errors.New(`ent: missing required field "Song.duration_seconds"`)}
@@ -567,6 +588,10 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.SizeBytes(); ok {
 		_spec.SetField(song.FieldSizeBytes, field.TypeInt64, value)
 		_node.SizeBytes = value
+	}
+	if value, ok := _c.mutation.ModTimeUnixNano(); ok {
+		_spec.SetField(song.FieldModTimeUnixNano, field.TypeInt64, value)
+		_node.ModTimeUnixNano = value
 	}
 	if value, ok := _c.mutation.DurationSeconds(); ok {
 		_spec.SetField(song.FieldDurationSeconds, field.TypeFloat64, value)

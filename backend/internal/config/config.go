@@ -85,7 +85,7 @@ func EnsureRuntimeDirs(cfg Config) error {
 }
 
 func sqliteDSN(path string) string {
-	return fmt.Sprintf("file:%s?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)", path)
+	return fmt.Sprintf("file:%s?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)", path)
 }
 
 func getEnv(key, fallback string) string {

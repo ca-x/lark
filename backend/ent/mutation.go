@@ -4707,6 +4707,8 @@ type SongMutation struct {
 	mime                  *string
 	size_bytes            *int64
 	addsize_bytes         *int64
+	mod_time_unix_nano    *int64
+	addmod_time_unix_nano *int64
 	duration_seconds      *float64
 	addduration_seconds   *float64
 	sample_rate           *int
@@ -5077,6 +5079,62 @@ func (m *SongMutation) AddedSizeBytes() (r int64, exists bool) {
 func (m *SongMutation) ResetSizeBytes() {
 	m.size_bytes = nil
 	m.addsize_bytes = nil
+}
+
+// SetModTimeUnixNano sets the "mod_time_unix_nano" field.
+func (m *SongMutation) SetModTimeUnixNano(i int64) {
+	m.mod_time_unix_nano = &i
+	m.addmod_time_unix_nano = nil
+}
+
+// ModTimeUnixNano returns the value of the "mod_time_unix_nano" field in the mutation.
+func (m *SongMutation) ModTimeUnixNano() (r int64, exists bool) {
+	v := m.mod_time_unix_nano
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModTimeUnixNano returns the old "mod_time_unix_nano" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldModTimeUnixNano(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModTimeUnixNano is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModTimeUnixNano requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModTimeUnixNano: %w", err)
+	}
+	return oldValue.ModTimeUnixNano, nil
+}
+
+// AddModTimeUnixNano adds i to the "mod_time_unix_nano" field.
+func (m *SongMutation) AddModTimeUnixNano(i int64) {
+	if m.addmod_time_unix_nano != nil {
+		*m.addmod_time_unix_nano += i
+	} else {
+		m.addmod_time_unix_nano = &i
+	}
+}
+
+// AddedModTimeUnixNano returns the value that was added to the "mod_time_unix_nano" field in this mutation.
+func (m *SongMutation) AddedModTimeUnixNano() (r int64, exists bool) {
+	v := m.addmod_time_unix_nano
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetModTimeUnixNano resets all changes to the "mod_time_unix_nano" field.
+func (m *SongMutation) ResetModTimeUnixNano() {
+	m.mod_time_unix_nano = nil
+	m.addmod_time_unix_nano = nil
 }
 
 // SetDurationSeconds sets the "duration_seconds" field.
@@ -5954,7 +6012,7 @@ func (m *SongMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SongMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 20)
 	if m.title != nil {
 		fields = append(fields, song.FieldTitle)
 	}
@@ -5972,6 +6030,9 @@ func (m *SongMutation) Fields() []string {
 	}
 	if m.size_bytes != nil {
 		fields = append(fields, song.FieldSizeBytes)
+	}
+	if m.mod_time_unix_nano != nil {
+		fields = append(fields, song.FieldModTimeUnixNano)
 	}
 	if m.duration_seconds != nil {
 		fields = append(fields, song.FieldDurationSeconds)
@@ -6032,6 +6093,8 @@ func (m *SongMutation) Field(name string) (ent.Value, bool) {
 		return m.Mime()
 	case song.FieldSizeBytes:
 		return m.SizeBytes()
+	case song.FieldModTimeUnixNano:
+		return m.ModTimeUnixNano()
 	case song.FieldDurationSeconds:
 		return m.DurationSeconds()
 	case song.FieldSampleRate:
@@ -6079,6 +6142,8 @@ func (m *SongMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldMime(ctx)
 	case song.FieldSizeBytes:
 		return m.OldSizeBytes(ctx)
+	case song.FieldModTimeUnixNano:
+		return m.OldModTimeUnixNano(ctx)
 	case song.FieldDurationSeconds:
 		return m.OldDurationSeconds(ctx)
 	case song.FieldSampleRate:
@@ -6155,6 +6220,13 @@ func (m *SongMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSizeBytes(v)
+		return nil
+	case song.FieldModTimeUnixNano:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModTimeUnixNano(v)
 		return nil
 	case song.FieldDurationSeconds:
 		v, ok := value.(float64)
@@ -6258,6 +6330,9 @@ func (m *SongMutation) AddedFields() []string {
 	if m.addsize_bytes != nil {
 		fields = append(fields, song.FieldSizeBytes)
 	}
+	if m.addmod_time_unix_nano != nil {
+		fields = append(fields, song.FieldModTimeUnixNano)
+	}
 	if m.addduration_seconds != nil {
 		fields = append(fields, song.FieldDurationSeconds)
 	}
@@ -6286,6 +6361,8 @@ func (m *SongMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case song.FieldSizeBytes:
 		return m.AddedSizeBytes()
+	case song.FieldModTimeUnixNano:
+		return m.AddedModTimeUnixNano()
 	case song.FieldDurationSeconds:
 		return m.AddedDurationSeconds()
 	case song.FieldSampleRate:
@@ -6313,6 +6390,13 @@ func (m *SongMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddSizeBytes(v)
+		return nil
+	case song.FieldModTimeUnixNano:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddModTimeUnixNano(v)
 		return nil
 	case song.FieldDurationSeconds:
 		v, ok := value.(float64)
@@ -6409,6 +6493,9 @@ func (m *SongMutation) ResetField(name string) error {
 		return nil
 	case song.FieldSizeBytes:
 		m.ResetSizeBytes()
+		return nil
+	case song.FieldModTimeUnixNano:
+		m.ResetModTimeUnixNano()
 		return nil
 	case song.FieldDurationSeconds:
 		m.ResetDurationSeconds()

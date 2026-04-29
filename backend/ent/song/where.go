@@ -85,6 +85,11 @@ func SizeBytes(v int64) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldSizeBytes, v))
 }
 
+// ModTimeUnixNano applies equality check predicate on the "mod_time_unix_nano" field. It's identical to ModTimeUnixNanoEQ.
+func ModTimeUnixNano(v int64) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldModTimeUnixNano, v))
+}
+
 // DurationSeconds applies equality check predicate on the "duration_seconds" field. It's identical to DurationSecondsEQ.
 func DurationSeconds(v float64) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldDurationSeconds, v))
@@ -513,6 +518,46 @@ func SizeBytesLT(v int64) predicate.Song {
 // SizeBytesLTE applies the LTE predicate on the "size_bytes" field.
 func SizeBytesLTE(v int64) predicate.Song {
 	return predicate.Song(sql.FieldLTE(FieldSizeBytes, v))
+}
+
+// ModTimeUnixNanoEQ applies the EQ predicate on the "mod_time_unix_nano" field.
+func ModTimeUnixNanoEQ(v int64) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldModTimeUnixNano, v))
+}
+
+// ModTimeUnixNanoNEQ applies the NEQ predicate on the "mod_time_unix_nano" field.
+func ModTimeUnixNanoNEQ(v int64) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldModTimeUnixNano, v))
+}
+
+// ModTimeUnixNanoIn applies the In predicate on the "mod_time_unix_nano" field.
+func ModTimeUnixNanoIn(vs ...int64) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldModTimeUnixNano, vs...))
+}
+
+// ModTimeUnixNanoNotIn applies the NotIn predicate on the "mod_time_unix_nano" field.
+func ModTimeUnixNanoNotIn(vs ...int64) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldModTimeUnixNano, vs...))
+}
+
+// ModTimeUnixNanoGT applies the GT predicate on the "mod_time_unix_nano" field.
+func ModTimeUnixNanoGT(v int64) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldModTimeUnixNano, v))
+}
+
+// ModTimeUnixNanoGTE applies the GTE predicate on the "mod_time_unix_nano" field.
+func ModTimeUnixNanoGTE(v int64) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldModTimeUnixNano, v))
+}
+
+// ModTimeUnixNanoLT applies the LT predicate on the "mod_time_unix_nano" field.
+func ModTimeUnixNanoLT(v int64) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldModTimeUnixNano, v))
+}
+
+// ModTimeUnixNanoLTE applies the LTE predicate on the "mod_time_unix_nano" field.
+func ModTimeUnixNanoLTE(v int64) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldModTimeUnixNano, v))
 }
 
 // DurationSecondsEQ applies the EQ predicate on the "duration_seconds" field.

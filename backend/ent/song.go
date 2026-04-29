@@ -31,6 +31,8 @@ type Song struct {
 	Mime string `json:"mime,omitempty"`
 	// SizeBytes holds the value of the "size_bytes" field.
 	SizeBytes int64 `json:"size_bytes,omitempty"`
+	// ModTimeUnixNano holds the value of the "mod_time_unix_nano" field.
+	ModTimeUnixNano int64 `json:"mod_time_unix_nano,omitempty"`
 	// DurationSeconds holds the value of the "duration_seconds" field.
 	DurationSeconds float64 `json:"duration_seconds,omitempty"`
 	// SampleRate holds the value of the "sample_rate" field.
@@ -140,7 +142,7 @@ func (*Song) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case song.FieldDurationSeconds:
 			values[i] = new(sql.NullFloat64)
-		case song.FieldID, song.FieldSizeBytes, song.FieldSampleRate, song.FieldBitRate, song.FieldBitDepth, song.FieldYear, song.FieldPlayCount:
+		case song.FieldID, song.FieldSizeBytes, song.FieldModTimeUnixNano, song.FieldSampleRate, song.FieldBitRate, song.FieldBitDepth, song.FieldYear, song.FieldPlayCount:
 			values[i] = new(sql.NullInt64)
 		case song.FieldTitle, song.FieldPath, song.FieldFileName, song.FieldFormat, song.FieldMime, song.FieldLyricsEmbedded, song.FieldLyricsSource, song.FieldNeteaseID:
 			values[i] = new(sql.NullString)
@@ -206,6 +208,12 @@ func (_m *Song) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field size_bytes", values[i])
 			} else if value.Valid {
 				_m.SizeBytes = value.Int64
+			}
+		case song.FieldModTimeUnixNano:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field mod_time_unix_nano", values[i])
+			} else if value.Valid {
+				_m.ModTimeUnixNano = value.Int64
 			}
 		case song.FieldDurationSeconds:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -378,6 +386,9 @@ func (_m *Song) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("size_bytes=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SizeBytes))
+	builder.WriteString(", ")
+	builder.WriteString("mod_time_unix_nano=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ModTimeUnixNano))
 	builder.WriteString(", ")
 	builder.WriteString("duration_seconds=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DurationSeconds))
