@@ -27,5 +27,6 @@ func (UserAlbumFavorite) Edges() []ent.Edge {
 func (UserAlbumFavorite) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Edges("user", "album").Unique(),
+		index.Edges("user").Fields("created_at"),
 	}
 }

@@ -39,6 +39,16 @@ var (
 				Unique:  true,
 				Columns: []*schema.Column{AlbumsColumns[1], AlbumsColumns[2]},
 			},
+			{
+				Name:    "album_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{AlbumsColumns[7]},
+			},
+			{
+				Name:    "album_artist_albums",
+				Unique:  false,
+				Columns: []*schema.Column{AlbumsColumns[8]},
+			},
 		},
 	}
 	// AppSettingsColumns holds the columns for the "app_settings" table.
@@ -139,6 +149,16 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{PlayHistoriesColumns[6]},
 			},
+			{
+				Name:    "playhistory_updated_at_user_play_history",
+				Unique:  false,
+				Columns: []*schema.Column{PlayHistoriesColumns[5], PlayHistoriesColumns[7]},
+			},
+			{
+				Name:    "playhistory_updated_at_user_play_history_song_play_history",
+				Unique:  false,
+				Columns: []*schema.Column{PlayHistoriesColumns[5], PlayHistoriesColumns[7], PlayHistoriesColumns[6]},
+			},
 		},
 	}
 	// PlaylistsColumns holds the columns for the "playlists" table.
@@ -163,6 +183,13 @@ var (
 				Columns:    []*schema.Column{PlaylistsColumns[7]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "playlist_updated_at_user_playlists",
+				Unique:  false,
+				Columns: []*schema.Column{PlaylistsColumns[6], PlaylistsColumns[7]},
 			},
 		},
 	}
@@ -326,6 +353,11 @@ var (
 				Unique:  true,
 				Columns: []*schema.Column{UserAlbumFavoritesColumns[3], UserAlbumFavoritesColumns[2]},
 			},
+			{
+				Name:    "useralbumfavorite_created_at_user_album_favorites",
+				Unique:  false,
+				Columns: []*schema.Column{UserAlbumFavoritesColumns[1], UserAlbumFavoritesColumns[3]},
+			},
 		},
 	}
 	// UserArtistFavoritesColumns holds the columns for the "user_artist_favorites" table.
@@ -359,6 +391,11 @@ var (
 				Name:    "userartistfavorite_user_artist_favorites_artist_user_favorites",
 				Unique:  true,
 				Columns: []*schema.Column{UserArtistFavoritesColumns[3], UserArtistFavoritesColumns[2]},
+			},
+			{
+				Name:    "userartistfavorite_created_at_user_artist_favorites",
+				Unique:  false,
+				Columns: []*schema.Column{UserArtistFavoritesColumns[1], UserArtistFavoritesColumns[3]},
 			},
 		},
 	}
@@ -431,6 +468,11 @@ var (
 				Name:    "usersongfavorite_user_song_favorites_song_user_favorites",
 				Unique:  true,
 				Columns: []*schema.Column{UserSongFavoritesColumns[3], UserSongFavoritesColumns[2]},
+			},
+			{
+				Name:    "usersongfavorite_created_at_user_song_favorites",
+				Unique:  false,
+				Columns: []*schema.Column{UserSongFavoritesColumns[1], UserSongFavoritesColumns[3]},
 			},
 		},
 	}

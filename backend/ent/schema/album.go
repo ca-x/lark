@@ -34,5 +34,7 @@ func (Album) Edges() []ent.Edge {
 func (Album) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("title", "album_artist").Unique(),
+		index.Fields("updated_at"),
+		index.Edges("artist"),
 	}
 }

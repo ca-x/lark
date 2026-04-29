@@ -32,5 +32,7 @@ func (PlayHistory) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Edges("user"),
 		index.Edges("song"),
+		index.Edges("user").Fields("updated_at"),
+		index.Edges("user", "song").Fields("updated_at"),
 	}
 }

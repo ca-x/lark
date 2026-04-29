@@ -6,6 +6,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 type Playlist struct{ ent.Schema }
@@ -25,5 +26,11 @@ func (Playlist) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("songs", Song.Type),
 		edge.From("owner", User.Type).Ref("playlists").Unique(),
+	}
+}
+
+func (Playlist) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Edges("owner").Fields("updated_at"),
 	}
 }

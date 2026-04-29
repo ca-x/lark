@@ -53,20 +53,29 @@ var supportedExts = map[string]bool{
 var coverHTTPClient = &http.Client{Timeout: 6 * time.Second}
 
 type Service struct {
-	client     *ent.Client
-	dataDir    string
-	libraryDir string
-	ffprobe    string
-	ffmpeg     string
-	netease    *netease.Client
-	qqmusic    *qqmusic.Client
-	online     []online.Provider
-	cache      kv.Store
-	cacheTTL   time.Duration
-	scanRunMu  sync.Mutex
-	scanMu     sync.RWMutex
-	scanCancel context.CancelFunc
-	scanStatus models.ScanStatus
+	client        *ent.Client
+	dataDir       string
+	libraryDir    string
+	ffprobe       string
+	ffmpeg        string
+	netease       *netease.Client
+	qqmusic       *qqmusic.Client
+	online        []online.Provider
+	cache         kv.Store
+	cacheTTL      time.Duration
+	catalogMu     sync.RWMutex
+	catalogLoadMu struct {
+		artists sync.Mutex
+		songs   sync.Mutex
+	}
+	artistCatalog       []models.Artist
+	artistCatalogLoaded bool
+	songCatalog         []models.Song
+	songCatalogLoaded   bool
+	scanRunMu           sync.Mutex
+	scanMu              sync.RWMutex
+	scanCancel          context.CancelFunc
+	scanStatus          models.ScanStatus
 }
 
 type ffprobeOutput struct {
@@ -402,6 +411,7 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 	}
 	if result.Canceled {
 		s.invalidateLibraryCache(ctx)
+		s.invalidateSearchCatalogs(ctx)
 		return result, nil
 	}
 	rootPaths := make([]string, 0, len(roots))
@@ -996,8 +1006,8 @@ func maxInt(a, b int) int {
 }
 
 const libraryCachePrefix = "library:v1:"
-const artistCatalogCacheKey = "artist-catalog:v1"
-const songCatalogCacheKey = "song-catalog:v1"
+const artistCatalogCacheKey = libraryCachePrefix + "catalog:v2:artists"
+const songCatalogCacheKey = libraryCachePrefix + "catalog:v2:songs"
 
 func cacheKey(parts ...any) string {
 	var b strings.Builder
@@ -1050,6 +1060,31 @@ func (s *Service) invalidateLibraryCache(ctx context.Context) {
 		return
 	}
 	_ = s.cache.DeletePrefix(ctx, libraryCachePrefix)
+}
+
+func (s *Service) invalidateArtistCatalog(ctx context.Context) {
+	s.catalogMu.Lock()
+	s.artistCatalog = nil
+	s.artistCatalogLoaded = false
+	s.catalogMu.Unlock()
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, artistCatalogCacheKey)
+	}
+}
+
+func (s *Service) invalidateSongCatalog(ctx context.Context) {
+	s.catalogMu.Lock()
+	s.songCatalog = nil
+	s.songCatalogLoaded = false
+	s.catalogMu.Unlock()
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, songCatalogCacheKey)
+	}
+}
+
+func (s *Service) invalidateSearchCatalogs(ctx context.Context) {
+	s.invalidateArtistCatalog(ctx)
+	s.invalidateSongCatalog(ctx)
 }
 
 func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Folder, error) {
@@ -1710,6 +1745,7 @@ func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
 		return err
 	}
 	s.invalidateLibraryCache(ctx)
+	s.invalidateSongCatalog(ctx)
 	return nil
 }
 
@@ -1744,17 +1780,24 @@ func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, prog
 			SetDurationSeconds(durationSeconds).
 			SetCompleted(completed).
 			Save(ctx)
+		if err == nil {
+			s.invalidateLibraryCache(ctx)
+		}
 		return err
 	}
 	if err != nil {
 		return err
 	}
-	return s.client.PlayHistory.UpdateOneID(history.ID).
+	err = s.client.PlayHistory.UpdateOneID(history.ID).
 		SetProgressSeconds(progressSeconds).
 		SetDurationSeconds(durationSeconds).
 		SetCompleted(completed).
 		SetUpdatedAt(now).
 		Exec(ctx)
+	if err == nil {
+		s.invalidateLibraryCache(ctx)
+	}
+	return err
 }
 
 func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.Lyrics, error) {
@@ -1768,6 +1811,7 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 		if lyric, source := s.preferredLocalLyrics(ctx, item, includeSidecar); lyric != "" {
 			if item.LyricsSource != source || strings.TrimSpace(item.LyricsEmbedded) != lyric {
 				_, _ = item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(source).Save(ctx)
+				s.invalidateSongCatalog(ctx)
 			}
 			return models.Lyrics{SongID: id, Source: source, Lyrics: lyric}, nil
 		}
@@ -1812,6 +1856,7 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 		update.SetNeteaseID(matchedID)
 	}
 	_, _ = update.Save(ctx)
+	s.invalidateSongCatalog(ctx)
 	return models.Lyrics{SongID: id, Source: matchedSource, Lyrics: lyric, Fetched: true}, nil
 }
 
@@ -1925,6 +1970,7 @@ func (s *Service) SelectLyrics(ctx context.Context, id int, source, sourceID str
 	if err := update.Exec(ctx); err != nil {
 		return models.Lyrics{}, err
 	}
+	s.invalidateSongCatalog(ctx)
 	return models.Lyrics{SongID: id, Source: source, Lyrics: lyric, Fetched: true}, nil
 }
 
@@ -2304,25 +2350,53 @@ func artistMatchesSearchTerm(item models.Artist, term string) bool {
 }
 
 func (s *Service) cachedArtistCatalog(ctx context.Context) ([]models.Artist, error) {
-	key := artistCatalogCacheKey
+	if items, ok := s.artistCatalogSnapshot(); ok {
+		return items, nil
+	}
+	s.catalogLoadMu.artists.Lock()
+	defer s.catalogLoadMu.artists.Unlock()
+	if items, ok := s.artistCatalogSnapshot(); ok {
+		return items, nil
+	}
 	var cached []models.Artist
-	if ok, err := s.cacheGetJSON(ctx, key, &cached); err == nil && ok {
-		return cached, nil
+	if ok, err := s.cacheGetJSON(ctx, artistCatalogCacheKey, &cached); err == nil && ok {
+		s.storeArtistCatalogSnapshot(cached)
+		return cloneArtists(cached), nil
 	}
 	items, err := s.buildArtistCatalog(ctx)
 	if err != nil {
 		return nil, err
 	}
-	_ = s.cacheSetJSONPermanent(ctx, key, items)
-	return items, nil
+	s.storeArtistCatalogSnapshot(items)
+	_ = s.cacheSetJSONPermanent(ctx, artistCatalogCacheKey, items)
+	return cloneArtists(items), nil
 }
 
 func (s *Service) refreshArtistCatalogCache(ctx context.Context) error {
+	s.catalogLoadMu.artists.Lock()
+	defer s.catalogLoadMu.artists.Unlock()
 	items, err := s.buildArtistCatalog(ctx)
 	if err != nil {
 		return err
 	}
+	s.storeArtistCatalogSnapshot(items)
 	return s.cacheSetJSONPermanent(ctx, artistCatalogCacheKey, items)
+}
+
+func (s *Service) artistCatalogSnapshot() ([]models.Artist, bool) {
+	s.catalogMu.RLock()
+	defer s.catalogMu.RUnlock()
+	if !s.artistCatalogLoaded {
+		return nil, false
+	}
+	return cloneArtists(s.artistCatalog), true
+}
+
+func (s *Service) storeArtistCatalogSnapshot(items []models.Artist) {
+	s.catalogMu.Lock()
+	defer s.catalogMu.Unlock()
+	s.artistCatalog = cloneArtists(items)
+	s.artistCatalogLoaded = true
 }
 
 func (s *Service) buildArtistCatalog(ctx context.Context) ([]models.Artist, error) {
@@ -2349,24 +2423,61 @@ func (s *Service) buildArtistCatalog(ctx context.Context) ([]models.Artist, erro
 }
 
 func (s *Service) cachedSongCatalog(ctx context.Context) ([]models.Song, error) {
+	if items, ok := s.songCatalogSnapshot(); ok {
+		return items, nil
+	}
+	s.catalogLoadMu.songs.Lock()
+	defer s.catalogLoadMu.songs.Unlock()
+	if items, ok := s.songCatalogSnapshot(); ok {
+		return items, nil
+	}
 	var cached []models.Song
 	if ok, err := s.cacheGetJSON(ctx, songCatalogCacheKey, &cached); err == nil && ok {
-		return cached, nil
+		s.storeSongCatalogSnapshot(cached)
+		return cloneSongs(cached), nil
 	}
 	items, err := s.buildSongCatalog(ctx)
 	if err != nil {
 		return nil, err
 	}
+	s.storeSongCatalogSnapshot(items)
 	_ = s.cacheSetJSONPermanent(ctx, songCatalogCacheKey, items)
-	return items, nil
+	return cloneSongs(items), nil
 }
 
 func (s *Service) refreshSongCatalogCache(ctx context.Context) error {
+	s.catalogLoadMu.songs.Lock()
+	defer s.catalogLoadMu.songs.Unlock()
 	items, err := s.buildSongCatalog(ctx)
 	if err != nil {
 		return err
 	}
+	s.storeSongCatalogSnapshot(items)
 	return s.cacheSetJSONPermanent(ctx, songCatalogCacheKey, items)
+}
+
+func (s *Service) songCatalogSnapshot() ([]models.Song, bool) {
+	s.catalogMu.RLock()
+	defer s.catalogMu.RUnlock()
+	if !s.songCatalogLoaded {
+		return nil, false
+	}
+	return cloneSongs(s.songCatalog), true
+}
+
+func (s *Service) storeSongCatalogSnapshot(items []models.Song) {
+	s.catalogMu.Lock()
+	defer s.catalogMu.Unlock()
+	s.songCatalog = cloneSongs(items)
+	s.songCatalogLoaded = true
+}
+
+func cloneArtists(items []models.Artist) []models.Artist {
+	return append([]models.Artist(nil), items...)
+}
+
+func cloneSongs(items []models.Song) []models.Song {
+	return append([]models.Song(nil), items...)
 }
 
 func (s *Service) buildSongCatalog(ctx context.Context) ([]models.Song, error) {
