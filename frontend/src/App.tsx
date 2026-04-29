@@ -3104,10 +3104,12 @@ export default function App() {
         ) : (
           <>
             <header className="topbar">
-              <div className={topbarHasScreenTitle ? "top-title" : "top-title compact"}>
-                <span>{topbarHasScreenTitle ? t("brand") : t("playingFrom")}</span>
-                {topbarHasScreenTitle ? <h1>{screenTitle}</h1> : null}
-              </div>
+              {topbarHasScreenTitle ? (
+                <div className="top-title">
+                  <span>{t("brand")}</span>
+                  <h1>{screenTitle}</h1>
+                </div>
+              ) : null}
               {view !== "radio" && view !== "library" ? (
                 <SongSearchBox
                   t={t}
