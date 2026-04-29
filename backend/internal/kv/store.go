@@ -16,6 +16,7 @@ type Store interface {
 	SetNX(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)
 	Delete(ctx context.Context, key string) error
 	DeletePrefix(ctx context.Context, prefix string) error
+	RunValueLogGC(ctx context.Context) error
 	Close() error
 }
 
@@ -136,6 +137,13 @@ func (s *MemoryStore) DeletePrefix(ctx context.Context, prefix string) error {
 	return nil
 }
 
+func (s *MemoryStore) RunValueLogGC(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *MemoryStore) Close() error {
 	select {
 	case <-s.stopCh:
@@ -155,3 +163,4 @@ func (NoopStore) SetNX(context.Context, string, []byte, time.Duration) (bool, er
 func (NoopStore) Delete(context.Context, string) error       { return nil }
 func (NoopStore) DeletePrefix(context.Context, string) error { return nil }
 func (NoopStore) Close() error                               { return nil }
+func (NoopStore) RunValueLogGC(context.Context) error        { return nil }

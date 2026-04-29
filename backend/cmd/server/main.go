@@ -48,6 +48,9 @@ func main() {
 		log.Fatal(err)
 	}
 	defer cacheStore.Close()
+	if err := cleanupLegacyCache(context.Background(), cacheStore); err != nil {
+		log.Printf("cache cleanup skipped: %v", err)
+	}
 	lib := library.New(client, cfg.DataDir, cfg.LibraryDir, cfg.FFprobeBin, cfg.FFmpegBin, netease.New(), qqmusic.New(), library.WithCache(cacheStore, time.Duration(cfg.CacheTTL)*time.Second))
 	if err := ensureInitialAdminFromEnv(context.Background(), lib, cfg); err != nil {
 		log.Fatal(err)
@@ -87,6 +90,23 @@ func main() {
 	case <-ctx.Done():
 		log.Printf("server did not stop before shutdown deadline: %v", ctx.Err())
 	}
+}
+
+func cleanupLegacyCache(ctx context.Context, store kv.Store) error {
+	if store == nil {
+		return nil
+	}
+	cleanupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	for _, key := range []string{
+		"library:v1:catalog:v2:songs",
+		"library:v1:catalog:v2:artists",
+	} {
+		if err := store.Delete(cleanupCtx, key); err != nil {
+			return err
+		}
+	}
+	return store.RunValueLogGC(cleanupCtx)
 }
 
 func ensureInitialAdminFromEnv(ctx context.Context, lib *library.Service, cfg config.Config) error {

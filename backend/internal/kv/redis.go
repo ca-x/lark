@@ -110,6 +110,13 @@ func (s *RedisStore) DeletePrefix(ctx context.Context, prefix string) error {
 	return flush()
 }
 
+func (s *RedisStore) RunValueLogGC(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *RedisStore) Close() error {
 	if s == nil || s.client == nil {
 		return nil

@@ -85,11 +85,11 @@ func badgerProfileForItems(estimatedItems int) badgerMemoryProfile {
 		p.indexCache = 6 << 20
 		p.valueLogFile = 24 << 20
 	default:
-		cacheBudget := clampInt64(memBytes/128, 32<<20, 256<<20)
+		cacheBudget := clampInt64(memBytes/256, 24<<20, 96<<20)
 		p.memTableSize = cacheBudget / 4
 		p.blockCache = cacheBudget / 2
 		p.indexCache = cacheBudget / 4
-		p.valueLogFile = clampInt64(cacheBudget, 32<<20, 128<<20)
+		p.valueLogFile = clampInt64(cacheBudget/2, 16<<20, 64<<20)
 	}
 	if overrideMB, ok := badgerCacheOverrideMB(); ok {
 		cacheBudget := int64(overrideMB) << 20
@@ -106,8 +106,6 @@ func badgerProfileForItems(estimatedItems int) badgerMemoryProfile {
 		p.indexCache /= 2
 		p.valueLogFile /= 2
 	} else if estimatedItems >= 50000 {
-		p.blockCache += p.blockCache / 2
-		p.indexCache += p.indexCache / 2
 		p.valueLogFile *= 2
 	}
 	if p.memTableSize < 1<<20 {
@@ -306,6 +304,24 @@ func (s *BadgerStore) DeletePrefix(ctx context.Context, prefix string) error {
 				return err
 			}
 			return nil
+		}
+	}
+}
+
+func (s *BadgerStore) RunValueLogGC(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := s.db.RunValueLogGC(0.5)
+		if errors.Is(err, badger.ErrNoRewrite) {
+			return nil
+		}
+		if err != nil {
+			return err
 		}
 	}
 }

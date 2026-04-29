@@ -11,11 +11,11 @@ func TestBadgerProfileForItemsScalesMemoryWithEstimatedItems(t *testing.T) {
 	medium := badgerProfileForItems(5000)
 	large := badgerProfileForItems(50000)
 
-	if !(small.blockCache < medium.blockCache && medium.blockCache < large.blockCache) {
-		t.Fatalf("expected block cache to scale with item count: small=%d medium=%d large=%d", small.blockCache, medium.blockCache, large.blockCache)
+	if !(small.blockCache < medium.blockCache && medium.blockCache <= large.blockCache) {
+		t.Fatalf("expected block cache to stay bounded with item count: small=%d medium=%d large=%d", small.blockCache, medium.blockCache, large.blockCache)
 	}
-	if !(small.indexCache < medium.indexCache && medium.indexCache < large.indexCache) {
-		t.Fatalf("expected index cache to scale with item count: small=%d medium=%d large=%d", small.indexCache, medium.indexCache, large.indexCache)
+	if !(small.indexCache < medium.indexCache && medium.indexCache <= large.indexCache) {
+		t.Fatalf("expected index cache to stay bounded with item count: small=%d medium=%d large=%d", small.indexCache, medium.indexCache, large.indexCache)
 	}
 	if small.numMemtables >= large.numMemtables {
 		t.Fatalf("expected large profile to allow more memtables: small=%d large=%d", small.numMemtables, large.numMemtables)
