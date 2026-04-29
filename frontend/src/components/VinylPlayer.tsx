@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { Pause, Play, Power, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 type VinylPlayMode = "sequence" | "shuffle" | "repeat-one";
 
@@ -61,9 +61,14 @@ export function VinylTurntable({
   const isAtEnd = duration > 0 && progress >= duration - 0.2;
   const spinDuration = `${(baseSpinSeconds * (1 + endingPct * 2.6)).toFixed(2)}s`;
   const recordSpinning = playing && !isAtEnd;
+  const tonearmPct = duration > 0 ? pct : 0;
   const knobRotation = -145 + Math.max(0, Math.min(1, volume)) * 290;
+  const deckStyle = {
+    "--vinyl-spin-duration": spinDuration,
+    "--vinyl-progress-pct": `${(pct * 100).toFixed(2)}%`,
+  } as CSSProperties;
   return (
-    <div className={decorative ? "turntable vinyl-component decorative" : "turntable vinyl-component"} data-playing={recordSpinning ? "true" : "false"} data-ending={endingPct > 0 && recordSpinning ? "true" : "false"} style={{ "--vinyl-spin-duration": spinDuration } as CSSProperties}>
+    <div className={decorative ? "turntable vinyl-component decorative" : "turntable vinyl-component"} data-playing={recordSpinning ? "true" : "false"} data-ending={endingPct > 0 && recordSpinning ? "true" : "false"} style={deckStyle}>
       <div className="vinyl-plinth">
         <div className="vinyl-top-row">
           <div className="vinyl-platter-wrap">
@@ -79,7 +84,7 @@ export function VinylTurntable({
               </div>
             </div>
             <div className="vinyl-spindle" />
-            <Tonearm progress={pct} />
+            <Tonearm progress={tonearmPct} />
           </div>
           <div className="vinyl-controls">
             <div className="vinyl-speed-row"><span>RPM</span>{(["33", "45", "78"] as const).map((value) => (
@@ -111,6 +116,10 @@ export function VinylTurntable({
               <button type="button" aria-label={playing ? "Pause" : "Play"} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
               <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
               <div className="vinyl-position-row">
+                <span className="vinyl-position-track" aria-hidden="true">
+                  <span className="vinyl-position-fill" />
+                  <span className="vinyl-position-dot" />
+                </span>
                 <input
                   aria-label="Position"
                   type="range"
@@ -138,7 +147,13 @@ export function VinylTurntable({
           </div>
         </div>
       </div>
-      <div className="turntable-status">{playing ? "PLAY" : "PAUSE"}</div>
+      <div
+        className={playing ? "turntable-status vinyl-power-status on" : "turntable-status vinyl-power-status"}
+        aria-label={playing ? "Power status on" : "Power status off"}
+        title={playing ? "Power on" : "Power off"}
+      >
+        <Power weight="bold" />
+      </div>
     </div>
   );
 }
