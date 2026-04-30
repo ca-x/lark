@@ -85,6 +85,36 @@ func TestNewFeatureSettingsDefaultDisabled(t *testing.T) {
 	}
 }
 
+func TestUISoundSettingsDefaultDisabledAndPersistPerUser(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	service := &Service{client: client}
+
+	defaults, err := service.GetUISoundSettings(ctx, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.Enabled {
+		t.Fatal("expected UI sounds to default disabled")
+	}
+
+	saved, err := service.SaveUISoundSettings(ctx, 7, models.UISoundSettings{Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !saved.Enabled {
+		t.Fatal("expected saved UI sounds setting to be enabled")
+	}
+	otherUser, err := service.GetUISoundSettings(ctx, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if otherUser.Enabled {
+		t.Fatal("expected UI sounds setting to be scoped per user")
+	}
+}
+
 func TestScrobblingSettingsPersistInDatabase(t *testing.T) {
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))

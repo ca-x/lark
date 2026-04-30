@@ -160,6 +160,10 @@ type subsonicCredentialRequest struct {
 	Password string `json:"password"`
 }
 
+type uiSoundSettingsRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
 type authUserResponse struct {
 	User models.User `json:"user"`
 }
@@ -227,6 +231,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/me/subsonic", s.handleGetSubsonicCredential, auth)
 	e.PUT("/api/me/subsonic", s.handleSaveSubsonicCredential, auth)
 	e.DELETE("/api/me/subsonic", s.handleDeleteSubsonicCredential, auth)
+	e.GET("/api/me/ui-sounds", s.handleGetUISoundSettings, auth)
+	e.PUT("/api/me/ui-sounds", s.handleSaveUISoundSettings, auth)
 	e.GET("/api/users", s.handleUsers, admin)
 	e.GET("/api/mcp/token", s.handleGetMCPToken, auth)
 	e.PUT("/api/mcp/token", s.handleSetMCPToken, auth)
@@ -456,6 +462,26 @@ func (s *Server) handleSaveScrobblingSettings(c *echo.Context) error {
 		MinSeconds:  req.MinSeconds,
 		PercentGate: req.PercentGate,
 	}, req.Token)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handleGetUISoundSettings(c *echo.Context) error {
+	settings, err := s.lib.GetUISoundSettings(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handleSaveUISoundSettings(c *echo.Context) error {
+	var req uiSoundSettingsRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	settings, err := s.lib.SaveUISoundSettings(c.Request().Context(), currentUserID(c), models.UISoundSettings{Enabled: req.Enabled})
 	if err != nil {
 		return mapError(err)
 	}

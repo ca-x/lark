@@ -20,6 +20,9 @@ importers:
       react-dom:
         specifier: ^19.2.5
         version: 19.2.5(react@19.2.5)
+      seslen:
+        specifier: ^0.1.0
+        version: 0.1.0
       wavesurfer.js:
         specifier: ^7.12.6
         version: 7.12.6
@@ -888,6 +891,9 @@ packages:
     resolution: {integrity: sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA==}
     engines: {node: '>=10'}
     hasBin: true
+
+  seslen@0.1.0:
+    resolution: {integrity: sha512-8v5m2Adx88BoLeK+1am6y+a125LgURO+2Yxm+XfKYBJFD1YJAZXteWYn2dv+AiV0qAO0fhG5K5qmZMz3y4egwQ==}
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
@@ -1815,6 +1821,8 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.7.4: {}
+
+  seslen@0.1.0: {}
 
   shebang-command@2.0.0:
     dependencies:

@@ -49,6 +49,7 @@ import {
   setLazycatImmersive,
   syncLazycatChrome,
 } from "./services/lazycat";
+import { playUISound, setUISoundsEnabled } from "./services/uiSounds";
 import type {
   Album,
   AlbumPage,
@@ -70,6 +71,7 @@ import type {
   SongPage,
   SubsonicCredentialStatus,
   Theme,
+  UISoundSettings,
   User,
   WebFont,
   LibraryDirectory,
@@ -1260,6 +1262,7 @@ export default function App() {
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
   const [persistentQueueEnabled, setPersistentQueueEnabled] = useState(storedPersistentQueueEnabled);
   const [scrobblingSettings, setScrobblingSettings] = useState<ScrobblingSettings | null>(null);
+  const [uiSoundSettings, setUISoundSettings] = useState<UISoundSettings>({ enabled: false });
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [bufferedEnd, setBufferedEnd] = useState(0);
@@ -1436,6 +1439,10 @@ export default function App() {
   useEffect(() => {
     void bootstrap();
   }, []);
+
+  useEffect(() => {
+    setUISoundsEnabled(uiSoundSettings.enabled);
+  }, [uiSoundSettings.enabled]);
 
   useEffect(() => {
     const syncRoute = () => setRoute(currentBrowserRoute());
@@ -2059,7 +2066,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem] =
+    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem] =
       await Promise.all([
         api.songsPage(query, libraryPage, libraryPageSize),
         api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
@@ -2086,6 +2093,7 @@ export default function App() {
         api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
         api.radioFavorites().catch(() => []),
         api.scrobblingSettings().catch(() => null),
+        api.uiSoundSettings().catch(() => ({ enabled: false })),
       ]);
     const songItems = songPageItem.items;
     setSongs(songItems);
@@ -2111,6 +2119,7 @@ export default function App() {
     setPlaylists(playlistPageItem.items);
     setSmartPlaylists(smartPlaylistItems);
     setScrobblingSettings(scrobblingItem);
+    setUISoundSettings(uiSoundItem);
     let restoredQueue: Song[] = [];
     let restoredCurrent: Song | null = null;
     if (options.initializeQueue && auth?.user && persistentQueueEnabled) {
@@ -2350,6 +2359,7 @@ export default function App() {
       window.requestAnimationFrame(requestAudioPlay);
     }
     setPlaying(true);
+    playUISound("play");
     persistPlaybackSourceForPlay(options);
     await api.markPlayed(song.id).catch(() => undefined);
     void refreshRecentPlayed();
@@ -2370,8 +2380,10 @@ export default function App() {
     radioDownloadSampleRef.current = { at: 0, ahead: 0 };
     setCurrent(null);
     const playableStation = radioStationToPlayable(station);
+    const inferredGroupQueue = radioQueueForStation(station);
+    const nextRadioQueue = list?.length ? list : inferredGroupQueue.length ? inferredGroupQueue : [station];
     setCurrentRadio(playableStation);
-    setRadioQueue((list?.length ? list : [station]).map(radioStationToPlayable));
+    setRadioQueue(nextRadioQueue.map(radioStationToPlayable));
     setCurrentNetworkTrack(null);
     setLyrics(null);
     setLyricCandidates([]);
@@ -2381,6 +2393,19 @@ export default function App() {
     setStreamOffset(0);
     setStreamMode("auto");
     setPlaying(true);
+    playUISound("play");
+  }
+
+  function radioQueueForStation(station: RadioStation) {
+    const group = station.group_name || "";
+    const sourceURL = station.source_url || "";
+    const rawURL = radioRawURL(station);
+    const matches = radioSources.filter((source) => {
+      if (group && radioGroupName(source) === group) return true;
+      if (sourceURL && source.source_url === sourceURL) return true;
+      return rawURL !== "" && source.url === rawURL;
+    });
+    return matches.map(radioSourceToStation);
   }
 
   function playNetworkTrack(track: NetworkTrack) {
@@ -2408,6 +2433,7 @@ export default function App() {
     setStreamOffset(0);
     setStreamMode("auto");
     setPlaying(true);
+    playUISound("play");
   }
 
   async function loadRadioStations(search = "") {
@@ -2452,7 +2478,7 @@ export default function App() {
           : delta > 0
             ? 0
             : radioList.length - 1;
-        playRadio(radioList[nextIndex]);
+        playRadio(radioList[nextIndex], radioList);
       }
       return;
     }
@@ -2531,6 +2557,7 @@ export default function App() {
   function insertNextBatch(items: Song[]) {
     const requested = uniqueSongs(items.filter(Boolean), MAX_PLAYBACK_QUEUE_SIZE);
     if (!requested.length) return;
+    playUISound("success");
     if (!current) {
       setQueue(requested);
       void playSong(requested[0], requested);
@@ -2616,6 +2643,7 @@ export default function App() {
   }
 
   function cyclePlayMode() {
+    playUISound("click");
     setPlayMode((mode) =>
       mode === "sequence"
         ? "shuffle"
@@ -2733,9 +2761,11 @@ export default function App() {
   async function toggleFavorite(song: Song) {
     const updated = await api.favoriteSong(song.id);
     updateSongState(updated);
+    playUISound(updated.favorite ? "favorite" : "toggleOff");
   }
 
   function openShareDialog(type: ShareTarget["type"], id: number, title: string) {
+    playUISound("share");
     setShareDialogTarget({ type, id, title });
   }
 
@@ -2771,12 +2801,16 @@ export default function App() {
   }
 
   async function toggleAlbumFavorite(album: Album) {
-    updateAlbumFavoriteState(await api.favoriteAlbum(album.id));
+    const updated = await api.favoriteAlbum(album.id);
+    updateAlbumFavoriteState(updated);
+    playUISound(updated.favorite ? "favorite" : "toggleOff");
   }
 
   async function toggleAlbumFavoriteById(id: number) {
     if (!id) return;
-    updateAlbumFavoriteState(await api.favoriteAlbum(id));
+    const updated = await api.favoriteAlbum(id);
+    updateAlbumFavoriteState(updated);
+    playUISound(updated.favorite ? "favorite" : "toggleOff");
   }
 
   function updateArtistFavoriteState(updated: Artist) {
@@ -2798,12 +2832,16 @@ export default function App() {
   }
 
   async function toggleArtistFavorite(artistItem: Artist) {
-    updateArtistFavoriteState(await api.favoriteArtist(artistItem.id));
+    const updated = await api.favoriteArtist(artistItem.id);
+    updateArtistFavoriteState(updated);
+    playUISound(updated.favorite ? "favorite" : "toggleOff");
   }
 
   async function toggleArtistFavoriteById(id: number) {
     if (!id) return;
-    updateArtistFavoriteState(await api.favoriteArtist(id));
+    const updated = await api.favoriteArtist(id);
+    updateArtistFavoriteState(updated);
+    playUISound(updated.favorite ? "favorite" : "toggleOff");
   }
 
   async function toggleRadioFavorite(station: RadioStation) {
@@ -2832,6 +2870,7 @@ export default function App() {
     setCurrentRadio((old) =>
       sameRadioStation(old, updated) ? { ...updated, url: old?.url || updated.url } : old,
     );
+    playUISound(updated.favorite ? "favorite" : "toggleOff");
   }
 
   function createPlaylist() {
@@ -2849,6 +2888,7 @@ export default function App() {
       setPlaylists(await api.playlists());
       setPlaylistDialogOpen(false);
       showMessage(t("done"));
+      playUISound("success");
       return playlist;
     } finally {
       setPlaylistSubmitting(false);
@@ -2872,6 +2912,7 @@ export default function App() {
     await api.addToPlaylist(playlistId, playlistPickerSong.id);
     setPlaylistPickerSong(null);
     showMessage(t("done"));
+    playUISound("success");
     setPlaylists(await api.playlists());
   }
 
@@ -3375,7 +3416,10 @@ export default function App() {
                 t={t}
                 onPlay={playSong}
                 onResume={(song) => void resumePlayback(song)}
-                onTogglePlayback={() => setPlaying((value) => !value)}
+                onTogglePlayback={() => setPlaying((value) => {
+                  playUISound(value ? "pause" : "play");
+                  return !value;
+                })}
                 onPrevious={() => next(-1)}
                 onNext={() => next(1)}
                 onVolume={updateVolume}
@@ -3673,6 +3717,8 @@ export default function App() {
                   setPersistentQueueEnabled(enabled);
                   rememberPersistentQueueEnabled(enabled);
                 }}
+                uiSoundSettings={uiSoundSettings}
+                onUISoundSettingsChange={setUISoundSettings}
                 scrobblingSettings={scrobblingSettings}
                 onScrobblingSettingsChange={setScrobblingSettings}
                 activeTab={settingsTab}
@@ -3727,6 +3773,7 @@ export default function App() {
           onCreated={() => {
             setShareDialogTarget(null);
             showMessage(t("shareLinkCopied"));
+            playUISound("copy");
           }}
         />
       ) : null}
@@ -3838,7 +3885,10 @@ export default function App() {
                 className="play"
                 aria-label={playing ? t("pause") : t("play")}
                 disabled={!current && !currentRadio && !currentNetworkTrack}
-                onClick={() => setPlaying((v) => !v)}
+                onClick={() => setPlaying((value) => {
+                  playUISound(value ? "pause" : "play");
+                  return !value;
+                })}
               >
                 {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
               </button>
@@ -6639,6 +6689,8 @@ function SettingsPanel({
   onHomePlayerStyleChange,
   persistentQueueEnabled,
   onPersistentQueueChange,
+  uiSoundSettings,
+  onUISoundSettingsChange,
   scrobblingSettings,
   onScrobblingSettingsChange,
   activeTab,
@@ -6659,6 +6711,8 @@ function SettingsPanel({
   onHomePlayerStyleChange: (style: HomePlayerStyle) => void;
   persistentQueueEnabled: boolean;
   onPersistentQueueChange: (enabled: boolean) => void;
+  uiSoundSettings: UISoundSettings;
+  onUISoundSettingsChange: (settings: UISoundSettings) => void;
   scrobblingSettings: ScrobblingSettings | null;
   onScrobblingSettingsChange: (settings: ScrobblingSettings) => void;
   activeTab: SettingsTab;
@@ -6865,6 +6919,14 @@ function SettingsPanel({
     if (token) setScrobbleToken("");
   }
 
+  async function saveUISoundSettings(next: UISoundSettings) {
+    onUISoundSettingsChange(next);
+    setUISoundsEnabled(next.enabled);
+    playUISound(next.enabled ? "toggleOn" : "toggleOff");
+    const saved = await api.saveUISoundSettings(next).catch(() => next);
+    onUISoundSettingsChange(saved);
+  }
+
   async function addLibraryDirectory() {
     if (!libraryPathInput.trim()) return;
     setLibraryDirError("");
@@ -6997,6 +7059,17 @@ function SettingsPanel({
               type="checkbox"
               checked={persistentQueueEnabled}
               onChange={(e) => onPersistentQueueChange(e.target.checked)}
+            />
+          </label>
+          <label className="switch-row settings-wide-row">
+            <span>
+              <span>{t("uiSounds")}</span>
+              <small>{t("uiSoundsHint")}</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={uiSoundSettings.enabled}
+              onChange={(e) => void saveUISoundSettings({ enabled: e.target.checked })}
             />
           </label>
           {scrobblingSettings ? (

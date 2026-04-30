@@ -184,6 +184,9 @@ export interface SubsonicCredentialStatus {
   hint: string;
   endpoint: string;
 }
+export interface UISoundSettings {
+  enabled: boolean;
+}
 export interface HealthInfo {
   status: string;
   version: string;

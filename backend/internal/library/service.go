@@ -1720,6 +1720,38 @@ func (s *Service) GetScrobblingSettings(ctx context.Context, userID int) (models
 	return settings, nil
 }
 
+func (s *Service) GetUISoundSettings(ctx context.Context, userID int) (models.UISoundSettings, error) {
+	if userID == 0 {
+		return models.UISoundSettings{}, ErrUnauthenticated
+	}
+	settings := models.UISoundSettings{Enabled: false}
+	if s.client == nil {
+		return settings, nil
+	}
+	item, err := s.client.AppSetting.Query().Where(appsetting.Key(uiSoundSettingsKey(userID))).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return settings, nil
+		}
+		return models.UISoundSettings{}, err
+	}
+	settings.Enabled = item.Value == "true"
+	return settings, nil
+}
+
+func (s *Service) SaveUISoundSettings(ctx context.Context, userID int, settings models.UISoundSettings) (models.UISoundSettings, error) {
+	if userID == 0 {
+		return models.UISoundSettings{}, ErrUnauthenticated
+	}
+	if s.client == nil {
+		return models.UISoundSettings{}, errors.New("database is required")
+	}
+	if err := s.setSetting(ctx, uiSoundSettingsKey(userID), strconv.FormatBool(settings.Enabled)); err != nil {
+		return models.UISoundSettings{}, err
+	}
+	return s.GetUISoundSettings(ctx, userID)
+}
+
 func (s *Service) SaveScrobblingSettings(ctx context.Context, userID int, settings models.ScrobblingSettings, token string) (models.ScrobblingSettings, error) {
 	if userID == 0 {
 		return models.ScrobblingSettings{}, ErrUnauthenticated
@@ -1787,6 +1819,10 @@ func scrobblingKey(userID int) string {
 	return scrobblingPrefix + strconv.Itoa(userID)
 }
 
+func uiSoundSettingsKey(userID int) string {
+	return uiSoundSettingsPrefix + strconv.Itoa(userID)
+}
+
 func normalizeScrobblingMinSeconds(seconds int) int {
 	if seconds <= 0 {
 		return 30
@@ -1833,6 +1869,7 @@ func (s *Service) invalidateLibraryCache(ctx context.Context) {
 
 const userVersionPrefix = libraryCachePrefix + "uver:v1:"
 const scrobblingPrefix = "user:v1:scrobbling:"
+const uiSoundSettingsPrefix = "user:v1:ui-sounds:"
 
 func (s *Service) userCacheVersion(ctx context.Context, userID int) int {
 	if userID <= 0 || s.cache == nil {

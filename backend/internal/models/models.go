@@ -82,6 +82,10 @@ type SubsonicCredentialStatus struct {
 	Endpoint   string `json:"endpoint,omitempty"`
 }
 
+type UISoundSettings struct {
+	Enabled bool `json:"enabled"`
+}
+
 type Playlist struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`

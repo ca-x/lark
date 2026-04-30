@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CopySimple, X } from "@phosphor-icons/react";
 
 import { api } from "../services/api";
+import { playUISound } from "../services/uiSounds";
 import type { Share } from "../types";
 import type { createT } from "../i18n";
 import { durationValueFromExpiresAt, expiresAtFromDuration } from "./share-duration";
@@ -38,6 +39,7 @@ export function ShareManagementView({
     if (!share.url) return;
     await navigator.clipboard?.writeText(share.url).catch(() => undefined);
     onToast(t("shareLinkCopied"));
+    playUISound("copy");
   }
 
   async function cancelShare(token: string) {
@@ -46,6 +48,7 @@ export function ShareManagementView({
       await api.deleteShare(token);
       setShares((items) => items.filter((item) => item.token !== token));
       onToast(t("shareCanceled"));
+      playUISound("toggleOff");
     } catch (err) {
       setSharesError(err instanceof Error ? err.message : String(err));
     }
@@ -57,6 +60,7 @@ export function ShareManagementView({
       const updated = await api.updateShare(token, expiresAtFromDuration(duration));
       setShares((items) => items.map((item) => (item.token === token ? updated : item)));
       onToast(t("done"));
+      playUISound("success");
     } catch (err) {
       setSharesError(err instanceof Error ? err.message : String(err));
     }
