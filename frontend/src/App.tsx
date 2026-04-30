@@ -26,6 +26,7 @@ import {
   Record,
   Repeat,
   RepeatOnce,
+  ShareNetwork,
   Shuffle,
   SlidersHorizontal,
   SkipBack,
@@ -4254,22 +4255,23 @@ function PublicShareView({
         ) : currentSong ? (
           <>
             <p>{t("publicShare")}</p>
-            <h1>{share.share.title}</h1>
-            <div className="public-share-player">
+            <section className="public-share-hero">
               <div className="cover plain-cover public-share-cover">
                 <LazyCoverImage src={`/api/public/shares/${encodeURIComponent(token)}/cover/${currentSong.id}`} />
                 <Record weight="fill" />
               </div>
               <div>
+                <span>{t("nowPlaying")}</span>
+                <h1>{share.share.title}</h1>
                 <strong>{currentSong.title}</strong>
-                <span>{[currentSong.artist, currentSong.album].filter(Boolean).join(" · ")}</span>
+                <em>{[currentSong.artist, currentSong.album].filter(Boolean).join(" · ")}</em>
                 <audio
                   key={currentSong.id}
                   controls
                   src={`/api/public/shares/${encodeURIComponent(token)}/stream/${currentSong.id}`}
                 />
               </div>
-            </div>
+            </section>
             {share.songs.length > 1 ? (
               <div className="public-share-list">
                 {share.songs.map((song, index) => (
@@ -4280,7 +4282,10 @@ function PublicShareView({
                     onClick={() => setCurrentIndex(index)}
                   >
                     <span>{index + 1}</span>
-                    <strong>{song.title}</strong>
+                    <div>
+                      <strong>{song.title}</strong>
+                      <small>{[song.artist, song.album].filter(Boolean).join(" · ")}</small>
+                    </div>
                     <em>{formatDuration(song.duration_seconds)}</em>
                   </button>
                 ))}
@@ -5425,7 +5430,7 @@ function CollectionView({
             ) : null}
             {onShareCollection ? (
               <button onClick={onShareCollection}>
-                <CopySimple /> {t("share")}
+                <ShareNetwork /> {t("share")}
               </button>
             ) : null}
           </div>
@@ -7789,24 +7794,28 @@ function SongTable({
       </div>
       <div>{formatQuality(song)}</div>
       <div>{formatDuration(song.duration_seconds)}</div>
-      <button onClick={() => onFavorite(song)} aria-label={t("favorites")}>
-        <Heart weight={song.favorite ? "fill" : "regular"} />
-      </button>
-      {onInsertNext ? (
-        <button
-          onClick={() => onInsertNext(song)}
-          title={t("playNext")}
-          aria-label={t("playNext")}
-        >
-          <SkipForward />
+      <div className="song-row-actions" aria-label={t("selected")}>
+        <button onClick={() => onFavorite(song)} title={t("favorites")} aria-label={t("favorites")}>
+          <Heart weight={song.favorite ? "fill" : "regular"} />
         </button>
-      ) : null}
-      {onShare ? (
-        <button onClick={() => onShare(song)} title={t("share")} aria-label={t("share")}>
-          <CopySimple />
+        {onInsertNext ? (
+          <button
+            onClick={() => onInsertNext(song)}
+            title={t("playNext")}
+            aria-label={t("playNext")}
+          >
+            <SkipForward />
+          </button>
+        ) : null}
+        <button onClick={() => onAdd(song)} title={t("addToPlaylist")} aria-label={t("addToPlaylist")}>
+          <PlaylistIcon />
         </button>
-      ) : null}
-      <button onClick={() => onAdd(song)}>{t("addToPlaylist")}</button>
+        {onShare ? (
+          <button onClick={() => onShare(song)} title={t("share")} aria-label={t("share")}>
+            <ShareNetwork />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
   if (!songs.length) return <div className="empty">{t("noSongs")}</div>;
