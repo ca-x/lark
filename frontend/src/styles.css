@@ -1531,7 +1531,8 @@ body, button, input, select { font-family: var(--app-font); }
   .vinyl-component .vinyl-plinth { padding:14px; box-shadow:inset 0 2px 0 color-mix(in srgb, var(--text) 14%, transparent), inset 0 -3px 0 rgba(0,0,0,.48), 2px 4px 0 var(--vinyl-border); }
   .vinyl-top-row { flex-direction:column; align-items:center; }
   .vinyl-platter-wrap { width:min(280px, 82vw); height:min(280px, 82vw); }
-  .vinyl-tonearm { transform:scale(.86); transform-origin:top right; }
+  .vinyl-tonearm { right:-8px; transform:scale(.8); transform-origin:top right; }
+  .vinyl-power-status { left:12px; bottom:10px; width:30px; height:30px; }
   .vinyl-controls { width:100%; }
 }
 
@@ -2198,4 +2199,133 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
     width:84px;
     height:84px;
   }
+}
+
+/* Cassette hero deck: alternate home player style, theme-token aware. */
+.cassette-component {
+  --cassette-shell-hi: color-mix(in srgb, var(--panel2) 70%, #3a3220);
+  --cassette-shell: color-mix(in srgb, var(--panel) 82%, #1e1a14);
+  --cassette-shell-dark: color-mix(in srgb, var(--bg) 88%, #181410);
+  --cassette-border: color-mix(in srgb, var(--line) 62%, #3a3020);
+  --cassette-label-a: color-mix(in srgb, var(--accent) 34%, #c8784a);
+  --cassette-label-b: color-mix(in srgb, var(--highlight) 28%, #e8a848);
+  --cassette-label-c: color-mix(in srgb, var(--accent2) 48%, #b86030);
+  --cassette-green: color-mix(in srgb, var(--accent) 42%, #60c840);
+  --cassette-green-soft: color-mix(in srgb, var(--accent) 28%, #2f7020);
+  --cassette-text: color-mix(in srgb, var(--text) 74%, #b89050);
+  --cassette-muted: color-mix(in srgb, var(--muted) 72%, #5a4e38);
+  --cassette-screen: color-mix(in srgb, var(--bg) 86%, #060908);
+  --cassette-window-border: color-mix(in srgb, var(--accent) 18%, #2a3018);
+  --cassette-tape-left: color-mix(in srgb, var(--accent) 18%, #7a5828);
+  --cassette-tape-right: color-mix(in srgb, var(--accent2) 18%, #5a4420);
+  --cassette-art-bg: color-mix(in srgb, var(--panel) 74%, #0d1a2e);
+  --cassette-art-wave: color-mix(in srgb, var(--accent) 38%, #1a3a5a);
+  --cassette-art-moon: color-mix(in srgb, var(--highlight) 70%, #f8f0d0);
+  width:min(540px,100%);
+  border-radius:16px;
+  background:radial-gradient(ellipse at 50% 20%, color-mix(in srgb, var(--panel2) 72%, #1e1a14) 0%, color-mix(in srgb, var(--bg) 92%, #0b0906) 100%);
+  padding:16px;
+}
+.cassette-deck { width:100%; padding:20px 24px 22px; border-radius:14px; border:1px solid var(--cassette-border); background:linear-gradient(170deg,var(--cassette-shell-hi) 0%,var(--cassette-shell) 44%,var(--cassette-shell-dark) 100%); box-shadow:0 0 0 1px color-mix(in srgb, var(--bg) 86%, #100e0a),0 8px 32px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.06); }
+.cassette-brand-bar { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:14px; }
+.cassette-brand { font:900 10px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:5px; color:var(--cassette-text); text-shadow:0 0 10px color-mix(in srgb, var(--accent) 28%, transparent); }
+.cassette-model-row { display:flex; align-items:center; justify-content:flex-end; gap:8px; color:var(--cassette-muted); font:800 9px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:2px; text-align:right; }
+.cassette-led { width:6px; height:6px; border-radius:50%; background:#d04020; box-shadow:0 0 5px rgba(210,60,20,.78); opacity:.9; flex-shrink:0; }
+.cassette-led.on { background:#50b030; box-shadow:0 0 6px rgba(80,180,40,.82); animation:cassette-blink 1s ease infinite; }
+.cassette-bay { padding:16px 18px 12px; margin-bottom:14px; border:1px solid color-mix(in srgb, var(--line) 55%, #201c14); border-radius:10px; background:linear-gradient(180deg,color-mix(in srgb, var(--bg) 92%, #0c0a08),color-mix(in srgb, var(--panel) 78%, #141008)); box-shadow:inset 0 4px 14px rgba(0,0,0,.55),inset 0 0 0 1px rgba(0,0,0,.35); }
+.cassette-svg { display:block; width:100%; height:auto; max-height:220px; overflow:visible; }
+.cassette-svg-title { font:900 8px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:1.5px; fill:color-mix(in srgb, var(--bg) 78%, #2a1204); }
+.cassette-svg-artist, .cassette-svg-spec { font:800 7.5px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:1px; fill:color-mix(in srgb, var(--bg) 72%, #3a1a06); opacity:.86; }
+.cassette-svg-spec { font-size:6.5px; letter-spacing:1.5px; opacity:.74; }
+.cassette-hub { animation:cassette-spin 2.2s linear infinite; transform-origin:0 0; }
+.cassette-right-reel .cassette-hub { animation-duration:1.45s; }
+.cassette-component[data-playing='false'] .cassette-hub,
+.cassette-component[data-playing='false'] .cassette-vu i,
+.cassette-component[data-playing='false'] .cassette-lcd strong { animation-play-state:paused; }
+.cassette-lcd { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:7px 12px; margin-bottom:12px; border:1px solid color-mix(in srgb, var(--accent) 12%, #181e14); border-radius:5px; background:var(--cassette-screen); box-shadow:inset 0 2px 6px rgba(0,0,0,.7); }
+.cassette-lcd-left { min-width:0; display:grid; gap:2px; }
+.cassette-lcd span { color:color-mix(in srgb, var(--cassette-green) 42%, #2a4020); font:800 8px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:2px; }
+.cassette-lcd strong { display:inline-block; max-width:270px; color:var(--cassette-green); font:900 11px ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; text-shadow:0 0 7px color-mix(in srgb, var(--cassette-green) 42%, transparent); animation:cassette-marquee 14s linear infinite; }
+.cassette-lcd div div { overflow:hidden; width:min(270px, 42vw); }
+.cassette-lcd time { color:color-mix(in srgb, var(--cassette-green) 86%, var(--text)); font:900 17px ui-monospace,SFMono-Regular,Menlo,monospace; text-shadow:0 0 10px color-mix(in srgb, var(--cassette-green) 36%, transparent); white-space:nowrap; }
+.cassette-progress-row { position:relative; display:flex; align-items:center; min-height:18px; margin:-2px 0 10px; }
+.cassette-progress-track { position:absolute; left:0; right:0; top:50%; height:7px; transform:translateY(-50%); border:1px solid color-mix(in srgb, var(--cassette-green) 22%, var(--line)); border-radius:999px; background:color-mix(in srgb, var(--bg) 88%, #080c06); pointer-events:none; overflow:visible; }
+.cassette-progress-track span { display:block; width:var(--cassette-progress-pct,0%); height:100%; border-radius:999px; background:linear-gradient(90deg,var(--cassette-green-soft),var(--cassette-green)); box-shadow:0 0 8px color-mix(in srgb, var(--cassette-green) 34%, transparent); }
+.cassette-progress-track::after { content:''; position:absolute; left:var(--cassette-progress-pct,0%); top:50%; width:10px; height:10px; border-radius:50%; transform:translate(-50%,-50%); background:radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--highlight) 54%, #d6f1a2), var(--cassette-green)); border:1px solid color-mix(in srgb, var(--bg) 75%, #142210); }
+.cassette-progress-row input { position:relative; z-index:1; width:100%; height:20px; margin:0; opacity:0; cursor:pointer; }
+.cassette-progress-row input:disabled { cursor:not-allowed; }
+.cassette-progress-row:has(input:focus-visible) .cassette-progress-track { outline:2px solid color-mix(in srgb, var(--cassette-green) 64%, transparent); outline-offset:3px; }
+.cassette-vu { display:grid; gap:4px; margin-bottom:12px; }
+.cassette-vu div { display:grid; gap:3px; }
+.cassette-vu span { color:color-mix(in srgb, var(--cassette-green) 30%, var(--cassette-muted)); font:800 7px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:1px; }
+.cassette-vu i { height:7px; width:58%; border:1px solid color-mix(in srgb, var(--accent) 12%, #141a10); border-radius:3px; background:linear-gradient(90deg,#186010 0%,#40a020 55%,#80c030 75%,#e0c020 88%,#e03010 100%); animation:cassette-vu-l .45s ease-in-out infinite alternate; }
+.cassette-vu div:nth-child(2) i { animation-name:cassette-vu-r; animation-duration:.6s; }
+.cassette-controls { display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
+.cassette-controls button { min-width:40px; min-height:32px; padding:0 12px; display:grid; place-items:center; border:1px solid color-mix(in srgb, var(--line) 72%, #443828); border-radius:5px; color:var(--cassette-text); background:linear-gradient(175deg,color-mix(in srgb, var(--panel2) 76%, #383020),color-mix(in srgb, var(--bg) 75%, #1c1812)); box-shadow:0 3px 0 color-mix(in srgb, var(--bg) 92%, #0a0806),0 4px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.07); font:900 12px ui-monospace,SFMono-Regular,Menlo,monospace; cursor:pointer; }
+.cassette-controls button svg { width:16px; height:16px; }
+.cassette-controls button.cassette-play { min-width:52px; min-height:38px; color:var(--cassette-green); background:linear-gradient(175deg,color-mix(in srgb, var(--accent) 22%, #284020),color-mix(in srgb, var(--bg) 76%, #142210)); border-color:color-mix(in srgb, var(--cassette-green) 38%, #3a5828); text-shadow:0 0 8px color-mix(in srgb, var(--cassette-green) 44%, transparent); }
+.cassette-controls button.active { color:var(--bg); background:var(--cassette-green); }
+.cassette-controls button:not(:disabled):hover { color:var(--bg); background:var(--cassette-text); }
+.cassette-controls button:not(:disabled):active { transform:translateY(2px); box-shadow:0 1px 0 color-mix(in srgb, var(--bg) 92%, #0a0806),inset 0 2px 4px rgba(0,0,0,.5); }
+.cassette-controls button:disabled { opacity:.45; cursor:not-allowed; }
+@keyframes cassette-spin { to { transform:rotate(360deg); } }
+@keyframes cassette-blink { 0%,100%{opacity:1;} 50%{opacity:.25;} }
+@keyframes cassette-vu-l { from{width:28%;} to{width:74%;} }
+@keyframes cassette-vu-r { from{width:40%;} to{width:62%;} }
+@keyframes cassette-marquee { 0%{transform:translateX(100%);} 100%{transform:translateX(-100%);} }
+@media (max-width:760px) {
+  .cassette-component { padding:10px; }
+  .cassette-deck { padding:14px; }
+  .cassette-brand-bar { align-items:flex-start; }
+  .cassette-model-row span:last-child { display:none; }
+  .cassette-bay { padding:10px; }
+  .cassette-lcd { align-items:flex-start; flex-direction:column; }
+  .cassette-lcd div div { width:min(270px, 72vw); }
+  .cassette-controls { gap:6px; }
+  .cassette-controls button { min-width:38px; padding:0 10px; }
+}
+
+@media (max-width:520px) {
+  .cassette-component { width:100%; padding:8px; }
+  .cassette-deck { padding:12px 10px 14px; }
+  .cassette-bay { padding:8px 6px; margin-bottom:10px; }
+  .cassette-svg { max-height:none; }
+  .cassette-lcd { gap:8px; padding:7px 9px; }
+  .cassette-lcd strong { max-width:72vw; }
+  .cassette-lcd time { font-size:14px; }
+  .cassette-vu span { letter-spacing:.4px; }
+  .cassette-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .cassette-controls button { width:100%; min-width:0; padding:0 6px; }
+  .cassette-controls button.cassette-play { min-width:0; }
+}
+
+/* Compact the vinyl hero on phones so the whole deck is visible without needing to scroll just to reach its bottom edge. */
+@media (max-width:720px) {
+  .hero .vinyl-component { width:min(100%, 340px); }
+  .hero .vinyl-component .vinyl-plinth { padding:10px 12px 12px; border-width:2px; box-shadow:inset 0 2px 0 color-mix(in srgb, var(--text) 12%, transparent), inset 0 -2px 0 rgba(0,0,0,.42), 2px 4px 0 var(--vinyl-border); }
+  .hero .vinyl-top-row { gap:10px; }
+  .hero .vinyl-platter-wrap { width:min(200px, 62vw); height:min(200px, 62vw); }
+  .hero .vinyl-tonearm { top:-8px; right:-2px; transform:scale(.58); transform-origin:top right; }
+  .hero .vinyl-label { width:74px; height:74px; padding:6px; }
+  .hero .vinyl-label span { font-size:8px; }
+  .hero .vinyl-label strong { font-size:6px; -webkit-line-clamp:1; }
+  .hero .vinyl-label em { font-size:6px; }
+  .hero .vinyl-controls { gap:8px; }
+  .hero .vinyl-speed-row { justify-content:center; }
+  .hero .vinyl-vu { padding:7px 9px; gap:4px; }
+  .hero .vinyl-vu > span { margin-bottom:0; font-size:8px; }
+  .hero .vinyl-knobs { justify-content:center; gap:18px; }
+  .hero .vinyl-knobs label:first-child i { width:44px; height:44px; }
+  .hero .vinyl-knobs i { width:34px; height:34px; }
+  .hero .vinyl-mini-transport { padding:8px; gap:6px; }
+  .hero .vinyl-mini-transport button { width:32px; height:32px; min-width:32px; min-height:32px; flex-basis:32px; }
+  .hero .vinyl-mini-transport button:nth-child(2) { width:40px; height:40px; min-width:40px; min-height:40px; flex-basis:40px; }
+  .hero .vinyl-bottom-strip { margin-top:10px; }
+  .hero .vinyl-power-status { left:8px; bottom:8px; width:28px; height:28px; }
+}
+@media (max-width:390px) {
+  .hero .vinyl-component { width:min(100%, 310px); }
+  .hero .vinyl-platter-wrap { width:min(176px, 58vw); height:min(176px, 58vw); }
+  .hero .vinyl-vu { display:none; }
+  .hero .vinyl-knobs { gap:14px; }
 }

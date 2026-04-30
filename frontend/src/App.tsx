@@ -83,7 +83,7 @@ import { RadioReceiver } from "./components/RadioPlayer";
 import { LoadingStage } from "./components/LoadingStage";
 import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
 import { radioGroupName } from "./components/radio";
-import { VinylTurntable } from "./components/VinylPlayer";
+import { CassetteDeck, VinylTurntable } from "./components/VinylPlayer";
 import { EqualizerPanel } from "./components/EqualizerPanel";
 import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
 
@@ -113,6 +113,7 @@ type View =
   | "about";
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
+type HomePlayerStyle = "vinyl" | "cassette";
 type PlaybackStartMode = "resume" | "restart";
 type PlaybackSourceInput = { type: PlaybackSourceType; source_id: number };
 type PlaySongOptions = {
@@ -252,6 +253,7 @@ const VIRTUAL_OVERSCAN = 8;
 const CARD_GRID_BATCH = 72;
 const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
 const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
+const HOME_PLAYER_STYLE_KEY = "lark.home-player-style";
 const AUTH_REDIRECT_KEY = "lark.auth.redirect";
 const defaultLibraryTab: LibraryTab = "songs";
 
@@ -266,6 +268,26 @@ function storedLibraryTab(): LibraryTab {
     return normalizeLibraryTab(window.localStorage.getItem(LIBRARY_SOURCE_TAB_KEY));
   } catch {
     return defaultLibraryTab;
+  }
+}
+
+function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
+  return value === "cassette" ? "cassette" : "vinyl";
+}
+
+function storedHomePlayerStyle(): HomePlayerStyle {
+  try {
+    return normalizeHomePlayerStyle(window.localStorage.getItem(HOME_PLAYER_STYLE_KEY));
+  } catch {
+    return "vinyl";
+  }
+}
+
+function rememberHomePlayerStyle(style: HomePlayerStyle) {
+  try {
+    window.localStorage.setItem(HOME_PLAYER_STYLE_KEY, style);
+  } catch {
+    // localStorage can be unavailable in private/webview modes; vinyl remains default.
   }
 }
 
@@ -1146,6 +1168,7 @@ export default function App() {
   const [sleepTimerMins, setSleepTimerMins] = useState(0);
   const [sleepLeft, setSleepLeft] = useState(0);
   const [resumeMode, setResumeMode] = useState<ResumeMode>("resume");
+  const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [bufferedEnd, setBufferedEnd] = useState(0);
@@ -1396,6 +1419,10 @@ export default function App() {
     resumeModeRef.current = nextResumeMode;
     setResumeMode(nextResumeMode);
   }, [auth?.user?.id]);
+
+  useEffect(() => {
+    rememberHomePlayerStyle(homePlayerStyle);
+  }, [homePlayerStyle]);
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
     document.documentElement.lang = settings.language;
@@ -3160,6 +3187,7 @@ export default function App() {
                 trebleGain={trebleGain}
                 playMode={playMode}
                 playModeLabel={playModeLabel}
+                homePlayerStyle={homePlayerStyle}
                 t={t}
                 onPlay={playSong}
                 onResume={(song) => void resumePlayback(song)}
@@ -3429,6 +3457,8 @@ export default function App() {
                   setResumeMode(mode);
                   window.localStorage.setItem(resumePreferenceKey(auth.user), mode);
                 }}
+                homePlayerStyle={homePlayerStyle}
+                onHomePlayerStyleChange={setHomePlayerStyle}
                 activeTab={settingsTab}
                 onTabChange={setSettingsTab}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
@@ -4191,6 +4221,7 @@ function HomeView({
   trebleGain,
   playMode,
   playModeLabel,
+  homePlayerStyle,
   t,
   onPlay,
   onResume,
@@ -4229,6 +4260,7 @@ function HomeView({
   trebleGain: number;
   playMode: PlayMode;
   playModeLabel: string;
+  homePlayerStyle: HomePlayerStyle;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
   onResume: (song: Song) => void;
@@ -4272,6 +4304,22 @@ function HomeView({
             playing={playing}
             t={t}
             onPlay={() => undefined}
+          />
+        ) : homePlayerStyle === "cassette" ? (
+          <CassetteDeck
+            cover={coverUrl(displaySong)}
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
+            onCyclePlayMode={onCyclePlayMode}
+            onSeek={heroActive ? onSeek : undefined}
           />
         ) : (
           <VinylTurntable
@@ -6330,6 +6378,8 @@ function SettingsPanel({
   user,
   resumeMode,
   onResumeModeChange,
+  homePlayerStyle,
+  onHomePlayerStyleChange,
   activeTab,
   onTabChange,
   onUpdateProfile,
@@ -6342,6 +6392,8 @@ function SettingsPanel({
   user: User;
   resumeMode: ResumeMode;
   onResumeModeChange: (mode: ResumeMode) => void;
+  homePlayerStyle: HomePlayerStyle;
+  onHomePlayerStyleChange: (style: HomePlayerStyle) => void;
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
@@ -6566,6 +6618,28 @@ function SettingsPanel({
                 onClick={() => onResumeModeChange("restart")}
               >
                 {t("restartFromBeginning")}
+              </button>
+            </div>
+          </div>
+          <div className="resume-settings-card settings-wide-row">
+            <div>
+              <strong>{t("homePlayerStyle")}</strong>
+              <span>{t("homePlayerStyleHint")}</span>
+            </div>
+            <div className="segmented-control" role="group" aria-label={t("homePlayerStyle")}>
+              <button
+                type="button"
+                className={homePlayerStyle === "vinyl" ? "active" : ""}
+                onClick={() => onHomePlayerStyleChange("vinyl")}
+              >
+                {t("homePlayerVinyl")}
+              </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "cassette" ? "active" : ""}
+                onClick={() => onHomePlayerStyleChange("cassette")}
+              >
+                {t("homePlayerCassette")}
               </button>
             </div>
           </div>
