@@ -27,6 +27,7 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/cespare/xxhash/v2"
 	"github.com/dhowden/tag"
+	"github.com/fsnotify/fsnotify"
 
 	"lark/backend/ent"
 	"lark/backend/ent/album"
@@ -75,6 +76,15 @@ type Service struct {
 	scanMu     sync.RWMutex
 	scanCancel context.CancelFunc
 	scanStatus models.ScanStatus
+	watchMu    sync.Mutex
+	watchers   map[string]*libraryWatcher
+}
+
+type libraryWatcher struct {
+	root   libraryRoot
+	stop   context.CancelFunc
+	done   chan struct{}
+	active bool
 }
 
 type ffprobeOutput struct {
@@ -138,10 +148,11 @@ func (s *Service) DataDir() string { return s.dataDir }
 func (s *Service) fontDir() string { return filepath.Join(s.dataDir, "fonts") }
 
 type libraryRoot struct {
-	ID      string
-	Path    string
-	Note    string
-	Builtin bool
+	ID           string
+	Path         string
+	Note         string
+	Builtin      bool
+	WatchEnabled bool
 }
 
 func (s *Service) builtinLibraryRoot() (libraryRoot, error) {
@@ -152,11 +163,20 @@ func (s *Service) builtinLibraryRoot() (libraryRoot, error) {
 	return libraryRoot{ID: "env", Path: path, Note: "", Builtin: true}, nil
 }
 
+func (s *Service) builtinLibraryWatchEnabled(ctx context.Context) bool {
+	if s.client == nil {
+		return false
+	}
+	item, err := s.client.AppSetting.Query().Where(appsetting.Key("library_directory_watch_env")).Only(ctx)
+	return err == nil && item.Value == "true"
+}
+
 func (s *Service) effectiveLibraryRoots(ctx context.Context, userID int) ([]libraryRoot, error) {
 	root, err := s.builtinLibraryRoot()
 	if err != nil {
 		return nil, err
 	}
+	root.WatchEnabled = s.builtinLibraryWatchEnabled(ctx)
 	roots := []libraryRoot{root}
 	if userID == 0 || s.client == nil {
 		return roots, nil
@@ -175,7 +195,7 @@ func (s *Service) effectiveLibraryRoots(ctx context.Context, userID int) ([]libr
 			continue
 		}
 		seen[abs] = true
-		roots = append(roots, libraryRoot{ID: strconv.Itoa(item.ID), Path: abs, Note: item.Note})
+		roots = append(roots, libraryRoot{ID: strconv.Itoa(item.ID), Path: abs, Note: item.Note, WatchEnabled: item.WatchEnabled})
 	}
 	return roots, nil
 }
@@ -185,8 +205,11 @@ func (s *Service) LibraryDirectories(ctx context.Context, userID int) ([]models.
 	if err != nil {
 		return nil, err
 	}
-	out := []models.LibraryDirectory{{ID: root.ID, Path: root.Path, Builtin: true}}
+	root.WatchEnabled = s.builtinLibraryWatchEnabled(ctx)
+	out := []models.LibraryDirectory{s.withDirectoryHealth(models.LibraryDirectory{ID: root.ID, Path: root.Path, Builtin: true, WatchEnabled: root.WatchEnabled})}
 	if userID == 0 || s.client == nil {
+		s.syncLibraryWatchers(out)
+		s.applyWatcherState(out)
 		return out, nil
 	}
 	items, err := s.client.LibraryDirectory.Query().
@@ -197,9 +220,234 @@ func (s *Service) LibraryDirectories(ctx context.Context, userID int) ([]models.
 		return nil, err
 	}
 	for _, item := range items {
-		out = append(out, mapLibraryDirectory(item))
+		out = append(out, s.withDirectoryHealth(mapLibraryDirectory(item)))
 	}
+	s.syncLibraryWatchers(out)
+	s.applyWatcherState(out)
 	return out, nil
+}
+
+func (s *Service) CheckLibraryDirectories(ctx context.Context, userID int) ([]models.LibraryDirectory, error) {
+	return s.LibraryDirectories(ctx, userID)
+}
+
+func (s *Service) withDirectoryHealth(item models.LibraryDirectory) models.LibraryDirectory {
+	checkedAt := time.Now()
+	item.LastCheckedAt = &checkedAt
+	item.Status = "online"
+	info, err := os.Stat(item.Path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			item.Status = "missing"
+		} else if errors.Is(err, os.ErrPermission) {
+			item.Status = "unreadable"
+		} else {
+			item.Status = "error"
+		}
+		item.LastError = err.Error()
+		return item
+	}
+	if !info.IsDir() {
+		item.Status = "not_directory"
+		item.LastError = "path is not a directory"
+		return item
+	}
+	if entries, err := os.ReadDir(item.Path); err != nil {
+		item.Status = "unreadable"
+		item.LastError = err.Error()
+	} else if entries == nil {
+		item.Status = "online"
+	}
+	return item
+}
+
+func (s *Service) applyWatcherState(items []models.LibraryDirectory) {
+	s.watchMu.Lock()
+	defer s.watchMu.Unlock()
+	for i := range items {
+		if watcher, ok := s.watchers[items[i].ID]; ok && watcher.active {
+			items[i].WatchActive = true
+		}
+	}
+}
+
+func (s *Service) syncLibraryWatchers(items []models.LibraryDirectory) {
+	for _, item := range items {
+		if item.WatchEnabled && item.Status == "online" {
+			s.ensureLibraryWatcher(item)
+		} else {
+			s.stopLibraryWatcher(item.ID)
+		}
+	}
+}
+
+func (s *Service) updateLibraryWatcherForDirectory(item models.LibraryDirectory) {
+	if item.WatchEnabled && item.Status == "online" {
+		s.ensureLibraryWatcher(item)
+		return
+	}
+	s.stopLibraryWatcher(item.ID)
+}
+
+func (s *Service) StartLibraryWatchers(ctx context.Context) error {
+	if s.client == nil {
+		return nil
+	}
+	root, err := s.builtinLibraryRoot()
+	if err != nil {
+		return err
+	}
+	items := []models.LibraryDirectory{}
+	if s.builtinLibraryWatchEnabled(ctx) {
+		items = append(items, s.withDirectoryHealth(models.LibraryDirectory{
+			ID:           root.ID,
+			Path:         root.Path,
+			Builtin:      true,
+			WatchEnabled: true,
+		}))
+	}
+	dirs, err := s.client.LibraryDirectory.Query().
+		Where(librarydirectory.WatchEnabled(true)).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, dir := range dirs {
+		items = append(items, s.withDirectoryHealth(mapLibraryDirectory(dir)))
+	}
+	s.syncLibraryWatchers(items)
+	return nil
+}
+
+func (s *Service) ensureLibraryWatcher(item models.LibraryDirectory) {
+	s.watchMu.Lock()
+	if s.watchers == nil {
+		s.watchers = map[string]*libraryWatcher{}
+	}
+	if existing, ok := s.watchers[item.ID]; ok && existing.active && samePath(existing.root.Path, item.Path) {
+		s.watchMu.Unlock()
+		return
+	}
+	if existing, ok := s.watchers[item.ID]; ok {
+		existing.stop()
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	watcher := &libraryWatcher{
+		root: libraryRoot{ID: item.ID, Path: item.Path, Note: item.Note, Builtin: item.Builtin, WatchEnabled: item.WatchEnabled},
+		stop: cancel,
+		done: make(chan struct{}),
+	}
+	s.watchers[item.ID] = watcher
+	s.watchMu.Unlock()
+	go s.runLibraryWatcher(ctx, watcher)
+}
+
+func (s *Service) stopLibraryWatcher(id string) {
+	s.watchMu.Lock()
+	watcher := s.watchers[id]
+	if watcher != nil {
+		delete(s.watchers, id)
+	}
+	s.watchMu.Unlock()
+	if watcher != nil && watcher.stop != nil {
+		watcher.stop()
+	}
+}
+
+func (s *Service) StopLibraryWatchers(ctx context.Context) {
+	s.watchMu.Lock()
+	watchers := make([]*libraryWatcher, 0, len(s.watchers))
+	for id, watcher := range s.watchers {
+		if watcher != nil {
+			watchers = append(watchers, watcher)
+		}
+		delete(s.watchers, id)
+	}
+	s.watchMu.Unlock()
+	for _, watcher := range watchers {
+		if watcher.stop != nil {
+			watcher.stop()
+		}
+	}
+	for _, watcher := range watchers {
+		select {
+		case <-watcher.done:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (s *Service) runLibraryWatcher(ctx context.Context, state *libraryWatcher) {
+	defer close(state.done)
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return
+	}
+	defer watcher.Close()
+	if err := addWatchTree(watcher, state.root.Path); err != nil {
+		return
+	}
+	s.watchMu.Lock()
+	if current := s.watchers[state.root.ID]; current == state {
+		state.active = true
+	}
+	s.watchMu.Unlock()
+	defer func() {
+		s.watchMu.Lock()
+		if current := s.watchers[state.root.ID]; current == state {
+			state.active = false
+		}
+		s.watchMu.Unlock()
+	}()
+	importChangedFile := func(path string) {
+		if !IsSupported(path) {
+			return
+		}
+		go func() {
+			importCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			_, _ = s.ImportFile(importCtx, path)
+		}()
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Op&(fsnotify.Create|fsnotify.Write) != 0 {
+				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
+					_ = addWatchTree(watcher, event.Name)
+					continue
+				}
+				importChangedFile(event.Name)
+			}
+			if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
+				cleanupCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				_ = s.cleanupMissingLibraryEntries(cleanupCtx, []string{state.root.Path})
+				cancel()
+				s.invalidateLibraryCache(context.Background())
+				s.invalidateSearchCatalogs(context.Background())
+			}
+		case <-watcher.Errors:
+		}
+	}
+}
+
+func addWatchTree(watcher *fsnotify.Watcher, root string) error {
+	return filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return nil
+		}
+		if shouldSkipScanDir(root, path, d.Name()) {
+			return filepath.SkipDir
+		}
+		_ = watcher.Add(path)
+		return nil
+	})
 }
 
 func (s *Service) AddLibraryDirectory(ctx context.Context, userID int, path, note string) (models.LibraryDirectory, error) {
@@ -232,6 +480,40 @@ func (s *Service) AddLibraryDirectory(ctx context.Context, userID int, path, not
 	return mapLibraryDirectory(item), nil
 }
 
+func (s *Service) UpdateLibraryDirectory(ctx context.Context, userID int, id string, watchEnabled bool) (models.LibraryDirectory, error) {
+	if userID == 0 {
+		return models.LibraryDirectory{}, ErrUnauthenticated
+	}
+	if id == "env" {
+		if err := s.setSetting(ctx, "library_directory_watch_env", strconv.FormatBool(watchEnabled)); err != nil {
+			return models.LibraryDirectory{}, err
+		}
+		root, err := s.builtinLibraryRoot()
+		if err != nil {
+			return models.LibraryDirectory{}, err
+		}
+		item := s.withDirectoryHealth(models.LibraryDirectory{ID: root.ID, Path: root.Path, Builtin: true, WatchEnabled: watchEnabled})
+		s.updateLibraryWatcherForDirectory(item)
+		s.applyWatcherState([]models.LibraryDirectory{item})
+		return item, nil
+	}
+	dirID, err := strconv.Atoi(id)
+	if err != nil {
+		return models.LibraryDirectory{}, err
+	}
+	item, err := s.client.LibraryDirectory.UpdateOneID(dirID).
+		Where(librarydirectory.HasUserWith(user.ID(userID))).
+		SetWatchEnabled(watchEnabled).
+		Save(ctx)
+	if err != nil {
+		return models.LibraryDirectory{}, err
+	}
+	out := s.withDirectoryHealth(mapLibraryDirectory(item))
+	s.updateLibraryWatcherForDirectory(out)
+	s.applyWatcherState([]models.LibraryDirectory{out})
+	return out, nil
+}
+
 func (s *Service) DeleteLibraryDirectory(ctx context.Context, userID int, id int) error {
 	if userID == 0 {
 		return ErrUnauthenticated
@@ -245,6 +527,7 @@ func (s *Service) DeleteLibraryDirectory(ctx context.Context, userID int, id int
 	if deleted == 0 {
 		return fmt.Errorf("library directory not found")
 	}
+	s.stopLibraryWatcher(strconv.Itoa(id))
 	return nil
 }
 
@@ -1020,6 +1303,77 @@ func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Son
 	return selected, nil
 }
 
+func (s *Service) SmartPlaylists(ctx context.Context) ([]models.SmartPlaylist, error) {
+	settings, err := s.GetSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	enabled := settings.SmartPlaylistsEnabled
+	return []models.SmartPlaylist{
+		{ID: "daily-mix", Name: "Daily Mix", Description: "Personal daily shuffle from the local library.", Kind: "generated", Enabled: enabled},
+		{ID: "recently-played", Name: "Recently played", Description: "Songs recently played by this user.", Kind: "history", Enabled: enabled},
+		{ID: "recently-added", Name: "Recently added", Description: "Newest imported songs in the library.", Kind: "library", Enabled: enabled},
+		{ID: "favorites", Name: "Favorites", Description: "Songs marked as favorites by this user.", Kind: "user", Enabled: enabled},
+		{ID: "unplayed", Name: "Unplayed", Description: "Local songs this user has not played yet.", Kind: "history", Enabled: enabled},
+		{ID: "hi-res", Name: "Hi-Res", Description: "Songs with 24-bit audio or sample rate of at least 96 kHz.", Kind: "metadata", Enabled: enabled},
+		{ID: "needs-lyrics", Name: "Needs lyrics", Description: "Songs without embedded lyrics metadata.", Kind: "metadata", Enabled: enabled},
+	}, nil
+}
+
+func (s *Service) SmartPlaylistSongs(ctx context.Context, userID int, id string, limit int) ([]models.Song, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	switch strings.TrimSpace(id) {
+	case "daily-mix":
+		return s.DailyMix(ctx, userID, limit)
+	case "recently-played":
+		return s.RecentPlayedSongs(ctx, userID, limit)
+	case "recently-added":
+		return s.RecentAddedSongs(ctx, userID, limit)
+	case "favorites":
+		return s.Songs(ctx, userID, "", true, limit)
+	case "unplayed":
+		items, err := s.client.Song.Query().
+			WithArtist().
+			WithAlbum().
+			Where(song.Not(song.HasPlayHistoryWith(playhistory.HasUserWith(user.ID(userID))))).
+			Order(ent.Desc(song.FieldCreatedAt), ent.Desc(song.FieldID)).
+			Limit(limit).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return s.applySongUserState(ctx, userID, mapSongs(items))
+	case "hi-res":
+		items, err := s.client.Song.Query().
+			WithArtist().
+			WithAlbum().
+			Where(song.Or(song.BitDepthGTE(24), song.SampleRateGTE(96000))).
+			Order(ent.Desc(song.FieldBitDepth), ent.Desc(song.FieldSampleRate), ent.Desc(song.FieldUpdatedAt)).
+			Limit(limit).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return s.applySongUserState(ctx, userID, mapSongs(items))
+	case "needs-lyrics":
+		items, err := s.client.Song.Query().
+			WithArtist().
+			WithAlbum().
+			Where(song.LyricsEmbedded("")).
+			Order(ent.Desc(song.FieldUpdatedAt), ent.Desc(song.FieldID)).
+			Limit(limit).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return s.applySongUserState(ctx, userID, mapSongs(items))
+	default:
+		return nil, fmt.Errorf("smart playlist not found")
+	}
+}
+
 func dailyCandidateOffset(day string, userID, total, candidateLimit int) int {
 	if total <= candidateLimit {
 		return 0
@@ -1296,6 +1650,177 @@ func normalizePlaybackSourceTTLHours(hours int) int {
 	return hours
 }
 
+func normalizeMonitorInterval(minutes int) int {
+	if minutes <= 0 {
+		return 15
+	}
+	if minutes < 5 {
+		return 5
+	}
+	if minutes > 1440 {
+		return 1440
+	}
+	return minutes
+}
+
+func normalizeScrobblingProvider(provider string) string {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "lastfm", "last.fm":
+		return "lastfm"
+	default:
+		return "listenbrainz"
+	}
+}
+
+func normalizeTranscodePolicy(policy string) string {
+	switch strings.ToLower(strings.TrimSpace(policy)) {
+	case "raw", "transcode":
+		return strings.ToLower(strings.TrimSpace(policy))
+	default:
+		return "auto"
+	}
+}
+
+func normalizeTranscodeQuality(kbps int) int {
+	switch {
+	case kbps <= 0:
+		return 192
+	case kbps < 64:
+		return 64
+	case kbps > 320:
+		return 320
+	default:
+		return kbps
+	}
+}
+
+func (s *Service) GetScrobblingSettings(ctx context.Context, userID int) (models.ScrobblingSettings, error) {
+	if userID == 0 {
+		return models.ScrobblingSettings{}, ErrUnauthenticated
+	}
+	settings := defaultScrobblingSettings()
+	if s.client == nil {
+		return settings, nil
+	}
+	var stored scrobblingSettingsRecord
+	if ok, err := s.scrobblingRecord(ctx, userID, &stored); err != nil {
+		return models.ScrobblingSettings{}, err
+	} else if ok {
+		settings.Enabled = stored.Enabled
+		settings.Provider = normalizeScrobblingProvider(stored.Provider)
+		settings.SubmitNow = stored.SubmitNow
+		settings.MinSeconds = normalizeScrobblingMinSeconds(stored.MinSeconds)
+		settings.PercentGate = normalizeScrobblingPercentGate(stored.PercentGate)
+		settings.HasToken = strings.TrimSpace(stored.Token) != ""
+		settings.TokenHint = scrobblingTokenHint(stored.Token)
+	}
+	return settings, nil
+}
+
+func (s *Service) SaveScrobblingSettings(ctx context.Context, userID int, settings models.ScrobblingSettings, token string) (models.ScrobblingSettings, error) {
+	if userID == 0 {
+		return models.ScrobblingSettings{}, ErrUnauthenticated
+	}
+	if s.client == nil {
+		return models.ScrobblingSettings{}, errors.New("database is required")
+	}
+	existing := scrobblingSettingsRecord{}
+	_, _ = s.scrobblingRecord(ctx, userID, &existing)
+	cleanToken := strings.TrimSpace(token)
+	if cleanToken == "" {
+		cleanToken = existing.Token
+	}
+	record := scrobblingSettingsRecord{
+		Enabled:     settings.Enabled,
+		Provider:    normalizeScrobblingProvider(settings.Provider),
+		Token:       cleanToken,
+		SubmitNow:   settings.SubmitNow,
+		MinSeconds:  normalizeScrobblingMinSeconds(settings.MinSeconds),
+		PercentGate: normalizeScrobblingPercentGate(settings.PercentGate),
+	}
+	data, err := json.Marshal(record)
+	if err != nil {
+		return models.ScrobblingSettings{}, err
+	}
+	if err := s.setSetting(ctx, scrobblingKey(userID), string(data)); err != nil {
+		return models.ScrobblingSettings{}, err
+	}
+	return s.GetScrobblingSettings(ctx, userID)
+}
+
+func (s *Service) scrobblingRecord(ctx context.Context, userID int, out *scrobblingSettingsRecord) (bool, error) {
+	item, err := s.client.AppSetting.Query().Where(appsetting.Key(scrobblingKey(userID))).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if err := json.Unmarshal([]byte(item.Value), out); err != nil {
+		return false, nil
+	}
+	return true, nil
+}
+
+type scrobblingSettingsRecord struct {
+	Enabled     bool   `json:"enabled"`
+	Provider    string `json:"provider"`
+	Token       string `json:"token"`
+	SubmitNow   bool   `json:"submit_now"`
+	MinSeconds  int    `json:"min_seconds"`
+	PercentGate int    `json:"percent_gate"`
+}
+
+func defaultScrobblingSettings() models.ScrobblingSettings {
+	return models.ScrobblingSettings{
+		Provider:    "listenbrainz",
+		SubmitNow:   true,
+		MinSeconds:  30,
+		PercentGate: 50,
+	}
+}
+
+func scrobblingKey(userID int) string {
+	return scrobblingPrefix + strconv.Itoa(userID)
+}
+
+func normalizeScrobblingMinSeconds(seconds int) int {
+	if seconds <= 0 {
+		return 30
+	}
+	if seconds < 10 {
+		return 10
+	}
+	if seconds > 240 {
+		return 240
+	}
+	return seconds
+}
+
+func normalizeScrobblingPercentGate(percent int) int {
+	if percent <= 0 {
+		return 50
+	}
+	if percent < 10 {
+		return 10
+	}
+	if percent > 100 {
+		return 100
+	}
+	return percent
+}
+
+func scrobblingTokenHint(token string) string {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return ""
+	}
+	if len(token) <= 8 {
+		return "••••"
+	}
+	return token[:4] + "…" + token[len(token)-4:]
+}
+
 func (s *Service) invalidateLibraryCache(ctx context.Context) {
 	if s.cache == nil {
 		return
@@ -1304,6 +1829,7 @@ func (s *Service) invalidateLibraryCache(ctx context.Context) {
 }
 
 const userVersionPrefix = libraryCachePrefix + "uver:v1:"
+const scrobblingPrefix = "user:v1:scrobbling:"
 
 func (s *Service) userCacheVersion(ctx context.Context, userID int) int {
 	if userID <= 0 || s.cache == nil {
@@ -3105,7 +3631,21 @@ func (s *Service) ToggleArtistFavorite(ctx context.Context, userID, id int) (mod
 }
 
 func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
-	settings := models.Settings{Language: "zh-CN", Theme: "deep-space", SleepTimerMins: 0, LibraryPath: s.libraryDir, NeteaseFallback: true, RegistrationEnabled: false, PlaybackSourceTTLHours: defaultPlaybackSourceTTLHours}
+	settings := models.Settings{
+		Language:               "zh-CN",
+		Theme:                  "deep-space",
+		SleepTimerMins:         0,
+		LibraryPath:            s.libraryDir,
+		NeteaseFallback:        true,
+		RegistrationEnabled:    false,
+		PlaybackSourceTTLHours: defaultPlaybackSourceTTLHours,
+		MetadataGrouping:       false,
+		SmartPlaylistsEnabled:  false,
+		SharingEnabled:         false,
+		SubsonicServerEnabled:  false,
+		TranscodePolicy:        "auto",
+		TranscodeQualityKbps:   192,
+	}
 	items, err := s.client.AppSetting.Query().All(ctx)
 	if err != nil {
 		return settings, err
@@ -3130,9 +3670,23 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.WebFontFamily = item.Value
 		case "web_font_url":
 			settings.WebFontURL = item.Value
+		case "metadata_grouping":
+			settings.MetadataGrouping = item.Value == "true"
+		case "smart_playlists_enabled":
+			settings.SmartPlaylistsEnabled = item.Value == "true"
+		case "sharing_enabled":
+			settings.SharingEnabled = item.Value == "true"
+		case "subsonic_server_enabled":
+			settings.SubsonicServerEnabled = item.Value == "true"
+		case "transcode_policy":
+			settings.TranscodePolicy = item.Value
+		case "transcode_quality_kbps":
+			settings.TranscodeQualityKbps, _ = strconv.Atoi(item.Value)
 		}
 	}
 	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
+	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
+	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
 	return settings, nil
 }
 
@@ -3146,7 +3700,25 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 	settings.WebFontFamily = sanitizeFontFamily(settings.WebFontFamily)
 	settings.WebFontURL = sanitizeFontURL(settings.WebFontURL)
 	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
-	pairs := map[string]string{"language": settings.Language, "theme": settings.Theme, "sleep_timer_mins": strconv.Itoa(settings.SleepTimerMins), "netease_fallback": strconv.FormatBool(settings.NeteaseFallback), settingRegistrationEnabled: strconv.FormatBool(settings.RegistrationEnabled), "diagnostics_enabled": strconv.FormatBool(settings.DiagnosticsEnabled), "playback_source_ttl_hours": strconv.Itoa(settings.PlaybackSourceTTLHours), "web_font_family": settings.WebFontFamily, "web_font_url": settings.WebFontURL}
+	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
+	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
+	pairs := map[string]string{
+		"language":                  settings.Language,
+		"theme":                     settings.Theme,
+		"sleep_timer_mins":          strconv.Itoa(settings.SleepTimerMins),
+		"netease_fallback":          strconv.FormatBool(settings.NeteaseFallback),
+		settingRegistrationEnabled:  strconv.FormatBool(settings.RegistrationEnabled),
+		"diagnostics_enabled":       strconv.FormatBool(settings.DiagnosticsEnabled),
+		"playback_source_ttl_hours": strconv.Itoa(settings.PlaybackSourceTTLHours),
+		"web_font_family":           settings.WebFontFamily,
+		"web_font_url":              settings.WebFontURL,
+		"metadata_grouping":         strconv.FormatBool(settings.MetadataGrouping),
+		"smart_playlists_enabled":   strconv.FormatBool(settings.SmartPlaylistsEnabled),
+		"sharing_enabled":           strconv.FormatBool(settings.SharingEnabled),
+		"subsonic_server_enabled":   strconv.FormatBool(settings.SubsonicServerEnabled),
+		"transcode_policy":          settings.TranscodePolicy,
+		"transcode_quality_kbps":    strconv.Itoa(settings.TranscodeQualityKbps),
+	}
 	for key, value := range pairs {
 		if err := s.setSetting(ctx, key, value); err != nil {
 			return models.Settings{}, err
@@ -4094,7 +4666,7 @@ func (s *Service) applyArtistUserState(ctx context.Context, userID int, items []
 }
 
 func mapLibraryDirectory(item *ent.LibraryDirectory) models.LibraryDirectory {
-	return models.LibraryDirectory{ID: strconv.Itoa(item.ID), Path: item.Path, Note: item.Note, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return models.LibraryDirectory{ID: strconv.Itoa(item.ID), Path: item.Path, Note: item.Note, WatchEnabled: item.WatchEnabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 
 func mapSongs(items []*ent.Song) []models.Song {

@@ -83,6 +83,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "path", Type: field.TypeString},
 		{Name: "note", Type: field.TypeString, Default: ""},
+		{Name: "watch_enabled", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "user_library_directories", Type: field.TypeInt},
@@ -95,7 +96,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "library_directories_users_library_directories",
-				Columns:    []*schema.Column{LibraryDirectoriesColumns[5]},
+				Columns:    []*schema.Column{LibraryDirectoriesColumns[6]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -104,7 +105,7 @@ var (
 			{
 				Name:    "librarydirectory_path_user_library_directories",
 				Unique:  true,
-				Columns: []*schema.Column{LibraryDirectoriesColumns[1], LibraryDirectoriesColumns[5]},
+				Columns: []*schema.Column{LibraryDirectoriesColumns[1], LibraryDirectoriesColumns[6]},
 			},
 		},
 	}

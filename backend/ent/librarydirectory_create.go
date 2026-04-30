@@ -41,6 +41,20 @@ func (_c *LibraryDirectoryCreate) SetNillableNote(v *string) *LibraryDirectoryCr
 	return _c
 }
 
+// SetWatchEnabled sets the "watch_enabled" field.
+func (_c *LibraryDirectoryCreate) SetWatchEnabled(v bool) *LibraryDirectoryCreate {
+	_c.mutation.SetWatchEnabled(v)
+	return _c
+}
+
+// SetNillableWatchEnabled sets the "watch_enabled" field if the given value is not nil.
+func (_c *LibraryDirectoryCreate) SetNillableWatchEnabled(v *bool) *LibraryDirectoryCreate {
+	if v != nil {
+		_c.SetWatchEnabled(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *LibraryDirectoryCreate) SetCreatedAt(v time.Time) *LibraryDirectoryCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -119,6 +133,10 @@ func (_c *LibraryDirectoryCreate) defaults() {
 		v := librarydirectory.DefaultNote
 		_c.mutation.SetNote(v)
 	}
+	if _, ok := _c.mutation.WatchEnabled(); !ok {
+		v := librarydirectory.DefaultWatchEnabled
+		_c.mutation.SetWatchEnabled(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := librarydirectory.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -141,6 +159,9 @@ func (_c *LibraryDirectoryCreate) check() error {
 	}
 	if _, ok := _c.mutation.Note(); !ok {
 		return &ValidationError{Name: "note", err: errors.New(`ent: missing required field "LibraryDirectory.note"`)}
+	}
+	if _, ok := _c.mutation.WatchEnabled(); !ok {
+		return &ValidationError{Name: "watch_enabled", err: errors.New(`ent: missing required field "LibraryDirectory.watch_enabled"`)}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "LibraryDirectory.created_at"`)}
@@ -184,6 +205,10 @@ func (_c *LibraryDirectoryCreate) createSpec() (*LibraryDirectory, *sqlgraph.Cre
 	if value, ok := _c.mutation.Note(); ok {
 		_spec.SetField(librarydirectory.FieldNote, field.TypeString, value)
 		_node.Note = value
+	}
+	if value, ok := _c.mutation.WatchEnabled(); ok {
+		_spec.SetField(librarydirectory.FieldWatchEnabled, field.TypeBool, value)
+		_node.WatchEnabled = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(librarydirectory.FieldCreatedAt, field.TypeTime, value)

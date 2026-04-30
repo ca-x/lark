@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, ScanResult, ScanStatus, Settings, Song, SongPage, User, MCPTokenStatus, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackSourceStatus, PlaybackSourceType } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, ScanResult, ScanStatus, Settings, Song, SongPage, User, MCPTokenStatus, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
@@ -19,6 +19,8 @@ export const api = {
   register: (username: string, password: string) => request<{ user: AuthStatus['user'] }>('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   updateProfile: (nickname: string, avatar_data_url: string) => request<AuthStatus['user']>('/api/me', { method: 'PUT', body: JSON.stringify({ nickname, avatar_data_url }) }),
+  scrobblingSettings: () => request<ScrobblingSettings>('/api/me/scrobbling'),
+  saveScrobblingSettings: (settings: ScrobblingSettings & { token?: string }) => request<ScrobblingSettings>('/api/me/scrobbling', { method: 'PUT', body: JSON.stringify(settings) }),
   users: () => request<User[]>('/api/users'),
   saveProgress: (id: number, progress_seconds: number, duration_seconds: number, completed = false) => request<void>(`/api/songs/${id}/progress`, { method: 'PUT', body: JSON.stringify({ progress_seconds, duration_seconds, completed }) }),
   songs: (q = '', limit = 0) => {
@@ -39,6 +41,8 @@ export const api = {
   recentPlayedSongs: (limit = 12) => request<Song[]>(`/api/songs/recent-played?limit=${limit}`),
   recentAddedSongs: (limit = 12) => request<Song[]>(`/api/songs/recent-added?limit=${limit}`),
   dailyMix: (limit = 24) => request<Song[]>(`/api/daily-mix?limit=${limit}`),
+  smartPlaylists: () => request<SmartPlaylist[]>('/api/smart-playlists'),
+  smartPlaylistSongs: (id: string, limit = 50) => request<Song[]>(`/api/smart-playlists/${encodeURIComponent(id)}/songs?limit=${limit}`),
   song: (id: number) => request<Song>(`/api/songs/${id}`),
   favoriteSong: (id: number) => request<Song>(`/api/songs/${id}/favorite`, { method: 'POST' }),
   markPlayed: (id: number) => request<void>(`/api/songs/${id}/played`, { method: 'POST' }),
@@ -91,7 +95,9 @@ export const api = {
 
   librarySources: () => request<LibrarySource[]>('/api/library/sources'),
   libraryDirectories: () => request<LibraryDirectory[]>('/api/library/directories'),
+  checkLibraryDirectories: () => request<LibraryDirectory[]>('/api/library/directories/check', { method: 'POST' }),
   addLibraryDirectory: (path: string, note: string) => request<LibraryDirectory>('/api/library/directories', { method: 'POST', body: JSON.stringify({ path, note }) }),
+  updateLibraryDirectory: (id: string, patch: Partial<Pick<LibraryDirectory, 'watch_enabled'>>) => request<LibraryDirectory>(`/api/library/directories/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteLibraryDirectory: (id: string) => request<void>(`/api/library/directories/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   networkSources: () => request<NetworkSource[]>('/api/network/sources'),
   saveNetworkSource: (source: Partial<NetworkSource>) => request<NetworkSource>('/api/network/sources', { method: 'POST', body: JSON.stringify(source) }),

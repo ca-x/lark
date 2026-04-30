@@ -65,6 +65,11 @@ func Note(v string) predicate.LibraryDirectory {
 	return predicate.LibraryDirectory(sql.FieldEQ(FieldNote, v))
 }
 
+// WatchEnabled applies equality check predicate on the "watch_enabled" field. It's identical to WatchEnabledEQ.
+func WatchEnabled(v bool) predicate.LibraryDirectory {
+	return predicate.LibraryDirectory(sql.FieldEQ(FieldWatchEnabled, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.LibraryDirectory {
 	return predicate.LibraryDirectory(sql.FieldEQ(FieldCreatedAt, v))
@@ -203,6 +208,16 @@ func NoteEqualFold(v string) predicate.LibraryDirectory {
 // NoteContainsFold applies the ContainsFold predicate on the "note" field.
 func NoteContainsFold(v string) predicate.LibraryDirectory {
 	return predicate.LibraryDirectory(sql.FieldContainsFold(FieldNote, v))
+}
+
+// WatchEnabledEQ applies the EQ predicate on the "watch_enabled" field.
+func WatchEnabledEQ(v bool) predicate.LibraryDirectory {
+	return predicate.LibraryDirectory(sql.FieldEQ(FieldWatchEnabled, v))
+}
+
+// WatchEnabledNEQ applies the NEQ predicate on the "watch_enabled" field.
+func WatchEnabledNEQ(v bool) predicate.LibraryDirectory {
+	return predicate.LibraryDirectory(sql.FieldNEQ(FieldWatchEnabled, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

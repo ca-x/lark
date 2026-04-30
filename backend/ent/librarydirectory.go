@@ -22,6 +22,8 @@ type LibraryDirectory struct {
 	Path string `json:"path,omitempty"`
 	// Note holds the value of the "note" field.
 	Note string `json:"note,omitempty"`
+	// WatchEnabled holds the value of the "watch_enabled" field.
+	WatchEnabled bool `json:"watch_enabled,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -58,6 +60,8 @@ func (*LibraryDirectory) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case librarydirectory.FieldWatchEnabled:
+			values[i] = new(sql.NullBool)
 		case librarydirectory.FieldID:
 			values[i] = new(sql.NullInt64)
 		case librarydirectory.FieldPath, librarydirectory.FieldNote:
@@ -98,6 +102,12 @@ func (_m *LibraryDirectory) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field note", values[i])
 			} else if value.Valid {
 				_m.Note = value.String
+			}
+		case librarydirectory.FieldWatchEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field watch_enabled", values[i])
+			} else if value.Valid {
+				_m.WatchEnabled = value.Bool
 			}
 		case librarydirectory.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -164,6 +174,9 @@ func (_m *LibraryDirectory) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("note=")
 	builder.WriteString(_m.Note)
+	builder.WriteString(", ")
+	builder.WriteString("watch_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.WatchEnabled))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

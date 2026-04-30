@@ -134,12 +134,25 @@ type Folder struct {
 }
 
 type LibraryDirectory struct {
-	ID        string    `json:"id"`
-	Path      string    `json:"path"`
-	Note      string    `json:"note"`
-	Builtin   bool      `json:"builtin"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID            string     `json:"id"`
+	Path          string     `json:"path"`
+	Note          string     `json:"note"`
+	Builtin       bool       `json:"builtin"`
+	WatchEnabled  bool       `json:"watch_enabled"`
+	WatchActive   bool       `json:"watch_active"`
+	Status        string     `json:"status"`
+	LastError     string     `json:"last_error,omitempty"`
+	LastCheckedAt *time.Time `json:"last_checked_at,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+type SmartPlaylist struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Kind        string `json:"kind"`
+	Enabled     bool   `json:"enabled"`
 }
 
 type FolderBreadcrumb struct {
@@ -191,6 +204,22 @@ type Settings struct {
 	PlaybackSourceTTLHours int    `json:"playback_source_ttl_hours"`
 	WebFontFamily          string `json:"web_font_family"`
 	WebFontURL             string `json:"web_font_url"`
+	MetadataGrouping       bool   `json:"metadata_grouping"`
+	SmartPlaylistsEnabled  bool   `json:"smart_playlists_enabled"`
+	SharingEnabled         bool   `json:"sharing_enabled"`
+	SubsonicServerEnabled  bool   `json:"subsonic_server_enabled"`
+	TranscodePolicy        string `json:"transcode_policy"`
+	TranscodeQualityKbps   int    `json:"transcode_quality_kbps"`
+}
+
+type ScrobblingSettings struct {
+	Enabled     bool   `json:"enabled"`
+	Provider    string `json:"provider"`
+	TokenHint   string `json:"token_hint"`
+	HasToken    bool   `json:"has_token"`
+	SubmitNow   bool   `json:"submit_now"`
+	MinSeconds  int    `json:"min_seconds"`
+	PercentGate int    `json:"percent_gate"`
 }
 
 type PlaybackSource struct {

@@ -102,12 +102,16 @@ func init() {
 	librarydirectoryDescNote := librarydirectoryFields[1].Descriptor()
 	// librarydirectory.DefaultNote holds the default value on creation for the note field.
 	librarydirectory.DefaultNote = librarydirectoryDescNote.Default.(string)
+	// librarydirectoryDescWatchEnabled is the schema descriptor for watch_enabled field.
+	librarydirectoryDescWatchEnabled := librarydirectoryFields[2].Descriptor()
+	// librarydirectory.DefaultWatchEnabled holds the default value on creation for the watch_enabled field.
+	librarydirectory.DefaultWatchEnabled = librarydirectoryDescWatchEnabled.Default.(bool)
 	// librarydirectoryDescCreatedAt is the schema descriptor for created_at field.
-	librarydirectoryDescCreatedAt := librarydirectoryFields[2].Descriptor()
+	librarydirectoryDescCreatedAt := librarydirectoryFields[3].Descriptor()
 	// librarydirectory.DefaultCreatedAt holds the default value on creation for the created_at field.
 	librarydirectory.DefaultCreatedAt = librarydirectoryDescCreatedAt.Default.(func() time.Time)
 	// librarydirectoryDescUpdatedAt is the schema descriptor for updated_at field.
-	librarydirectoryDescUpdatedAt := librarydirectoryFields[3].Descriptor()
+	librarydirectoryDescUpdatedAt := librarydirectoryFields[4].Descriptor()
 	// librarydirectory.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	librarydirectory.DefaultUpdatedAt = librarydirectoryDescUpdatedAt.Default.(func() time.Time)
 	// librarydirectory.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

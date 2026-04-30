@@ -70,6 +70,49 @@ func TestSettingsPersistPlaybackSourceTTL(t *testing.T) {
 	}
 }
 
+func TestNewFeatureSettingsDefaultDisabled(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	service := &Service{client: client}
+
+	settings, err := service.GetSettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.MetadataGrouping || settings.SmartPlaylistsEnabled || settings.SharingEnabled || settings.SubsonicServerEnabled {
+		t.Fatalf("expected new feature toggles to default disabled, got %#v", settings)
+	}
+}
+
+func TestScrobblingSettingsPersistInDatabase(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	service := &Service{client: client, cache: kv.NoopStore{}}
+
+	saved, err := service.SaveScrobblingSettings(ctx, 9, models.ScrobblingSettings{
+		Enabled:     true,
+		Provider:    "last.fm",
+		SubmitNow:   true,
+		MinSeconds:  45,
+		PercentGate: 60,
+	}, "secret-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !saved.Enabled || saved.Provider != "lastfm" || !saved.HasToken {
+		t.Fatalf("unexpected saved scrobbling settings: %#v", saved)
+	}
+	loaded, err := service.GetScrobblingSettings(ctx, 9)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded.Enabled || loaded.Provider != "lastfm" || !loaded.HasToken || loaded.MinSeconds != 45 || loaded.PercentGate != 60 {
+		t.Fatalf("expected scrobbling settings to persist in database, got %#v", loaded)
+	}
+}
+
 func TestPlaybackSourceUsesKVRecordPerUser(t *testing.T) {
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))

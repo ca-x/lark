@@ -2161,6 +2161,7 @@ type LibraryDirectoryMutation struct {
 	id            *int
 	_path         *string
 	note          *string
+	watch_enabled *bool
 	created_at    *time.Time
 	updated_at    *time.Time
 	clearedFields map[string]struct{}
@@ -2341,6 +2342,42 @@ func (m *LibraryDirectoryMutation) ResetNote() {
 	m.note = nil
 }
 
+// SetWatchEnabled sets the "watch_enabled" field.
+func (m *LibraryDirectoryMutation) SetWatchEnabled(b bool) {
+	m.watch_enabled = &b
+}
+
+// WatchEnabled returns the value of the "watch_enabled" field in the mutation.
+func (m *LibraryDirectoryMutation) WatchEnabled() (r bool, exists bool) {
+	v := m.watch_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWatchEnabled returns the old "watch_enabled" field's value of the LibraryDirectory entity.
+// If the LibraryDirectory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *LibraryDirectoryMutation) OldWatchEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWatchEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWatchEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWatchEnabled: %w", err)
+	}
+	return oldValue.WatchEnabled, nil
+}
+
+// ResetWatchEnabled resets all changes to the "watch_enabled" field.
+func (m *LibraryDirectoryMutation) ResetWatchEnabled() {
+	m.watch_enabled = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *LibraryDirectoryMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -2486,12 +2523,15 @@ func (m *LibraryDirectoryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *LibraryDirectoryMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 5)
 	if m._path != nil {
 		fields = append(fields, librarydirectory.FieldPath)
 	}
 	if m.note != nil {
 		fields = append(fields, librarydirectory.FieldNote)
+	}
+	if m.watch_enabled != nil {
+		fields = append(fields, librarydirectory.FieldWatchEnabled)
 	}
 	if m.created_at != nil {
 		fields = append(fields, librarydirectory.FieldCreatedAt)
@@ -2511,6 +2551,8 @@ func (m *LibraryDirectoryMutation) Field(name string) (ent.Value, bool) {
 		return m.Path()
 	case librarydirectory.FieldNote:
 		return m.Note()
+	case librarydirectory.FieldWatchEnabled:
+		return m.WatchEnabled()
 	case librarydirectory.FieldCreatedAt:
 		return m.CreatedAt()
 	case librarydirectory.FieldUpdatedAt:
@@ -2528,6 +2570,8 @@ func (m *LibraryDirectoryMutation) OldField(ctx context.Context, name string) (e
 		return m.OldPath(ctx)
 	case librarydirectory.FieldNote:
 		return m.OldNote(ctx)
+	case librarydirectory.FieldWatchEnabled:
+		return m.OldWatchEnabled(ctx)
 	case librarydirectory.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case librarydirectory.FieldUpdatedAt:
@@ -2554,6 +2598,13 @@ func (m *LibraryDirectoryMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetNote(v)
+		return nil
+	case librarydirectory.FieldWatchEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWatchEnabled(v)
 		return nil
 	case librarydirectory.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -2623,6 +2674,9 @@ func (m *LibraryDirectoryMutation) ResetField(name string) error {
 		return nil
 	case librarydirectory.FieldNote:
 		m.ResetNote()
+		return nil
+	case librarydirectory.FieldWatchEnabled:
+		m.ResetWatchEnabled()
 		return nil
 	case librarydirectory.FieldCreatedAt:
 		m.ResetCreatedAt()

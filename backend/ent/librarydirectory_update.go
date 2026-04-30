@@ -57,6 +57,20 @@ func (_u *LibraryDirectoryUpdate) SetNillableNote(v *string) *LibraryDirectoryUp
 	return _u
 }
 
+// SetWatchEnabled sets the "watch_enabled" field.
+func (_u *LibraryDirectoryUpdate) SetWatchEnabled(v bool) *LibraryDirectoryUpdate {
+	_u.mutation.SetWatchEnabled(v)
+	return _u
+}
+
+// SetNillableWatchEnabled sets the "watch_enabled" field if the given value is not nil.
+func (_u *LibraryDirectoryUpdate) SetNillableWatchEnabled(v *bool) *LibraryDirectoryUpdate {
+	if v != nil {
+		_u.SetWatchEnabled(*v)
+	}
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *LibraryDirectoryUpdate) SetCreatedAt(v time.Time) *LibraryDirectoryUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -166,6 +180,9 @@ func (_u *LibraryDirectoryUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(librarydirectory.FieldNote, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.WatchEnabled(); ok {
+		_spec.SetField(librarydirectory.FieldWatchEnabled, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(librarydirectory.FieldCreatedAt, field.TypeTime, value)
 	}
@@ -245,6 +262,20 @@ func (_u *LibraryDirectoryUpdateOne) SetNote(v string) *LibraryDirectoryUpdateOn
 func (_u *LibraryDirectoryUpdateOne) SetNillableNote(v *string) *LibraryDirectoryUpdateOne {
 	if v != nil {
 		_u.SetNote(*v)
+	}
+	return _u
+}
+
+// SetWatchEnabled sets the "watch_enabled" field.
+func (_u *LibraryDirectoryUpdateOne) SetWatchEnabled(v bool) *LibraryDirectoryUpdateOne {
+	_u.mutation.SetWatchEnabled(v)
+	return _u
+}
+
+// SetNillableWatchEnabled sets the "watch_enabled" field if the given value is not nil.
+func (_u *LibraryDirectoryUpdateOne) SetNillableWatchEnabled(v *bool) *LibraryDirectoryUpdateOne {
+	if v != nil {
+		_u.SetWatchEnabled(*v)
 	}
 	return _u
 }
@@ -387,6 +418,9 @@ func (_u *LibraryDirectoryUpdateOne) sqlSave(ctx context.Context) (_node *Librar
 	}
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(librarydirectory.FieldNote, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.WatchEnabled(); ok {
+		_spec.SetField(librarydirectory.FieldWatchEnabled, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(librarydirectory.FieldCreatedAt, field.TypeTime, value)

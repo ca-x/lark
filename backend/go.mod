@@ -7,6 +7,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
+	github.com/fsnotify/fsnotify v1.10.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/labstack/echo/v5 v5.1.0
 	github.com/lib-x/entsqlite v0.2.0

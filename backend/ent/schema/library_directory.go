@@ -15,6 +15,7 @@ func (LibraryDirectory) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("path").NotEmpty(),
 		field.String("note").Default(""),
+		field.Bool("watch_enabled").Default(false),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

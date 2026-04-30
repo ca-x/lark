@@ -77,8 +77,10 @@ import type {
   PlaybackSourceType,
   RadioSource,
   RadioStation,
+  ScrobblingSettings,
+  SmartPlaylist,
 } from "./types";
-import { createT } from "./i18n";
+import { createT, libraryDirectoryStatusLabel, smartPlaylistLabel } from "./i18n";
 import { RadioReceiver } from "./components/RadioPlayer";
 import { LoadingStage } from "./components/LoadingStage";
 import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
@@ -98,6 +100,12 @@ const defaultSettings: Settings = {
   playback_source_ttl_hours: 24,
   web_font_url: "",
   web_font_family: "",
+  metadata_grouping: false,
+  smart_playlists_enabled: false,
+  sharing_enabled: false,
+  subsonic_server_enabled: false,
+  transcode_policy: "auto",
+  transcode_quality_kbps: 192,
 };
 
 type View =
@@ -254,6 +262,7 @@ const CARD_GRID_BATCH = 72;
 const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
 const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
 const HOME_PLAYER_STYLE_KEY = "lark.home-player-style";
+const PERSISTENT_QUEUE_KEY = "lark.persistent-queue-enabled";
 const AUTH_REDIRECT_KEY = "lark.auth.redirect";
 const defaultLibraryTab: LibraryTab = "songs";
 
@@ -296,6 +305,64 @@ function rememberLibraryTab(tab: LibraryTab) {
     window.localStorage.setItem(LIBRARY_SOURCE_TAB_KEY, tab);
   } catch {
     // localStorage can be unavailable in private/webview modes; local source remains default.
+  }
+}
+
+function storedPersistentQueueEnabled() {
+  try {
+    return window.localStorage.getItem(PERSISTENT_QUEUE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function rememberPersistentQueueEnabled(enabled: boolean) {
+  try {
+    window.localStorage.setItem(PERSISTENT_QUEUE_KEY, enabled ? "true" : "false");
+  } catch {
+    // localStorage can be unavailable in private/webview modes.
+  }
+}
+
+function persistentQueueStateKey(user: User) {
+  return `lark.persistent-queue.${user.id}`;
+}
+
+function readPersistentQueueIDs(user: User) {
+  try {
+    const raw = window.localStorage.getItem(persistentQueueStateKey(user));
+    if (!raw) return { ids: [] as number[], currentId: 0 };
+    const parsed = JSON.parse(raw) as { ids?: number[]; currentId?: number };
+    return {
+      ids: Array.isArray(parsed.ids) ? parsed.ids.filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE) : [],
+      currentId: Number.isInteger(parsed.currentId) ? Number(parsed.currentId) : 0,
+    };
+  } catch {
+    return { ids: [] as number[], currentId: 0 };
+  }
+}
+
+function writePersistentQueue(user: User, queue: Song[], current: Song | null) {
+  try {
+    const ids = queue.map((song) => song.id).filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
+    if (!ids.length) {
+      window.localStorage.removeItem(persistentQueueStateKey(user));
+      return;
+    }
+    window.localStorage.setItem(
+      persistentQueueStateKey(user),
+      JSON.stringify({ ids, currentId: current?.id || ids[0], updatedAt: Date.now() }),
+    );
+  } catch {
+    // localStorage can be unavailable in private/webview modes.
+  }
+}
+
+function clearPersistentQueue(user: User) {
+  try {
+    window.localStorage.removeItem(persistentQueueStateKey(user));
+  } catch {
+    // localStorage can be unavailable in private/webview modes.
   }
 }
 
@@ -1123,6 +1190,7 @@ export default function App() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [smartPlaylists, setSmartPlaylists] = useState<SmartPlaylist[]>([]);
   const [queue, setQueue] = useState<Song[]>([]);
   const [collection, setCollection] = useState<Collection | null>(null);
   const [collectionBack, setCollectionBack] = useState<Collection | null>(null);
@@ -1169,6 +1237,8 @@ export default function App() {
   const [sleepLeft, setSleepLeft] = useState(0);
   const [resumeMode, setResumeMode] = useState<ResumeMode>("resume");
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
+  const [persistentQueueEnabled, setPersistentQueueEnabled] = useState(storedPersistentQueueEnabled);
+  const [scrobblingSettings, setScrobblingSettings] = useState<ScrobblingSettings | null>(null);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [bufferedEnd, setBufferedEnd] = useState(0);
@@ -1380,6 +1450,15 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem(TONE_STORAGE_KEY, JSON.stringify({ bass: bassGain, treble: trebleGain }));
   }, [bassGain, trebleGain]);
+
+  useEffect(() => {
+    if (!auth?.user) return;
+    if (!persistentQueueEnabled) {
+      clearPersistentQueue(auth.user);
+      return;
+    }
+    writePersistentQueue(auth.user, queue, current);
+  }, [auth?.user?.id, persistentQueueEnabled, queue, current?.id]);
 
   useEffect(() => {
     const toneActive = Math.abs(bassGain) >= 0.1 || Math.abs(trebleGain) >= 0.1;
@@ -1798,7 +1877,7 @@ export default function App() {
 
   async function loadAppData() {
     const loaded = await api.settings().catch(() => defaultSettings);
-    setSettings({ ...loaded, theme: normalizeTheme(loaded.theme) });
+    setSettings({ ...defaultSettings, ...loaded, theme: normalizeTheme(loaded.theme) });
     await refreshAll({ initializeQueue: true });
   }
 
@@ -1831,6 +1910,8 @@ export default function App() {
     setAlbums([]);
     setArtists([]);
     setPlaylists([]);
+    setSmartPlaylists([]);
+    setScrobblingSettings(null);
     setQueue([]);
     setCurrent(null);
     setPlaying(false);
@@ -1952,7 +2033,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems] =
+    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem] =
       await Promise.all([
         api.songsPage(query, libraryPage, libraryPageSize),
         api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
@@ -1960,6 +2041,7 @@ export default function App() {
         api.albumsPage(albumPage, gridPageSize, albumArtistFilter),
         api.artistsPage(artistPage, gridPageSize),
         api.playlistsPage(playlistPage, gridPageSize),
+        api.smartPlaylists().catch(() => []),
         api.dailyMix(24).catch(() => []),
         api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
         api.libraryStats().catch(() => null),
@@ -1977,6 +2059,7 @@ export default function App() {
         api.radioSources().catch(() => []),
         api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
         api.radioFavorites().catch(() => []),
+        api.scrobblingSettings().catch(() => null),
       ]);
     const songItems = songPageItem.items;
     setSongs(songItems);
@@ -2000,13 +2083,33 @@ export default function App() {
     setAlbums(albumPageItem.items);
     setArtists(artistPageItem.items);
     setPlaylists(playlistPageItem.items);
+    setSmartPlaylists(smartPlaylistItems);
+    setScrobblingSettings(scrobblingItem);
+    let restoredQueue: Song[] = [];
+    let restoredCurrent: Song | null = null;
+    if (options.initializeQueue && auth?.user && persistentQueueEnabled) {
+      const saved = readPersistentQueueIDs(auth.user);
+      if (saved.ids.length) {
+        const localSongs = new Map([
+          ...songItems,
+          ...dailyItems,
+          ...recentPlayedItems,
+          ...recentAddedItems,
+          ...favoriteSongPageItem.items,
+        ].map((song) => [song.id, song] as const));
+        restoredQueue = (await Promise.all(saved.ids.map((id) => localSongs.get(id) ?? api.song(id).catch(() => null))))
+          .filter((song): song is Song => Boolean(song));
+        restoredCurrent = restoredQueue.find((song) => song.id === saved.currentId) ?? restoredQueue[0] ?? null;
+      }
+    }
     setQueue((old) => {
       if (!options.initializeQueue && old.length > 0) return old;
+      if (restoredQueue.length) return restoredQueue;
       return dailyItems.length > 0 ? dailyItems : songItems;
     });
     const nextCurrent = current
       ? (songItems.find((item) => item.id === current.id) ?? current)
-      : null;
+      : restoredCurrent;
     if (nextCurrent && (nextCurrent.id !== current?.id || nextCurrent !== current)) {
       setCurrent(nextCurrent);
     }
@@ -2818,6 +2921,39 @@ export default function App() {
     }
   }
 
+  async function openSmartPlaylist(playlist: SmartPlaylist) {
+    if (!playlist.enabled) return;
+    const label = smartPlaylistLabel(playlist.id, settings.language);
+    setCollectionBack(null);
+    const requestId = ++collectionRequestRef.current;
+    const nextCollection: Collection = {
+      type: "playlist",
+      id: 0,
+      title: label.title,
+      subtitle: t("loading"),
+      loading: true,
+      favorite: false,
+      songs: [],
+    };
+    setCollection(nextCollection);
+    setView("collection");
+    try {
+      const items = await withTimeout(api.smartPlaylistSongs(playlist.id, COLLECTION_DETAIL_SONG_LIMIT));
+      if (requestId !== collectionRequestRef.current) return;
+      setCollection({
+        type: "playlist",
+        id: 0,
+        title: label.title,
+        subtitle: `${items.length} ${t("count")}`,
+        favorite: false,
+        songs: items,
+        coverUrl: items[0] ? coverUrl(items[0]) : undefined,
+      });
+    } catch (error) {
+      setCollectionLoadError(nextCollection, requestId, error);
+    }
+  }
+
   async function openAlbum(album: Album, backTo: Collection | null = null) {
     setCollectionBack(backTo);
     const requestId = ++collectionRequestRef.current;
@@ -2946,6 +3082,12 @@ export default function App() {
 
   async function playPlaylist(playlist: Playlist) {
     const items = await api.playlistSongs(playlist.id, MAX_PLAYBACK_QUEUE_SIZE);
+    if (items[0]) void playSong(items[0], items);
+  }
+
+  async function playSmartPlaylist(playlist: SmartPlaylist) {
+    if (!playlist.enabled) return;
+    const items = await api.smartPlaylistSongs(playlist.id, MAX_PLAYBACK_QUEUE_SIZE);
     if (items[0]) void playSong(items[0], items);
   }
 
@@ -3366,6 +3508,23 @@ export default function App() {
             )}
             {view === "playlists" && (
               <>
+                {smartPlaylists.some((item) => item.enabled) ? (
+                  <CardGrid
+                    t={t}
+                    title={t("smartPlaylists")}
+                    items={smartPlaylists.filter((item) => item.enabled).map((item) => {
+                      const label = smartPlaylistLabel(item.id, settings.language);
+                      return {
+                        id: item.id,
+                        title: label.title,
+                        subtitle: label.hint,
+                        theme: settings.theme,
+                        onClick: () => void openSmartPlaylist(item),
+                        onPlay: () => void playSmartPlaylist(item),
+                      };
+                    })}
+                  />
+                ) : null}
                 <CardGrid
                   t={t}
                   title={t("playlists")}
@@ -3459,6 +3618,13 @@ export default function App() {
                 }}
                 homePlayerStyle={homePlayerStyle}
                 onHomePlayerStyleChange={setHomePlayerStyle}
+                persistentQueueEnabled={persistentQueueEnabled}
+                onPersistentQueueChange={(enabled) => {
+                  setPersistentQueueEnabled(enabled);
+                  rememberPersistentQueueEnabled(enabled);
+                }}
+                scrobblingSettings={scrobblingSettings}
+                onScrobblingSettingsChange={setScrobblingSettings}
                 activeTab={settingsTab}
                 onTabChange={setSettingsTab}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
@@ -6380,6 +6546,10 @@ function SettingsPanel({
   onResumeModeChange,
   homePlayerStyle,
   onHomePlayerStyleChange,
+  persistentQueueEnabled,
+  onPersistentQueueChange,
+  scrobblingSettings,
+  onScrobblingSettingsChange,
   activeTab,
   onTabChange,
   onUpdateProfile,
@@ -6394,6 +6564,10 @@ function SettingsPanel({
   onResumeModeChange: (mode: ResumeMode) => void;
   homePlayerStyle: HomePlayerStyle;
   onHomePlayerStyleChange: (style: HomePlayerStyle) => void;
+  persistentQueueEnabled: boolean;
+  onPersistentQueueChange: (enabled: boolean) => void;
+  scrobblingSettings: ScrobblingSettings | null;
+  onScrobblingSettingsChange: (settings: ScrobblingSettings) => void;
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
@@ -6416,8 +6590,8 @@ function SettingsPanel({
   const [mcpLoading, setMcpLoading] = useState(false);
   const [mcpHelpOpen, setMcpHelpOpen] = useState(false);
   const [mcpCopied, setMcpCopied] = useState(false);
-  const nicknameLabel = settings.language === "zh-CN" ? "昵称" : "Nickname";
-  const avatarLabel = settings.language === "zh-CN" ? "头像" : "Avatar";
+  const [libraryChecking, setLibraryChecking] = useState(false);
+  const [scrobbleToken, setScrobbleToken] = useState("");
   const mcpEndpoint = `${window.location.origin}/api/mcp/sse`;
   const mcpTokenExample = mcpToken?.token || mcpToken?.hint || "lark_mcp_...";
   const tabs: { id: SettingsTab; label: string }[] = [
@@ -6461,6 +6635,10 @@ function SettingsPanel({
       .mcpToken()
       .then(setMcpToken)
       .catch(() => setMcpToken(null));
+    void api
+      .scrobblingSettings()
+      .then(onScrobblingSettingsChange)
+      .catch(() => undefined);
   }, [activeTab]);
 
   useEffect(() => {
@@ -6530,6 +6708,21 @@ function SettingsPanel({
     onLibraryDirectoriesChange(await api.libraryDirectories().catch(() => []));
   }
 
+  async function checkLibraryDirectories() {
+    setLibraryChecking(true);
+    try {
+      onLibraryDirectoriesChange(await api.checkLibraryDirectories());
+    } finally {
+      setLibraryChecking(false);
+    }
+  }
+
+  async function saveScrobbling(next: ScrobblingSettings, token = "") {
+    const saved = await api.saveScrobblingSettings({ ...next, token });
+    onScrobblingSettingsChange(saved);
+    if (token) setScrobbleToken("");
+  }
+
   async function addLibraryDirectory() {
     if (!libraryPathInput.trim()) return;
     setLibraryDirError("");
@@ -6547,6 +6740,16 @@ function SettingsPanel({
     setLibraryDirError("");
     try {
       await api.deleteLibraryDirectory(id);
+      await refreshLibraryDirectories();
+    } catch (err) {
+      setLibraryDirError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function updateLibraryDirectoryWatch(id: string, watchEnabled: boolean) {
+    setLibraryDirError("");
+    try {
+      await api.updateLibraryDirectory(id, { watch_enabled: watchEnabled });
       await refreshLibraryDirectories();
     } catch (err) {
       setLibraryDirError(err instanceof Error ? err.message : String(err));
@@ -6580,11 +6783,11 @@ function SettingsPanel({
               </div>
             </div>
             <label>
-              {nicknameLabel}
+              {t("nickname")}
               <input value={nickname} onChange={(e) => setNickname(e.target.value)} />
             </label>
             <label className="upload avatar-upload">
-              {avatarLabel}
+              {t("avatar")}
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp,image/gif"
@@ -6643,6 +6846,87 @@ function SettingsPanel({
               </button>
             </div>
           </div>
+          <label className="switch-row settings-wide-row">
+            <span>
+              <span>{t("persistentQueue")}</span>
+              <small>{t("persistentQueueHint")}</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={persistentQueueEnabled}
+              onChange={(e) => onPersistentQueueChange(e.target.checked)}
+            />
+          </label>
+          {scrobblingSettings ? (
+            <div className="scrobbling-card settings-wide-row">
+              <div className="scrobbling-head">
+                <div>
+                  <strong>{t("scrobbling")}</strong>
+                  <span>{t("scrobblingHint")}</span>
+                </div>
+                <span className={scrobblingSettings.enabled ? "status-pill active" : "status-pill"}>
+                  {scrobblingSettings.enabled ? t("enabled") : t("disabled")}
+                </span>
+              </div>
+              <label className="switch-row">
+                <span>{t("enableScrobbling")}</span>
+                <input
+                  type="checkbox"
+                  checked={scrobblingSettings.enabled}
+                  onChange={(e) => void saveScrobbling({ ...scrobblingSettings, enabled: e.target.checked })}
+                />
+              </label>
+              <div className="scrobbling-form">
+                <label>
+                  {t("provider")}
+                  <select
+                    value={scrobblingSettings.provider}
+                    onChange={(e) => void saveScrobbling({ ...scrobblingSettings, provider: e.target.value })}
+                  >
+                    <option value="listenbrainz">ListenBrainz</option>
+                    <option value="lastfm">Last.fm</option>
+                  </select>
+                </label>
+                <label>
+                  {t("token")}
+                  <input
+                    value={scrobbleToken}
+                    placeholder={scrobblingSettings.token_hint || t("token")}
+                    onChange={(event) => setScrobbleToken(event.target.value)}
+                  />
+                </label>
+                <button type="button" onClick={() => void saveScrobbling(scrobblingSettings, scrobbleToken)}>
+                  {t("save")}
+                </button>
+              </div>
+              <div className="settings-mini-grid">
+                <label>
+                  {t("scrobbleMinSeconds")}
+                  <input
+                    type="number"
+                    min={10}
+                    max={240}
+                    value={scrobblingSettings.min_seconds}
+                    onChange={(event) =>
+                      void saveScrobbling({ ...scrobblingSettings, min_seconds: Number(event.target.value) || 30 })
+                    }
+                  />
+                </label>
+                <label>
+                  {t("scrobblePercent")}
+                  <input
+                    type="number"
+                    min={10}
+                    max={100}
+                    value={scrobblingSettings.percent_gate}
+                    onChange={(event) =>
+                      void saveScrobbling({ ...scrobblingSettings, percent_gate: Number(event.target.value) || 50 })
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+          ) : null}
           <div className="mcp-card settings-wide-row">
             <div className="mcp-card-head">
               <div>
@@ -6822,6 +7106,90 @@ function SettingsPanel({
               </span>
             </label>
           ) : null}
+          {user.role === "admin" ? (
+            <div className="feature-settings-card settings-wide-row">
+              <label className="switch-row">
+                <span>
+                  <span>{t("metadataGrouping")}</span>
+                  <small>{t("metadataGroupingHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.metadata_grouping}
+                  onChange={(e) => setSettings({ ...settings, metadata_grouping: e.target.checked })}
+                />
+              </label>
+              <label className="switch-row">
+                <span>
+                  <span>{t("smartPlaylistFeature")}</span>
+                  <small>{t("smartPlaylistFeatureHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.smart_playlists_enabled}
+                  onChange={(e) => setSettings({ ...settings, smart_playlists_enabled: e.target.checked })}
+                />
+              </label>
+            </div>
+          ) : null}
+          {user.role === "admin" ? (
+            <div className="feature-settings-card settings-wide-row">
+              <label className="switch-row">
+                <span>
+                  <span>{t("sharingFeature")}</span>
+                  <small>{t("sharingFeatureHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.sharing_enabled}
+                  onChange={(e) => setSettings({ ...settings, sharing_enabled: e.target.checked })}
+                />
+              </label>
+              <label className="switch-row">
+                <span>
+                  <span>{t("subsonicServer")}</span>
+                  <small>{t("subsonicServerHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.subsonic_server_enabled}
+                  onChange={(e) => setSettings({ ...settings, subsonic_server_enabled: e.target.checked })}
+                />
+              </label>
+              <div className="settings-mini-grid">
+                <label>
+                  {t("transcodePolicy")}
+                  <select
+                    value={settings.transcode_policy || "auto"}
+                    onChange={(e) => setSettings({ ...settings, transcode_policy: e.target.value })}
+                  >
+                    <option value="auto">{t("transcodeAuto")}</option>
+                    <option value="raw">{t("transcodeRaw")}</option>
+                    <option value="transcode">{t("transcodeAlways")}</option>
+                  </select>
+                </label>
+                <label>
+                  {t("transcodeQuality")}
+                  <span className="settings-number-input">
+                    <input
+                      type="number"
+                      min={64}
+                      max={320}
+                      step={16}
+                      value={settings.transcode_quality_kbps || 192}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          transcode_quality_kbps: Math.max(64, Math.min(320, Number(e.target.value) || 192)),
+                        })
+                      }
+                    />
+                    <span>kbps</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          ) : null}
           <div className="font-settings-card settings-wide-row">
             <div>
               <strong>{t("webFontSettings")}</strong>
@@ -6921,7 +7289,12 @@ function SettingsPanel({
                 <strong>{t("libraryDirectories")}</strong>
                 <span>{t("libraryDirectoriesHint")}</span>
               </div>
-              <span>{libraryDirectories.length} {t("folders")}</span>
+              <div className="library-dir-head-actions">
+                <span>{libraryDirectories.length} {t("folders")}</span>
+                <button type="button" onClick={() => void checkLibraryDirectories()} disabled={libraryChecking}>
+                  {libraryChecking ? t("loading") : t("checkStatus")}
+                </button>
+              </div>
             </div>
             <div className="library-dir-list">
               {libraryDirectories.map((dir) => (
@@ -6929,8 +7302,29 @@ function SettingsPanel({
                   <div>
                     <strong>{dir.builtin ? t("envLibraryDirectory") : (dir.note || t("customLibraryDirectory"))}</strong>
                     <span>{dir.path}</span>
+                    <small className={dir.status === "online" ? "dir-status online" : "dir-status"}>
+                      {libraryDirectoryStatusLabel(dir.status || "online", settings.language)}
+                      {dir.last_error ? ` · ${dir.last_error}` : ""}
+                    </small>
                   </div>
-                  {dir.builtin ? <em>{t("readOnly")}</em> : <button type="button" className="danger" onClick={() => void deleteLibraryDirectory(dir.id)}>{t("remove")}</button>}
+                  <div className="library-dir-actions">
+                    <label className="dir-watch-toggle" title={t("directoryWatchHint")}>
+                      <span>{t("directoryWatch")}</span>
+                      <input
+                        type="checkbox"
+                        checked={dir.watch_enabled}
+                        disabled={dir.builtin && user.role !== "admin"}
+                        onChange={(event) => void updateLibraryDirectoryWatch(dir.id, event.target.checked)}
+                      />
+                    </label>
+                    {dir.watch_enabled ? (
+                      <em>{dir.watch_active ? t("enabled") : t("disabled")}</em>
+                    ) : dir.builtin ? (
+                      <em>{t("readOnly")}</em>
+                    ) : (
+                      <button type="button" className="danger" onClick={() => void deleteLibraryDirectory(dir.id)}>{t("remove")}</button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

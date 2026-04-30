@@ -18,6 +18,8 @@ const (
 	FieldPath = "path"
 	// FieldNote holds the string denoting the note field in the database.
 	FieldNote = "note"
+	// FieldWatchEnabled holds the string denoting the watch_enabled field in the database.
+	FieldWatchEnabled = "watch_enabled"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -40,6 +42,7 @@ var Columns = []string{
 	FieldID,
 	FieldPath,
 	FieldNote,
+	FieldWatchEnabled,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -70,6 +73,8 @@ var (
 	PathValidator func(string) error
 	// DefaultNote holds the default value on creation for the "note" field.
 	DefaultNote string
+	// DefaultWatchEnabled holds the default value on creation for the "watch_enabled" field.
+	DefaultWatchEnabled bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -94,6 +99,11 @@ func ByPath(opts ...sql.OrderTermOption) OrderOption {
 // ByNote orders the results by the note field.
 func ByNote(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNote, opts...).ToFunc()
+}
+
+// ByWatchEnabled orders the results by the watch_enabled field.
+func ByWatchEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWatchEnabled, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

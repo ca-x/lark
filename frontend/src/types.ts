@@ -99,6 +99,14 @@ export interface PlaylistPage {
   offset: number;
   page: number;
 }
+
+export interface SmartPlaylist {
+  id: string;
+  name: string;
+  description: string;
+  kind: string;
+  enabled: boolean;
+}
 export interface Folder {
   path: string;
   name: string;
@@ -190,6 +198,11 @@ export interface LibraryDirectory {
   path: string;
   note: string;
   builtin: boolean;
+  watch_enabled: boolean;
+  watch_active: boolean;
+  status: "online" | "missing" | "not_directory" | "unreadable" | "error" | string;
+  last_error?: string;
+  last_checked_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -274,6 +287,22 @@ export interface Settings {
   playback_source_ttl_hours: number;
   web_font_family: string;
   web_font_url: string;
+  metadata_grouping: boolean;
+  smart_playlists_enabled: boolean;
+  sharing_enabled: boolean;
+  subsonic_server_enabled: boolean;
+  transcode_policy: "auto" | "raw" | "transcode" | string;
+  transcode_quality_kbps: number;
+}
+
+export interface ScrobblingSettings {
+  enabled: boolean;
+  provider: "listenbrainz" | "lastfm" | string;
+  token_hint: string;
+  has_token: boolean;
+  submit_now: boolean;
+  min_seconds: number;
+  percent_gate: number;
 }
 export interface ScanStatus {
   running: boolean;

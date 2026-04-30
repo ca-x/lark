@@ -117,6 +117,10 @@ type libraryDirectoryRequest struct {
 	Note string `json:"note"`
 }
 
+type libraryDirectoryUpdateRequest struct {
+	WatchEnabled bool `json:"watch_enabled"`
+}
+
 type networkSourceRequest struct {
 	ID       string `json:"id"`
 	Provider string `json:"provider"`
@@ -137,6 +141,21 @@ type settingsRequest struct {
 	PlaybackSourceTTLHours int    `json:"playback_source_ttl_hours"`
 	WebFontFamily          string `json:"web_font_family"`
 	WebFontURL             string `json:"web_font_url"`
+	MetadataGrouping       bool   `json:"metadata_grouping"`
+	SmartPlaylistsEnabled  bool   `json:"smart_playlists_enabled"`
+	SharingEnabled         bool   `json:"sharing_enabled"`
+	SubsonicServerEnabled  bool   `json:"subsonic_server_enabled"`
+	TranscodePolicy        string `json:"transcode_policy"`
+	TranscodeQualityKbps   int    `json:"transcode_quality_kbps"`
+}
+
+type scrobblingSettingsRequest struct {
+	Enabled     bool   `json:"enabled"`
+	Provider    string `json:"provider"`
+	Token       string `json:"token"`
+	SubmitNow   bool   `json:"submit_now"`
+	MinSeconds  int    `json:"min_seconds"`
+	PercentGate int    `json:"percent_gate"`
 }
 
 func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts ...Option) *Server {
@@ -170,6 +189,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.POST("/api/auth/register", s.handleRegister)
 	e.POST("/api/auth/logout", s.handleLogout)
 	e.PUT("/api/me", s.handleUpdateProfile, auth)
+	e.GET("/api/me/scrobbling", s.handleGetScrobblingSettings, auth)
+	e.PUT("/api/me/scrobbling", s.handleSaveScrobblingSettings, auth)
 	e.GET("/api/users", s.handleUsers, admin)
 	e.GET("/api/mcp/token", s.handleGetMCPToken, auth)
 	e.PUT("/api/mcp/token", s.handleSetMCPToken, auth)
@@ -183,6 +204,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/songs/recent-played", s.handleRecentPlayedSongs, auth)
 	e.GET("/api/songs/recent-added", s.handleRecentAddedSongs, auth)
 	e.GET("/api/daily-mix", s.handleDailyMix, auth)
+	e.GET("/api/smart-playlists", s.handleSmartPlaylists, auth)
+	e.GET("/api/smart-playlists/:id/songs", s.handleSmartPlaylistSongs, auth)
 	e.GET("/api/songs/:id", s.handleSong, auth)
 	e.POST("/api/songs/:id/favorite", s.handleToggleSongFavorite, auth)
 	e.POST("/api/songs/:id/played", s.handleMarkPlayed, auth)
@@ -202,7 +225,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/library/stats", s.handleLibraryStats, auth)
 	e.GET("/api/library/sources", s.handleLibrarySources, auth)
 	e.GET("/api/library/directories", s.handleLibraryDirectories, auth)
+	e.POST("/api/library/directories/check", s.handleCheckLibraryDirectories, auth)
 	e.POST("/api/library/directories", s.handleAddLibraryDirectory, auth)
+	e.PATCH("/api/library/directories/:id", s.handleUpdateLibraryDirectory, auth)
 	e.DELETE("/api/library/directories/:id", s.handleDeleteLibraryDirectory, auth)
 	e.GET("/api/network/sources", s.handleNetworkSources, auth)
 	e.POST("/api/network/sources", s.handleUpsertNetworkSource, admin)
@@ -262,6 +287,10 @@ func (s *Server) Start(addr string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.ctx = ctx
 	s.cancel = cancel
+	if err := s.lib.StartLibraryWatchers(ctx); err != nil {
+		cancel()
+		return err
+	}
 	return echo.StartConfig{Address: addr, HideBanner: true, GracefulTimeout: 10}.Start(ctx, s.echo)
 }
 
@@ -269,6 +298,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.cancel != nil {
 		s.cancel()
 	}
+	s.lib.StopLibraryWatchers(ctx)
 	s.transcodeWarmersMu.Lock()
 	s.transcodeWarmersMu.Unlock()
 	done := make(chan struct{})
@@ -364,6 +394,32 @@ func (s *Server) handleUpdateProfile(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, user)
+}
+
+func (s *Server) handleGetScrobblingSettings(c *echo.Context) error {
+	settings, err := s.lib.GetScrobblingSettings(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handleSaveScrobblingSettings(c *echo.Context) error {
+	var req scrobblingSettingsRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	settings, err := s.lib.SaveScrobblingSettings(c.Request().Context(), currentUserID(c), models.ScrobblingSettings{
+		Enabled:     req.Enabled,
+		Provider:    req.Provider,
+		SubmitNow:   req.SubmitNow,
+		MinSeconds:  req.MinSeconds,
+		PercentGate: req.PercentGate,
+	}, req.Token)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, settings)
 }
 
 func (s *Server) handleUsers(c *echo.Context) error {
@@ -468,6 +524,22 @@ func (s *Server) handleRecentAddedSongs(c *echo.Context) error {
 
 func (s *Server) handleDailyMix(c *echo.Context) error {
 	items, err := s.lib.DailyMix(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 24))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleSmartPlaylists(c *echo.Context) error {
+	items, err := s.lib.SmartPlaylists(c.Request().Context())
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleSmartPlaylistSongs(c *echo.Context) error {
+	items, err := s.lib.SmartPlaylistSongs(c.Request().Context(), currentUserID(c), c.Param("id"), queryInt(c, "limit", 50))
 	if err != nil {
 		return mapError(err)
 	}
@@ -1256,7 +1328,24 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{Language: req.Language, Theme: req.Theme, SleepTimerMins: req.SleepTimerMins, LibraryPath: s.lib.LibraryDir(), NeteaseFallback: req.NeteaseFallback, RegistrationEnabled: req.RegistrationEnabled, DiagnosticsEnabled: req.DiagnosticsEnabled, PlaybackSourceTTLHours: req.PlaybackSourceTTLHours, WebFontFamily: req.WebFontFamily, WebFontURL: req.WebFontURL})
+	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{
+		Language:               req.Language,
+		Theme:                  req.Theme,
+		SleepTimerMins:         req.SleepTimerMins,
+		LibraryPath:            s.lib.LibraryDir(),
+		NeteaseFallback:        req.NeteaseFallback,
+		RegistrationEnabled:    req.RegistrationEnabled,
+		DiagnosticsEnabled:     req.DiagnosticsEnabled,
+		PlaybackSourceTTLHours: req.PlaybackSourceTTLHours,
+		WebFontFamily:          req.WebFontFamily,
+		WebFontURL:             req.WebFontURL,
+		MetadataGrouping:       req.MetadataGrouping,
+		SmartPlaylistsEnabled:  req.SmartPlaylistsEnabled,
+		SharingEnabled:         req.SharingEnabled,
+		SubsonicServerEnabled:  req.SubsonicServerEnabled,
+		TranscodePolicy:        req.TranscodePolicy,
+		TranscodeQualityKbps:   req.TranscodeQualityKbps,
+	})
 	if err != nil {
 		return mapError(err)
 	}
@@ -1381,6 +1470,14 @@ func (s *Server) handleLibraryDirectories(c *echo.Context) error {
 	return c.JSON(http.StatusOK, items)
 }
 
+func (s *Server) handleCheckLibraryDirectories(c *echo.Context) error {
+	items, err := s.lib.CheckLibraryDirectories(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
 func (s *Server) handleAddLibraryDirectory(c *echo.Context) error {
 	var req libraryDirectoryRequest
 	if err := c.Bind(&req); err != nil {
@@ -1391,6 +1488,24 @@ func (s *Server) handleAddLibraryDirectory(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusCreated, item)
+}
+
+func (s *Server) handleUpdateLibraryDirectory(c *echo.Context) error {
+	var req libraryDirectoryUpdateRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if c.Param("id") == "env" {
+		u := currentUser(c)
+		if u == nil || u.Role != "admin" {
+			return mapError(library.ErrForbidden)
+		}
+	}
+	item, err := s.lib.UpdateLibraryDirectory(c.Request().Context(), currentUserID(c), c.Param("id"), req.WatchEnabled)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, item)
 }
 
 func (s *Server) handleDeleteLibraryDirectory(c *echo.Context) error {

@@ -1731,6 +1731,8 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .radio-directory-head { align-items:center; }
 .library-dir-card { display:grid; gap:12px; padding:16px; border-radius:20px; background:var(--panel2); border:1px solid var(--line); }
 .library-dir-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.library-dir-head-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.library-dir-head-actions button { min-height:34px; padding:6px 10px; }
 .library-dir-head strong, .library-dir-head span { display:block; }
 .library-dir-head span, .library-dir-row span { color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .library-dir-list { display:grid; gap:8px; }
@@ -1738,9 +1740,22 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .library-dir-row > div { min-width:0; }
 .library-dir-row strong { display:block; color:var(--text); }
 .library-dir-row em { font-style:normal; color:var(--muted); font-size:12px; }
+.library-dir-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.dir-watch-toggle { display:inline-flex !important; grid-template-columns:none !important; align-items:center; gap:8px; color:var(--muted); font-size:12px; }
+.dir-watch-toggle input { width:auto; }
+.dir-status { display:block; margin-top:4px; color:var(--danger); font-size:11px; overflow-wrap:anywhere; }
+.dir-status.online { color:var(--accent); }
 .library-dir-form { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:10px; align-items:end; }
 .library-dir-form button { min-height:44px; }
-@media (max-width:820px) { .library-dir-form, .radio-group-grid .radio-source-card > div { grid-template-columns:1fr; } }
+.feature-settings-card,
+.scrobbling-card { display:grid; gap:12px; padding:16px; border-radius:20px; background:var(--panel2); border:1px solid var(--line); }
+.scrobbling-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.scrobbling-head strong, .scrobbling-head span { display:block; }
+.scrobbling-head > div > span { color:var(--muted); font-size:12px; }
+.scrobbling-form { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:10px; align-items:end; }
+.scrobbling-form button { min-height:44px; }
+.settings-mini-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+@media (max-width:820px) { .library-dir-form, .scrobbling-form, .settings-mini-grid, .radio-group-grid .radio-source-card > div { grid-template-columns:1fr; } }
 
 /* Waveform EQ entry: absolute overlay so waveform grid width is unchanged. */
 .player-waveform { position:relative; }
@@ -1956,10 +1971,16 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   .user-list-row { grid-template-columns:auto minmax(0,1fr) auto; gap:10px; }
   .user-list-row small { grid-column:2 / -1; white-space:normal; }
   .library-dir-head { display:grid; grid-template-columns:1fr; }
+  .library-dir-head-actions { justify-content:stretch; }
+  .library-dir-head-actions button { width:100%; }
   .library-dir-row { grid-template-columns:1fr; align-items:stretch; }
   .library-dir-row span { white-space:normal; overflow-wrap:anywhere; }
   .library-dir-row button { width:100%; min-height:40px; }
+  .library-dir-actions { justify-content:stretch; }
+  .dir-watch-toggle { justify-content:space-between; width:100%; min-height:40px; padding:8px 10px; border:1px solid var(--line); border-radius:12px; }
   .library-dir-form button { width:100%; justify-content:center; }
+  .scrobbling-head { display:grid; grid-template-columns:1fr; }
+  .scrobbling-form button { width:100%; }
 }
 
 /* Radio playback uses the queue drawer as a live station switcher. */
