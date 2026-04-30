@@ -66,7 +66,6 @@ import type {
   PlaylistPage,
   ScanStatus,
   Settings,
-  Share,
   Song,
   SongPage,
   SubsonicCredentialStatus,
@@ -90,8 +89,8 @@ import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
 import { radioGroupName } from "./components/radio";
 import { CassetteDeck, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
+import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
-import { durationValueFromExpiresAt, expiresAtFromDuration } from "./components/share-duration";
 import { EqualizerPanel } from "./components/EqualizerPanel";
 import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
 
@@ -131,6 +130,7 @@ type View =
   | "albums"
   | "artists"
   | "collection"
+  | "shares"
   | "settings"
   | "about";
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
@@ -215,7 +215,7 @@ type ThemeLabel =
   | "winampLight"
   | "foobarLight";
 type ThemeMode = "dark" | "light";
-type SettingsTab = "profile" | "users" | "site" | "shares";
+type SettingsTab = "profile" | "users" | "site";
 type LibraryTab = "songs" | "folders" | "network" | "radio";
 type Collection = {
   type: "playlist" | "album" | "artist";
@@ -1253,7 +1253,6 @@ export default function App() {
   const [playlistPickerSong, setPlaylistPickerSong] = useState<Song | null>(null);
   const [playlistPendingSong, setPlaylistPendingSong] = useState<Song | null>(null);
   const [shareDialogTarget, setShareDialogTarget] = useState<ShareTarget | null>(null);
-  const [shareMenuExpanded, setShareMenuExpanded] = useState(false);
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [sleepTimerMins, setSleepTimerMins] = useState(0);
   const [sleepLeft, setSleepLeft] = useState(0);
@@ -1527,8 +1526,8 @@ export default function App() {
   }, [homePlayerStyle]);
 
   useEffect(() => {
-    setShareMenuExpanded(settings.sharing_enabled);
-  }, [settings.sharing_enabled]);
+    if (!settings.sharing_enabled && view === "shares") setView("home");
+  }, [settings.sharing_enabled, view]);
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
     document.documentElement.lang = settings.language;
@@ -3129,7 +3128,7 @@ export default function App() {
     if (items[0]) void playSong(items[0], items);
   }
 
-  const nav = [
+  const nav: { id: View; label: string; icon: ReactNode }[] = [
     { id: "home", label: t("home"), icon: <House /> },
     { id: "favorites", label: t("favorites"), icon: <Heart /> },
     { id: "library", label: t("library"), icon: <MusicNotes /> },
@@ -3137,9 +3136,10 @@ export default function App() {
     { id: "albums", label: t("albums"), icon: <Disc /> },
     { id: "artists", label: t("artists"), icon: <Record /> },
     { id: "settings", label: t("settings"), icon: <GearSix /> },
+    ...(settings.sharing_enabled ? [{ id: "shares" as const, label: t("myShares"), icon: <ShareNetwork /> }] : []),
     { id: "about", label: t("about"), icon: <Info /> },
-  ] as const;
-  const activeNav = (id: (typeof nav)[number]["id"]) =>
+  ];
+  const activeNav = (id: View) =>
     view === id ||
     (view === "radio" && id === "library") ||
     (view === "collection" &&
@@ -3274,34 +3274,6 @@ export default function App() {
               <span>{item.label}</span>
             </button>
           ))}
-          <div className={shareMenuExpanded ? "nav-share-group expanded" : "nav-share-group"}>
-            <button
-              type="button"
-              title={t("share")}
-              aria-label={t("share")}
-              aria-expanded={shareMenuExpanded}
-              className={settingsTab === "shares" && view === "settings" ? "active" : ""}
-              onClick={() => setShareMenuExpanded((value) => !value)}
-            >
-              <ShareNetwork />
-              <span>{t("share")}</span>
-              {shareMenuExpanded ? <CaretUp weight="bold" /> : <CaretDown weight="bold" />}
-            </button>
-            {shareMenuExpanded ? (
-              <button
-                type="button"
-                className={settingsTab === "shares" && view === "settings" ? "active nav-share-child" : "nav-share-child"}
-                onClick={() => {
-                  setLyricsFullScreen(false);
-                  setSettingsTab("shares");
-                  setView("settings");
-                }}
-              >
-                <span />
-                <span>{t("myShares")}</span>
-              </button>
-            ) : null}
-          </div>
         </nav>
       </aside>
 
@@ -3708,9 +3680,11 @@ export default function App() {
                 onOpenAlbums={() => setView("albums")}
                 onOpenPlaylists={() => setView("playlists")}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
-                onToast={showMessage}
                 t={t}
               />
+            )}
+            {view === "shares" && settings.sharing_enabled && (
+              <ShareManagementView t={t} onToast={showMessage} />
             )}
             {view === "about" && <AboutView health={health} settings={settings} t={t} />}
           </>
@@ -6668,7 +6642,6 @@ function SettingsPanel({
   onOpenAlbums,
   onOpenPlaylists,
   onUpdateProfile,
-  onToast,
   t,
 }: {
   settings: Settings;
@@ -6689,7 +6662,6 @@ function SettingsPanel({
   onOpenAlbums: () => void;
   onOpenPlaylists: () => void;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
-  onToast: (message: string, duration?: number) => void;
   t: ReturnType<typeof createT>;
 }) {
   const darkThemes = themes.filter((theme) => theme.mode === "dark");
@@ -6714,9 +6686,6 @@ function SettingsPanel({
   const [subsonicPassword, setSubsonicPassword] = useState("");
   const [subsonicCredentialLoading, setSubsonicCredentialLoading] = useState(false);
   const [subsonicCredentialError, setSubsonicCredentialError] = useState("");
-  const [shares, setShares] = useState<Share[]>([]);
-  const [sharesLoading, setSharesLoading] = useState(false);
-  const [sharesError, setSharesError] = useState("");
   const [libraryChecking, setLibraryChecking] = useState(false);
   const [scrobbleToken, setScrobbleToken] = useState("");
   const mcpEndpoint = `${window.location.origin}/api/mcp/sse`;
@@ -6725,7 +6694,6 @@ function SettingsPanel({
   const mcpTokenExample = mcpToken?.token || mcpToken?.hint || "lark_mcp_...";
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "profile", label: t("profileSettings") },
-    { id: "shares", label: t("myShares") },
     { id: "users", label: t("userManagement") },
     { id: "site", label: t("siteSettings") },
   ];
@@ -6758,11 +6726,6 @@ function SettingsPanel({
       .catch(() => setUsers([]))
       .finally(() => setUsersLoading(false));
   }, [activeTab, user.role]);
-
-  useEffect(() => {
-    if (activeTab !== "shares") return;
-    void refreshShares();
-  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "profile") return;
@@ -6817,47 +6780,6 @@ function SettingsPanel({
     if (!mcpToken?.token) return;
     await navigator.clipboard.writeText(mcpToken.token);
     setMcpCopied(true);
-  }
-
-  async function refreshShares() {
-    setSharesLoading(true);
-    setSharesError("");
-    try {
-      const result = await api.shares();
-      setShares(result.shares);
-    } catch (err) {
-      setSharesError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSharesLoading(false);
-    }
-  }
-
-  async function copyShare(share: Share) {
-    if (!share.url) return;
-    await navigator.clipboard?.writeText(share.url).catch(() => undefined);
-    onToast(t("shareLinkCopied"));
-  }
-
-  async function cancelShare(token: string) {
-    setSharesError("");
-    try {
-      await api.deleteShare(token);
-      setShares((items) => items.filter((item) => item.token !== token));
-      onToast(t("shareCanceled"));
-    } catch (err) {
-      setSharesError(err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  async function updateShareExpiry(token: string, duration: string) {
-    setSharesError("");
-    try {
-      const updated = await api.updateShare(token, expiresAtFromDuration(duration));
-      setShares((items) => items.map((item) => (item.token === token ? updated : item)));
-      onToast(t("done"));
-    } catch (err) {
-      setSharesError(err instanceof Error ? err.message : String(err));
-    }
   }
 
   async function saveSubsonicCredential() {
@@ -7250,79 +7172,6 @@ function SettingsPanel({
               onClose={() => setMcpHelpOpen(false)}
             />
           ) : null}
-        </div>
-      )}
-
-      {activeTab === "shares" && (
-        <div className="settings-grid settings-tab-panel" role="tabpanel">
-          <div className="share-management-card settings-wide-row">
-            <div className="share-management-head">
-              <div>
-                <strong>{t("myShares")}</strong>
-                <span>{t("mySharesHint")}</span>
-              </div>
-              <button type="button" onClick={() => void refreshShares()} disabled={sharesLoading}>
-                {sharesLoading ? t("loading") : t("refresh")}
-              </button>
-            </div>
-            {!settings.sharing_enabled ? (
-              <div className="settings-empty share-disabled-note">{t("publicShareUnavailable")}</div>
-            ) : null}
-            {sharesError ? <div className="settings-error">{sharesError}</div> : null}
-            <div className="share-management-list">
-              {shares.map((share) => (
-                <div className="share-management-row" key={share.token}>
-                  <div className="share-management-main">
-                    <span className="status-pill">{share.type || t("shareType")}</span>
-                    <strong>{share.title}</strong>
-                    <small>{share.url || `${window.location.origin}/share/${share.token}`}</small>
-                  </div>
-                  <div className="share-management-meta">
-                    <span>{t("createdAt")}</span>
-                    <strong>{formatDateTime(share.created_at)}</strong>
-                  </div>
-                  <div className="share-management-meta">
-                    <span>{t("expires")}</span>
-                    <strong>{share.expires_at ? formatDateTime(share.expires_at) : t("neverExpires")}</strong>
-                    <select
-                      value={durationValueFromExpiresAt(share.expires_at)}
-                      onChange={(event) => void updateShareExpiry(share.token, event.target.value)}
-                      aria-label={t("shareDuration")}
-                    >
-                      <option value="">{t("shareDurationPermanent")}</option>
-                      <option value="3600">{t("shareDuration1Hour")}</option>
-                      <option value="86400">{t("shareDuration1Day")}</option>
-                      <option value="604800">{t("shareDuration7Days")}</option>
-                      <option value="2592000">{t("shareDuration30Days")}</option>
-                    </select>
-                  </div>
-                  <div className="share-management-actions">
-                    <button
-                      type="button"
-                      className="icon-button"
-                      onClick={() => void copyShare(share)}
-                      aria-label={t("copyShareLink")}
-                      title={t("copyShareLink")}
-                    >
-                      <CopySimple weight="bold" />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button danger"
-                      onClick={() => void cancelShare(share.token)}
-                      aria-label={t("cancelShare")}
-                      title={t("cancelShare")}
-                    >
-                      <X weight="bold" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {!sharesLoading && shares.length === 0 ? (
-                <div className="settings-empty">{t("noShares")}</div>
-              ) : null}
-            </div>
-          </div>
         </div>
       )}
 

@@ -69,11 +69,6 @@ nav { display:grid; gap:8px; }
 nav button { display:flex; align-items:center; gap:12px; width:100%; min-height:48px; color:var(--muted); text-align:left; padding:12px 14px; border-radius:16px; background:transparent; transition: background .18s var(--ease), color .18s var(--ease), transform .18s var(--ease); }
 nav button svg { width:22px; height:22px; flex:0 0 auto; }
 nav button.active, nav button:hover { color:var(--text); background:color-mix(in srgb, var(--accent) 18%, var(--panel2)); }
-.nav-share-group { display:grid; gap:6px; }
-.nav-share-group > button:first-child span:first-of-type { flex:1; }
-.nav-share-group > button:first-child svg:last-child { width:16px; height:16px; margin-left:auto; }
-.nav-share-child { min-height:42px; padding-left:20px; font-size:13px; }
-.nav-share-child span:first-child { width:22px; height:1px; flex:0 0 22px; background:color-mix(in srgb, var(--muted) 45%, transparent); }
 nav button:active, .media-card:active, .cover-button:active { transform:scale(.98); }
 .main { grid-column:2; grid-row:1; overflow:auto; min-width:0; padding:24px; scroll-padding-bottom:24px; }
 .topbar { display:grid; grid-template-columns:minmax(160px, auto) minmax(260px, 520px); gap:16px; align-items:center; position:sticky; top:-24px; z-index:5; padding:0 max(0px, var(--lzc-safe-right)) 18px 0; background:linear-gradient(var(--panel) 72%, transparent); }
@@ -853,7 +848,8 @@ body, button, input, select { font-family: var(--app-font); }
 .subsonic-form label { display:grid; gap:7px; color:var(--muted); }
 .subsonic-form input { width:100%; border:1px solid var(--line); border-radius:14px; padding:12px 14px; color:var(--text); background:var(--panel); }
 .settings-error { color:var(--danger); font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
-.share-management-card { display:grid; gap:14px; padding:16px; border:1px solid var(--line); border-radius:22px; background:var(--panel2); }
+.share-management-page { display:grid; gap:16px; }
+.share-management-card { min-width:0; display:grid; gap:14px; padding:16px; border:1px solid var(--line); border-radius:22px; background:var(--panel2); }
 .share-management-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
 .share-management-head > div { min-width:0; display:grid; gap:4px; }
 .share-management-head strong { color:var(--text); font-size:18px; }
@@ -871,16 +867,16 @@ body, button, input, select { font-family: var(--app-font); }
 .share-management-actions { display:flex; align-items:center; gap:6px; }
 .share-management-actions .icon-button { width:40px; min-width:40px; height:40px; min-height:40px; }
 .icon-button.danger { color:#ff7875; border-color:color-mix(in srgb, #ff7875 28%, var(--line)); }
-.share-dialog { width:min(560px, 100%); }
+.share-dialog { width:min(560px, calc(100vw - 36px)); max-width:100%; min-width:0; overflow-x:hidden; }
 .share-target-card { display:grid; gap:5px; padding:14px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); }
 .share-target-card span { width:max-content; padding:4px 9px; border-radius:999px; color:var(--bg); background:var(--accent); font-size:11px; font-weight:900; text-transform:uppercase; }
 .share-target-card strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:18px; }
-.share-duration-field { min-width:0; margin:0; padding:0; border:0; display:grid; gap:10px; }
+.share-duration-field { min-width:0; max-width:100%; margin:0; padding:0; border:0; display:grid; gap:10px; overflow:hidden; }
 .share-duration-field legend { padding:0; color:var(--muted); font-weight:800; }
-.share-duration-options { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }
+.share-duration-options { min-width:0; max-width:100%; display:grid; grid-template-columns:repeat(auto-fit,minmax(92px,1fr)); gap:8px; }
 .share-duration-options label { min-width:0; min-height:46px; display:grid; place-items:center; padding:8px; border:1px solid var(--line); border-radius:14px; color:var(--muted); background:var(--panel2); cursor:pointer; text-align:center; font-size:13px; font-weight:850; }
 .share-duration-options label.active { color:var(--bg); border-color:transparent; background:var(--accent); }
-.share-duration-options input { position:absolute; opacity:0; pointer-events:none; }
+.share-duration-options input { position:absolute; width:1px !important; min-height:1px; height:1px; padding:0 !important; border:0 !important; opacity:0; pointer-events:none; }
 .mcp-help-dialog { width:min(680px, 100%); overflow:hidden; }
 .mcp-help-content { min-height:0; display:grid; gap:12px; overflow:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding-right:2px; }
 .mcp-help-content section { display:grid; gap:8px; padding:12px; border-radius:16px; border:1px solid var(--line); background:var(--panel2); }
