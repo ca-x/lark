@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, ScanResult, ScanStatus, Settings, Song, SongPage, User, MCPTokenStatus, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, Song, SongPage, User, MCPTokenStatus, SubsonicCredentialStatus, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
@@ -21,6 +21,9 @@ export const api = {
   updateProfile: (nickname: string, avatar_data_url: string) => request<AuthStatus['user']>('/api/me', { method: 'PUT', body: JSON.stringify({ nickname, avatar_data_url }) }),
   scrobblingSettings: () => request<ScrobblingSettings>('/api/me/scrobbling'),
   saveScrobblingSettings: (settings: ScrobblingSettings & { token?: string }) => request<ScrobblingSettings>('/api/me/scrobbling', { method: 'PUT', body: JSON.stringify(settings) }),
+  subsonicCredential: () => request<SubsonicCredentialStatus>('/api/me/subsonic'),
+  saveSubsonicCredential: (username: string, password: string) => request<SubsonicCredentialStatus>('/api/me/subsonic', { method: 'PUT', body: JSON.stringify({ username, password }) }),
+  deleteSubsonicCredential: () => request<SubsonicCredentialStatus>('/api/me/subsonic', { method: 'DELETE' }),
   users: () => request<User[]>('/api/users'),
   saveProgress: (id: number, progress_seconds: number, duration_seconds: number, completed = false) => request<void>(`/api/songs/${id}/progress`, { method: 'PUT', body: JSON.stringify({ progress_seconds, duration_seconds, completed }) }),
   songs: (q = '', limit = 0) => {
@@ -49,6 +52,8 @@ export const api = {
   playbackSource: () => request<PlaybackSourceStatus>('/api/playback/source'),
   savePlaybackSource: (type: PlaybackSourceType, source_id: number) => request<PlaybackSourceStatus>('/api/playback/source', { method: 'PUT', body: JSON.stringify({ type, source_id }) }),
   clearPlaybackSource: () => request<void>('/api/playback/source', { method: 'DELETE' }),
+  createShare: (type: Share['type'], id: number) => request<Share>('/api/shares', { method: 'POST', body: JSON.stringify({ type, id }) }),
+  publicShare: (token: string) => request<PublicShare>(`/api/public/shares/${encodeURIComponent(token)}`),
   lyrics: (id: number, sourceId?: string) => request<Lyrics>(`/api/songs/${id}/lyrics${sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ''}`),
   lyricCandidates: (id: number) => request<LyricCandidate[]>(`/api/songs/${id}/lyrics/candidates`),
   selectLyrics: (id: number, source: string, candidateId: string) => request<Lyrics>(`/api/songs/${id}/lyrics/select`, { method: 'POST', body: JSON.stringify({ source, id: candidateId }) }),

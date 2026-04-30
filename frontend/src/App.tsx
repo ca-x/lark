@@ -63,10 +63,12 @@ import type {
   MCPTokenStatus,
   Playlist,
   PlaylistPage,
+  PublicShare,
   ScanStatus,
   Settings,
   Song,
   SongPage,
+  SubsonicCredentialStatus,
   Theme,
   User,
   WebFont,
@@ -107,6 +109,14 @@ const defaultSettings: Settings = {
   transcode_policy: "auto",
   transcode_quality_kbps: 192,
 };
+
+const TRANSCODE_QUALITY_PRESETS = [
+  { value: 96, labelKey: "bitratePreset96", hintKey: "bitratePreset96Hint" },
+  { value: 128, labelKey: "bitratePreset128", hintKey: "bitratePreset128Hint" },
+  { value: 192, labelKey: "bitratePreset192", hintKey: "bitratePreset192Hint" },
+  { value: 256, labelKey: "bitratePreset256", hintKey: "bitratePreset256Hint" },
+  { value: 320, labelKey: "bitratePreset320", hintKey: "bitratePreset320Hint" },
+] as const;
 
 type View =
   | "home"
@@ -370,6 +380,12 @@ function currentBrowserRoute() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
 
+function publicShareTokenFromRoute(route = currentBrowserRoute()) {
+  const path = route.split(/[?#]/, 1)[0];
+  if (!path.startsWith("/share/")) return "";
+  return decodeURIComponent(path.slice("/share/".length).replace(/\/+$/, ""));
+}
+
 function safeAuthRedirect(value: string | null) {
   if (!value || value.startsWith("/login")) return "/";
   return value.startsWith("/") ? value : "/";
@@ -605,13 +621,13 @@ function prefersLowMemoryVisuals() {
   return Boolean(nav.deviceMemory && nav.deviceMemory <= 4);
 }
 
-function streamUrl(song?: Song | null, mode: StreamMode = "auto", start = 0) {
+function streamUrl(song?: Song | null, mode: StreamMode = "auto", start = 0, qualityKbps = ADAPTIVE_STREAM_QUALITY) {
   if (!song) return undefined;
   const params = new URLSearchParams({
     mode: mode === "adaptive" ? "transcode" : "auto",
   });
   if (mode === "adaptive") {
-    params.set("quality", String(ADAPTIVE_STREAM_QUALITY));
+    params.set("quality", String(Math.max(64, Math.min(320, qualityKbps || ADAPTIVE_STREAM_QUALITY))));
     params.set("cache", "1");
     if (start > 0) params.set("start", start.toFixed(2));
   }
@@ -1425,6 +1441,7 @@ export default function App() {
   useEffect(() => {
     if (authLoading) return;
     const routePath = window.location.pathname;
+    if (routePath.startsWith("/share/")) return;
     const needsAuthPage = !auth?.initialized || !auth.user;
     if (needsAuthPage) {
       if (routePath !== "/login") {
@@ -2672,7 +2689,9 @@ export default function App() {
 
   async function saveSettings(nextSettings: Settings) {
     setSettings(nextSettings);
-    await api.saveSettings(nextSettings).catch(() => undefined);
+    const saved = await api.saveSettings(nextSettings).catch(() => nextSettings);
+    setSettings({ ...defaultSettings, ...saved, theme: normalizeTheme(saved.theme) });
+    setSmartPlaylists(await api.smartPlaylists().catch(() => []));
   }
 
   function updateSongState(updated: Song) {
@@ -2705,6 +2724,18 @@ export default function App() {
   async function toggleFavorite(song: Song) {
     const updated = await api.favoriteSong(song.id);
     updateSongState(updated);
+  }
+
+  async function shareTarget(type: "song" | "album" | "artist" | "playlist", id: number) {
+    try {
+      const share = await api.createShare(type, id);
+      if (share.url) {
+        await navigator.clipboard?.writeText(share.url).catch(() => undefined);
+      }
+      showMessage(share.url ? `${t("shareLinkCopied")}: ${share.url}` : t("done"));
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : t("loadFailed"));
+    }
   }
 
   function updateAlbumFavoriteState(updated: Album) {
@@ -3152,7 +3183,7 @@ export default function App() {
   const playerStyle = currentArtwork
     ? ({ "--cover-url": `url(${currentArtwork})` } as React.CSSProperties)
     : undefined;
-  const currentStreamUrl = currentRadio?.url || currentNetworkTrack?.stream_url || streamUrl(current, streamMode, streamOffset);
+  const currentStreamUrl = currentRadio?.url || currentNetworkTrack?.stream_url || streamUrl(current, streamMode, streamOffset, settings.transcode_quality_kbps);
   const nowTitle = current?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("nowPlaying");
   const radioDownloadSpeed = radioDownloadKbps > 0 ? `${t("downloadSpeed")} ${formatDownloadSpeed(radioDownloadKbps)}` : "";
   const nowSubtitle = currentRadio
@@ -3185,6 +3216,11 @@ export default function App() {
     "--played": playedPercent,
     "--buffered": bufferedPercent,
   } as React.CSSProperties;
+  const publicShareToken = publicShareTokenFromRoute(route);
+
+  if (publicShareToken) {
+    return <PublicShareView token={publicShareToken} settings={settings} t={t} />;
+  }
 
   if (authLoading) {
     return <AuthView mode="loading" settings={settings} error={authError} onSubmit={submitAuth} />;
@@ -3366,6 +3402,7 @@ export default function App() {
                 onFavoriteSong={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
+                onShareSong={settings.sharing_enabled ? (song) => void shareTarget("song", song.id) : undefined}
                 onOpenAlbum={(album) => void openAlbum(album)}
                 onPlayAlbum={(album) => void playAlbum(album)}
                 onFavoriteAlbum={(album) => void toggleAlbumFavorite(album)}
@@ -3389,6 +3426,7 @@ export default function App() {
                 onFavorite={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
+                onShareSong={settings.sharing_enabled ? (song) => void shareTarget("song", song.id) : undefined}
                 onOpenAlbum={(song) => {
                   void openSongAlbum(song);
                 }}
@@ -3474,6 +3512,12 @@ export default function App() {
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
                 onInsertCollection={() => void insertCollectionNext(collection)}
+                onShareSong={settings.sharing_enabled ? (song) => void shareTarget("song", song.id) : undefined}
+                onShareCollection={
+                  settings.sharing_enabled && collection.id
+                    ? () => void shareTarget(collection.type, collection.id!)
+                    : undefined
+                }
                 onFavoriteCollection={
                   collection.type === "album"
                     ? collection.id
@@ -3627,6 +3671,8 @@ export default function App() {
                 onScrobblingSettingsChange={setScrobblingSettings}
                 activeTab={settingsTab}
                 onTabChange={setSettingsTab}
+                onOpenAlbums={() => setView("albums")}
+                onOpenPlaylists={() => setView("playlists")}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
                 t={t}
               />
@@ -4167,6 +4213,84 @@ function AuthView({
             ) : null}
           </form>
       </div>
+    </div>
+  );
+}
+
+function PublicShareView({
+  token,
+  settings,
+  t,
+}: {
+  token: string;
+  settings: Settings;
+  t: ReturnType<typeof createT>;
+}) {
+  const [share, setShare] = useState<PublicShare | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [error, setError] = useState("");
+  const currentSong = share?.songs[currentIndex] ?? share?.songs[0] ?? null;
+
+  useEffect(() => {
+    setShare(null);
+    setCurrentIndex(0);
+    setError("");
+    void api
+      .publicShare(token)
+      .then(setShare)
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+  }, [token]);
+
+  return (
+    <div className="auth-shell public-share-shell" data-theme={settings.theme}>
+      <main className="public-share-card">
+        <div className="brand public-share-brand">
+          <img src="/logo.png" alt={t("brand")} /> <span>{t("brand")}</span>
+        </div>
+        {error ? (
+          <div className="settings-empty error">{error}</div>
+        ) : !share ? (
+          <LoadingStage t={t} />
+        ) : currentSong ? (
+          <>
+            <p>{t("publicShare")}</p>
+            <h1>{share.share.title}</h1>
+            <div className="public-share-player">
+              <div className="cover plain-cover public-share-cover">
+                <LazyCoverImage src={`/api/public/shares/${encodeURIComponent(token)}/cover/${currentSong.id}`} />
+                <Record weight="fill" />
+              </div>
+              <div>
+                <strong>{currentSong.title}</strong>
+                <span>{[currentSong.artist, currentSong.album].filter(Boolean).join(" · ")}</span>
+                <audio
+                  key={currentSong.id}
+                  controls
+                  src={`/api/public/shares/${encodeURIComponent(token)}/stream/${currentSong.id}`}
+                />
+              </div>
+            </div>
+            {share.songs.length > 1 ? (
+              <div className="public-share-list">
+                {share.songs.map((song, index) => (
+                  <button
+                    key={song.id}
+                    type="button"
+                    className={song.id === currentSong.id ? "active" : ""}
+                    onClick={() => setCurrentIndex(index)}
+                  >
+                    <span>{index + 1}</span>
+                    <strong>{song.title}</strong>
+                    <em>{formatDuration(song.duration_seconds)}</em>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <div className="settings-empty">{t("emptyCollection")}</div>
+        )}
+      </main>
     </div>
   );
 }
@@ -4818,6 +4942,7 @@ function FavoritesView({
   onFavoriteSong,
   onAdd,
   onInsertNext,
+  onShareSong,
   onOpenAlbum,
   onPlayAlbum,
   onFavoriteAlbum,
@@ -4840,6 +4965,7 @@ function FavoritesView({
   onFavoriteSong: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  onShareSong?: (song: Song) => void;
   onOpenAlbum: (album: Album) => void;
   onPlayAlbum: (album: Album) => void;
   onFavoriteAlbum: (album: Album) => void;
@@ -4921,6 +5047,7 @@ function FavoritesView({
           onFavorite={onFavoriteSong}
           onAdd={onAdd}
           onInsertNext={(song) => onInsertNext([song])}
+          onShare={onShareSong}
         />
       ) : tab === "albums" ? (
         <>
@@ -5205,6 +5332,8 @@ function CollectionView({
   onAdd,
   onInsertNext,
   onInsertCollection,
+  onShareSong,
+  onShareCollection,
   onFavoriteCollection,
   onOpenAlbum,
   onOpenAlbumCard,
@@ -5223,6 +5352,8 @@ function CollectionView({
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
   onInsertCollection: () => void;
+  onShareSong?: (song: Song) => void;
+  onShareCollection?: () => void;
   onFavoriteCollection?: () => void;
   onOpenAlbum?: (song: Song) => void;
   onOpenAlbumCard?: (album: Album) => void;
@@ -5290,6 +5421,11 @@ function CollectionView({
                 aria-label={t("favorites")}
               >
                 <Heart weight={collection.favorite ? "fill" : "regular"} /> {t("favorites")}
+              </button>
+            ) : null}
+            {onShareCollection ? (
+              <button onClick={onShareCollection}>
+                <CopySimple /> {t("share")}
               </button>
             ) : null}
           </div>
@@ -5365,6 +5501,7 @@ function CollectionView({
           onFavorite={onFavorite}
           onAdd={onAdd}
           onInsertNext={(song) => onInsertNext([song])}
+          onShare={onShareSong}
           onOpenAlbum={onOpenAlbum}
           onOpenArtist={onOpenArtist}
         />
@@ -5411,6 +5548,7 @@ function LibraryView({
   onFavorite,
   onAdd,
   onInsertNext,
+  onShareSong,
   onOpenAlbum,
   onOpenArtist,
   onScan,
@@ -5440,6 +5578,7 @@ function LibraryView({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  onShareSong?: (song: Song) => void;
   onOpenAlbum: (song: Song) => void;
   onOpenArtist: (song: Song) => void;
   onScan: () => void;
@@ -5559,6 +5698,7 @@ function LibraryView({
           onFavorite={onFavorite}
           onAdd={onAdd}
           onInsertNext={onInsertNext}
+          onShareSong={onShareSong}
           onOpenAlbum={onOpenAlbum}
           onOpenArtist={onOpenArtist}
           onPlayFolder={onPlayFolder}
@@ -5573,6 +5713,7 @@ function LibraryView({
             onFavorite={onFavorite}
             onAdd={onAdd}
             onInsertNext={(song) => onInsertNext([song])}
+            onShare={onShareSong}
             onOpenAlbum={onOpenAlbum}
             onOpenArtist={onOpenArtist}
             selectedIds={selected}
@@ -5801,6 +5942,7 @@ function FolderBrowser({
   onFavorite,
   onAdd,
   onInsertNext,
+  onShareSong,
   onOpenAlbum,
   onOpenArtist,
   onPlayFolder,
@@ -5811,6 +5953,7 @@ function FolderBrowser({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  onShareSong?: (song: Song) => void;
   onOpenAlbum: (song: Song) => void;
   onOpenArtist: (song: Song) => void;
   onPlayFolder: (folder: Folder) => void;
@@ -5960,6 +6103,7 @@ function FolderBrowser({
                 onFavorite={onFavorite}
                 onAdd={onAdd}
                 onInsertNext={(song) => onInsertNext([song])}
+                onShare={onShareSong}
                 onOpenAlbum={onOpenAlbum}
                 onOpenArtist={onOpenArtist}
               />
@@ -6552,6 +6696,8 @@ function SettingsPanel({
   onScrobblingSettingsChange,
   activeTab,
   onTabChange,
+  onOpenAlbums,
+  onOpenPlaylists,
   onUpdateProfile,
   t,
 }: {
@@ -6570,6 +6716,8 @@ function SettingsPanel({
   onScrobblingSettingsChange: (settings: ScrobblingSettings) => void;
   activeTab: SettingsTab;
   onTabChange: (tab: SettingsTab) => void;
+  onOpenAlbums: () => void;
+  onOpenPlaylists: () => void;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
   t: ReturnType<typeof createT>;
 }) {
@@ -6590,9 +6738,16 @@ function SettingsPanel({
   const [mcpLoading, setMcpLoading] = useState(false);
   const [mcpHelpOpen, setMcpHelpOpen] = useState(false);
   const [mcpCopied, setMcpCopied] = useState(false);
+  const [subsonicCredential, setSubsonicCredential] = useState<SubsonicCredentialStatus | null>(null);
+  const [subsonicUsername, setSubsonicUsername] = useState("");
+  const [subsonicPassword, setSubsonicPassword] = useState("");
+  const [subsonicCredentialLoading, setSubsonicCredentialLoading] = useState(false);
+  const [subsonicCredentialError, setSubsonicCredentialError] = useState("");
   const [libraryChecking, setLibraryChecking] = useState(false);
   const [scrobbleToken, setScrobbleToken] = useState("");
   const mcpEndpoint = `${window.location.origin}/api/mcp/sse`;
+  const publicShareEntry = `${window.location.origin}/share/<token>`;
+  const subsonicEndpoint = `${window.location.origin}/rest`;
   const mcpTokenExample = mcpToken?.token || mcpToken?.hint || "lark_mcp_...";
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "profile", label: t("profileSettings") },
@@ -6636,6 +6791,14 @@ function SettingsPanel({
       .then(setMcpToken)
       .catch(() => setMcpToken(null));
     void api
+      .subsonicCredential()
+      .then((status) => {
+        setSubsonicCredential(status);
+        setSubsonicUsername(status.username || "");
+        setSubsonicCredentialError("");
+      })
+      .catch(() => setSubsonicCredential(null));
+    void api
       .scrobblingSettings()
       .then(onScrobblingSettingsChange)
       .catch(() => undefined);
@@ -6674,6 +6837,38 @@ function SettingsPanel({
     if (!mcpToken?.token) return;
     await navigator.clipboard.writeText(mcpToken.token);
     setMcpCopied(true);
+  }
+
+  async function saveSubsonicCredential() {
+    if (subsonicCredentialLoading) return;
+    setSubsonicCredentialLoading(true);
+    setSubsonicCredentialError("");
+    try {
+      const status = await api.saveSubsonicCredential(subsonicUsername, subsonicPassword);
+      setSubsonicCredential(status);
+      setSubsonicUsername(status.username || subsonicUsername);
+      setSubsonicPassword("");
+    } catch (err) {
+      setSubsonicCredentialError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubsonicCredentialLoading(false);
+    }
+  }
+
+  async function deleteSubsonicCredential() {
+    if (subsonicCredentialLoading) return;
+    setSubsonicCredentialLoading(true);
+    setSubsonicCredentialError("");
+    try {
+      const status = await api.deleteSubsonicCredential();
+      setSubsonicCredential(status);
+      setSubsonicUsername("");
+      setSubsonicPassword("");
+    } catch (err) {
+      setSubsonicCredentialError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubsonicCredentialLoading(false);
+    }
   }
 
   async function uploadWebFont(file: File) {
@@ -6970,6 +7165,62 @@ function SettingsPanel({
               </button>
             </div>
           </div>
+          <div className="subsonic-card settings-wide-row">
+            <div className="subsonic-card-head">
+              <div>
+                <strong>{t("subsonicAccount")}</strong>
+                <span>{t("subsonicAccountHint")}</span>
+              </div>
+              <span className={subsonicCredential?.configured ? "status-pill active" : "status-pill"}>
+                {subsonicCredential?.configured
+                  ? `${t("subsonicConfigured")} ${subsonicCredential.hint || ""}`
+                  : t("subsonicNotConfigured")}
+              </span>
+            </div>
+            <div className="subsonic-status-row">
+              <span>{t("subsonicEndpoint")}</span>
+              <code>{subsonicCredential?.endpoint || subsonicEndpoint}</code>
+            </div>
+            <div className="subsonic-form">
+              <label>
+                {t("subsonicUsername")}
+                <input
+                  value={subsonicUsername}
+                  autoComplete="username"
+                  placeholder={user.username}
+                  onChange={(event) => setSubsonicUsername(event.target.value)}
+                />
+              </label>
+              <label>
+                {t("subsonicPassword")}
+                <input
+                  type="password"
+                  value={subsonicPassword}
+                  autoComplete="new-password"
+                  placeholder={subsonicCredential?.configured ? "••••••••" : t("password")}
+                  onChange={(event) => setSubsonicPassword(event.target.value)}
+                />
+              </label>
+            </div>
+            {subsonicCredentialError ? <div className="settings-error">{subsonicCredentialError}</div> : null}
+            <div className="subsonic-actions">
+              <button
+                type="button"
+                className="primary"
+                disabled={subsonicCredentialLoading || !subsonicUsername.trim() || !subsonicPassword}
+                onClick={() => void saveSubsonicCredential()}
+              >
+                {subsonicCredentialLoading ? t("loading") : t("saveSubsonicCredential")}
+              </button>
+              <button
+                type="button"
+                disabled={subsonicCredentialLoading || !subsonicCredential?.configured}
+                onClick={() => void deleteSubsonicCredential()}
+              >
+                {t("deleteSubsonicCredential")}
+              </button>
+            </div>
+          </div>
           {mcpHelpOpen ? (
             <MCPHelpDialog
               t={t}
@@ -7119,6 +7370,9 @@ function SettingsPanel({
                   onChange={(e) => setSettings({ ...settings, metadata_grouping: e.target.checked })}
                 />
               </label>
+              <button type="button" className="feature-entry-button" onClick={onOpenAlbums}>
+                {t("openFeatureEntry")} · {t("albums")}
+              </button>
               <label className="switch-row">
                 <span>
                   <span>{t("smartPlaylistFeature")}</span>
@@ -7130,6 +7384,9 @@ function SettingsPanel({
                   onChange={(e) => setSettings({ ...settings, smart_playlists_enabled: e.target.checked })}
                 />
               </label>
+              <button type="button" className="feature-entry-button" onClick={onOpenPlaylists}>
+                {t("openFeatureEntry")} · {t("playlists")}
+              </button>
             </div>
           ) : null}
           {user.role === "admin" ? (
@@ -7158,6 +7415,14 @@ function SettingsPanel({
               </label>
               <div className="settings-mini-grid">
                 <label>
+                  {t("sharingEndpoint")}
+                  <input readOnly value={publicShareEntry} />
+                </label>
+                <label>
+                  {t("subsonicEndpoint")}
+                  <input readOnly value={subsonicEndpoint} />
+                </label>
+                <label>
                   {t("transcodePolicy")}
                   <select
                     value={settings.transcode_policy || "auto"}
@@ -7168,25 +7433,33 @@ function SettingsPanel({
                     <option value="transcode">{t("transcodeAlways")}</option>
                   </select>
                 </label>
-                <label>
-                  {t("transcodeQuality")}
-                  <span className="settings-number-input">
-                    <input
-                      type="number"
-                      min={64}
-                      max={320}
-                      step={16}
-                      value={settings.transcode_quality_kbps || 192}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          transcode_quality_kbps: Math.max(64, Math.min(320, Number(e.target.value) || 192)),
-                        })
-                      }
-                    />
-                    <span>kbps</span>
-                  </span>
-                </label>
+                <div className="bitrate-preset-field">
+                  <strong>{t("transcodeQuality")}</strong>
+                  <div className="bitrate-preset-list" role="radiogroup" aria-label={t("transcodeQuality")}>
+                    {TRANSCODE_QUALITY_PRESETS.map((preset) => (
+                      <label
+                        key={preset.value}
+                        className={
+                          (settings.transcode_quality_kbps || 192) === preset.value
+                            ? "bitrate-preset-option active"
+                            : "bitrate-preset-option"
+                        }
+                      >
+                        <input
+                          type="radio"
+                          name="transcode-quality"
+                          value={preset.value}
+                          checked={(settings.transcode_quality_kbps || 192) === preset.value}
+                          onChange={() => setSettings({ ...settings, transcode_quality_kbps: preset.value })}
+                        />
+                        <span>
+                          <b>{preset.value} kbps · {t(preset.labelKey)}</b>
+                          <small>{t(preset.hintKey)}</small>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           ) : null}
@@ -7304,6 +7577,7 @@ function SettingsPanel({
                     <span>{dir.path}</span>
                     <small className={dir.status === "online" ? "dir-status online" : "dir-status"}>
                       {libraryDirectoryStatusLabel(dir.status || "online", settings.language)}
+                      {dir.builtin ? <b>{t("readOnly")}</b> : null}
                       {dir.last_error ? ` · ${dir.last_error}` : ""}
                     </small>
                   </div>
@@ -7319,9 +7593,7 @@ function SettingsPanel({
                     </label>
                     {dir.watch_enabled ? (
                       <em>{dir.watch_active ? t("enabled") : t("disabled")}</em>
-                    ) : dir.builtin ? (
-                      <em>{t("readOnly")}</em>
-                    ) : (
+                    ) : dir.builtin ? null : (
                       <button type="button" className="danger" onClick={() => void deleteLibraryDirectory(dir.id)}>{t("remove")}</button>
                     )}
                   </div>
@@ -7405,6 +7677,7 @@ function SongTable({
   onFavorite,
   onAdd,
   onInsertNext,
+  onShare,
   onOpenAlbum,
   onOpenArtist,
   selectedIds,
@@ -7417,6 +7690,7 @@ function SongTable({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext?: (song: Song) => void;
+  onShare?: (song: Song) => void;
   onOpenAlbum?: (song: Song) => void;
   onOpenArtist?: (song: Song) => void;
   selectedIds?: Set<number>;
@@ -7525,6 +7799,11 @@ function SongTable({
           aria-label={t("playNext")}
         >
           <SkipForward />
+        </button>
+      ) : null}
+      {onShare ? (
+        <button onClick={() => onShare(song)} title={t("share")} aria-label={t("share")}>
+          <CopySimple />
         </button>
       ) : null}
       <button onClick={() => onAdd(song)}>{t("addToPlaylist")}</button>

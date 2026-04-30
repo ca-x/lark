@@ -75,6 +75,13 @@ type MCPTokenStatus struct {
 	Token      string `json:"token,omitempty"`
 }
 
+type SubsonicCredentialStatus struct {
+	Configured bool   `json:"configured"`
+	Username   string `json:"username"`
+	Hint       string `json:"hint"`
+	Endpoint   string `json:"endpoint,omitempty"`
+}
+
 type Playlist struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
@@ -153,6 +160,21 @@ type SmartPlaylist struct {
 	Description string `json:"description"`
 	Kind        string `json:"kind"`
 	Enabled     bool   `json:"enabled"`
+}
+
+type Share struct {
+	Token     string    `json:"token"`
+	Type      string    `json:"type"`
+	ID        int       `json:"id"`
+	Title     string    `json:"title"`
+	URL       string    `json:"url,omitempty"`
+	CreatedBy int       `json:"created_by,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type PublicShare struct {
+	Share Share  `json:"share"`
+	Songs []Song `json:"songs"`
 }
 
 type FolderBreadcrumb struct {

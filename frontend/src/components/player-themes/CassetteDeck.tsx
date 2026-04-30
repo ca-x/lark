@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
 
@@ -65,15 +65,12 @@ export function CassetteDeck({
         </div>
 
         <CassetteShell
-          cover={cover}
           coverUnfolded={coverUnfolded}
           duration={duration}
           leftReel={leftReel}
           rightReel={rightReel}
           title={title}
           artist={artist}
-          playing={playing}
-          playMode={playMode}
           onToggleCover={() => setCoverUnfolded((value) => !value)}
         />
 
@@ -120,26 +117,20 @@ export function CassetteDeck({
 }
 
 function CassetteShell({
-  cover,
   coverUnfolded,
   duration,
   leftReel,
   rightReel,
   title,
   artist,
-  playing,
-  playMode,
   onToggleCover,
 }: {
-  cover?: string;
   coverUnfolded: boolean;
   duration: number;
   leftReel: number;
   rightReel: number;
   title: string;
   artist: string;
-  playing: boolean;
-  playMode: PlayerThemePlayMode;
   onToggleCover: () => void;
 }) {
   return (
@@ -178,19 +169,8 @@ function CassetteShell({
             <line x1="26" y1="44" x2="414" y2="44" stroke="rgba(0,0,0,.08)" strokeWidth=".8" />
             <line x1="26" y1="172" x2="414" y2="172" stroke="rgba(0,0,0,.1)" strokeWidth=".8" />
 
-            <rect x="30" y="12" width="104" height="104" rx="4" fill="#1a1410" stroke="rgba(0,0,0,.32)" strokeWidth=".8" />
-            <g clipPath="url(#cassetteArtClip)">
-              <rect x="32" y="14" width="100" height="100" fill="var(--cassette-art-bg)" />
-              {!cover ? (
-                <g>
-                  <ellipse cx="82" cy="78" rx="52" ry="16" fill="var(--cassette-art-wave)" opacity=".68" />
-                  <ellipse cx="82" cy="90" rx="46" ry="12" fill="#0a2840" opacity=".56" />
-                  <circle cx="82" cy="44" r="16" fill="var(--cassette-art-moon)" opacity=".92" />
-                  <line x1="82" y1="60" x2="82" y2="96" stroke="rgba(248,240,200,.14)" strokeWidth="2" />
-                </g>
-              ) : null}
-            </g>
-            <rect x="30" y="12" width="104" height="40" rx="4" fill="rgba(255,255,255,.06)" pointerEvents="none" />
+            <rect x="30" y="12" width="104" height="104" rx="4" fill="transparent" stroke="rgba(0,0,0,.18)" strokeWidth=".8" />
+            <rect x="30" y="12" width="104" height="40" rx="4" fill="rgba(255,255,255,.035)" pointerEvents="none" />
             <line x1="134" y1="12" x2="134" y2="116" stroke="rgba(0,0,0,.2)" strokeWidth="1" />
 
             <text x="148" y="35" className="cassette-svg-title">{title}</text>
@@ -240,11 +220,6 @@ function CassetteShell({
             >
               <span className="cassette-cover-half cassette-cover-left" />
               <span className="cassette-cover-half cassette-cover-right" />
-              <span className="cassette-cover-controls" aria-hidden="true">
-                <Record weight="fill" />
-                {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
-                {playMode === "shuffle" ? <Shuffle weight="fill" /> : playMode === "repeat-one" ? <RepeatOnce weight="fill" /> : <Repeat weight="fill" />}
-              </span>
             </button>
           </div>
         </div>

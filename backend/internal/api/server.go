@@ -149,6 +149,33 @@ type settingsRequest struct {
 	TranscodeQualityKbps   int    `json:"transcode_quality_kbps"`
 }
 
+type shareRequest struct {
+	Type string `json:"type"`
+	ID   int    `json:"id"`
+}
+
+type subsonicCredentialRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type authUserResponse struct {
+	User models.User `json:"user"`
+}
+
+type healthResponse struct {
+	Status           string `json:"status"`
+	Version          string `json:"version"`
+	FullVersion      string `json:"full_version"`
+	Commit           string `json:"commit"`
+	BuildTime        string `json:"build_time"`
+	GoVersion        string `json:"go_version"`
+	Library          string `json:"library"`
+	AudioBackend     string `json:"audio_backend"`
+	MetadataBackend  string `json:"metadata_backend"`
+	TranscodeBackend string `json:"transcode_backend"`
+}
+
 type scrobblingSettingsRequest struct {
 	Enabled     bool   `json:"enabled"`
 	Provider    string `json:"provider"`
@@ -188,9 +215,17 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.POST("/api/auth/login", s.handleLogin)
 	e.POST("/api/auth/register", s.handleRegister)
 	e.POST("/api/auth/logout", s.handleLogout)
+	e.GET("/api/public/shares/:token", s.handlePublicShare)
+	e.GET("/api/public/shares/:token/stream/:id", s.handlePublicShareStream)
+	e.GET("/api/public/shares/:token/cover/:id", s.handlePublicShareCover)
+	e.GET("/rest/:endpoint", s.handleSubsonic)
+	e.POST("/rest/:endpoint", s.handleSubsonic)
 	e.PUT("/api/me", s.handleUpdateProfile, auth)
 	e.GET("/api/me/scrobbling", s.handleGetScrobblingSettings, auth)
 	e.PUT("/api/me/scrobbling", s.handleSaveScrobblingSettings, auth)
+	e.GET("/api/me/subsonic", s.handleGetSubsonicCredential, auth)
+	e.PUT("/api/me/subsonic", s.handleSaveSubsonicCredential, auth)
+	e.DELETE("/api/me/subsonic", s.handleDeleteSubsonicCredential, auth)
 	e.GET("/api/users", s.handleUsers, admin)
 	e.GET("/api/mcp/token", s.handleGetMCPToken, auth)
 	e.PUT("/api/mcp/token", s.handleSetMCPToken, auth)
@@ -213,6 +248,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/playback/source", s.handleGetPlaybackSource, auth)
 	e.PUT("/api/playback/source", s.handleSavePlaybackSource, auth)
 	e.DELETE("/api/playback/source", s.handleClearPlaybackSource, auth)
+	e.POST("/api/shares", s.handleCreateShare, auth)
 	e.GET("/api/songs/:id/stream", s.handleStream, auth)
 	e.GET("/api/songs/:id/cover", s.handleCover, auth)
 	e.GET("/api/songs/:id/lyrics/candidates", s.handleLyricCandidates, auth)
@@ -315,17 +351,17 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func (s *Server) handleHealth(c *echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]any{
-		"status":            "ok",
-		"version":           version.GetVersion(),
-		"full_version":      version.GetFullVersion(),
-		"commit":            version.GitCommit,
-		"build_time":        version.BuildTime,
-		"go_version":        runtime.Version(),
-		"library":           s.lib.LibraryDir(),
-		"audio_backend":     "pure-go-http-range",
-		"metadata_backend":  "dhowden/tag+ffprobe-optional",
-		"transcode_backend": "ffmpeg-cli-optional",
+	return c.JSON(http.StatusOK, healthResponse{
+		Status:           "ok",
+		Version:          version.GetVersion(),
+		FullVersion:      version.GetFullVersion(),
+		Commit:           version.GitCommit,
+		BuildTime:        version.BuildTime,
+		GoVersion:        runtime.Version(),
+		Library:          s.lib.LibraryDir(),
+		AudioBackend:     "pure-go-http-range",
+		MetadataBackend:  "dhowden/tag+ffprobe-optional",
+		TranscodeBackend: "ffmpeg-cli-optional",
 	})
 }
 
@@ -347,7 +383,7 @@ func (s *Server) handleSetupAdmin(c *echo.Context) error {
 		return mapError(err)
 	}
 	s.setSessionCookie(c, token, sessionTTLSeconds())
-	return c.JSON(http.StatusCreated, map[string]any{"user": user})
+	return c.JSON(http.StatusCreated, authUserResponse{User: user})
 }
 
 func (s *Server) handleLogin(c *echo.Context) error {
@@ -360,7 +396,7 @@ func (s *Server) handleLogin(c *echo.Context) error {
 		return mapError(err)
 	}
 	s.setSessionCookie(c, token, sessionTTLSeconds())
-	return c.JSON(http.StatusOK, map[string]any{"user": user})
+	return c.JSON(http.StatusOK, authUserResponse{User: user})
 }
 
 func (s *Server) handleRegister(c *echo.Context) error {
@@ -373,7 +409,7 @@ func (s *Server) handleRegister(c *echo.Context) error {
 		return mapError(err)
 	}
 	s.setSessionCookie(c, token, sessionTTLSeconds())
-	return c.JSON(http.StatusCreated, map[string]any{"user": user})
+	return c.JSON(http.StatusCreated, authUserResponse{User: user})
 }
 
 func (s *Server) handleLogout(c *echo.Context) error {
@@ -420,6 +456,34 @@ func (s *Server) handleSaveScrobblingSettings(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handleGetSubsonicCredential(c *echo.Context) error {
+	status, err := s.lib.GetSubsonicCredentialStatus(c.Request().Context(), currentUserID(c), requestBaseURL(c)+"/rest")
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, status)
+}
+
+func (s *Server) handleSaveSubsonicCredential(c *echo.Context) error {
+	var req subsonicCredentialRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	status, err := s.lib.SaveSubsonicCredential(c.Request().Context(), currentUserID(c), req.Username, req.Password, requestBaseURL(c)+"/rest")
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, status)
+}
+
+func (s *Server) handleDeleteSubsonicCredential(c *echo.Context) error {
+	status, err := s.lib.DeleteSubsonicCredential(c.Request().Context(), currentUserID(c), requestBaseURL(c)+"/rest")
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, status)
 }
 
 func (s *Server) handleUsers(c *echo.Context) error {
@@ -604,6 +668,56 @@ func (s *Server) handleSavePlaybackProgress(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+func (s *Server) handleCreateShare(c *echo.Context) error {
+	var req shareRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	share, err := s.lib.CreateShare(c.Request().Context(), currentUserID(c), req.Type, req.ID, requestBaseURL(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusCreated, share)
+}
+
+func (s *Server) handlePublicShare(c *echo.Context) error {
+	share, err := s.lib.PublicShare(c.Request().Context(), c.Param("token"), requestBaseURL(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, share)
+}
+
+func (s *Server) handlePublicShareStream(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	if err := s.lib.ShareAllowsSong(c.Request().Context(), c.Param("token"), id); err != nil {
+		return mapError(err)
+	}
+	return s.streamSong(c, id)
+}
+
+func (s *Server) handlePublicShareCover(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	if err := s.lib.ShareAllowsSong(c.Request().Context(), c.Param("token"), id); err != nil {
+		return mapError(err)
+	}
+	data, mimeType, err := s.lib.SongCover(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	if len(data) == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
+	}
+	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
+	return c.Blob(http.StatusOK, mimeType, data)
+}
+
 func (s *Server) handleGetPlaybackSource(c *echo.Context) error {
 	source, err := s.lib.PlaybackSource(c.Request().Context(), currentUserID(c))
 	if err != nil {
@@ -640,6 +754,10 @@ func (s *Server) handleStream(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
+	return s.streamSong(c, id)
+}
+
+func (s *Server) streamSong(c *echo.Context, id int) error {
 	item, err := s.lib.RawSong(c.Request().Context(), id)
 	if err != nil {
 		return mapError(err)
@@ -647,6 +765,13 @@ func (s *Server) handleStream(c *echo.Context) error {
 	mode := strings.ToLower(strings.TrimSpace(c.QueryParam("mode")))
 	if mode == "" {
 		mode = "auto"
+	}
+	if c.QueryParam("quality") == "" {
+		if settings, err := s.lib.GetSettings(c.Request().Context()); err == nil {
+			q := c.Request().URL.Query()
+			q.Set("quality", strconv.Itoa(settings.TranscodeQualityKbps))
+			c.Request().URL.RawQuery = q.Encode()
+		}
 	}
 	if mode == "raw" || (mode == "auto" && canBrowserPlayDirect(item.Format)) {
 		c.Response().Header().Set("Accept-Ranges", "bytes")
@@ -1422,6 +1547,25 @@ func pageOffset(c *echo.Context) int {
 		page = 1
 	}
 	return queryInt(c, "offset", (page-1)*limit)
+}
+
+func requestBaseURL(c *echo.Context) string {
+	req := c.Request()
+	proto := strings.TrimSpace(req.Header.Get("X-Forwarded-Proto"))
+	if proto == "" {
+		proto = "http"
+		if req.TLS != nil {
+			proto = "https"
+		}
+	}
+	host := strings.TrimSpace(req.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = req.Host
+	}
+	if host == "" {
+		return ""
+	}
+	return proto + "://" + host
 }
 
 func mapError(err error) error {

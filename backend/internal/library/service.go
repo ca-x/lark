@@ -921,6 +921,9 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		ReadLyrics:   false,
 	})
 	applyMetadataFallback(abs, s.libraryDir, &meta)
+	if settings, err := s.GetSettings(ctx); err == nil && !settings.MetadataGrouping {
+		meta.AlbumArtist = meta.Artist
+	}
 	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(abs)), ".")
 	mimeType := mime.TypeByExtension(filepath.Ext(abs))
 	if mimeType == "" {
@@ -3502,6 +3505,26 @@ func (s *Service) SearchArtists(ctx context.Context, userID int, term string, li
 		out = append(out, mapArtistWithCounts(item, songCounts[item.ID], albumCounts[item.ID]))
 	}
 	return s.applyArtistUserState(ctx, userID, out)
+}
+
+func (s *Service) Artist(ctx context.Context, userID, id int) (models.Artist, error) {
+	item, err := s.client.Artist.Get(ctx, id)
+	if err != nil {
+		return models.Artist{}, err
+	}
+	songCounts, err := s.artistSongCountsForIDs(ctx, []int{id})
+	if err != nil {
+		return models.Artist{}, err
+	}
+	albumCounts, err := s.artistAlbumCountsForIDs(ctx, []int{id})
+	if err != nil {
+		return models.Artist{}, err
+	}
+	items, err := s.applyArtistUserState(ctx, userID, []models.Artist{mapArtistWithCounts(item, songCounts[id], albumCounts[id])})
+	if err != nil {
+		return models.Artist{}, err
+	}
+	return items[0], nil
 }
 
 func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (models.ArtistPage, error) {

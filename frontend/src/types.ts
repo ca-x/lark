@@ -107,6 +107,19 @@ export interface SmartPlaylist {
   kind: string;
   enabled: boolean;
 }
+export interface Share {
+  token: string;
+  type: "song" | "album" | "artist" | "playlist" | string;
+  id: number;
+  title: string;
+  url: string;
+  created_by?: number;
+  created_at: string;
+}
+export interface PublicShare {
+  share: Share;
+  songs: Song[];
+}
 export interface Folder {
   path: string;
   name: string;
@@ -160,6 +173,12 @@ export interface MCPTokenStatus {
   configured: boolean;
   hint: string;
   token?: string;
+}
+export interface SubsonicCredentialStatus {
+  configured: boolean;
+  username: string;
+  hint: string;
+  endpoint: string;
 }
 export interface HealthInfo {
   status: string;
