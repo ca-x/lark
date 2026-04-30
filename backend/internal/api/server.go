@@ -150,8 +150,9 @@ type settingsRequest struct {
 }
 
 type shareRequest struct {
-	Type string `json:"type"`
-	ID   int    `json:"id"`
+	Type      string     `json:"type"`
+	ID        int        `json:"id"`
+	ExpiresAt *time.Time `json:"expires_at"`
 }
 
 type subsonicCredentialRequest struct {
@@ -248,7 +249,10 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/playback/source", s.handleGetPlaybackSource, auth)
 	e.PUT("/api/playback/source", s.handleSavePlaybackSource, auth)
 	e.DELETE("/api/playback/source", s.handleClearPlaybackSource, auth)
+	e.GET("/api/shares", s.handleListShares, auth)
 	e.POST("/api/shares", s.handleCreateShare, auth)
+	e.PATCH("/api/shares/:token", s.handleUpdateShare, auth)
+	e.DELETE("/api/shares/:token", s.handleDeleteShare, auth)
 	e.GET("/api/songs/:id/stream", s.handleStream, auth)
 	e.GET("/api/songs/:id/cover", s.handleCover, auth)
 	e.GET("/api/songs/:id/lyrics/candidates", s.handleLyricCandidates, auth)
@@ -673,11 +677,38 @@ func (s *Server) handleCreateShare(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	share, err := s.lib.CreateShare(c.Request().Context(), currentUserID(c), req.Type, req.ID, requestBaseURL(c))
+	share, err := s.lib.CreateShare(c.Request().Context(), currentUserID(c), req.Type, req.ID, req.ExpiresAt, requestBaseURL(c))
 	if err != nil {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusCreated, share)
+}
+
+func (s *Server) handleListShares(c *echo.Context) error {
+	shares, err := s.lib.ListShares(c.Request().Context(), currentUserID(c), requestBaseURL(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, shares)
+}
+
+func (s *Server) handleDeleteShare(c *echo.Context) error {
+	if err := s.lib.DeleteShare(c.Request().Context(), currentUserID(c), c.Param("token")); err != nil {
+		return mapError(err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) handleUpdateShare(c *echo.Context) error {
+	var req shareRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	share, err := s.lib.UpdateShare(c.Request().Context(), currentUserID(c), c.Param("token"), req.ExpiresAt, requestBaseURL(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, share)
 }
 
 func (s *Server) handlePublicShare(c *echo.Context) error {

@@ -64,9 +64,9 @@ import type {
   MCPTokenStatus,
   Playlist,
   PlaylistPage,
-  PublicShare,
   ScanStatus,
   Settings,
+  Share,
   Song,
   SongPage,
   SubsonicCredentialStatus,
@@ -89,6 +89,9 @@ import { LoadingStage } from "./components/LoadingStage";
 import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
 import { radioGroupName } from "./components/radio";
 import { CassetteDeck, VinylTurntable } from "./components/player-themes";
+import { PublicShareView } from "./components/PublicShareView";
+import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
+import { durationValueFromExpiresAt, expiresAtFromDuration } from "./components/share-duration";
 import { EqualizerPanel } from "./components/EqualizerPanel";
 import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
 
@@ -212,7 +215,7 @@ type ThemeLabel =
   | "winampLight"
   | "foobarLight";
 type ThemeMode = "dark" | "light";
-type SettingsTab = "profile" | "users" | "site";
+type SettingsTab = "profile" | "users" | "site" | "shares";
 type LibraryTab = "songs" | "folders" | "network" | "radio";
 type Collection = {
   type: "playlist" | "album" | "artist";
@@ -1249,6 +1252,8 @@ export default function App() {
   const [playlistSubmitting, setPlaylistSubmitting] = useState(false);
   const [playlistPickerSong, setPlaylistPickerSong] = useState<Song | null>(null);
   const [playlistPendingSong, setPlaylistPendingSong] = useState<Song | null>(null);
+  const [shareDialogTarget, setShareDialogTarget] = useState<ShareTarget | null>(null);
+  const [shareMenuExpanded, setShareMenuExpanded] = useState(false);
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
   const [sleepTimerMins, setSleepTimerMins] = useState(0);
   const [sleepLeft, setSleepLeft] = useState(0);
@@ -1520,6 +1525,10 @@ export default function App() {
   useEffect(() => {
     rememberHomePlayerStyle(homePlayerStyle);
   }, [homePlayerStyle]);
+
+  useEffect(() => {
+    setShareMenuExpanded(settings.sharing_enabled);
+  }, [settings.sharing_enabled]);
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
     document.documentElement.lang = settings.language;
@@ -2727,16 +2736,8 @@ export default function App() {
     updateSongState(updated);
   }
 
-  async function shareTarget(type: "song" | "album" | "artist" | "playlist", id: number) {
-    try {
-      const share = await api.createShare(type, id);
-      if (share.url) {
-        await navigator.clipboard?.writeText(share.url).catch(() => undefined);
-      }
-      showMessage(share.url ? `${t("shareLinkCopied")}: ${share.url}` : t("done"));
-    } catch (error) {
-      showMessage(error instanceof Error ? error.message : t("loadFailed"));
-    }
+  function openShareDialog(type: ShareTarget["type"], id: number, title: string) {
+    setShareDialogTarget({ type, id, title });
   }
 
   function updateAlbumFavoriteState(updated: Album) {
@@ -3273,6 +3274,34 @@ export default function App() {
               <span>{item.label}</span>
             </button>
           ))}
+          <div className={shareMenuExpanded ? "nav-share-group expanded" : "nav-share-group"}>
+            <button
+              type="button"
+              title={t("share")}
+              aria-label={t("share")}
+              aria-expanded={shareMenuExpanded}
+              className={settingsTab === "shares" && view === "settings" ? "active" : ""}
+              onClick={() => setShareMenuExpanded((value) => !value)}
+            >
+              <ShareNetwork />
+              <span>{t("share")}</span>
+              {shareMenuExpanded ? <CaretUp weight="bold" /> : <CaretDown weight="bold" />}
+            </button>
+            {shareMenuExpanded ? (
+              <button
+                type="button"
+                className={settingsTab === "shares" && view === "settings" ? "active nav-share-child" : "nav-share-child"}
+                onClick={() => {
+                  setLyricsFullScreen(false);
+                  setSettingsTab("shares");
+                  setView("settings");
+                }}
+              >
+                <span />
+                <span>{t("myShares")}</span>
+              </button>
+            ) : null}
+          </div>
         </nav>
       </aside>
 
@@ -3343,7 +3372,11 @@ export default function App() {
                 />
               ) : null}
             </header>
-            {message && <div className="message">{message}</div>}
+            {message ? (
+              <div className="app-toast" role="status" aria-live="polite">
+                {message}
+              </div>
+            ) : null}
 
             {view === "home" && (
               <HomeView
@@ -3403,7 +3436,7 @@ export default function App() {
                 onFavoriteSong={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
-                onShareSong={settings.sharing_enabled ? (song) => void shareTarget("song", song.id) : undefined}
+                onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
                 onOpenAlbum={(album) => void openAlbum(album)}
                 onPlayAlbum={(album) => void playAlbum(album)}
                 onFavoriteAlbum={(album) => void toggleAlbumFavorite(album)}
@@ -3427,7 +3460,7 @@ export default function App() {
                 onFavorite={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
-                onShareSong={settings.sharing_enabled ? (song) => void shareTarget("song", song.id) : undefined}
+                onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
                 onOpenAlbum={(song) => {
                   void openSongAlbum(song);
                 }}
@@ -3513,10 +3546,10 @@ export default function App() {
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
                 onInsertCollection={() => void insertCollectionNext(collection)}
-                onShareSong={settings.sharing_enabled ? (song) => void shareTarget("song", song.id) : undefined}
+                onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
                 onShareCollection={
                   settings.sharing_enabled && collection.id
-                    ? () => void shareTarget(collection.type, collection.id!)
+                    ? () => openShareDialog(collection.type, collection.id!, collection.title)
                     : undefined
                 }
                 onFavoriteCollection={
@@ -3675,6 +3708,7 @@ export default function App() {
                 onOpenAlbums={() => setView("albums")}
                 onOpenPlaylists={() => setView("playlists")}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
+                onToast={showMessage}
                 t={t}
               />
             )}
@@ -3707,6 +3741,18 @@ export default function App() {
             setPlaylistPendingSong(playlistPickerSong);
             setPlaylistPickerSong(null);
             createPlaylist();
+          }}
+        />
+      ) : null}
+
+      {shareDialogTarget ? (
+        <ShareDialog
+          target={shareDialogTarget}
+          t={t}
+          onClose={() => setShareDialogTarget(null)}
+          onCreated={() => {
+            setShareDialogTarget(null);
+            showMessage(t("shareLinkCopied"));
           }}
         />
       ) : null}
@@ -4214,88 +4260,6 @@ function AuthView({
             ) : null}
           </form>
       </div>
-    </div>
-  );
-}
-
-function PublicShareView({
-  token,
-  settings,
-  t,
-}: {
-  token: string;
-  settings: Settings;
-  t: ReturnType<typeof createT>;
-}) {
-  const [share, setShare] = useState<PublicShare | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [error, setError] = useState("");
-  const currentSong = share?.songs[currentIndex] ?? share?.songs[0] ?? null;
-
-  useEffect(() => {
-    setShare(null);
-    setCurrentIndex(0);
-    setError("");
-    void api
-      .publicShare(token)
-      .then(setShare)
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, [token]);
-
-  return (
-    <div className="auth-shell public-share-shell" data-theme={settings.theme}>
-      <main className="public-share-card">
-        <div className="brand public-share-brand">
-          <img src="/logo.png" alt={t("brand")} /> <span>{t("brand")}</span>
-        </div>
-        {error ? (
-          <div className="settings-empty error">{error}</div>
-        ) : !share ? (
-          <LoadingStage t={t} />
-        ) : currentSong ? (
-          <>
-            <p>{t("publicShare")}</p>
-            <section className="public-share-hero">
-              <div className="cover plain-cover public-share-cover">
-                <LazyCoverImage src={`/api/public/shares/${encodeURIComponent(token)}/cover/${currentSong.id}`} />
-                <Record weight="fill" />
-              </div>
-              <div>
-                <span>{t("nowPlaying")}</span>
-                <h1>{share.share.title}</h1>
-                <strong>{currentSong.title}</strong>
-                <em>{[currentSong.artist, currentSong.album].filter(Boolean).join(" · ")}</em>
-                <audio
-                  key={currentSong.id}
-                  controls
-                  src={`/api/public/shares/${encodeURIComponent(token)}/stream/${currentSong.id}`}
-                />
-              </div>
-            </section>
-            {share.songs.length > 1 ? (
-              <div className="public-share-list">
-                {share.songs.map((song, index) => (
-                  <button
-                    key={song.id}
-                    type="button"
-                    className={song.id === currentSong.id ? "active" : ""}
-                    onClick={() => setCurrentIndex(index)}
-                  >
-                    <span>{index + 1}</span>
-                    <div>
-                      <strong>{song.title}</strong>
-                      <small>{[song.artist, song.album].filter(Boolean).join(" · ")}</small>
-                    </div>
-                    <em>{formatDuration(song.duration_seconds)}</em>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <div className="settings-empty">{t("emptyCollection")}</div>
-        )}
-      </main>
     </div>
   );
 }
@@ -6704,6 +6668,7 @@ function SettingsPanel({
   onOpenAlbums,
   onOpenPlaylists,
   onUpdateProfile,
+  onToast,
   t,
 }: {
   settings: Settings;
@@ -6724,6 +6689,7 @@ function SettingsPanel({
   onOpenAlbums: () => void;
   onOpenPlaylists: () => void;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
+  onToast: (message: string, duration?: number) => void;
   t: ReturnType<typeof createT>;
 }) {
   const darkThemes = themes.filter((theme) => theme.mode === "dark");
@@ -6748,6 +6714,9 @@ function SettingsPanel({
   const [subsonicPassword, setSubsonicPassword] = useState("");
   const [subsonicCredentialLoading, setSubsonicCredentialLoading] = useState(false);
   const [subsonicCredentialError, setSubsonicCredentialError] = useState("");
+  const [shares, setShares] = useState<Share[]>([]);
+  const [sharesLoading, setSharesLoading] = useState(false);
+  const [sharesError, setSharesError] = useState("");
   const [libraryChecking, setLibraryChecking] = useState(false);
   const [scrobbleToken, setScrobbleToken] = useState("");
   const mcpEndpoint = `${window.location.origin}/api/mcp/sse`;
@@ -6756,6 +6725,7 @@ function SettingsPanel({
   const mcpTokenExample = mcpToken?.token || mcpToken?.hint || "lark_mcp_...";
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "profile", label: t("profileSettings") },
+    { id: "shares", label: t("myShares") },
     { id: "users", label: t("userManagement") },
     { id: "site", label: t("siteSettings") },
   ];
@@ -6788,6 +6758,11 @@ function SettingsPanel({
       .catch(() => setUsers([]))
       .finally(() => setUsersLoading(false));
   }, [activeTab, user.role]);
+
+  useEffect(() => {
+    if (activeTab !== "shares") return;
+    void refreshShares();
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== "profile") return;
@@ -6842,6 +6817,47 @@ function SettingsPanel({
     if (!mcpToken?.token) return;
     await navigator.clipboard.writeText(mcpToken.token);
     setMcpCopied(true);
+  }
+
+  async function refreshShares() {
+    setSharesLoading(true);
+    setSharesError("");
+    try {
+      const result = await api.shares();
+      setShares(result.shares);
+    } catch (err) {
+      setSharesError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSharesLoading(false);
+    }
+  }
+
+  async function copyShare(share: Share) {
+    if (!share.url) return;
+    await navigator.clipboard?.writeText(share.url).catch(() => undefined);
+    onToast(t("shareLinkCopied"));
+  }
+
+  async function cancelShare(token: string) {
+    setSharesError("");
+    try {
+      await api.deleteShare(token);
+      setShares((items) => items.filter((item) => item.token !== token));
+      onToast(t("shareCanceled"));
+    } catch (err) {
+      setSharesError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function updateShareExpiry(token: string, duration: string) {
+    setSharesError("");
+    try {
+      const updated = await api.updateShare(token, expiresAtFromDuration(duration));
+      setShares((items) => items.map((item) => (item.token === token ? updated : item)));
+      onToast(t("done"));
+    } catch (err) {
+      setSharesError(err instanceof Error ? err.message : String(err));
+    }
   }
 
   async function saveSubsonicCredential() {
@@ -7234,6 +7250,79 @@ function SettingsPanel({
               onClose={() => setMcpHelpOpen(false)}
             />
           ) : null}
+        </div>
+      )}
+
+      {activeTab === "shares" && (
+        <div className="settings-grid settings-tab-panel" role="tabpanel">
+          <div className="share-management-card settings-wide-row">
+            <div className="share-management-head">
+              <div>
+                <strong>{t("myShares")}</strong>
+                <span>{t("mySharesHint")}</span>
+              </div>
+              <button type="button" onClick={() => void refreshShares()} disabled={sharesLoading}>
+                {sharesLoading ? t("loading") : t("refresh")}
+              </button>
+            </div>
+            {!settings.sharing_enabled ? (
+              <div className="settings-empty share-disabled-note">{t("publicShareUnavailable")}</div>
+            ) : null}
+            {sharesError ? <div className="settings-error">{sharesError}</div> : null}
+            <div className="share-management-list">
+              {shares.map((share) => (
+                <div className="share-management-row" key={share.token}>
+                  <div className="share-management-main">
+                    <span className="status-pill">{share.type || t("shareType")}</span>
+                    <strong>{share.title}</strong>
+                    <small>{share.url || `${window.location.origin}/share/${share.token}`}</small>
+                  </div>
+                  <div className="share-management-meta">
+                    <span>{t("createdAt")}</span>
+                    <strong>{formatDateTime(share.created_at)}</strong>
+                  </div>
+                  <div className="share-management-meta">
+                    <span>{t("expires")}</span>
+                    <strong>{share.expires_at ? formatDateTime(share.expires_at) : t("neverExpires")}</strong>
+                    <select
+                      value={durationValueFromExpiresAt(share.expires_at)}
+                      onChange={(event) => void updateShareExpiry(share.token, event.target.value)}
+                      aria-label={t("shareDuration")}
+                    >
+                      <option value="">{t("shareDurationPermanent")}</option>
+                      <option value="3600">{t("shareDuration1Hour")}</option>
+                      <option value="86400">{t("shareDuration1Day")}</option>
+                      <option value="604800">{t("shareDuration7Days")}</option>
+                      <option value="2592000">{t("shareDuration30Days")}</option>
+                    </select>
+                  </div>
+                  <div className="share-management-actions">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => void copyShare(share)}
+                      aria-label={t("copyShareLink")}
+                      title={t("copyShareLink")}
+                    >
+                      <CopySimple weight="bold" />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button danger"
+                      onClick={() => void cancelShare(share.token)}
+                      aria-label={t("cancelShare")}
+                      title={t("cancelShare")}
+                    >
+                      <X weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {!sharesLoading && shares.length === 0 ? (
+                <div className="settings-empty">{t("noShares")}</div>
+              ) : null}
+            </div>
+          </div>
         </div>
       )}
 

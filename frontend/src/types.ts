@@ -115,6 +115,10 @@ export interface Share {
   url: string;
   created_by?: number;
   created_at: string;
+  expires_at?: string;
+}
+export interface ShareList {
+  shares: Share[];
 }
 export interface PublicShare {
   share: Share;

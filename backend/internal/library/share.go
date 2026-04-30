@@ -3,7 +3,6 @@ package library
 import (
 	"context"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -22,15 +21,16 @@ import (
 const shareSettingPrefix = "share:"
 
 type storedShare struct {
-	Token     string    `json:"token"`
-	Type      string    `json:"type"`
-	ID        int       `json:"id"`
-	Title     string    `json:"title"`
-	CreatedBy int       `json:"created_by"`
-	CreatedAt time.Time `json:"created_at"`
+	Token     string     `json:"token"`
+	Type      string     `json:"type"`
+	ID        int        `json:"id"`
+	Title     string     `json:"title"`
+	CreatedBy int        `json:"created_by"`
+	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
-func (s *Service) CreateShare(ctx context.Context, userID int, targetType string, targetID int, baseURL string) (models.Share, error) {
+func (s *Service) CreateShare(ctx context.Context, userID int, targetType string, targetID int, expiresAt *time.Time, baseURL string) (models.Share, error) {
 	settings, err := s.GetSettings(ctx)
 	if err != nil {
 		return models.Share{}, err
@@ -69,12 +69,79 @@ func (s *Service) CreateShare(ctx context.Context, userID int, targetType string
 		Title:     title,
 		CreatedBy: userID,
 		CreatedAt: time.Now().UTC(),
+		ExpiresAt: normalizeShareExpiry(expiresAt),
 	}
 	data, err := json.Marshal(share)
 	if err != nil {
 		return models.Share{}, err
 	}
 	if err := s.setSetting(ctx, shareSettingPrefix+token, string(data)); err != nil {
+		return models.Share{}, err
+	}
+	if err := s.cacheShare(ctx, share); err != nil {
+		return models.Share{}, err
+	}
+	return mapShare(share, baseURL), nil
+}
+
+func (s *Service) ListShares(ctx context.Context, userID int, baseURL string) (models.ShareList, error) {
+	items, err := s.client.AppSetting.Query().
+		Where(appsetting.KeyHasPrefix(shareSettingPrefix)).
+		Order(ent.Desc(appsetting.FieldUpdatedAt), ent.Desc(appsetting.FieldID)).
+		All(ctx)
+	if err != nil {
+		return models.ShareList{}, err
+	}
+	shares := make([]models.Share, 0, len(items))
+	now := time.Now().UTC()
+	for _, item := range items {
+		var share storedShare
+		if err := json.Unmarshal([]byte(item.Value), &share); err != nil {
+			continue
+		}
+		if share.Token == "" {
+			share.Token = strings.TrimPrefix(item.Key, shareSettingPrefix)
+		}
+		if share.CreatedBy != userID {
+			continue
+		}
+		if shareExpired(share, now) {
+			_ = s.deleteShareStorage(ctx, share.Token)
+			continue
+		}
+		shares = append(shares, mapShare(share, baseURL))
+	}
+	return models.ShareList{Shares: shares}, nil
+}
+
+func (s *Service) DeleteShare(ctx context.Context, userID int, token string) error {
+	share, err := s.loadShare(ctx, token)
+	if err != nil {
+		return err
+	}
+	if share.CreatedBy != userID {
+		return ErrForbidden
+	}
+	return s.deleteShareStorage(ctx, share.Token)
+}
+
+func (s *Service) UpdateShare(ctx context.Context, userID int, token string, expiresAt *time.Time, baseURL string) (models.Share, error) {
+	share, err := s.loadShare(ctx, token)
+	if err != nil {
+		return models.Share{}, err
+	}
+	if share.CreatedBy != userID {
+		return models.Share{}, ErrForbidden
+	}
+	share.ExpiresAt = normalizeShareExpiry(expiresAt)
+	data, err := json.Marshal(share)
+	if err != nil {
+		return models.Share{}, err
+	}
+	if err := s.setSetting(ctx, shareSettingPrefix+share.Token, string(data)); err != nil {
+		return models.Share{}, err
+	}
+	if err := s.cacheShare(ctx, share); err != nil {
 		return models.Share{}, err
 	}
 	return mapShare(share, baseURL), nil
@@ -91,6 +158,10 @@ func (s *Service) PublicShare(ctx context.Context, token string, baseURL string)
 	share, err := s.loadShare(ctx, token)
 	if err != nil {
 		return models.PublicShare{}, err
+	}
+	if shareExpired(share, time.Now().UTC()) {
+		_ = s.deleteShareStorage(ctx, share.Token)
+		return models.PublicShare{}, &ent.NotFoundError{}
 	}
 	songs, err := s.shareSongs(ctx, share)
 	if err != nil {
@@ -211,6 +282,7 @@ func mapShare(share storedShare, baseURL string) models.Share {
 		Title:     share.Title,
 		CreatedBy: share.CreatedBy,
 		CreatedAt: share.CreatedAt,
+		ExpiresAt: share.ExpiresAt,
 	}
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL != "" {
@@ -220,9 +292,69 @@ func mapShare(share storedShare, baseURL string) models.Share {
 }
 
 func randomShareToken() (string, error) {
-	data := make([]byte, 18)
-	if _, err := rand.Read(data); err != nil {
-		return "", err
+	const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	out := make([]byte, 22)
+	buf := make([]byte, 32)
+	for i := 0; i < len(out); {
+		if _, err := rand.Read(buf); err != nil {
+			return "", err
+		}
+		for _, b := range buf {
+			if b >= 248 {
+				continue
+			}
+			out[i] = alphabet[int(b)%len(alphabet)]
+			i++
+			if i == len(out) {
+				break
+			}
+		}
 	}
-	return base64.RawURLEncoding.EncodeToString(data), nil
+	return string(out), nil
+}
+
+func (s *Service) cacheShare(ctx context.Context, share storedShare) error {
+	if s.cache == nil {
+		return nil
+	}
+	data, err := json.Marshal(share)
+	if err != nil {
+		return err
+	}
+	return s.cache.Set(ctx, shareCacheKey(share.Token), data, shareTTL(share, time.Now().UTC()))
+}
+
+func (s *Service) deleteShareStorage(ctx context.Context, token string) error {
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, shareCacheKey(token))
+	}
+	_, err := s.client.AppSetting.Delete().Where(appsetting.Key(shareSettingPrefix + token)).Exec(ctx)
+	return err
+}
+
+func shareCacheKey(token string) string {
+	return "public-share:" + token
+}
+
+func normalizeShareExpiry(expiresAt *time.Time) *time.Time {
+	if expiresAt == nil || expiresAt.IsZero() {
+		return nil
+	}
+	normalized := expiresAt.UTC()
+	return &normalized
+}
+
+func shareExpired(share storedShare, now time.Time) bool {
+	return share.ExpiresAt != nil && !share.ExpiresAt.After(now)
+}
+
+func shareTTL(share storedShare, now time.Time) time.Duration {
+	if share.ExpiresAt == nil {
+		return 0
+	}
+	ttl := share.ExpiresAt.Sub(now)
+	if ttl <= 0 {
+		return time.Nanosecond
+	}
+	return ttl
 }

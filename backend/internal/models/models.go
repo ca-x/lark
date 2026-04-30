@@ -163,18 +163,23 @@ type SmartPlaylist struct {
 }
 
 type Share struct {
-	Token     string    `json:"token"`
-	Type      string    `json:"type"`
-	ID        int       `json:"id"`
-	Title     string    `json:"title"`
-	URL       string    `json:"url,omitempty"`
-	CreatedBy int       `json:"created_by,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
+	Token     string     `json:"token"`
+	Type      string     `json:"type"`
+	ID        int        `json:"id"`
+	Title     string     `json:"title"`
+	URL       string     `json:"url,omitempty"`
+	CreatedBy int        `json:"created_by,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
 type PublicShare struct {
 	Share Share  `json:"share"`
 	Songs []Song `json:"songs"`
+}
+
+type ShareList struct {
+	Shares []Share `json:"shares"`
 }
 
 type FolderBreadcrumb struct {
