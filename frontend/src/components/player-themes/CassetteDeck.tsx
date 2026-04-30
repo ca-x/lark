@@ -4,6 +4,8 @@ import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from 
 
 import type { PlayerThemePlayMode } from "./types";
 
+const CASSETTE_COVER_UNFOLDED_KEY = "lark:cassette-cover-unfolded";
+
 export function CassetteDeck({
   cover,
   playing,
@@ -35,8 +37,14 @@ export function CassetteDeck({
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
-  const [coverUnfolded, setCoverUnfolded] = useState(true);
-  useEffect(() => setCoverUnfolded(true), [cover, title]);
+  const [coverUnfolded, setCoverUnfolded] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem(CASSETTE_COVER_UNFOLDED_KEY) !== "false";
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(CASSETTE_COVER_UNFOLDED_KEY, coverUnfolded ? "true" : "false");
+  }, [coverUnfolded]);
 
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const leftReel = 35 - pct * 13;
