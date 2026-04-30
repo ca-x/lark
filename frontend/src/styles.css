@@ -2254,7 +2254,72 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .cassette-led { width:6px; height:6px; border-radius:50%; background:#d04020; box-shadow:0 0 5px rgba(210,60,20,.78); opacity:.9; flex-shrink:0; }
 .cassette-led.on { background:#50b030; box-shadow:0 0 6px rgba(80,180,40,.82); animation:cassette-blink 1s ease infinite; }
 .cassette-bay { padding:16px 18px 12px; margin-bottom:14px; border:1px solid color-mix(in srgb, var(--line) 55%, #201c14); border-radius:10px; background:linear-gradient(180deg,color-mix(in srgb, var(--bg) 92%, #0c0a08),color-mix(in srgb, var(--panel) 78%, #141008)); box-shadow:inset 0 4px 14px rgba(0,0,0,.55),inset 0 0 0 1px rgba(0,0,0,.35); }
+.cassette-shell-stage { position:relative; isolation:isolate; }
 .cassette-svg { display:block; width:100%; height:auto; max-height:220px; overflow:visible; }
+.cassette-cover-fold {
+  position:absolute;
+  left:7.27%;
+  top:6.36%;
+  width:22.73%;
+  height:45.45%;
+  padding:0;
+  border:0;
+  border-radius:4px;
+  background:transparent;
+  perspective:520px;
+  transform-style:preserve-3d;
+  cursor:pointer;
+  z-index:3;
+}
+.cassette-cover-fold:focus-visible { outline:2px solid color-mix(in srgb, var(--cassette-green) 78%, transparent); outline-offset:4px; }
+.cassette-cover-half {
+  position:absolute;
+  top:0;
+  width:50%;
+  height:100%;
+  background-color:var(--cassette-art-bg);
+  background-image:var(--cassette-cover-image, linear-gradient(135deg,var(--cassette-art-bg),var(--cassette-art-wave) 58%,var(--cassette-art-moon)));
+  background-size:200% 100%;
+  background-repeat:no-repeat;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12), inset 0 -18px 24px rgba(0,0,0,.18);
+  transition:transform .3s cubic-bezier(.2,.72,.2,1), filter .3s ease, box-shadow .3s ease;
+  pointer-events:none;
+}
+.cassette-cover-left { left:0; border-radius:3px 0 0 3px; background-position:left center; }
+.cassette-cover-right {
+  right:0;
+  z-index:2;
+  border-radius:0 3px 3px 0;
+  background-position:right center;
+  transform-origin:left center;
+}
+.cassette-cover-fold[data-unfolded='true'] .cassette-cover-right {
+  transform:rotateY(-58deg);
+  filter:brightness(.88) saturate(.95);
+  box-shadow:inset 8px 0 12px rgba(0,0,0,.32), 8px 7px 14px rgba(0,0,0,.26);
+}
+.cassette-cover-controls {
+  position:absolute;
+  left:calc(100% - 5px);
+  top:14%;
+  width:34%;
+  height:72%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:space-around;
+  border-radius:3px;
+  color:rgba(58,48,32,.44);
+  background:linear-gradient(to right top, rgba(225,227,235,.88), rgba(255,255,255,.96));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.72), 0 5px 12px rgba(0,0,0,.2);
+  opacity:0;
+  transform:translateX(-6px);
+  transition:opacity .22s ease, transform .3s cubic-bezier(.2,.72,.2,1);
+  pointer-events:none;
+  z-index:1;
+}
+.cassette-cover-fold[data-unfolded='true'] .cassette-cover-controls { opacity:1; transform:translateX(0); }
+.cassette-cover-controls svg { width:11px; height:11px; filter:drop-shadow(0 1px 0 rgba(255,255,255,.35)); }
 .cassette-svg-title { font:900 8px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:1.5px; fill:color-mix(in srgb, var(--bg) 78%, #2a1204); }
 .cassette-svg-artist, .cassette-svg-spec { font:800 7.5px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:1px; fill:color-mix(in srgb, var(--bg) 72%, #3a1a06); opacity:.86; }
 .cassette-svg-spec { font-size:6.5px; letter-spacing:1.5px; opacity:.74; }
@@ -2318,6 +2383,10 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   .cassette-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
   .cassette-controls button { width:100%; min-width:0; padding:0 6px; }
   .cassette-controls button.cassette-play { min-width:0; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .cassette-cover-half,
+  .cassette-cover-controls { transition:none; }
 }
 
 /* Compact the vinyl hero on phones so the whole deck is visible without needing to scroll just to reach its bottom edge. */
