@@ -3934,6 +3934,10 @@ export default function App() {
             onChange={(e) => {
               updateVolume(Number(e.target.value));
             }}
+            onWheel={(event) => {
+              event.preventDefault();
+              updateVolume(volume + (event.deltaY < 0 ? 0.05 : -0.05));
+            }}
           />
         </div>
         <button

@@ -1,10 +1,7 @@
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
-
-const CASSETTE_COVER_UNFOLDED_KEY = "lark:cassette-cover-unfolded";
 
 export function CassetteDeck({
   cover,
@@ -37,15 +34,6 @@ export function CassetteDeck({
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
-  const [coverUnfolded, setCoverUnfolded] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem(CASSETTE_COVER_UNFOLDED_KEY) !== "false";
-  });
-
-  useEffect(() => {
-    window.localStorage.setItem(CASSETTE_COVER_UNFOLDED_KEY, coverUnfolded ? "true" : "false");
-  }, [coverUnfolded]);
-
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const leftReel = 35 - pct * 13;
   const rightReel = 23 + pct * 13;
@@ -73,13 +61,12 @@ export function CassetteDeck({
         </div>
 
         <CassetteShell
-          coverUnfolded={coverUnfolded}
+          playing={playing}
           duration={duration}
           leftReel={leftReel}
           rightReel={rightReel}
           title={title}
           artist={artist}
-          onToggleCover={() => setCoverUnfolded((value) => !value)}
         />
 
         <div className="cassette-lcd">
@@ -125,21 +112,19 @@ export function CassetteDeck({
 }
 
 function CassetteShell({
-  coverUnfolded,
+  playing,
   duration,
   leftReel,
   rightReel,
   title,
   artist,
-  onToggleCover,
 }: {
-  coverUnfolded: boolean;
+  playing: boolean;
   duration: number;
   leftReel: number;
   rightReel: number;
   title: string;
   artist: string;
-  onToggleCover: () => void;
 }) {
   return (
         <div className="cassette-bay">
@@ -218,17 +203,14 @@ function CassetteShell({
               </g>
             ))}
             </svg>
-            <button
-              type="button"
+            <span
               className="cassette-cover-fold"
-              data-unfolded={coverUnfolded ? "true" : "false"}
-              aria-label={coverUnfolded ? "Fold album cover" : "Unfold album cover"}
-              title={coverUnfolded ? "Fold album cover" : "Unfold album cover"}
-              onClick={onToggleCover}
+              data-playing={playing ? "true" : "false"}
+              aria-hidden="true"
             >
               <span className="cassette-cover-half cassette-cover-left" />
               <span className="cassette-cover-half cassette-cover-right" />
-            </button>
+            </span>
           </div>
         </div>
   );
