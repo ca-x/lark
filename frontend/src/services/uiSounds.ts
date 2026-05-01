@@ -27,19 +27,20 @@ const eventPreset: Record<UISoundEvent, PresetName> = {
 };
 
 const eventOptions: Partial<Record<UISoundEvent, PlayOptions>> = {
-  click: { gain: 0.18, throttle: 70, interrupt: true },
-  copy: { gain: 0.22, throttle: 160, interrupt: true },
-  success: { gain: 0.2, throttle: 250 },
-  error: { gain: 0.16, throttle: 250 },
-  toggleOn: { gain: 0.2, throttle: 120, interrupt: true },
-  toggleOff: { gain: 0.16, throttle: 120, interrupt: true },
-  play: { gain: 0.18, throttle: 140, interrupt: true },
-  pause: { gain: 0.14, throttle: 140, interrupt: true },
-  favorite: { gain: 0.18, throttle: 180, interrupt: true },
-  share: { gain: 0.2, throttle: 220, interrupt: true },
+  click: { gain: 0.42, throttle: 70, interrupt: true },
+  copy: { gain: 0.48, throttle: 160, interrupt: true },
+  success: { gain: 0.46, throttle: 250 },
+  error: { gain: 0.38, throttle: 250 },
+  toggleOn: { gain: 0.5, throttle: 120, interrupt: true },
+  toggleOff: { gain: 0.42, throttle: 120, interrupt: true },
+  play: { gain: 0.46, throttle: 140, interrupt: true },
+  pause: { gain: 0.36, throttle: 140, interrupt: true },
+  favorite: { gain: 0.48, throttle: 180, interrupt: true },
+  share: { gain: 0.48, throttle: 220, interrupt: true },
 };
 
 let enabled = false;
+let volume = 0.85;
 let ses: SeslenInstance<PresetName> | null = null;
 
 function session() {
@@ -47,12 +48,12 @@ function session() {
   ses = createSeslen({
     sources: presets,
     defaults: presetDefaults,
-    volume: 0.55,
+    volume,
     maxVoices: 4,
     buses: {
-      ui: { volume: 0.6 },
+      ui: { volume: 1 },
     },
-    respectReducedMotion: true,
+    respectReducedMotion: false,
   });
   return ses;
 }
@@ -60,6 +61,16 @@ function session() {
 export function setUISoundsEnabled(next: boolean) {
   enabled = next;
   if (!next) session().stopAll();
+}
+
+export function setUISoundsVolume(next: number) {
+  volume = Math.max(0, Math.min(1, Number(next) || 0));
+  session().setVolume(volume);
+}
+
+export function setUISoundSettings(next: { enabled: boolean; volume: number }) {
+  setUISoundsVolume(next.volume);
+  setUISoundsEnabled(next.enabled);
 }
 
 export function uiSoundsEnabled() {
@@ -71,5 +82,12 @@ export function playUISound(event: UISoundEvent, options?: PlayOptions) {
   const preset = eventPreset[event];
   void session()
     .play(preset, { bus: "ui", ...eventOptions[event], ...options })
+    .catch(() => undefined);
+}
+
+export function previewUISound(options?: PlayOptions) {
+  const preset = eventPreset.success;
+  void session()
+    .play(preset, { bus: "ui", ...eventOptions.success, gain: 0.72, interrupt: true, ...options })
     .catch(() => undefined);
 }

@@ -756,6 +756,11 @@ body, button, input, select { font-family: var(--app-font); }
 .switch-row > span { min-width:0; display:grid; gap:4px; }
 .switch-row small { color:var(--muted); line-height:1.45; }
 .switch-row input { width:46px !important; min-height:24px; accent-color:var(--accent); }
+.settings-inline-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:10px; flex:0 1 auto; min-width:220px; }
+.settings-inline-actions button { min-height:34px; padding:0 12px; border-radius:999px; border:1px solid color-mix(in srgb, var(--accent) 28%, var(--line)); background:color-mix(in srgb, var(--accent) 10%, var(--panel)); color:var(--text); }
+.settings-inline-actions button:disabled { opacity:.42; cursor:not-allowed; }
+.ui-sound-volume { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; }
+.ui-sound-volume input { width:116px !important; min-height:20px; }
 .user-list { display:grid; gap:8px; padding:14px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); }
 .user-list-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
 .user-list-head span { color:var(--muted); font-size:12px; }
@@ -905,6 +910,10 @@ body, button, input, select { font-family: var(--app-font); }
   .lyrics-meta-links { flex-wrap:wrap; }
   .mcp-card-head, .subsonic-card-head, .mcp-status-row, .subsonic-status-row, .mcp-token-once { grid-template-columns:1fr; }
   .mcp-card-head, .subsonic-card-head, .subsonic-form { display:grid; grid-template-columns:1fr; }
+}
+@media (max-width:560px) {
+  .switch-row { align-items:flex-start; flex-direction:column; }
+  .settings-inline-actions { width:100%; min-width:0; justify-content:flex-start; }
 }
 .lyrics-actions .lyrics-pick.icon-only { width:42px; min-width:42px; padding:0; justify-content:center; }
 .lyrics-actions .lyrics-pick.icon-only.has-source { width:72px; min-width:72px; gap:8px; }

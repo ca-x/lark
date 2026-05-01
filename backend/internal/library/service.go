@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -78,6 +79,19 @@ type Service struct {
 	scanStatus models.ScanStatus
 	watchMu    sync.Mutex
 	watchers   map[string]*libraryWatcher
+}
+
+type playbackDeviceContextKey struct{}
+
+func WithPlaybackDeviceType(ctx context.Context, deviceType string) context.Context {
+	return context.WithValue(ctx, playbackDeviceContextKey{}, normalizePlaybackDeviceType(deviceType))
+}
+
+func playbackDeviceTypeFromContext(ctx context.Context) string {
+	if value, ok := ctx.Value(playbackDeviceContextKey{}).(string); ok {
+		return normalizePlaybackDeviceType(value)
+	}
+	return "pc"
 }
 
 type libraryWatcher struct {
@@ -1023,10 +1037,14 @@ func (s *Service) Songs(ctx context.Context, userID int, q string, favorites boo
 func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites bool, limit, offset int) (models.SongPage, error) {
 	term := strings.TrimSpace(q)
 	limit, offset = normalizePage(limit, offset)
+	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
+	if err != nil {
+		return models.SongPage{}, err
+	}
 	cacheable := limit <= 500
 	key := ""
 	if cacheable {
-		key = cacheKey("songs-page", userID, s.userCacheVersion(ctx, userID), term, favorites, limit, offset)
+		key = cacheKey("songs-page", userID, s.userCacheVersion(ctx, userID), deviceScope, term, favorites, limit, offset)
 		var cached models.SongPage
 		if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 			return models.SongPage{}, err
@@ -1058,7 +1076,7 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 	if err != nil {
 		return models.SongPage{}, err
 	}
-	out, err := s.applySongUserState(ctx, userID, mapSongs(items))
+	out, err := s.applySongUserStateWithDevice(ctx, userID, mapSongs(items), deviceScope)
 	if err != nil {
 		return models.SongPage{}, err
 	}
@@ -1171,8 +1189,12 @@ func (s *Service) RecentPlayedSongs(ctx context.Context, userID, limit int) ([]m
 	if limit <= 0 || limit > 50 {
 		limit = 12
 	}
+	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	histories, err := s.client.PlayHistory.Query().
-		Where(playhistory.HasUserWith(user.ID(userID))).
+		Where(playHistoryUserPredicates(userID, deviceScope)...).
 		WithSong(func(q *ent.SongQuery) {
 			q.WithArtist().WithAlbum()
 		}).
@@ -1194,7 +1216,7 @@ func (s *Service) RecentPlayedSongs(ctx context.Context, userID, limit int) ([]m
 			break
 		}
 	}
-	return s.applySongUserState(ctx, userID, mapSongs(items))
+	return s.applySongUserStateWithDevice(ctx, userID, mapSongs(items), deviceScope)
 }
 
 func (s *Service) LibraryStats(ctx context.Context, userID int) (models.LibraryStats, error) {
@@ -1337,10 +1359,14 @@ func (s *Service) SmartPlaylistSongs(ctx context.Context, userID int, id string,
 	case "favorites":
 		return s.Songs(ctx, userID, "", true, limit)
 	case "unplayed":
+		deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
 		items, err := s.client.Song.Query().
 			WithArtist().
 			WithAlbum().
-			Where(song.Not(song.HasPlayHistoryWith(playhistory.HasUserWith(user.ID(userID))))).
+			Where(song.Not(song.HasPlayHistoryWith(playHistoryUserPredicates(userID, deviceScope)...))).
 			Order(ent.Desc(song.FieldCreatedAt), ent.Desc(song.FieldID)).
 			Limit(limit).
 			All(ctx)
@@ -1495,6 +1521,7 @@ const remoteAlbumSearchConcurrency = 3
 const searchCatalogBatchSize = 500
 const maxCatalogPredicateIDs = 5000
 const defaultPlaybackSourceTTLHours = 24
+const defaultUISoundVolume = 0.85
 
 type songSearchCatalogEntry struct {
 	ID   int    `json:"id"`
@@ -1589,8 +1616,12 @@ func (s *Service) PlaybackSource(ctx context.Context, userID int) (*models.Playb
 	if s.cache == nil {
 		return nil, nil
 	}
+	key, err := s.playbackSourceKey(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 	var source models.PlaybackSource
-	ok, err := s.cacheGetJSON(ctx, playbackSourceKey(userID), &source)
+	ok, err := s.cacheGetJSON(ctx, key, &source)
 	if err != nil || !ok {
 		return nil, err
 	}
@@ -1618,7 +1649,11 @@ func (s *Service) SavePlaybackSource(ctx context.Context, userID int, sourceType
 	}
 	source := models.PlaybackSource{Type: sourceType, SourceID: sourceID, UpdatedAt: time.Now()}
 	ttl := s.playbackSourceTTL(ctx)
-	if err := s.cacheSetJSONWithTTL(ctx, playbackSourceKey(userID), source, ttl); err != nil {
+	key, err := s.playbackSourceKey(ctx, userID)
+	if err != nil {
+		return models.PlaybackSource{}, err
+	}
+	if err := s.cacheSetJSONWithTTL(ctx, key, source, ttl); err != nil {
 		return models.PlaybackSource{}, err
 	}
 	return source, nil
@@ -1628,7 +1663,11 @@ func (s *Service) ClearPlaybackSource(ctx context.Context, userID int) error {
 	if s.cache == nil {
 		return nil
 	}
-	return s.cache.Delete(ctx, playbackSourceKey(userID))
+	key, err := s.playbackSourceKey(ctx, userID)
+	if err != nil {
+		return err
+	}
+	return s.cache.Delete(ctx, key)
 }
 
 func (s *Service) playbackSourceTTL(ctx context.Context) time.Duration {
@@ -1639,8 +1678,15 @@ func (s *Service) playbackSourceTTL(ctx context.Context) time.Duration {
 	return time.Duration(normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)) * time.Hour
 }
 
-func playbackSourceKey(userID int) string {
-	return playbackSourcePrefix + strconv.Itoa(userID)
+func (s *Service) playbackSourceKey(ctx context.Context, userID int) (string, error) {
+	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if deviceScope == "" {
+		return playbackSourcePrefix + strconv.Itoa(userID), nil
+	}
+	return playbackSourcePrefix + strconv.Itoa(userID) + ":" + deviceScope, nil
 }
 
 func normalizePlaybackSourceTTLHours(hours int) int {
@@ -1724,7 +1770,7 @@ func (s *Service) GetUISoundSettings(ctx context.Context, userID int) (models.UI
 	if userID == 0 {
 		return models.UISoundSettings{}, ErrUnauthenticated
 	}
-	settings := models.UISoundSettings{Enabled: false}
+	settings := defaultUISoundSettings()
 	if s.client == nil {
 		return settings, nil
 	}
@@ -1735,7 +1781,12 @@ func (s *Service) GetUISoundSettings(ctx context.Context, userID int) (models.UI
 		}
 		return models.UISoundSettings{}, err
 	}
-	settings.Enabled = item.Value == "true"
+	if strings.TrimSpace(item.Value) == "true" || strings.TrimSpace(item.Value) == "false" {
+		settings.Enabled = item.Value == "true"
+		return settings, nil
+	}
+	_ = json.Unmarshal([]byte(item.Value), &settings)
+	settings.Volume = normalizeUISoundVolume(settings.Volume)
 	return settings, nil
 }
 
@@ -1746,10 +1797,59 @@ func (s *Service) SaveUISoundSettings(ctx context.Context, userID int, settings 
 	if s.client == nil {
 		return models.UISoundSettings{}, errors.New("database is required")
 	}
-	if err := s.setSetting(ctx, uiSoundSettingsKey(userID), strconv.FormatBool(settings.Enabled)); err != nil {
+	settings.Volume = normalizeUISoundVolume(settings.Volume)
+	data, err := json.Marshal(settings)
+	if err != nil {
+		return models.UISoundSettings{}, err
+	}
+	if err := s.setSetting(ctx, uiSoundSettingsKey(userID), string(data)); err != nil {
 		return models.UISoundSettings{}, err
 	}
 	return s.GetUISoundSettings(ctx, userID)
+}
+
+func (s *Service) GetPlaybackHistorySettings(ctx context.Context, userID int) (models.PlaybackHistorySettings, error) {
+	if userID == 0 {
+		return models.PlaybackHistorySettings{}, ErrUnauthenticated
+	}
+	settings := models.PlaybackHistorySettings{SeparateByDevice: false}
+	if s.client == nil {
+		return settings, nil
+	}
+	item, err := s.client.AppSetting.Query().Where(appsetting.Key(playbackHistorySettingsKey(userID))).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return settings, nil
+		}
+		return models.PlaybackHistorySettings{}, err
+	}
+	settings.SeparateByDevice = item.Value == "true"
+	return settings, nil
+}
+
+func (s *Service) SavePlaybackHistorySettings(ctx context.Context, userID int, settings models.PlaybackHistorySettings) (models.PlaybackHistorySettings, error) {
+	if userID == 0 {
+		return models.PlaybackHistorySettings{}, ErrUnauthenticated
+	}
+	if s.client == nil {
+		return models.PlaybackHistorySettings{}, errors.New("database is required")
+	}
+	if err := s.setSetting(ctx, playbackHistorySettingsKey(userID), strconv.FormatBool(settings.SeparateByDevice)); err != nil {
+		return models.PlaybackHistorySettings{}, err
+	}
+	s.invalidateUserLibraryCache(ctx, userID)
+	return s.GetPlaybackHistorySettings(ctx, userID)
+}
+
+func (s *Service) playbackHistoryDeviceScope(ctx context.Context, userID int) (string, error) {
+	settings, err := s.GetPlaybackHistorySettings(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if !settings.SeparateByDevice {
+		return "", nil
+	}
+	return playbackDeviceTypeFromContext(ctx), nil
 }
 
 func (s *Service) SaveScrobblingSettings(ctx context.Context, userID int, settings models.ScrobblingSettings, token string) (models.ScrobblingSettings, error) {
@@ -1823,6 +1923,36 @@ func uiSoundSettingsKey(userID int) string {
 	return uiSoundSettingsPrefix + strconv.Itoa(userID)
 }
 
+func defaultUISoundSettings() models.UISoundSettings {
+	return models.UISoundSettings{Enabled: false, Volume: defaultUISoundVolume}
+}
+
+func normalizeUISoundVolume(value float64) float64 {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return defaultUISoundVolume
+	}
+	if value < 0 {
+		return 0
+	}
+	if value > 1 {
+		return 1
+	}
+	return value
+}
+
+func playbackHistorySettingsKey(userID int) string {
+	return playbackHistorySettingsPrefix + strconv.Itoa(userID)
+}
+
+func normalizePlaybackDeviceType(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "mobile":
+		return "mobile"
+	default:
+		return "pc"
+	}
+}
+
 func normalizeScrobblingMinSeconds(seconds int) int {
 	if seconds <= 0 {
 		return 30
@@ -1870,6 +2000,7 @@ func (s *Service) invalidateLibraryCache(ctx context.Context) {
 const userVersionPrefix = libraryCachePrefix + "uver:v1:"
 const scrobblingPrefix = "user:v1:scrobbling:"
 const uiSoundSettingsPrefix = "user:v1:ui-sounds:"
+const playbackHistorySettingsPrefix = "user:v1:playback-history:"
 
 func (s *Service) userCacheVersion(ctx context.Context, userID int) int {
 	if userID <= 0 || s.cache == nil {
@@ -2742,6 +2873,7 @@ func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
 		SetUserID(userID).
 		SetSongID(id).
 		SetDurationSeconds(item.DurationSeconds).
+		SetDeviceType(playbackDeviceTypeFromContext(ctx)).
 		Save(ctx); err != nil {
 		return err
 	}
@@ -2771,8 +2903,13 @@ func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, prog
 		completed = true
 	}
 	now := time.Now()
+	deviceType := playbackDeviceTypeFromContext(ctx)
+	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
+	if err != nil {
+		return err
+	}
 	history, err := s.client.PlayHistory.Query().
-		Where(playhistory.HasUserWith(user.ID(userID)), playhistory.HasSongWith(song.ID(id))).
+		Where(playHistorySongPredicates(userID, id, deviceScope)...).
 		Order(ent.Desc(playhistory.FieldUpdatedAt), ent.Desc(playhistory.FieldPlayedAt)).
 		First(ctx)
 	if ent.IsNotFound(err) {
@@ -2783,6 +2920,7 @@ func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, prog
 			SetProgressSeconds(progressSeconds).
 			SetDurationSeconds(durationSeconds).
 			SetCompleted(completed).
+			SetDeviceType(deviceType).
 			Save(ctx)
 		if err == nil {
 			s.invalidateUserLibraryCache(ctx, userID)
@@ -2796,6 +2934,7 @@ func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, prog
 		SetProgressSeconds(progressSeconds).
 		SetDurationSeconds(durationSeconds).
 		SetCompleted(completed).
+		SetDeviceType(deviceType).
 		SetUpdatedAt(now).
 		Exec(ctx)
 	if err == nil {
@@ -4568,6 +4707,14 @@ func sourceIf(ok bool, yes, no string) string {
 }
 
 func (s *Service) applySongUserState(ctx context.Context, userID int, items []models.Song) ([]models.Song, error) {
+	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.applySongUserStateWithDevice(ctx, userID, items, deviceScope)
+}
+
+func (s *Service) applySongUserStateWithDevice(ctx context.Context, userID int, items []models.Song, deviceScope string) ([]models.Song, error) {
 	if len(items) == 0 {
 		return items, nil
 	}
@@ -4588,11 +4735,11 @@ func (s *Service) applySongUserState(ctx context.Context, userID int, items []mo
 			favoriteIDs[favorite.Edges.Song.ID] = true
 		}
 	}
-	playCounts, err := s.playHistoryCountsForSongs(ctx, userID, ids)
+	playCounts, err := s.playHistoryCountsForSongs(ctx, userID, ids, deviceScope)
 	if err != nil {
 		return nil, err
 	}
-	lastPlayed, resumePositions, err := s.latestPlayHistoryStateForSongs(ctx, userID, items)
+	lastPlayed, resumePositions, err := s.latestPlayHistoryStateForSongs(ctx, userID, items, deviceScope)
 	if err != nil {
 		return nil, err
 	}
@@ -4609,10 +4756,30 @@ func (s *Service) applySongUserState(ctx context.Context, userID int, items []mo
 	return items, nil
 }
 
-func (s *Service) playHistoryCountsForSongs(ctx context.Context, userID int, ids []int) (map[int]int, error) {
+func playHistoryUserPredicates(userID int, deviceScope string) []predicate.PlayHistory {
+	predicates := []predicate.PlayHistory{playhistory.HasUserWith(user.ID(userID))}
+	if deviceScope != "" {
+		predicates = append(predicates, playhistory.DeviceTypeEQ(deviceScope))
+	}
+	return predicates
+}
+
+func playHistorySongPredicates(userID, songID int, deviceScope string) []predicate.PlayHistory {
+	predicates := playHistoryUserPredicates(userID, deviceScope)
+	predicates = append(predicates, playhistory.HasSongWith(song.ID(songID)))
+	return predicates
+}
+
+func playHistorySongsPredicates(userID int, songIDs []int, deviceScope string) []predicate.PlayHistory {
+	predicates := playHistoryUserPredicates(userID, deviceScope)
+	predicates = append(predicates, playhistory.HasSongWith(song.IDIn(songIDs...)))
+	return predicates
+}
+
+func (s *Service) playHistoryCountsForSongs(ctx context.Context, userID int, ids []int, deviceScope string) (map[int]int, error) {
 	rows := []playHistorySongCountRow{}
 	if err := s.client.PlayHistory.Query().
-		Where(playhistory.HasUserWith(user.ID(userID)), playhistory.HasSongWith(song.IDIn(ids...))).
+		Where(playHistorySongsPredicates(userID, ids, deviceScope)...).
 		GroupBy(playhistory.SongColumn).
 		Aggregate(ent.Count()).
 		Scan(ctx, &rows); err != nil {
@@ -4627,7 +4794,7 @@ func (s *Service) playHistoryCountsForSongs(ctx context.Context, userID int, ids
 	return counts, nil
 }
 
-func (s *Service) latestPlayHistoryStateForSongs(ctx context.Context, userID int, items []models.Song) (map[int]time.Time, map[int]float64, error) {
+func (s *Service) latestPlayHistoryStateForSongs(ctx context.Context, userID int, items []models.Song, deviceScope string) (map[int]time.Time, map[int]float64, error) {
 	lastPlayed := map[int]time.Time{}
 	resumePositions := map[int]float64{}
 	ids := make([]int, 0, len(items))
@@ -4641,7 +4808,7 @@ func (s *Service) latestPlayHistoryStateForSongs(ctx context.Context, userID int
 		limit = 1000
 	}
 	histories, err := s.client.PlayHistory.Query().
-		Where(playhistory.HasUserWith(user.ID(userID)), playhistory.HasSongWith(song.IDIn(ids...))).
+		Where(playHistorySongsPredicates(userID, ids, deviceScope)...).
 		WithSong(func(q *ent.SongQuery) { q.Select(song.FieldID, song.FieldDurationSeconds) }).
 		Order(ent.Desc(playhistory.FieldUpdatedAt), ent.Desc(playhistory.FieldPlayedAt)).
 		Limit(limit).

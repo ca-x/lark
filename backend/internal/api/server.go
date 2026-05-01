@@ -161,7 +161,12 @@ type subsonicCredentialRequest struct {
 }
 
 type uiSoundSettingsRequest struct {
-	Enabled bool `json:"enabled"`
+	Enabled bool     `json:"enabled"`
+	Volume  *float64 `json:"volume"`
+}
+
+type playbackHistorySettingsRequest struct {
+	SeparateByDevice bool `json:"separate_by_device"`
 }
 
 type authUserResponse struct {
@@ -194,11 +199,19 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e := echo.New()
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
-	cors := middleware.CORSConfig{AllowOrigins: []string{frontendOrigin}, AllowHeaders: []string{"Content-Type", "Range", "Authorization"}, AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions}}
+	cors := middleware.CORSConfig{AllowOrigins: []string{frontendOrigin}, AllowHeaders: []string{"Content-Type", "Range", "Authorization", "X-Lark-Device-Type"}, AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions}}
 	if frontendOrigin != "*" {
 		cors.AllowCredentials = true
 	}
 	e.Use(middleware.CORSWithConfig(cors))
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			req := c.Request()
+			ctx := library.WithPlaybackDeviceType(req.Context(), requestPlaybackDeviceType(c))
+			c.SetRequest(req.WithContext(ctx))
+			return next(c)
+		}
+	})
 	s := &Server{echo: e, client: client, lib: lib, transcodeWarmTTL: defaultTranscodeWarmTTL, transcodeWarmLimit: defaultTranscodeWarmLimit}
 	for _, opt := range opts {
 		if opt != nil {
@@ -233,6 +246,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.DELETE("/api/me/subsonic", s.handleDeleteSubsonicCredential, auth)
 	e.GET("/api/me/ui-sounds", s.handleGetUISoundSettings, auth)
 	e.PUT("/api/me/ui-sounds", s.handleSaveUISoundSettings, auth)
+	e.GET("/api/me/playback-history", s.handleGetPlaybackHistorySettings, auth)
+	e.PUT("/api/me/playback-history", s.handleSavePlaybackHistorySettings, auth)
 	e.GET("/api/users", s.handleUsers, admin)
 	e.GET("/api/mcp/token", s.handleGetMCPToken, auth)
 	e.PUT("/api/mcp/token", s.handleSetMCPToken, auth)
@@ -481,7 +496,38 @@ func (s *Server) handleSaveUISoundSettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	settings, err := s.lib.SaveUISoundSettings(c.Request().Context(), currentUserID(c), models.UISoundSettings{Enabled: req.Enabled})
+	settings := models.UISoundSettings{Enabled: req.Enabled, Volume: 0.85}
+	if req.Volume == nil {
+		current, err := s.lib.GetUISoundSettings(c.Request().Context(), currentUserID(c))
+		if err != nil {
+			return mapError(err)
+		}
+		settings.Volume = current.Volume
+	}
+	if req.Volume != nil {
+		settings.Volume = *req.Volume
+	}
+	settings, err := s.lib.SaveUISoundSettings(c.Request().Context(), currentUserID(c), settings)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handleGetPlaybackHistorySettings(c *echo.Context) error {
+	settings, err := s.lib.GetPlaybackHistorySettings(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handleSavePlaybackHistorySettings(c *echo.Context) error {
+	var req playbackHistorySettingsRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	settings, err := s.lib.SavePlaybackHistorySettings(c.Request().Context(), currentUserID(c), models.PlaybackHistorySettings{SeparateByDevice: req.SeparateByDevice})
 	if err != nil {
 		return mapError(err)
 	}
@@ -557,6 +603,25 @@ func currentUserID(c *echo.Context) int {
 		return u.ID
 	}
 	return 0
+}
+
+func requestPlaybackDeviceType(c *echo.Context) string {
+	header := strings.TrimSpace(c.Request().Header.Get("X-Lark-Device-Type"))
+	switch strings.ToLower(header) {
+	case "mobile":
+		return "mobile"
+	case "pc", "desktop":
+		return "pc"
+	}
+	ua := strings.ToLower(c.Request().UserAgent())
+	if strings.Contains(ua, "mobile") ||
+		strings.Contains(ua, "android") ||
+		strings.Contains(ua, "iphone") ||
+		strings.Contains(ua, "ipad") ||
+		strings.Contains(ua, "ipod") {
+		return "mobile"
+	}
+	return "pc"
 }
 
 func (s *Server) sessionToken(c *echo.Context) string {

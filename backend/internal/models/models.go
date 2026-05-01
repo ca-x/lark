@@ -83,7 +83,12 @@ type SubsonicCredentialStatus struct {
 }
 
 type UISoundSettings struct {
-	Enabled bool `json:"enabled"`
+	Enabled bool    `json:"enabled"`
+	Volume  float64 `json:"volume"`
+}
+
+type PlaybackHistorySettings struct {
+	SeparateByDevice bool `json:"separate_by_device"`
 }
 
 type Playlist struct {

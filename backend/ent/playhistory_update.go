@@ -100,6 +100,20 @@ func (_u *PlayHistoryUpdate) SetNillableCompleted(v *bool) *PlayHistoryUpdate {
 	return _u
 }
 
+// SetDeviceType sets the "device_type" field.
+func (_u *PlayHistoryUpdate) SetDeviceType(v string) *PlayHistoryUpdate {
+	_u.mutation.SetDeviceType(v)
+	return _u
+}
+
+// SetNillableDeviceType sets the "device_type" field if the given value is not nil.
+func (_u *PlayHistoryUpdate) SetNillableDeviceType(v *string) *PlayHistoryUpdate {
+	if v != nil {
+		_u.SetDeviceType(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *PlayHistoryUpdate) SetUpdatedAt(v time.Time) *PlayHistoryUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -221,6 +235,9 @@ func (_u *PlayHistoryUpdate) sqlSave(ctx context.Context) (_node int, err error)
 	}
 	if value, ok := _u.mutation.Completed(); ok {
 		_spec.SetField(playhistory.FieldCompleted, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DeviceType(); ok {
+		_spec.SetField(playhistory.FieldDeviceType, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(playhistory.FieldUpdatedAt, field.TypeTime, value)
@@ -369,6 +386,20 @@ func (_u *PlayHistoryUpdateOne) SetCompleted(v bool) *PlayHistoryUpdateOne {
 func (_u *PlayHistoryUpdateOne) SetNillableCompleted(v *bool) *PlayHistoryUpdateOne {
 	if v != nil {
 		_u.SetCompleted(*v)
+	}
+	return _u
+}
+
+// SetDeviceType sets the "device_type" field.
+func (_u *PlayHistoryUpdateOne) SetDeviceType(v string) *PlayHistoryUpdateOne {
+	_u.mutation.SetDeviceType(v)
+	return _u
+}
+
+// SetNillableDeviceType sets the "device_type" field if the given value is not nil.
+func (_u *PlayHistoryUpdateOne) SetNillableDeviceType(v *string) *PlayHistoryUpdateOne {
+	if v != nil {
+		_u.SetDeviceType(*v)
 	}
 	return _u
 }
@@ -524,6 +555,9 @@ func (_u *PlayHistoryUpdateOne) sqlSave(ctx context.Context) (_node *PlayHistory
 	}
 	if value, ok := _u.mutation.Completed(); ok {
 		_spec.SetField(playhistory.FieldCompleted, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DeviceType(); ok {
+		_spec.SetField(playhistory.FieldDeviceType, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(playhistory.FieldUpdatedAt, field.TypeTime, value)

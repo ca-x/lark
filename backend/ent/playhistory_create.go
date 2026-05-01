@@ -78,6 +78,20 @@ func (_c *PlayHistoryCreate) SetNillableCompleted(v *bool) *PlayHistoryCreate {
 	return _c
 }
 
+// SetDeviceType sets the "device_type" field.
+func (_c *PlayHistoryCreate) SetDeviceType(v string) *PlayHistoryCreate {
+	_c.mutation.SetDeviceType(v)
+	return _c
+}
+
+// SetNillableDeviceType sets the "device_type" field if the given value is not nil.
+func (_c *PlayHistoryCreate) SetNillableDeviceType(v *string) *PlayHistoryCreate {
+	if v != nil {
+		_c.SetDeviceType(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *PlayHistoryCreate) SetUpdatedAt(v time.Time) *PlayHistoryCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -165,6 +179,10 @@ func (_c *PlayHistoryCreate) defaults() {
 		v := playhistory.DefaultCompleted
 		_c.mutation.SetCompleted(v)
 	}
+	if _, ok := _c.mutation.DeviceType(); !ok {
+		v := playhistory.DefaultDeviceType
+		_c.mutation.SetDeviceType(v)
+	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := playhistory.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -184,6 +202,9 @@ func (_c *PlayHistoryCreate) check() error {
 	}
 	if _, ok := _c.mutation.Completed(); !ok {
 		return &ValidationError{Name: "completed", err: errors.New(`ent: missing required field "PlayHistory.completed"`)}
+	}
+	if _, ok := _c.mutation.DeviceType(); !ok {
+		return &ValidationError{Name: "device_type", err: errors.New(`ent: missing required field "PlayHistory.device_type"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "PlayHistory.updated_at"`)}
@@ -235,6 +256,10 @@ func (_c *PlayHistoryCreate) createSpec() (*PlayHistory, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Completed(); ok {
 		_spec.SetField(playhistory.FieldCompleted, field.TypeBool, value)
 		_node.Completed = value
+	}
+	if value, ok := _c.mutation.DeviceType(); ok {
+		_spec.SetField(playhistory.FieldDeviceType, field.TypeString, value)
+		_node.DeviceType = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(playhistory.FieldUpdatedAt, field.TypeTime, value)

@@ -22,6 +22,8 @@ const (
 	FieldDurationSeconds = "duration_seconds"
 	// FieldCompleted holds the string denoting the completed field in the database.
 	FieldCompleted = "completed"
+	// FieldDeviceType holds the string denoting the device_type field in the database.
+	FieldDeviceType = "device_type"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
@@ -53,6 +55,7 @@ var Columns = []string{
 	FieldProgressSeconds,
 	FieldDurationSeconds,
 	FieldCompleted,
+	FieldDeviceType,
 	FieldUpdatedAt,
 }
 
@@ -87,6 +90,8 @@ var (
 	DefaultDurationSeconds float64
 	// DefaultCompleted holds the default value on creation for the "completed" field.
 	DefaultCompleted bool
+	// DefaultDeviceType holds the default value on creation for the "device_type" field.
+	DefaultDeviceType string
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
@@ -119,6 +124,11 @@ func ByDurationSeconds(opts ...sql.OrderTermOption) OrderOption {
 // ByCompleted orders the results by the completed field.
 func ByCompleted(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCompleted, opts...).ToFunc()
+}
+
+// ByDeviceType orders the results by the device_type field.
+func ByDeviceType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeviceType, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

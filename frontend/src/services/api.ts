@@ -1,7 +1,13 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, SubsonicCredentialStatus, UISoundSettings, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
+
+function currentDeviceType() {
+  if (typeof navigator === 'undefined') return 'pc'
+  return /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'mobile' : 'pc'
+}
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
+  headers.set('X-Lark-Device-Type', currentDeviceType())
   if (init?.body && typeof init.body === 'string' && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
@@ -23,6 +29,8 @@ export const api = {
   saveScrobblingSettings: (settings: ScrobblingSettings & { token?: string }) => request<ScrobblingSettings>('/api/me/scrobbling', { method: 'PUT', body: JSON.stringify(settings) }),
   uiSoundSettings: () => request<UISoundSettings>('/api/me/ui-sounds'),
   saveUISoundSettings: (settings: UISoundSettings) => request<UISoundSettings>('/api/me/ui-sounds', { method: 'PUT', body: JSON.stringify(settings) }),
+  playbackHistorySettings: () => request<PlaybackHistorySettings>('/api/me/playback-history'),
+  savePlaybackHistorySettings: (settings: PlaybackHistorySettings) => request<PlaybackHistorySettings>('/api/me/playback-history', { method: 'PUT', body: JSON.stringify(settings) }),
   subsonicCredential: () => request<SubsonicCredentialStatus>('/api/me/subsonic'),
   saveSubsonicCredential: (username: string, password: string) => request<SubsonicCredentialStatus>('/api/me/subsonic', { method: 'PUT', body: JSON.stringify({ username, password }) }),
   deleteSubsonicCredential: () => request<SubsonicCredentialStatus>('/api/me/subsonic', { method: 'DELETE' }),

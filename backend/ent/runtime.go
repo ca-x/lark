@@ -134,8 +134,12 @@ func init() {
 	playhistoryDescCompleted := playhistoryFields[3].Descriptor()
 	// playhistory.DefaultCompleted holds the default value on creation for the completed field.
 	playhistory.DefaultCompleted = playhistoryDescCompleted.Default.(bool)
+	// playhistoryDescDeviceType is the schema descriptor for device_type field.
+	playhistoryDescDeviceType := playhistoryFields[4].Descriptor()
+	// playhistory.DefaultDeviceType holds the default value on creation for the device_type field.
+	playhistory.DefaultDeviceType = playhistoryDescDeviceType.Default.(string)
 	// playhistoryDescUpdatedAt is the schema descriptor for updated_at field.
-	playhistoryDescUpdatedAt := playhistoryFields[4].Descriptor()
+	playhistoryDescUpdatedAt := playhistoryFields[5].Descriptor()
 	// playhistory.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	playhistory.DefaultUpdatedAt = playhistoryDescUpdatedAt.Default.(func() time.Time)
 	// playhistory.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

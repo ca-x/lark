@@ -186,6 +186,10 @@ export interface SubsonicCredentialStatus {
 }
 export interface UISoundSettings {
   enabled: boolean;
+  volume: number;
+}
+export interface PlaybackHistorySettings {
+  separate_by_device: boolean;
 }
 export interface HealthInfo {
   status: string;

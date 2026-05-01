@@ -27,6 +27,8 @@ type PlayHistory struct {
 	DurationSeconds float64 `json:"duration_seconds,omitempty"`
 	// Completed holds the value of the "completed" field.
 	Completed bool `json:"completed,omitempty"`
+	// DeviceType holds the value of the "device_type" field.
+	DeviceType string `json:"device_type,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -81,6 +83,8 @@ func (*PlayHistory) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case playhistory.FieldID:
 			values[i] = new(sql.NullInt64)
+		case playhistory.FieldDeviceType:
+			values[i] = new(sql.NullString)
 		case playhistory.FieldPlayedAt, playhistory.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case playhistory.ForeignKeys[0]: // song_play_history
@@ -131,6 +135,12 @@ func (_m *PlayHistory) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field completed", values[i])
 			} else if value.Valid {
 				_m.Completed = value.Bool
+			}
+		case playhistory.FieldDeviceType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field device_type", values[i])
+			} else if value.Valid {
+				_m.DeviceType = value.String
 			}
 		case playhistory.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -209,6 +219,9 @@ func (_m *PlayHistory) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("completed=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Completed))
+	builder.WriteString(", ")
+	builder.WriteString("device_type=")
+	builder.WriteString(_m.DeviceType)
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

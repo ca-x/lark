@@ -2774,6 +2774,7 @@ type PlayHistoryMutation struct {
 	duration_seconds    *float64
 	addduration_seconds *float64
 	completed           *bool
+	device_type         *string
 	updated_at          *time.Time
 	clearedFields       map[string]struct{}
 	user                *int
@@ -3067,6 +3068,42 @@ func (m *PlayHistoryMutation) ResetCompleted() {
 	m.completed = nil
 }
 
+// SetDeviceType sets the "device_type" field.
+func (m *PlayHistoryMutation) SetDeviceType(s string) {
+	m.device_type = &s
+}
+
+// DeviceType returns the value of the "device_type" field in the mutation.
+func (m *PlayHistoryMutation) DeviceType() (r string, exists bool) {
+	v := m.device_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceType returns the old "device_type" field's value of the PlayHistory entity.
+// If the PlayHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayHistoryMutation) OldDeviceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceType: %w", err)
+	}
+	return oldValue.DeviceType, nil
+}
+
+// ResetDeviceType resets all changes to the "device_type" field.
+func (m *PlayHistoryMutation) ResetDeviceType() {
+	m.device_type = nil
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *PlayHistoryMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -3215,7 +3252,7 @@ func (m *PlayHistoryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlayHistoryMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.played_at != nil {
 		fields = append(fields, playhistory.FieldPlayedAt)
 	}
@@ -3227,6 +3264,9 @@ func (m *PlayHistoryMutation) Fields() []string {
 	}
 	if m.completed != nil {
 		fields = append(fields, playhistory.FieldCompleted)
+	}
+	if m.device_type != nil {
+		fields = append(fields, playhistory.FieldDeviceType)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, playhistory.FieldUpdatedAt)
@@ -3247,6 +3287,8 @@ func (m *PlayHistoryMutation) Field(name string) (ent.Value, bool) {
 		return m.DurationSeconds()
 	case playhistory.FieldCompleted:
 		return m.Completed()
+	case playhistory.FieldDeviceType:
+		return m.DeviceType()
 	case playhistory.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -3266,6 +3308,8 @@ func (m *PlayHistoryMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldDurationSeconds(ctx)
 	case playhistory.FieldCompleted:
 		return m.OldCompleted(ctx)
+	case playhistory.FieldDeviceType:
+		return m.OldDeviceType(ctx)
 	case playhistory.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -3304,6 +3348,13 @@ func (m *PlayHistoryMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCompleted(v)
+		return nil
+	case playhistory.FieldDeviceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceType(v)
 		return nil
 	case playhistory.FieldUpdatedAt:
 		v, ok := value.(time.Time)
@@ -3399,6 +3450,9 @@ func (m *PlayHistoryMutation) ResetField(name string) error {
 		return nil
 	case playhistory.FieldCompleted:
 		m.ResetCompleted()
+		return nil
+	case playhistory.FieldDeviceType:
+		m.ResetDeviceType()
 		return nil
 	case playhistory.FieldUpdatedAt:
 		m.ResetUpdatedAt()

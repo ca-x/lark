@@ -49,7 +49,7 @@ import {
   setLazycatImmersive,
   syncLazycatChrome,
 } from "./services/lazycat";
-import { playUISound, setUISoundsEnabled } from "./services/uiSounds";
+import { playUISound, previewUISound, setUISoundSettings } from "./services/uiSounds";
 import type {
   Album,
   AlbumPage,
@@ -72,6 +72,7 @@ import type {
   SubsonicCredentialStatus,
   Theme,
   UISoundSettings,
+  PlaybackHistorySettings,
   User,
   WebFont,
   LibraryDirectory,
@@ -1273,7 +1274,8 @@ export default function App() {
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
   const [persistentQueueEnabled, setPersistentQueueEnabled] = useState(storedPersistentQueueEnabled);
   const [scrobblingSettings, setScrobblingSettings] = useState<ScrobblingSettings | null>(null);
-  const [uiSoundSettings, setUISoundSettings] = useState<UISoundSettings>({ enabled: false });
+  const [uiSoundSettings, setUISoundSettingsState] = useState<UISoundSettings>({ enabled: false, volume: 0.85 });
+  const [playbackHistorySettings, setPlaybackHistorySettings] = useState<PlaybackHistorySettings>({ separate_by_device: false });
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [bufferedEnd, setBufferedEnd] = useState(0);
@@ -1452,8 +1454,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    setUISoundsEnabled(uiSoundSettings.enabled);
-  }, [uiSoundSettings.enabled]);
+    setUISoundSettings(uiSoundSettings);
+  }, [uiSoundSettings]);
 
   useEffect(() => {
     const syncRoute = () => setRoute(currentBrowserRoute());
@@ -2082,7 +2084,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem] =
+    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem] =
       await Promise.all([
         api.songsPage(query, libraryPage, libraryPageSize),
         api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
@@ -2109,7 +2111,8 @@ export default function App() {
         api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
         api.radioFavorites().catch(() => []),
         api.scrobblingSettings().catch(() => null),
-        api.uiSoundSettings().catch(() => ({ enabled: false })),
+        api.uiSoundSettings().catch(() => ({ enabled: false, volume: 0.85 })),
+        api.playbackHistorySettings().catch(() => ({ separate_by_device: false })),
       ]);
     const songItems = songPageItem.items;
     setSongs(songItems);
@@ -2135,7 +2138,8 @@ export default function App() {
     setPlaylists(playlistPageItem.items);
     setSmartPlaylists(smartPlaylistItems);
     setScrobblingSettings(scrobblingItem);
-    setUISoundSettings(uiSoundItem);
+    setUISoundSettingsState(uiSoundItem);
+    setPlaybackHistorySettings(playbackHistoryItem);
     let restoredQueue: Song[] = [];
     let restoredCurrent: Song | null = null;
     if (options.initializeQueue && auth?.user && persistentQueueEnabled) {
@@ -3749,7 +3753,9 @@ export default function App() {
                   rememberPersistentQueueEnabled(enabled);
                 }}
                 uiSoundSettings={uiSoundSettings}
-                onUISoundSettingsChange={setUISoundSettings}
+                onUISoundSettingsChange={setUISoundSettingsState}
+                playbackHistorySettings={playbackHistorySettings}
+                onPlaybackHistorySettingsChange={setPlaybackHistorySettings}
                 scrobblingSettings={scrobblingSettings}
                 onScrobblingSettingsChange={setScrobblingSettings}
                 activeTab={settingsTab}
@@ -6722,6 +6728,8 @@ function SettingsPanel({
   onPersistentQueueChange,
   uiSoundSettings,
   onUISoundSettingsChange,
+  playbackHistorySettings,
+  onPlaybackHistorySettingsChange,
   scrobblingSettings,
   onScrobblingSettingsChange,
   activeTab,
@@ -6744,6 +6752,8 @@ function SettingsPanel({
   onPersistentQueueChange: (enabled: boolean) => void;
   uiSoundSettings: UISoundSettings;
   onUISoundSettingsChange: (settings: UISoundSettings) => void;
+  playbackHistorySettings: PlaybackHistorySettings;
+  onPlaybackHistorySettingsChange: (settings: PlaybackHistorySettings) => void;
   scrobblingSettings: ScrobblingSettings | null;
   onScrobblingSettingsChange: (settings: ScrobblingSettings) => void;
   activeTab: SettingsTab;
@@ -6951,11 +6961,24 @@ function SettingsPanel({
   }
 
   async function saveUISoundSettings(next: UISoundSettings) {
-    onUISoundSettingsChange(next);
-    setUISoundsEnabled(next.enabled);
-    playUISound(next.enabled ? "toggleOn" : "toggleOff");
-    const saved = await api.saveUISoundSettings(next).catch(() => next);
+    const enabledChanged = next.enabled !== uiSoundSettings.enabled;
+    const normalized = { enabled: next.enabled, volume: Math.max(0, Math.min(1, Number(next.volume) || 0)) };
+    onUISoundSettingsChange(normalized);
+    if (enabledChanged && !next.enabled) {
+      playUISound("toggleOff");
+    }
+    setUISoundSettings(normalized);
+    if (enabledChanged && next.enabled) {
+      playUISound("toggleOn");
+    }
+    const saved = await api.saveUISoundSettings(normalized).catch(() => normalized);
     onUISoundSettingsChange(saved);
+  }
+
+  async function savePlaybackHistorySettings(next: PlaybackHistorySettings) {
+    onPlaybackHistorySettingsChange(next);
+    const saved = await api.savePlaybackHistorySettings(next).catch(() => next);
+    onPlaybackHistorySettingsChange(saved);
   }
 
   async function addLibraryDirectory() {
@@ -7092,15 +7115,47 @@ function SettingsPanel({
               onChange={(e) => onPersistentQueueChange(e.target.checked)}
             />
           </label>
-          <label className="switch-row settings-wide-row">
+          <div className="switch-row settings-wide-row">
             <span>
               <span>{t("uiSounds")}</span>
               <small>{t("uiSoundsHint")}</small>
             </span>
+            <div className="settings-inline-actions">
+              <button
+                type="button"
+                onClick={() => previewUISound()}
+              >
+                {t("previewUISound")}
+              </button>
+              <label className="ui-sound-volume">
+                <span>{Math.round((uiSoundSettings.volume ?? 0.85) * 100)}%</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={uiSoundSettings.volume ?? 0.85}
+                  aria-label={t("uiSoundVolume")}
+                  onChange={(e) => void saveUISoundSettings({ ...uiSoundSettings, volume: Number(e.target.value) })}
+                />
+              </label>
+              <input
+                type="checkbox"
+                aria-label={t("uiSounds")}
+                checked={uiSoundSettings.enabled}
+                onChange={(e) => void saveUISoundSettings({ ...uiSoundSettings, enabled: e.target.checked })}
+              />
+            </div>
+          </div>
+          <label className="switch-row settings-wide-row">
+            <span>
+              <span>{t("separatePlaybackHistory")}</span>
+              <small>{t("separatePlaybackHistoryHint")}</small>
+            </span>
             <input
               type="checkbox"
-              checked={uiSoundSettings.enabled}
-              onChange={(e) => void saveUISoundSettings({ enabled: e.target.checked })}
+              checked={playbackHistorySettings.separate_by_device}
+              onChange={(e) => void savePlaybackHistorySettings({ separate_by_device: e.target.checked })}
             />
           </label>
           {scrobblingSettings ? (

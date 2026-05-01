@@ -75,6 +75,11 @@ func Completed(v bool) predicate.PlayHistory {
 	return predicate.PlayHistory(sql.FieldEQ(FieldCompleted, v))
 }
 
+// DeviceType applies equality check predicate on the "device_type" field. It's identical to DeviceTypeEQ.
+func DeviceType(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldDeviceType, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.PlayHistory {
 	return predicate.PlayHistory(sql.FieldEQ(FieldUpdatedAt, v))
@@ -208,6 +213,71 @@ func CompletedEQ(v bool) predicate.PlayHistory {
 // CompletedNEQ applies the NEQ predicate on the "completed" field.
 func CompletedNEQ(v bool) predicate.PlayHistory {
 	return predicate.PlayHistory(sql.FieldNEQ(FieldCompleted, v))
+}
+
+// DeviceTypeEQ applies the EQ predicate on the "device_type" field.
+func DeviceTypeEQ(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldDeviceType, v))
+}
+
+// DeviceTypeNEQ applies the NEQ predicate on the "device_type" field.
+func DeviceTypeNEQ(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNEQ(FieldDeviceType, v))
+}
+
+// DeviceTypeIn applies the In predicate on the "device_type" field.
+func DeviceTypeIn(vs ...string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldIn(FieldDeviceType, vs...))
+}
+
+// DeviceTypeNotIn applies the NotIn predicate on the "device_type" field.
+func DeviceTypeNotIn(vs ...string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNotIn(FieldDeviceType, vs...))
+}
+
+// DeviceTypeGT applies the GT predicate on the "device_type" field.
+func DeviceTypeGT(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldGT(FieldDeviceType, v))
+}
+
+// DeviceTypeGTE applies the GTE predicate on the "device_type" field.
+func DeviceTypeGTE(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldGTE(FieldDeviceType, v))
+}
+
+// DeviceTypeLT applies the LT predicate on the "device_type" field.
+func DeviceTypeLT(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldLT(FieldDeviceType, v))
+}
+
+// DeviceTypeLTE applies the LTE predicate on the "device_type" field.
+func DeviceTypeLTE(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldLTE(FieldDeviceType, v))
+}
+
+// DeviceTypeContains applies the Contains predicate on the "device_type" field.
+func DeviceTypeContains(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldContains(FieldDeviceType, v))
+}
+
+// DeviceTypeHasPrefix applies the HasPrefix predicate on the "device_type" field.
+func DeviceTypeHasPrefix(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldHasPrefix(FieldDeviceType, v))
+}
+
+// DeviceTypeHasSuffix applies the HasSuffix predicate on the "device_type" field.
+func DeviceTypeHasSuffix(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldHasSuffix(FieldDeviceType, v))
+}
+
+// DeviceTypeEqualFold applies the EqualFold predicate on the "device_type" field.
+func DeviceTypeEqualFold(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEqualFold(FieldDeviceType, v))
+}
+
+// DeviceTypeContainsFold applies the ContainsFold predicate on the "device_type" field.
+func DeviceTypeContainsFold(v string) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldContainsFold(FieldDeviceType, v))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

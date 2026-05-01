@@ -17,6 +17,7 @@ func (PlayHistory) Fields() []ent.Field {
 		field.Float("progress_seconds").Default(0),
 		field.Float("duration_seconds").Default(0),
 		field.Bool("completed").Default(false),
+		field.String("device_type").Default("pc"),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}
 }
@@ -32,6 +33,8 @@ func (PlayHistory) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Edges("user"),
 		index.Edges("song"),
+		index.Edges("user").Fields("device_type", "updated_at"),
+		index.Edges("user", "song").Fields("device_type", "updated_at"),
 		index.Edges("user").Fields("updated_at"),
 		index.Edges("user", "song").Fields("updated_at"),
 	}

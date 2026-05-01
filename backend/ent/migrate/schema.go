@@ -116,6 +116,7 @@ var (
 		{Name: "progress_seconds", Type: field.TypeFloat64, Default: 0},
 		{Name: "duration_seconds", Type: field.TypeFloat64, Default: 0},
 		{Name: "completed", Type: field.TypeBool, Default: false},
+		{Name: "device_type", Type: field.TypeString, Default: "pc"},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "song_play_history", Type: field.TypeInt},
 		{Name: "user_play_history", Type: field.TypeInt},
@@ -128,13 +129,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "play_histories_songs_play_history",
-				Columns:    []*schema.Column{PlayHistoriesColumns[6]},
+				Columns:    []*schema.Column{PlayHistoriesColumns[7]},
 				RefColumns: []*schema.Column{SongsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "play_histories_users_play_history",
-				Columns:    []*schema.Column{PlayHistoriesColumns[7]},
+				Columns:    []*schema.Column{PlayHistoriesColumns[8]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -143,22 +144,32 @@ var (
 			{
 				Name:    "playhistory_user_play_history",
 				Unique:  false,
-				Columns: []*schema.Column{PlayHistoriesColumns[7]},
+				Columns: []*schema.Column{PlayHistoriesColumns[8]},
 			},
 			{
 				Name:    "playhistory_song_play_history",
 				Unique:  false,
-				Columns: []*schema.Column{PlayHistoriesColumns[6]},
+				Columns: []*schema.Column{PlayHistoriesColumns[7]},
+			},
+			{
+				Name:    "playhistory_device_type_updated_at_user_play_history",
+				Unique:  false,
+				Columns: []*schema.Column{PlayHistoriesColumns[5], PlayHistoriesColumns[6], PlayHistoriesColumns[8]},
+			},
+			{
+				Name:    "playhistory_device_type_updated_at_user_play_history_song_play_history",
+				Unique:  false,
+				Columns: []*schema.Column{PlayHistoriesColumns[5], PlayHistoriesColumns[6], PlayHistoriesColumns[8], PlayHistoriesColumns[7]},
 			},
 			{
 				Name:    "playhistory_updated_at_user_play_history",
 				Unique:  false,
-				Columns: []*schema.Column{PlayHistoriesColumns[5], PlayHistoriesColumns[7]},
+				Columns: []*schema.Column{PlayHistoriesColumns[6], PlayHistoriesColumns[8]},
 			},
 			{
 				Name:    "playhistory_updated_at_user_play_history_song_play_history",
 				Unique:  false,
-				Columns: []*schema.Column{PlayHistoriesColumns[5], PlayHistoriesColumns[7], PlayHistoriesColumns[6]},
+				Columns: []*schema.Column{PlayHistoriesColumns[6], PlayHistoriesColumns[8], PlayHistoriesColumns[7]},
 			},
 		},
 	}
