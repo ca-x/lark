@@ -2548,3 +2548,59 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   .hero .vinyl-vu { display:none; }
   .hero .vinyl-knobs { gap:14px; }
 }
+
+/* Match the mobile cassette hero footprint to the vinyl deck and keep its LCD title legible. */
+@media (max-width:720px) {
+  .home-view .hero .cassette-component {
+    width:min(100%, 340px);
+    min-height:clamp(420px, 64dvh, 540px);
+    display:flex;
+    padding:10px;
+  }
+  .home-view .hero .cassette-deck {
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    padding:14px 12px 16px;
+  }
+  .home-view .hero .cassette-bay {
+    padding:10px 8px;
+    margin-bottom:12px;
+  }
+  .home-view .hero .cassette-svg {
+    height:clamp(168px, 52vw, 210px);
+    max-height:none;
+  }
+  .home-view .hero .cassette-lcd {
+    align-items:stretch;
+    flex-direction:column;
+    gap:7px;
+    margin-bottom:11px;
+  }
+  .home-view .hero .cassette-lcd-left {
+    gap:3px;
+    text-align:left;
+  }
+  .home-view .hero .cassette-lcd div div {
+    width:100%;
+    min-height:18px;
+  }
+  .home-view .hero .cassette-lcd strong {
+    max-width:none;
+    line-height:1.25;
+    padding-block:1px;
+  }
+  .home-view .hero .cassette-lcd time {
+    align-self:flex-end;
+  }
+}
+@media (max-width:390px) {
+  .home-view .hero .cassette-component {
+    width:min(100%, 310px);
+    min-height:clamp(400px, 64dvh, 500px);
+  }
+  .home-view .hero .cassette-svg {
+    height:clamp(154px, 50vw, 184px);
+  }
+}

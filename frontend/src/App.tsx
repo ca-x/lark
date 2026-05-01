@@ -524,6 +524,17 @@ function sameRadioStation(left?: RadioStation | null, right?: RadioStation | nul
   return radioRawURL(left) === radioRawURL(right);
 }
 
+function uniqueRadioStations(stations: RadioStation[]) {
+  const out: RadioStation[] = [];
+  for (const station of stations) {
+    if (!station?.url) continue;
+    const playable = radioStationToPlayable(station);
+    if (out.some((item) => sameRadioStation(item, playable))) continue;
+    out.push(playable);
+  }
+  return out;
+}
+
 function radioSourceLabel(station: RadioStation, fallback: string) {
   const stationName = station.name.trim().toLowerCase();
   const seen = new Set<string>();
@@ -1870,6 +1881,11 @@ export default function App() {
     };
   }, [lyricsFullScreen, mobilePlayerExpanded]);
 
+  useLayoutEffect(() => {
+    if (view !== "home" || lyricsFullScreen) return;
+    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [view, lyricsFullScreen]);
+
   useEffect(() => {
     if (
       !lyricsFullScreen ||
@@ -2381,9 +2397,13 @@ export default function App() {
     setCurrent(null);
     const playableStation = radioStationToPlayable(station);
     const inferredGroupQueue = radioQueueForStation(station);
-    const nextRadioQueue = list?.length ? list : inferredGroupQueue.length ? inferredGroupQueue : [station];
+    const nextRadioQueue = uniqueRadioStations([
+      ...(list ?? []),
+      ...inferredGroupQueue,
+      station,
+    ]);
     setCurrentRadio(playableStation);
-    setRadioQueue(nextRadioQueue.map(radioStationToPlayable));
+    setRadioQueue(nextRadioQueue);
     setCurrentNetworkTrack(null);
     setLyrics(null);
     setLyricCandidates([]);
@@ -2470,8 +2490,17 @@ export default function App() {
         return;
       }
       const activeRadio = currentRadioRef.current;
-      const radioList = radioQueue.length ? radioQueue : radioStations.length ? radioStations : radioSources.map(radioSourceToStation);
-      const currentIndex = radioList.findIndex((station) => station.url === activeRadio.url || station.id === activeRadio.id);
+      const inferredGroupQueue = radioQueueForStation(activeRadio);
+      const radioList = uniqueRadioStations([
+        ...radioQueue,
+        ...inferredGroupQueue,
+        ...(radioQueue.length || inferredGroupQueue.length
+          ? []
+          : radioStations.length
+            ? radioStations
+            : radioSources.map(radioSourceToStation)),
+      ]);
+      const currentIndex = radioList.findIndex((station) => sameRadioStation(station, activeRadio));
       if (radioList.length > 1) {
         const nextIndex = currentIndex >= 0
           ? (currentIndex + delta + radioList.length) % radioList.length
@@ -3235,19 +3264,21 @@ export default function App() {
       ? [t("networkLibrary"), currentNetworkTrack.provider, currentNetworkTrack.artist, currentNetworkTrack.album].filter(Boolean).join(" · ")
     : "";
   const radioPanelStations = useMemo(() => {
-    const base = radioQueue.length
-      ? radioQueue
-      : radioStations.length
-        ? radioStations
-        : radioSources.map(radioSourceToStation);
+    const inferredGroupQueue = currentRadio ? radioQueueForStation(currentRadio) : [];
+    const base = uniqueRadioStations([
+      ...radioQueue,
+      ...inferredGroupQueue,
+      ...(radioQueue.length || inferredGroupQueue.length
+        ? []
+        : radioStations.length
+          ? radioStations
+          : radioSources.map(radioSourceToStation)),
+    ]);
     const out: RadioStation[] = [];
-    const seen = new Set<string>();
     const add = (station: RadioStation | null | undefined) => {
       if (!station?.url) return;
       const playable = radioStationToPlayable(station);
-      const key = `${playable.id || "radio"}:${playable.url}`;
-      if (seen.has(key)) return;
-      seen.add(key);
+      if (out.some((item) => sameRadioStation(item, playable))) return;
       out.push(playable);
     };
     add(currentRadio);
@@ -6435,7 +6466,7 @@ function RadioQueuePanel({
       </div>
       <div className="queue-list radio-queue-list">
         {stations.map((station, index) => {
-          const active = Boolean(currentRadio && (station.url === currentRadio.url || station.id === currentRadio.id));
+          const active = sameRadioStation(station, currentRadio);
           return (
             <button
               key={`${station.id || "radio"}-${station.url}-${index}`}
