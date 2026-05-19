@@ -255,6 +255,7 @@ function ArtistAlbumShowcase({
             onPlayAlbum={onPlayAlbum}
             onBeforeAction={(event) => guardCardAction(event, index)}
             isActive={index === displayIndex}
+            variant="showcase"
           />
         ))}
       </div>
@@ -281,6 +282,7 @@ function ArtistAlbumCard({
   onPlayAlbum,
   onBeforeAction,
   isActive = true,
+  variant = "classic",
 }: {
   album: Album;
   className: string;
@@ -289,10 +291,37 @@ function ArtistAlbumCard({
   onPlayAlbum?: (album: Album) => void;
   onBeforeAction?: (event: MouseEvent<HTMLElement>, action: ArtistAlbumCardAction) => boolean;
   isActive?: boolean;
+  variant?: "classic" | "showcase";
 }) {
   const meta = [album.year ? String(album.year) : "", `${album.song_count} ${t("count")}`]
     .filter(Boolean)
     .join(" · ");
+
+  if (variant === "showcase") {
+    return (
+      <button
+        type="button"
+        className={className}
+        data-active={isActive ? "true" : "false"}
+        aria-label={`${t("listenNow")} ${album.title}`}
+        onClick={(event) => {
+          if (onBeforeAction?.(event, "card")) return;
+          onPlayAlbum?.(album);
+        }}
+      >
+        <span className="cover plain-cover">
+          <AlbumCoverImage src={`/api/albums/${album.id}/cover`} />
+          <Record weight="fill" />
+        </span>
+        <span className="card-play" aria-hidden="true">
+          <span className="card-play-label">{t("listenNow")}</span>
+          <Play weight="fill" />
+        </span>
+        <strong className="artist-album-title">{album.title}</strong>
+        <span className="artist-album-meta">{meta}</span>
+      </button>
+    );
+  }
 
   return (
     <article

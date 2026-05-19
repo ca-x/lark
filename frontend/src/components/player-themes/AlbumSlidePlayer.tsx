@@ -54,36 +54,46 @@ export function AlbumSlidePlayer({
     >
       <div className="album-slide-panel">
         <div className="album-slide-content">
-          <span>Artist</span>
-          <strong>{artist}</strong>
-          <span>Album</span>
-          <em>{album}</em>
-          <span>Track</span>
-          <h2>{title}</h2>
-
-          <div className="album-slide-progress">
-            <span className="album-slide-progress-track" aria-hidden="true"><span /></span>
-            <input
-              aria-label="Position"
-              type="range"
-              min="0"
-              max={Math.max(0, duration || 0)}
-              step="0.01"
-              value={Math.min(progress, duration || progress || 0)}
-              disabled={!canSeek}
-              onChange={(event) => onSeek?.(Number(event.target.value))}
-            />
+          <div className="album-slide-info">
+            <span className="album-slide-kicker">Track</span>
+            <h2>{title}</h2>
+            <div className="album-slide-meta">
+              <div>
+                <span>Artist</span>
+                <strong>{artist}</strong>
+              </div>
+              <div>
+                <span>Album</span>
+                <em>{album}</em>
+              </div>
+            </div>
           </div>
 
-          <div className="album-slide-controls">
-            <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
-            <button type="button" className="album-slide-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>
-              {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
-            </button>
-            <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
-            <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>
-              {playModeIcon}
-            </button>
+          <div className="album-slide-transport">
+            <div className="album-slide-progress">
+              <span className="album-slide-progress-track" aria-hidden="true"><span /></span>
+              <input
+                aria-label="Position"
+                type="range"
+                min="0"
+                max={Math.max(0, duration || 0)}
+                step="0.01"
+                value={Math.min(progress, duration || progress || 0)}
+                disabled={!canSeek}
+                onChange={(event) => onSeek?.(Number(event.target.value))}
+              />
+            </div>
+
+            <div className="album-slide-controls">
+              <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
+              <button type="button" className="album-slide-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>
+                {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
+              </button>
+              <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
+              <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>
+                {playModeIcon}
+              </button>
+            </div>
           </div>
         </div>
       </div>
