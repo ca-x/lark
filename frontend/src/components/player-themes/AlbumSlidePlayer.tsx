@@ -89,8 +89,10 @@ export function AlbumSlidePlayer({
       </div>
 
       <div className="album-slide-art-stack" aria-hidden="true">
-        <div className="album-slide-vinyl">
-          <span />
+        <div className="album-slide-vinyl-rail">
+          <div className="album-slide-vinyl">
+            <span />
+          </div>
         </div>
         <div className="album-slide-cover" data-has-cover={cover ? "true" : "false"}>
           {!cover ? <Record weight="fill" /> : null}
