@@ -191,6 +191,12 @@ export interface UISoundSettings {
 export interface PlaybackHistorySettings {
   separate_by_device: boolean;
 }
+export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide";
+export type ArtistAlbumDisplayStyle = "classic" | "showcase";
+export interface UserPreferences {
+  home_player_style: HomePlayerStyle;
+  artist_album_display_style: ArtistAlbumDisplayStyle;
+}
 export interface HealthInfo {
   status: string;
   version: string;

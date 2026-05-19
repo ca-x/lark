@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
 
 function currentDeviceType() {
   if (typeof navigator === 'undefined') return 'pc'
@@ -31,6 +31,8 @@ export const api = {
   saveUISoundSettings: (settings: UISoundSettings) => request<UISoundSettings>('/api/me/ui-sounds', { method: 'PUT', body: JSON.stringify(settings) }),
   playbackHistorySettings: () => request<PlaybackHistorySettings>('/api/me/playback-history'),
   savePlaybackHistorySettings: (settings: PlaybackHistorySettings) => request<PlaybackHistorySettings>('/api/me/playback-history', { method: 'PUT', body: JSON.stringify(settings) }),
+  userPreferences: () => request<UserPreferences>('/api/me/preferences'),
+  saveUserPreferences: (preferences: UserPreferences) => request<UserPreferences>('/api/me/preferences', { method: 'PUT', body: JSON.stringify(preferences) }),
   subsonicCredential: () => request<SubsonicCredentialStatus>('/api/me/subsonic'),
   saveSubsonicCredential: (username: string, password: string) => request<SubsonicCredentialStatus>('/api/me/subsonic', { method: 'PUT', body: JSON.stringify({ username, password }) }),
   deleteSubsonicCredential: () => request<SubsonicCredentialStatus>('/api/me/subsonic', { method: 'DELETE' }),

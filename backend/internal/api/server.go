@@ -179,6 +179,11 @@ type playbackHistorySettingsRequest struct {
 	SeparateByDevice bool `json:"separate_by_device"`
 }
 
+type userPreferencesRequest struct {
+	HomePlayerStyle         string `json:"home_player_style"`
+	ArtistAlbumDisplayStyle string `json:"artist_album_display_style"`
+}
+
 type authUserResponse struct {
 	User models.User `json:"user"`
 }
@@ -258,6 +263,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.PUT("/api/me/ui-sounds", s.handleSaveUISoundSettings, auth)
 	e.GET("/api/me/playback-history", s.handleGetPlaybackHistorySettings, auth)
 	e.PUT("/api/me/playback-history", s.handleSavePlaybackHistorySettings, auth)
+	e.GET("/api/me/preferences", s.handleGetUserPreferences, auth)
+	e.PUT("/api/me/preferences", s.handleSaveUserPreferences, auth)
 	e.GET("/api/users", s.handleUsers, admin)
 	e.GET("/api/mcp/token", s.handleGetMCPToken, auth)
 	e.PUT("/api/mcp/token", s.handleSetMCPToken, auth)
@@ -545,6 +552,29 @@ func (s *Server) handleSavePlaybackHistorySettings(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) handleGetUserPreferences(c *echo.Context) error {
+	preferences, err := s.lib.GetUserPreferences(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, preferences)
+}
+
+func (s *Server) handleSaveUserPreferences(c *echo.Context) error {
+	var req userPreferencesRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	preferences, err := s.lib.SaveUserPreferences(c.Request().Context(), currentUserID(c), models.UserPreferences{
+		HomePlayerStyle:         req.HomePlayerStyle,
+		ArtistAlbumDisplayStyle: req.ArtistAlbumDisplayStyle,
+	})
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, preferences)
 }
 
 func (s *Server) handleGetSubsonicCredential(c *echo.Context) error {

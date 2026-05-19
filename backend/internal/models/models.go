@@ -91,6 +91,11 @@ type PlaybackHistorySettings struct {
 	SeparateByDevice bool `json:"separate_by_device"`
 }
 
+type UserPreferences struct {
+	HomePlayerStyle         string `json:"home_player_style"`
+	ArtistAlbumDisplayStyle string `json:"artist_album_display_style"`
+}
+
 type Playlist struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`

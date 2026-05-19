@@ -65,11 +65,13 @@ import type {
   Album,
   AlbumPage,
   Artist,
+  ArtistAlbumDisplayStyle,
   ArtistPage,
   AuthStatus,
   Folder,
   FolderDirectory,
   HealthInfo,
+  HomePlayerStyle,
   Language,
   LyricCandidate,
   Lyrics,
@@ -85,6 +87,7 @@ import type {
   UISoundSettings,
   PlaybackHistorySettings,
   User,
+  UserPreferences,
   WebFont,
   LibraryDirectory,
   LibraryStats,
@@ -101,7 +104,7 @@ import { RadioReceiver } from "./components/RadioPlayer";
 import { LoadingStage } from "./components/LoadingStage";
 import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
 import { radioGroupName } from "./components/radio";
-import { CassetteDeck, IpodPlayer, VinylTurntable } from "./components/player-themes";
+import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, IpodPlayer, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -154,7 +157,6 @@ type View =
   | "about";
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
-type HomePlayerStyle = "vinyl" | "cassette" | "ipod";
 type PlaybackStartMode = "resume" | "restart";
 type PlaybackSourceInput = { type: PlaybackSourceType; source_id: number };
 type PlaySongOptions = {
@@ -164,6 +166,7 @@ type PlaySongOptions = {
 };
 type StreamMode = "auto" | "adaptive";
 type RecentHomeTab = "played" | "added";
+type DailyDiscoveryView = "songs" | "albums" | "artists";
 const ADAPTIVE_STREAM_QUALITY = 128;
 const AUTO_DOWNGRADE_STALL_MS = 1200;
 const RADIO_STATION_LIMIT = 30;
@@ -291,10 +294,10 @@ const themeAliases: Record<string, Theme> = {
 const SONG_ROW_HEIGHT = 64;
 const VIRTUAL_TABLE_THRESHOLD = 220;
 const VIRTUAL_OVERSCAN = 8;
-const CARD_GRID_BATCH = 36;
 const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
 const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
 const HOME_PLAYER_STYLE_KEY = "lark.home-player-style";
+const ARTIST_ALBUM_DISPLAY_STYLE_KEY = "lark.artist-album-display-style";
 const PERSISTENT_QUEUE_KEY = "lark.persistent-queue-enabled";
 const AUTH_REDIRECT_KEY = "lark.auth.redirect";
 const defaultLibraryTab: LibraryTab = "songs";
@@ -314,7 +317,7 @@ function storedLibraryTab(): LibraryTab {
 }
 
 function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
-  return value === "cassette" || value === "ipod" ? value : "vinyl";
+  return value === "cassette" || value === "ipod" || value === "audio-scope" || value === "album-slide" ? value : "vinyl";
 }
 
 function storedHomePlayerStyle(): HomePlayerStyle {
@@ -330,6 +333,43 @@ function rememberHomePlayerStyle(style: HomePlayerStyle) {
     window.localStorage.setItem(HOME_PLAYER_STYLE_KEY, style);
   } catch {
     // localStorage can be unavailable in private/webview modes; vinyl remains default.
+  }
+}
+
+function normalizeArtistAlbumDisplayStyle(value?: string | null): ArtistAlbumDisplayStyle {
+  return value === "showcase" ? "showcase" : "classic";
+}
+
+function normalizeUserPreferences(value?: Partial<UserPreferences> | null): UserPreferences {
+  return {
+    home_player_style: normalizeHomePlayerStyle(value?.home_player_style),
+    artist_album_display_style: normalizeArtistAlbumDisplayStyle(value?.artist_album_display_style),
+  };
+}
+
+function sameUserPreferences(left: UserPreferences | null, right: UserPreferences) {
+  if (!left) return false;
+  return left.home_player_style === right.home_player_style &&
+    left.artist_album_display_style === right.artist_album_display_style;
+}
+
+function artistAlbumDisplayStyleKey(user?: User | null) {
+  return user ? `${ARTIST_ALBUM_DISPLAY_STYLE_KEY}.${user.id}` : ARTIST_ALBUM_DISPLAY_STYLE_KEY;
+}
+
+function storedArtistAlbumDisplayStyle(user?: User | null): ArtistAlbumDisplayStyle {
+  try {
+    return normalizeArtistAlbumDisplayStyle(window.localStorage.getItem(artistAlbumDisplayStyleKey(user)));
+  } catch {
+    return "classic";
+  }
+}
+
+function rememberArtistAlbumDisplayStyle(style: ArtistAlbumDisplayStyle, user?: User | null) {
+  try {
+    window.localStorage.setItem(artistAlbumDisplayStyleKey(user), style);
+  } catch {
+    // localStorage can be unavailable in private/webview modes; classic remains default.
   }
 }
 
@@ -1245,6 +1285,10 @@ export default function App() {
   const [sleepLeft, setSleepLeft] = useState(0);
   const [resumeMode, setResumeMode] = useState<ResumeMode>("resume");
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
+  const [artistAlbumDisplayStyle, setArtistAlbumDisplayStyle] = useState<ArtistAlbumDisplayStyle>(() => storedArtistAlbumDisplayStyle());
+  const userPreferencesReadyRef = useRef(false);
+  const lastSavedUserPreferencesRef = useRef<UserPreferences | null>(null);
+  const userPreferencesSaveTimerRef = useRef<number | null>(null);
   const [persistentQueueEnabled, setPersistentQueueEnabled] = useState(storedPersistentQueueEnabled);
   const [queueSyncReady, setQueueSyncReady] = useState(false);
   const [scrobblingSettings, setScrobblingSettings] = useState<ScrobblingSettings | null>(null);
@@ -1530,6 +1574,38 @@ export default function App() {
   useEffect(() => {
     rememberHomePlayerStyle(homePlayerStyle);
   }, [homePlayerStyle]);
+
+  useEffect(() => {
+    rememberArtistAlbumDisplayStyle(artistAlbumDisplayStyle, auth?.user);
+  }, [artistAlbumDisplayStyle, auth?.user?.id]);
+
+  useEffect(() => {
+    if (!auth?.user || !userPreferencesReadyRef.current) return;
+    const nextPreferences = normalizeUserPreferences({
+      home_player_style: homePlayerStyle,
+      artist_album_display_style: artistAlbumDisplayStyle,
+    });
+    if (sameUserPreferences(lastSavedUserPreferencesRef.current, nextPreferences)) return;
+    if (userPreferencesSaveTimerRef.current != null) {
+      window.clearTimeout(userPreferencesSaveTimerRef.current);
+    }
+    userPreferencesSaveTimerRef.current = window.setTimeout(() => {
+      userPreferencesSaveTimerRef.current = null;
+      void api.saveUserPreferences(nextPreferences)
+        .then((saved) => {
+          lastSavedUserPreferencesRef.current = normalizeUserPreferences(saved);
+        })
+        .catch(() => undefined);
+    }, 250);
+  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle]);
+
+  useEffect(() => {
+    return () => {
+      if (userPreferencesSaveTimerRef.current != null) {
+        window.clearTimeout(userPreferencesSaveTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!settings.sharing_enabled && view === "shares") setView("home");
@@ -1978,7 +2054,7 @@ export default function App() {
         resumeModeRef.current = nextResumeMode;
         setResumeMode(nextResumeMode);
         playbackStartModeRef.current = "resume";
-        await loadAppData();
+        await loadAppData(status.user);
       }
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : String(error));
@@ -1987,10 +2063,25 @@ export default function App() {
     }
   }
 
-  async function loadAppData() {
+  async function loadAppData(user?: User | null) {
     setQueueSyncReady(false);
-    const loaded = await api.settings().catch(() => defaultSettings);
+    userPreferencesReadyRef.current = false;
+    const [loaded, preferences] = await Promise.all([
+      api.settings().catch(() => defaultSettings),
+      api.userPreferences().catch(() => null),
+    ]);
     setSettings({ ...defaultSettings, ...loaded, theme: normalizeTheme(loaded.theme) });
+    if (preferences) {
+      const normalized = normalizeUserPreferences(preferences);
+      lastSavedUserPreferencesRef.current = normalized;
+      setHomePlayerStyle(normalized.home_player_style);
+      setArtistAlbumDisplayStyle(normalized.artist_album_display_style);
+      rememberHomePlayerStyle(normalized.home_player_style);
+      rememberArtistAlbumDisplayStyle(normalized.artist_album_display_style, user);
+      userPreferencesReadyRef.current = true;
+    } else {
+      lastSavedUserPreferencesRef.current = null;
+    }
     await refreshAll({ initializeQueue: true });
   }
 
@@ -2008,6 +2099,8 @@ export default function App() {
 
   async function logout() {
     await api.logout().catch(() => undefined);
+    userPreferencesReadyRef.current = false;
+    lastSavedUserPreferencesRef.current = null;
     setQueueSyncReady(false);
     setSongs([]);
     setFavoriteSongs([]);
@@ -3709,6 +3802,7 @@ export default function App() {
                 collection={collection}
                 current={current}
                 t={t}
+                artistAlbumDisplayStyle={artistAlbumDisplayStyle}
                 backLabel={
                   collection.type === "album" && collectionBack
                     ? collectionBack.title
@@ -3886,6 +3980,8 @@ export default function App() {
                 }}
                 homePlayerStyle={homePlayerStyle}
                 onHomePlayerStyleChange={setHomePlayerStyle}
+                artistAlbumDisplayStyle={artistAlbumDisplayStyle}
+                onArtistAlbumDisplayStyleChange={setArtistAlbumDisplayStyle}
                 persistentQueueEnabled={persistentQueueEnabled}
                 onPersistentQueueChange={(enabled) => {
                   setPersistentQueueEnabled(enabled);
@@ -4758,8 +4854,11 @@ function HomeView({
   onOpenPlaylist: (playlist: Playlist) => void;
 }) {
   const [recentTab, setRecentTab] = useState<RecentHomeTab>("played");
+  const [dailyView, setDailyView] = useState<DailyDiscoveryView>("songs");
   const recentSongs = (recentTab === "played" ? recentPlayedSongs : recentAddedSongs).slice(0, 5);
-  const dailySongs = dailyMix.length ? dailyMix.slice(0, 5) : songs.slice(0, 5);
+  const dailySource = dailyMix.length ? dailyMix : songs;
+  const dailySongs = dailySource.slice(0, 8);
+  const dailySpotlight = dailySource.slice(0, 5);
   const featuredAlbums = albums.slice(0, 4);
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
@@ -4806,6 +4905,38 @@ function HomeView({
             duration={heroActive ? duration : displaySong?.duration_seconds || 0}
             title={displaySong?.title}
             artist={displaySong?.artist}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
+            onCyclePlayMode={onCyclePlayMode}
+            onSeek={heroActive ? onSeek : undefined}
+          />
+        ) : homePlayerStyle === "audio-scope" ? (
+          <AudioScopePlayer
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
+            onCyclePlayMode={onCyclePlayMode}
+            onSeek={heroActive ? onSeek : undefined}
+          />
+        ) : homePlayerStyle === "album-slide" ? (
+          <AlbumSlidePlayer
+            cover={coverUrl(displaySong)}
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
+            album={displaySong?.album}
             playMode={playMode}
             playModeLabel={playModeLabel}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
@@ -4949,35 +5080,90 @@ function HomeView({
       </div>
 
       {dailySongs.length ? (
-        <section className="daily-mix-grid">
-          <div className="quick-panel daily-mix-panel">
-            <div className="section-head compact">
-              <div>
-                <h2>{t("dailyMix")}</h2>
-                <p className="section-subtitle">{t("dailyMixHint")}</p>
-              </div>
-              <button onClick={() => onPlay(dailySongs[0], dailyMix.length ? dailyMix : songs)}>
-                <Play weight="fill" /> {t("playAll")}
-              </button>
+        <section className="daily-discovery">
+          <div className="daily-discovery-head">
+            <div>
+              <h2>{t("dailyMix")}</h2>
+              <p className="section-subtitle">{t("dailyMixHint")}</p>
             </div>
-            <div className="quick-song-list">
-              {dailySongs.map((song) => (
-                <button
-                  key={song.id}
-                  className={song.id === current?.id ? "active" : ""}
-                  onClick={() => onPlay(song, dailyMix.length ? dailyMix : songs)}
-                >
-                  <MiniCover
-                    song={song}
-                    playing={playing && song.id === current?.id}
-                  />
-                  <span>
+            <div className="daily-view-toggle" role="group" aria-label={t("dailyMix")}>
+              <button className={dailyView === "songs" ? "active" : ""} onClick={() => setDailyView("songs")}>{t("songs")}</button>
+              <button className={dailyView === "albums" ? "active" : ""} onClick={() => setDailyView("albums")}>{t("albums")}</button>
+              <button className={dailyView === "artists" ? "active" : ""} onClick={() => setDailyView("artists")}>{t("artists")}</button>
+            </div>
+          </div>
+          <div className="daily-discovery-layout">
+            <div className="daily-coverflow" aria-label={t("dailyMix")}>
+              {dailyView === "albums" && featuredAlbums.length ? (
+                featuredAlbums.map((album) => (
+                  <button
+                    key={album.id}
+                    className="daily-cover-card"
+                    onClick={() => onOpenAlbum(album)}
+                  >
+                    <span className="daily-cover-art">
+                      <LazyCoverImage src={albumCoverUrl(album)} />
+                      <Record weight="fill" />
+                    </span>
+                    <strong>{album.title}</strong>
+                    <em>{album.artist}</em>
+                  </button>
+                ))
+              ) : dailyView === "artists" && featuredArtists.length ? (
+                featuredArtists.map((artist) => (
+                  <button
+                    key={artist.id}
+                    className="daily-cover-card daily-artist-card"
+                    onClick={() => onOpenArtist(artist.id, artist.name)}
+                  >
+                    <span className="daily-cover-art">
+                      <LazyCoverImage src={artistCoverUrl(artist)} />
+                      <Record weight="fill" />
+                    </span>
+                    <strong>{artist.name}</strong>
+                    <em>{artist.song_count} {t("count")}</em>
+                  </button>
+                ))
+              ) : (
+                dailySpotlight.map((song) => (
+                  <button
+                    key={song.id}
+                    className={song.id === current?.id ? "daily-cover-card active" : "daily-cover-card"}
+                    onClick={() => onPlay(song, dailySource)}
+                  >
+                    <span className="daily-cover-art">
+                      <LazyCoverImage src={coverUrl(song)} />
+                      <Record weight="fill" />
+                    </span>
                     <strong>{song.title}</strong>
-                    <small>{song.artist} · {song.album}</small>
-                  </span>
-                  <Play weight="fill" />
+                    <em>{song.artist}</em>
+                  </button>
+                ))
+              )}
+            </div>
+            <div className="daily-song-panel">
+              <div className="daily-song-panel-head">
+                <h3>{t("dailyRecommendedSongs")}</h3>
+                <button onClick={() => onPlay(dailySongs[0], dailySource)}>
+                  <Play weight="fill" /> {t("playAll")}
                 </button>
-              ))}
+              </div>
+              <div className="daily-song-list">
+                {dailySongs.map((song) => (
+                  <button
+                    key={song.id}
+                    className={song.id === current?.id ? "active" : ""}
+                    onClick={() => onPlay(song, dailySource)}
+                  >
+                    <MiniCover song={song} playing={playing && song.id === current?.id} />
+                    <span>
+                      <strong>{song.title}</strong>
+                      <small>{song.artist} · {song.album}</small>
+                    </span>
+                    <time>{formatDuration(song.duration_seconds)}</time>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -5527,6 +5713,7 @@ function CollectionView({
   collection,
   current,
   t,
+  artistAlbumDisplayStyle,
   backLabel,
   onBack,
   onPlayAll,
@@ -5547,6 +5734,7 @@ function CollectionView({
   collection: Collection;
   current: Song | null;
   t: ReturnType<typeof createT>;
+  artistAlbumDisplayStyle: ArtistAlbumDisplayStyle;
   backLabel?: string;
   onBack: () => void;
   onPlayAll: () => void;
@@ -5662,7 +5850,7 @@ function CollectionView({
       ) : null}
       {collection.type === "artist" && artistView === "albums" ? (
         artistAlbums.length ? (
-          <div className="artist-album-grid">
+          <div className={artistAlbumDisplayStyle === "showcase" ? "artist-album-grid artist-album-grid-showcase" : "artist-album-grid"}>
             {artistAlbums.map((album) => (
               <article key={album.id} className="artist-album-card">
                 <button
@@ -6893,6 +7081,8 @@ function SettingsPanel({
   onResumeModeChange,
   homePlayerStyle,
   onHomePlayerStyleChange,
+  artistAlbumDisplayStyle,
+  onArtistAlbumDisplayStyleChange,
   persistentQueueEnabled,
   onPersistentQueueChange,
   uiSoundSettings,
@@ -6917,6 +7107,8 @@ function SettingsPanel({
   onResumeModeChange: (mode: ResumeMode) => void;
   homePlayerStyle: HomePlayerStyle;
   onHomePlayerStyleChange: (style: HomePlayerStyle) => void;
+  artistAlbumDisplayStyle: ArtistAlbumDisplayStyle;
+  onArtistAlbumDisplayStyleChange: (style: ArtistAlbumDisplayStyle) => void;
   persistentQueueEnabled: boolean;
   onPersistentQueueChange: (enabled: boolean) => void;
   uiSoundSettings: UISoundSettings;
@@ -7268,7 +7460,7 @@ function SettingsPanel({
               <strong>{t("homePlayerStyle")}</strong>
               <span>{t("homePlayerStyleHint")}</span>
             </div>
-            <div className="segmented-control" role="group" aria-label={t("homePlayerStyle")}>
+            <div className="segmented-control segmented-control-fluid" role="group" aria-label={t("homePlayerStyle")}>
               <button
                 type="button"
                 className={homePlayerStyle === "vinyl" ? "active" : ""}
@@ -7289,6 +7481,42 @@ function SettingsPanel({
                 onClick={() => onHomePlayerStyleChange("ipod")}
               >
                 {t("homePlayerIpod")}
+              </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "audio-scope" ? "active" : ""}
+                onClick={() => onHomePlayerStyleChange("audio-scope")}
+              >
+                {t("homePlayerAudioScope")}
+              </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "album-slide" ? "active" : ""}
+                onClick={() => onHomePlayerStyleChange("album-slide")}
+              >
+                {t("homePlayerAlbumSlide")}
+              </button>
+            </div>
+          </div>
+          <div className="resume-settings-card settings-wide-row">
+            <div>
+              <strong>{t("artistAlbumDisplayStyle")}</strong>
+              <span>{t("artistAlbumDisplayStyleHint")}</span>
+            </div>
+            <div className="segmented-control" role="group" aria-label={t("artistAlbumDisplayStyle")}>
+              <button
+                type="button"
+                className={artistAlbumDisplayStyle === "classic" ? "active" : ""}
+                onClick={() => onArtistAlbumDisplayStyleChange("classic")}
+              >
+                {t("artistAlbumDisplayClassic")}
+              </button>
+              <button
+                type="button"
+                className={artistAlbumDisplayStyle === "showcase" ? "active" : ""}
+                onClick={() => onArtistAlbumDisplayStyleChange("showcase")}
+              >
+                {t("artistAlbumDisplayShowcase")}
               </button>
             </div>
           </div>
@@ -8510,32 +8738,6 @@ const CardGrid = memo(function CardGrid({
   action,
   variant = "playlist",
 }: CardGridProps) {
-  const [visibleCount, setVisibleCount] = useState(CARD_GRID_BATCH);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const visibleItems = items.slice(0, Math.min(visibleCount, items.length));
-  const hasMore = visibleCount < items.length;
-
-  useEffect(() => {
-    setVisibleCount(CARD_GRID_BATCH);
-  }, [items.length, title, variant]);
-
-  useEffect(() => {
-    const node = sentinelRef.current;
-    if (!node || !hasMore) return;
-    if (!("IntersectionObserver" in window)) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        setVisibleCount((count) =>
-          Math.min(items.length, count + CARD_GRID_BATCH),
-        );
-      },
-      { rootMargin: "720px 0px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [hasMore, items.length, visibleCount]);
-
   return (
     <section className={`card-grid-section card-grid-${variant}`} data-has-action={action ? "true" : "false"}>
       <div className="section-head">
@@ -8544,7 +8746,7 @@ const CardGrid = memo(function CardGrid({
       </div>
       {items.length ? (
         <div className="cards">
-          {visibleItems.map((item) => {
+          {items.map((item) => {
             const useLazyCoverImage = variant !== "playlist" && item.coverUrl;
             return (
               <article
@@ -8627,20 +8829,6 @@ const CardGrid = memo(function CardGrid({
               </article>
             );
           })}
-          {hasMore ? (
-            <div className="card-sentinel" ref={sentinelRef}>
-              <button
-                type="button"
-                onClick={() =>
-                  setVisibleCount((count) =>
-                    Math.min(items.length, count + CARD_GRID_BATCH),
-                  )
-                }
-              >
-                {t("loadMore")} · {visibleCount}/{items.length}
-              </button>
-            </div>
-          ) : null}
         </div>
       ) : (
         <div className="empty">{t("emptyCollection")}</div>

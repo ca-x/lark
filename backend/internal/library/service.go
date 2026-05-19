@@ -1999,6 +1999,46 @@ func (s *Service) SavePlaybackHistorySettings(ctx context.Context, userID int, s
 	return s.GetPlaybackHistorySettings(ctx, userID)
 }
 
+func (s *Service) GetUserPreferences(ctx context.Context, userID int) (models.UserPreferences, error) {
+	if userID == 0 {
+		return models.UserPreferences{}, ErrUnauthenticated
+	}
+	preferences := defaultUserPreferences()
+	if s.client == nil {
+		return preferences, nil
+	}
+	item, err := s.client.AppSetting.Query().Where(appsetting.Key(userPreferencesKey(userID))).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return preferences, nil
+		}
+		return models.UserPreferences{}, err
+	}
+	var stored models.UserPreferences
+	if err := json.Unmarshal([]byte(item.Value), &stored); err != nil {
+		return preferences, nil
+	}
+	return normalizeUserPreferences(stored), nil
+}
+
+func (s *Service) SaveUserPreferences(ctx context.Context, userID int, preferences models.UserPreferences) (models.UserPreferences, error) {
+	if userID == 0 {
+		return models.UserPreferences{}, ErrUnauthenticated
+	}
+	if s.client == nil {
+		return models.UserPreferences{}, errors.New("database is required")
+	}
+	preferences = normalizeUserPreferences(preferences)
+	data, err := json.Marshal(preferences)
+	if err != nil {
+		return models.UserPreferences{}, err
+	}
+	if err := s.setSetting(ctx, userPreferencesKey(userID), string(data)); err != nil {
+		return models.UserPreferences{}, err
+	}
+	return s.GetUserPreferences(ctx, userID)
+}
+
 func (s *Service) playbackHistoryDeviceScope(ctx context.Context, userID int) (string, error) {
 	settings, err := s.GetPlaybackHistorySettings(ctx, userID)
 	if err != nil {
@@ -2102,6 +2142,40 @@ func playbackHistorySettingsKey(userID int) string {
 	return playbackHistorySettingsPrefix + strconv.Itoa(userID)
 }
 
+func userPreferencesKey(userID int) string {
+	return userPreferencesPrefix + strconv.Itoa(userID)
+}
+
+func defaultUserPreferences() models.UserPreferences {
+	return models.UserPreferences{
+		HomePlayerStyle:         "vinyl",
+		ArtistAlbumDisplayStyle: "classic",
+	}
+}
+
+func normalizeUserPreferences(preferences models.UserPreferences) models.UserPreferences {
+	return models.UserPreferences{
+		HomePlayerStyle:         normalizeUserHomePlayerStyle(preferences.HomePlayerStyle),
+		ArtistAlbumDisplayStyle: normalizeArtistAlbumDisplayStyle(preferences.ArtistAlbumDisplayStyle),
+	}
+}
+
+func normalizeUserHomePlayerStyle(value string) string {
+	switch strings.TrimSpace(value) {
+	case "vinyl", "cassette", "ipod", "audio-scope", "album-slide":
+		return strings.TrimSpace(value)
+	default:
+		return "vinyl"
+	}
+}
+
+func normalizeArtistAlbumDisplayStyle(value string) string {
+	if strings.TrimSpace(value) == "showcase" {
+		return "showcase"
+	}
+	return "classic"
+}
+
 func normalizePlaybackDeviceType(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "mobile":
@@ -2159,6 +2233,7 @@ const userVersionPrefix = libraryCachePrefix + "uver:v1:"
 const scrobblingPrefix = "user:v1:scrobbling:"
 const uiSoundSettingsPrefix = "user:v1:ui-sounds:"
 const playbackHistorySettingsPrefix = "user:v1:playback-history:"
+const userPreferencesPrefix = "user:v1:preferences:"
 
 func (s *Service) userCacheVersion(ctx context.Context, userID int) int {
 	if userID <= 0 || s.cache == nil {

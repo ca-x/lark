@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 
 import { LoadingStage } from "./LoadingStage";
-import { CassetteDeck, VinylTurntable } from "./player-themes";
+import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, VinylTurntable } from "./player-themes";
 import { api } from "../services/api";
 import type { PublicShare, Settings, Song } from "../types";
 import type { createT } from "../i18n";
 
-type PublicSharePlayerStyle = "vinyl" | "cassette";
+type PublicSharePlayerStyle = "vinyl" | "cassette" | "audio-scope" | "album-slide";
 
 const PUBLIC_SHARE_PLAYER_STYLE_KEY = "lark:public-share-player-style";
 
 function storedPublicSharePlayerStyle(): PublicSharePlayerStyle {
   try {
-    return window.localStorage.getItem(PUBLIC_SHARE_PLAYER_STYLE_KEY) === "cassette" ? "cassette" : "vinyl";
+    const value = window.localStorage.getItem(PUBLIC_SHARE_PLAYER_STYLE_KEY);
+    return value === "cassette" || value === "audio-scope" || value === "album-slide" ? value : "vinyl";
   } catch {
     return "vinyl";
   }
@@ -150,6 +151,24 @@ export function PublicShareView({
                 >
                   {t("homePlayerCassette")}
                 </button>
+                <button
+                  type="button"
+                  className={playerStyle === "audio-scope" ? "active" : ""}
+                  onClick={() => setPlayerStyle("audio-scope")}
+                  title={t("homePlayerAudioScope")}
+                  aria-label={t("homePlayerAudioScope")}
+                >
+                  {t("homePlayerAudioScope")}
+                </button>
+                <button
+                  type="button"
+                  className={playerStyle === "album-slide" ? "active" : ""}
+                  onClick={() => setPlayerStyle("album-slide")}
+                  title={t("homePlayerAlbumSlide")}
+                  aria-label={t("homePlayerAlbumSlide")}
+                >
+                  {t("homePlayerAlbumSlide")}
+                </button>
               </div>
             </div>
             <section className="public-share-hero">
@@ -162,6 +181,32 @@ export function PublicShareView({
                     duration={duration || currentSong.duration_seconds || 0}
                     title={currentSong.title}
                     artist={currentSong.artist || share.share.title}
+                    onToggle={togglePlayback}
+                    onPrevious={previous}
+                    onNext={next}
+                    onSeek={seek}
+                  />
+                ) : playerStyle === "audio-scope" ? (
+                  <AudioScopePlayer
+                    playing={playing}
+                    progress={progress}
+                    duration={duration || currentSong.duration_seconds || 0}
+                    title={currentSong.title}
+                    artist={currentSong.artist || share.share.title}
+                    onToggle={togglePlayback}
+                    onPrevious={previous}
+                    onNext={next}
+                    onSeek={seek}
+                  />
+                ) : playerStyle === "album-slide" ? (
+                  <AlbumSlidePlayer
+                    cover={cover}
+                    playing={playing}
+                    progress={progress}
+                    duration={duration || currentSong.duration_seconds || 0}
+                    title={currentSong.title}
+                    artist={currentSong.artist || share.share.title}
+                    album={currentSong.album || share.share.title}
                     onToggle={togglePlayback}
                     onPrevious={previous}
                     onNext={next}
