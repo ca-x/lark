@@ -3446,8 +3446,8 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   --album-slide-disc: color-mix(in srgb, var(--bg) 76%, #070707);
   --album-slide-ring: color-mix(in srgb, var(--accent) 64%, #8f86d8);
   --album-slide-art-size:300px;
-  --album-slide-art-left:clamp(274px, 46%, 306px);
-  --album-slide-panel-pad-right:clamp(218px, 39%, 284px);
+  --album-slide-art-left:clamp(246px, 42%, 278px);
+  --album-slide-panel-pad-right:clamp(188px, 34%, 244px);
   width:min(640px,100%);
   height:370px;
   min-height:0;
@@ -3472,7 +3472,7 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .album-slide-panel {
   position:relative;
   z-index:3;
-  width:min(560px,100%);
+  width:min(528px,100%);
   max-width:calc(100% - 72px);
   height:370px;
   min-height:0;
@@ -4129,6 +4129,7 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   }
   .album-slide-content h2 { -webkit-line-clamp:3; }
   .album-slide-art-stack {
+    --album-slide-art-left:auto;
     position:relative;
     left:auto;
     top:auto;

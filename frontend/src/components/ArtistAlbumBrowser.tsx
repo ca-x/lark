@@ -164,11 +164,6 @@ function ArtistAlbumShowcase({
       moved: false,
     };
     node.dataset.dragging = "false";
-    try {
-      node.setPointerCapture(event.pointerId);
-    } catch {
-      // Synthetic pointer events may not have an active pointer to capture.
-    }
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
@@ -177,6 +172,13 @@ function ArtistAlbumShowcase({
     if (!node || !drag.dragging || drag.pointerId !== event.pointerId) return;
     const deltaX = event.clientX - drag.startX;
     if (Math.abs(deltaX) > 4) {
+      if (!drag.moved) {
+        try {
+          node.setPointerCapture(event.pointerId);
+        } catch {
+          // Synthetic pointer events may not have an active pointer to capture.
+        }
+      }
       drag.moved = true;
       node.dataset.dragging = "true";
       event.preventDefault();
