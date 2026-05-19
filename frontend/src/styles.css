@@ -2321,14 +2321,329 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 @media (max-width:720px) {
   .app-shell.lyrics-mode,
   .app-shell.lyrics-mode[data-mobile-player-expanded='true'] {
-    grid-template-rows:minmax(0,1fr) var(--player-h);
+    --player-h:64px;
+    --lyrics-player-row:calc(var(--player-h) + max(var(--safe-bottom), 10px));
+    grid-template-rows:minmax(0,1fr) var(--lyrics-player-row);
+    gap:8px;
     padding:8px 8px 0;
   }
   .app-shell.lyrics-mode .main {
-    scroll-padding-bottom:calc(var(--player-h) + 8px);
+    min-height:0;
+    scroll-padding-bottom:calc(var(--lyrics-player-row) + 8px);
   }
   .app-shell.lyrics-mode .player {
+    min-height:var(--lyrics-player-row);
+    max-height:var(--lyrics-player-row);
+    padding:8px 10px calc(8px + max(var(--safe-bottom), 10px));
     border-radius:20px 20px 0 0;
+  }
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] .player {
+    grid-template-columns:minmax(0,1fr) 48px 42px;
+    grid-template-rows:1fr;
+    align-items:start;
+    gap:8px;
+  }
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] .player .now {
+    grid-column:1;
+    grid-row:1;
+    grid-template-columns:44px minmax(0,1fr);
+  }
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] .player .transport {
+    grid-column:2;
+    grid-row:1;
+    display:grid;
+    grid-template-rows:1fr;
+  }
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] .player .volume,
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] .player .transport input,
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] .player .transport > span,
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] .player .transport-spacer,
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] .player .playback-buttons button:not(.play) {
+    display:none !important;
+  }
+  .app-shell.lyrics-mode[data-mobile-player-expanded='true'] .player-minimize-toggle {
+    position:static;
+    grid-column:3;
+    grid-row:1;
+    width:42px;
+    min-width:42px;
+    height:42px;
+    min-height:42px;
+    border-radius:999px;
+  }
+  .app-shell.lyrics-mode .full-lyrics {
+    height:100%;
+    min-height:0;
+    padding:14px;
+    border-radius:22px;
+  }
+  .app-shell.lyrics-mode .full-lyrics > .turntable.decorative {
+    display:none;
+  }
+  .app-shell.lyrics-mode .lyrics-title-marquee > span {
+    display:block;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    padding-right:0;
+    animation:none !important;
+  }
+  .app-shell.lyrics-mode .lyrics-title-marquee > span > span[aria-hidden='true'] {
+    display:none;
+  }
+  .app-shell.lyrics-mode .full-lyrics-lines {
+    min-height:0;
+    padding:max(16px, 12vh) 3vw max(18px, 18vh);
+    font-size:var(--lyrics-font-size, clamp(23px, 7vw, 34px));
+  }
+  .app-shell.lyrics-mode .full-lyrics-lines.empty-state {
+    align-content:center;
+    justify-items:center;
+    padding:14px 3vw;
+    mask-image:none;
+  }
+  .app-shell.lyrics-mode .full-lyrics-lines .lyrics-empty {
+    width:min(100%, 520px);
+    margin-top:0;
+    padding:18px 20px;
+    border-radius:20px;
+    text-align:center;
+    font-size:clamp(18px, 5vw, 24px);
+    line-height:1.35;
+  }
+}
+
+/* Mobile playback parity: keep the compact player stable, and only expose the
+   extra PC controls after the user expands it. */
+.player .volume .eq-toggle {
+  display:none;
+}
+
+@media (max-width:720px) {
+  .player button,
+  .player .sleep-control {
+    touch-action:manipulation;
+  }
+
+  .player button:active,
+  .player .sleep-control:active {
+    transform:scale(.96);
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player {
+    grid-template-columns:minmax(0,1fr) 46px 44px 44px;
+    grid-template-rows:1fr;
+    gap:6px;
+    align-items:center;
+    min-width:0;
+    padding:8px 10px 8px 8px;
+    border-radius:999px;
+    background:color-mix(in srgb, var(--panel) 96%, var(--bg));
+    border-color:color-mix(in srgb, var(--text) 12%, var(--line));
+    box-shadow:0 18px 46px rgba(0,0,0,.34), 0 0 0 1px color-mix(in srgb, var(--text) 5%, transparent);
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player .now {
+    min-width:0;
+    overflow:hidden;
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player .now strong,
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player .now span {
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player .volume {
+    display:grid !important;
+    grid-column:3;
+    grid-row:1;
+    width:44px;
+    min-width:44px;
+    max-width:44px;
+    height:44px;
+    min-height:44px;
+    max-height:44px;
+    padding:0;
+    border:0;
+    align-self:center;
+    justify-self:center;
+    overflow:hidden;
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player .volume > :not(.queue-toggle) {
+    display:none !important;
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player .volume .queue-toggle {
+    display:grid !important;
+    place-items:center;
+    width:44px;
+    min-width:44px;
+    max-width:44px;
+    height:44px;
+    min-height:44px;
+    max-height:44px;
+    padding:0;
+    border:0;
+    background:transparent;
+    color:var(--text);
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player-minimize-toggle {
+    grid-column:4;
+    width:44px;
+    min-width:44px;
+    max-width:44px;
+    height:44px;
+    min-height:44px;
+    max-height:44px;
+    border:0;
+    background:transparent;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) {
+    --player-h:236px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player {
+    grid-template-rows:46px 60px 68px;
+    align-items:stretch;
+    min-width:0;
+    overflow:hidden;
+    gap:3px;
+    padding:8px 12px 42px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .now,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .transport,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .volume {
+    min-width:0;
+    overflow:hidden;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .now strong,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .now span {
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .transport {
+    grid-template-rows:30px 18px 12px;
+    gap:2px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .transport input[type='range'] {
+    min-height:18px;
+    height:18px;
+    margin:0;
+    padding:0;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .transport-controls {
+    grid-template-columns:44px minmax(0,1fr) 44px;
+    min-width:0;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .volume {
+    grid-template-columns:repeat(5, minmax(0, 1fr));
+    grid-template-rows:44px 18px;
+    gap:3px;
+    align-self:stretch;
+    align-content:center;
+    align-items:center;
+    justify-items:center;
+    min-height:68px;
+    padding-top:0;
+    border-top:1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .volume .mode-button,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .volume .lyric-toggle,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .volume .queue-toggle,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .volume .eq-toggle,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .volume .sleep-control {
+    display:grid;
+    place-items:center;
+    width:44px;
+    min-width:44px;
+    max-width:44px;
+    height:44px;
+    min-height:44px;
+    max-height:44px;
+    padding:0;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .volume > svg {
+    display:block !important;
+    grid-column:1;
+    grid-row:2;
+    justify-self:end;
+    width:18px;
+    height:18px;
+    color:var(--muted);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player .volume input[type='range'] {
+    display:block !important;
+    grid-column:2 / -1;
+    grid-row:2;
+    width:100%;
+    min-width:0;
+    min-height:18px;
+    max-width:100%;
+    height:18px;
+    margin:0;
+    padding:0;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player-minimize-toggle {
+    bottom:6px;
+    height:36px;
+    min-height:36px;
+  }
+
+  .eq-layer {
+    align-items:flex-end;
+    justify-content:center;
+    padding:0 8px calc(var(--player-h, 64px) + max(var(--safe-bottom), 8px) + 8px);
+  }
+
+  .eq-layer .eq-popover.eq-shell {
+    right:auto;
+    left:auto;
+    bottom:auto;
+    width:min(560px, 100%);
+    max-height:calc(100dvh - var(--player-h, 64px) - max(var(--safe-bottom), 8px) - 24px);
+  }
+
+  .eq-layer .eq-card {
+    max-height:inherit;
+    display:grid;
+    grid-template-rows:auto auto auto minmax(0,1fr) auto;
+  }
+
+  .eq-layer .eq-vertical-bands {
+    min-height:0;
+    overflow-x:auto;
+    overflow-y:hidden;
+    overscroll-behavior-x:contain;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+
+  .eq-layer .eq-vertical-bands::-webkit-scrollbar {
+    display:none;
+  }
+
+  .eq-layer .eq-band {
+    flex:0 0 48px;
   }
 }
 

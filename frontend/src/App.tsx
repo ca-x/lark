@@ -1320,6 +1320,14 @@ export default function App() {
     if (node) node.volume = volume;
     setAudioEl((currentNode) => (currentNode === node ? currentNode : node));
   }, [volume]);
+  const toggleQueuePanel = useCallback(() => {
+    setEqPanelOpen(false);
+    setQueueOpen((value) => !value);
+  }, []);
+  const toggleEqualizerPanel = useCallback(() => {
+    setQueueOpen(false);
+    setEqPanelOpen((value) => !value);
+  }, []);
   const lyricsScrollRef = useRef<HTMLDivElement | null>(null);
   const lyricFollowPausedUntil = useRef(0);
   const messageTimerRef = useRef<number | null>(null);
@@ -1784,6 +1792,10 @@ export default function App() {
     setLazycatImmersive(lyricsFullScreen);
     return () => setLazycatImmersive(false);
   }, [lyricsFullScreen]);
+
+  useEffect(() => {
+    if (lyricsFullScreen && mobilePlayerExpanded) setMobilePlayerExpanded(false);
+  }, [lyricsFullScreen, mobilePlayerExpanded]);
 
   useEffect(() => {
     if (!hasClientMediaSession()) return;
@@ -3931,7 +3943,7 @@ export default function App() {
           streamSrc={currentStreamUrl}
           lowBandwidth={buffering}
           eqActive={eqEnabled}
-          onOpenEqualizer={() => setEqPanelOpen((value) => !value)}
+          onOpenEqualizer={toggleEqualizerPanel}
           equalizerLabel={t("equalizer")}
         />
         <div className="now">
@@ -4106,9 +4118,17 @@ export default function App() {
             className={queueOpen ? "queue-toggle active" : "queue-toggle"}
             title={queuePanelMode === "radio" ? t("onlineRadio") : t("queue")}
             aria-label={queuePanelMode === "radio" ? t("onlineRadio") : t("queue")}
-            onClick={() => setQueueOpen((value) => !value)}
+            onClick={toggleQueuePanel}
           >
             <Queue />
+          </button>
+          <button
+            className={eqPanelOpen || eqEnabled ? "eq-toggle active" : "eq-toggle"}
+            title={t("equalizer")}
+            aria-label={t("equalizer")}
+            onClick={toggleEqualizerPanel}
+          >
+            <SlidersHorizontal />
           </button>
           <SleepTimerControl
             value={sleepTimerMins}
@@ -6440,7 +6460,7 @@ function FullLyrics({
         </div>
       ) : null}
       <div
-        className="full-lyrics-lines"
+        className={lines.length ? "full-lyrics-lines" : "full-lyrics-lines empty-state"}
         ref={scrollRef}
         onScroll={syncSeekTargetFromScroll}
         onWheel={markUserScroll}
