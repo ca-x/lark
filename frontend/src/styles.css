@@ -3670,8 +3670,10 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   z-index:1;
   width:calc(var(--album-slide-art-size) - 15px);
   height:calc(var(--album-slide-art-size) - 15px);
-  transition:left 500ms ease;
-  will-change:left;
+  opacity:0;
+  clip-path:inset(0 0 0 100%);
+  transition:left 500ms ease, opacity 180ms ease, clip-path 500ms ease;
+  will-change:left, opacity, clip-path;
   pointer-events:none;
 }
 .album-slide-vinyl {
@@ -3693,6 +3695,8 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 }
 .album-slide-player[data-playing='true'] .album-slide-vinyl-rail {
   left:52%;
+  opacity:1;
+  clip-path:inset(0 0 0 calc(var(--album-slide-art-size) * .48));
 }
 @keyframes album-slide-spin { to { transform:rotate(360deg); } }
 .album-slide-hero {
