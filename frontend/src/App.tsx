@@ -53,7 +53,10 @@ import {
   audioOutputSnapshot,
   prepareAudioForBackgroundPlayback,
   resumeAudioContext,
+  shouldHandleStallAsNetworkIssue,
   shouldPauseForAudioOutputDisconnect,
+  shouldPreservePlaybackIntentOnMediaError,
+  shouldReloadMediaOnForeground,
   shouldResumePlaybackOnForeground,
   type AudioOutputSnapshot,
 } from "./services/playbackControl";
@@ -1647,6 +1650,16 @@ export default function App() {
         pendingAutoplayRef.current = true;
         return;
       }
+      if (
+        shouldPreservePlaybackIntentOnMediaError(
+          playingRef.current || pendingAutoplayRef.current,
+          document.visibilityState,
+        )
+      ) {
+        pendingAutoplayRef.current = true;
+        setBuffering(true);
+        return;
+      }
       pendingAutoplayRef.current = false;
       setPlaying(false);
       showMessage(t("playbackFailed"));
@@ -1679,6 +1692,15 @@ export default function App() {
       const audio = audioRef.current;
       if (!audio) return;
       prepareAudioForBackgroundPlayback(audio);
+      if (
+        shouldReloadMediaOnForeground(
+          audio,
+          playingRef.current,
+          document.visibilityState,
+        )
+      ) {
+        audio.load();
+      }
       if (
         !shouldResumePlaybackOnForeground(
           audio,
@@ -2098,10 +2120,28 @@ export default function App() {
     stallDowngradeTimerRef.current = null;
   }
 
+  function preservePlaybackIntentAfterMediaError(media: HTMLAudioElement) {
+    pendingAutoplayRef.current = true;
+    setBuffering(true);
+    prepareAudioForBackgroundPlayback(media);
+    if (!currentRef.current && !currentNetworkTrackRef.current) return;
+    const mediaTime = media.currentTime || 0;
+    const resumeAt =
+      mediaTime > 0.05
+        ? streamOffsetRef.current + mediaTime
+        : progressRef.current;
+    resumeSeekRef.current = resumeAt;
+    setProgress(resumeAt);
+  }
+
   function handlePlaybackStall(media: HTMLAudioElement) {
     if (!(playingRef.current || pendingAutoplayRef.current)) return;
     setBuffering(true);
-    if (streamModeRef.current === "adaptive" || stallDowngradeTimerRef.current != null)
+    if (
+      !shouldHandleStallAsNetworkIssue(document.visibilityState) ||
+      streamModeRef.current === "adaptive" ||
+      stallDowngradeTimerRef.current != null
+    )
       return;
     const stalledAt = media.currentTime || 0;
     stallDowngradeTimerRef.current = window.setTimeout(() => {
@@ -4238,6 +4278,15 @@ export default function App() {
           onPause={() => syncPlaybackProgress(false)}
           onError={(event) => {
             clearStallDowngradeTimer();
+            if (
+              shouldPreservePlaybackIntentOnMediaError(
+                playingRef.current || pendingAutoplayRef.current,
+                document.visibilityState,
+              )
+            ) {
+              preservePlaybackIntentAfterMediaError(event.currentTarget);
+              return;
+            }
             if (streamMode === "adaptive") {
               const mediaTime = event.currentTarget.currentTime || 0;
               const resumeAt =

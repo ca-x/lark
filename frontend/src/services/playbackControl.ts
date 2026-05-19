@@ -47,6 +47,25 @@ export function shouldResumePlaybackOnForeground(
   return visibilityState === "visible" && isPlaying && audio.paused && !audio.ended;
 }
 
+export function shouldReloadMediaOnForeground(
+  audio: HTMLAudioElement,
+  isPlaying: boolean,
+  visibilityState: DocumentVisibilityState,
+) {
+  return visibilityState === "visible" && isPlaying && Boolean(audio.error);
+}
+
+export function shouldPreservePlaybackIntentOnMediaError(
+  isPlaying: boolean,
+  visibilityState: DocumentVisibilityState,
+) {
+  return isPlaying && visibilityState !== "visible";
+}
+
+export function shouldHandleStallAsNetworkIssue(visibilityState: DocumentVisibilityState) {
+  return visibilityState === "visible";
+}
+
 export function shouldPauseForAudioOutputDisconnect(
   previous: AudioOutputSnapshot | null,
   next: AudioOutputSnapshot,
