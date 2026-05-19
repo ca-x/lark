@@ -49,6 +49,14 @@ import {
   setLazycatImmersive,
   syncLazycatChrome,
 } from "./services/lazycat";
+import {
+  audioOutputSnapshot,
+  prepareAudioForBackgroundPlayback,
+  resumeAudioContext,
+  shouldPauseForAudioOutputDisconnect,
+  shouldResumePlaybackOnForeground,
+  type AudioOutputSnapshot,
+} from "./services/playbackControl";
 import { playUISound, previewUISound, setUISoundSettings } from "./services/uiSounds";
 import type {
   Album,
@@ -667,56 +675,6 @@ function defaultStreamMode(song?: Song | null): StreamMode {
   if (song.bit_rate > 320_000 || song.size_bytes > 28 * 1024 * 1024)
     return "adaptive";
   return "auto";
-}
-
-type AudioOutputSnapshot = {
-  deviceIds: Set<string>;
-  labels: Set<string>;
-  headphoneLabels: Set<string>;
-  specificCount: number;
-  totalCount: number;
-};
-
-const HEADPHONE_OUTPUT_PATTERN =
-  /(headphone|headset|earphone|earbud|airpods?|beats|bluetooth|bt|buds|耳机|蓝牙|耳塞)/i;
-
-function audioOutputSnapshot(devices: MediaDeviceInfo[]): AudioOutputSnapshot {
-  const outputs = devices.filter((device) => device.kind === "audiooutput");
-  const specificOutputs = outputs.filter(
-    (device) => device.deviceId && !["default", "communications"].includes(device.deviceId),
-  );
-  const labels = new Set(
-    specificOutputs
-      .map((device) => device.label.trim().toLowerCase())
-      .filter(Boolean),
-  );
-  const headphoneLabels = new Set(
-    Array.from(labels).filter((label) => HEADPHONE_OUTPUT_PATTERN.test(label)),
-  );
-  return {
-    deviceIds: new Set(specificOutputs.map((device) => device.deviceId)),
-    labels,
-    headphoneLabels,
-    specificCount: specificOutputs.length,
-    totalCount: outputs.length,
-  };
-}
-
-function setHasLostItem(previous: Set<string>, next: Set<string>) {
-  for (const item of previous) {
-    if (!next.has(item)) return true;
-  }
-  return false;
-}
-
-function audioOutputDisconnected(previous: AudioOutputSnapshot, next: AudioOutputSnapshot) {
-  if (previous.headphoneLabels.size > 0) {
-    return setHasLostItem(previous.headphoneLabels, next.headphoneLabels);
-  }
-  if (previous.deviceIds.size > 0) {
-    return setHasLostItem(previous.deviceIds, next.deviceIds);
-  }
-  return previous.totalCount > 2 && next.totalCount < previous.totalCount;
 }
 
 function sanitizeFontFamily(value?: string) {
@@ -1450,8 +1408,7 @@ export default function App() {
   }, []);
 
   const resumeEqualizer = useCallback(() => {
-    const ctx = audioContextRef.current;
-    if (ctx?.state === "suspended") void ctx.resume().catch(() => undefined);
+    resumeAudioContext(audioContextRef.current);
   }, []);
 
   const resetEqualizer = useCallback(() => {
@@ -1716,6 +1673,29 @@ export default function App() {
       audioRef.current.pause();
     }
   }, [playing, current?.id, currentRadio?.id, currentRadio?.url, currentNetworkTrack?.id, currentNetworkTrack?.source_id, requestAudioPlay]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      prepareAudioForBackgroundPlayback(audio);
+      if (
+        !shouldResumePlaybackOnForeground(
+          audio,
+          playingRef.current,
+          document.visibilityState,
+        )
+      ) {
+        return;
+      }
+      resumeEqualizer();
+      pendingAutoplayRef.current = true;
+      window.requestAnimationFrame(requestAudioPlay);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [requestAudioPlay, resumeEqualizer]);
+
   useEffect(() => {
     const mediaDevices = navigator.mediaDevices;
     if (!mediaDevices?.enumerateDevices) return;
@@ -1726,11 +1706,12 @@ export default function App() {
       try {
         const nextSnapshot = audioOutputSnapshot(await mediaDevices.enumerateDevices());
         const previousSnapshot = audioOutputSnapshotRef.current;
-        if (
-          previousSnapshot &&
-          playingRef.current &&
-          audioOutputDisconnected(previousSnapshot, nextSnapshot)
-        ) {
+        if (shouldPauseForAudioOutputDisconnect(
+          previousSnapshot,
+          nextSnapshot,
+          playingRef.current,
+          document.visibilityState,
+        )) {
           pendingAutoplayRef.current = false;
           setPlaying(false);
           audioRef.current?.pause();
@@ -4165,7 +4146,7 @@ export default function App() {
         </button>
         <audio
           ref={setAudioNode}
-          preload="metadata"
+          preload="auto"
           data-song-id={current?.id ?? undefined}
           data-radio-id={currentRadio?.id ?? undefined}
           src={currentStreamUrl}
