@@ -104,6 +104,7 @@ import { RadioReceiver } from "./components/RadioPlayer";
 import { LoadingStage } from "./components/LoadingStage";
 import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
 import { radioGroupName } from "./components/radio";
+import { ArtistAlbumBrowser } from "./components/ArtistAlbumBrowser";
 import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, IpodPlayer, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
@@ -4872,7 +4873,7 @@ function HomeView({
     : undefined;
   return (
     <section className="home-view">
-      <section className={currentRadio ? "hero radio-hero" : "hero"}>
+      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : "hero"}>
         {currentRadio ? (
           <RadioReceiver
             title={currentRadio.name || t("onlineRadio")}
@@ -5763,6 +5764,7 @@ function CollectionView({
         : albumsFromSongs(collection.songs, collection.artistId, collection.artistName),
     [collection],
   );
+
   return (
     <section className="collection-view">
       <button
@@ -5850,34 +5852,14 @@ function CollectionView({
       ) : null}
       {collection.type === "artist" && artistView === "albums" ? (
         artistAlbums.length ? (
-          <div className={artistAlbumDisplayStyle === "showcase" ? "artist-album-grid artist-album-grid-showcase" : "artist-album-grid"}>
-            {artistAlbums.map((album) => (
-              <article key={album.id} className="artist-album-card">
-                <button
-                  className="cover plain-cover"
-                  aria-label={`${t("play")} ${album.title}`}
-                  onClick={() => onPlayAlbumCard?.(album)}
-                >
-                  <LazyCoverImage src={albumCoverUrl(album)} />
-                  <Record weight="fill" />
-                  <span className="card-play" aria-hidden="true">
-                    <Play weight="fill" />
-                  </span>
-                </button>
-                <button
-                  className="artist-album-title"
-                  onClick={() => onOpenAlbumCard?.(album)}
-                >
-                  {album.title}
-                </button>
-                <span>
-                  {[album.year ? String(album.year) : "", `${album.song_count} ${t("count")}`]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              </article>
-            ))}
-          </div>
+          <ArtistAlbumBrowser
+            albums={artistAlbums}
+            displayStyle={artistAlbumDisplayStyle}
+            resetKey={collection.id || collection.title}
+            t={t}
+            onOpenAlbum={onOpenAlbumCard}
+            onPlayAlbum={onPlayAlbumCard}
+          />
         ) : collection.loading ? (
           <div className="empty collection-loading">{t("loading")}</div>
         ) : (
