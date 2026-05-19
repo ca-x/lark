@@ -329,6 +329,7 @@ export interface Settings {
   web_font_url: string;
   lyrics_auto_save_to_song_dir: boolean;
   lyrics_font_family: string;
+  lyrics_font_url: string;
   lyrics_font_size: number;
   metadata_grouping: boolean;
   library_tag_writeback: boolean;

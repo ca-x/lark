@@ -90,7 +90,7 @@ import { RadioReceiver } from "./components/RadioPlayer";
 import { LoadingStage } from "./components/LoadingStage";
 import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
 import { radioGroupName } from "./components/radio";
-import { CassetteDeck, VinylTurntable } from "./components/player-themes";
+import { CassetteDeck, IpodPlayer, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -110,6 +110,7 @@ const defaultSettings: Settings = {
   web_font_family: "",
   lyrics_auto_save_to_song_dir: false,
   lyrics_font_family: "",
+  lyrics_font_url: "",
   lyrics_font_size: 0,
   metadata_grouping: false,
   library_tag_writeback: false,
@@ -142,7 +143,7 @@ type View =
   | "about";
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
-type HomePlayerStyle = "vinyl" | "cassette";
+type HomePlayerStyle = "vinyl" | "cassette" | "ipod";
 type PlaybackStartMode = "resume" | "restart";
 type PlaybackSourceInput = { type: PlaybackSourceType; source_id: number };
 type PlaySongOptions = {
@@ -279,7 +280,7 @@ const themeAliases: Record<string, Theme> = {
 const SONG_ROW_HEIGHT = 64;
 const VIRTUAL_TABLE_THRESHOLD = 220;
 const VIRTUAL_OVERSCAN = 8;
-const CARD_GRID_BATCH = 72;
+const CARD_GRID_BATCH = 36;
 const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
 const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
 const HOME_PLAYER_STYLE_KEY = "lark.home-player-style";
@@ -302,7 +303,7 @@ function storedLibraryTab(): LibraryTab {
 }
 
 function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
-  return value === "cassette" ? "cassette" : "vinyl";
+  return value === "cassette" || value === "ipod" ? value : "vinyl";
 }
 
 function storedHomePlayerStyle(): HomePlayerStyle {
@@ -1573,9 +1574,12 @@ export default function App() {
     const fontFamily = sanitizeFontFamily(settings.web_font_family);
     const fontURL = sanitizeUploadedFontURL(settings.web_font_url);
     const lyricsFontFamily = sanitizeFontFamily(settings.lyrics_font_family);
+    const lyricsFontURL = sanitizeUploadedFontURL(settings.lyrics_font_url);
     const lyricsFontSize = normalizeLyricsFontSize(settings.lyrics_font_size);
     const fontStyleId = "lark-web-font";
+    const lyricsFontStyleId = "lark-lyrics-font";
     const existing = document.getElementById(fontStyleId) as HTMLStyleElement | null;
+    const existingLyricsFont = document.getElementById(lyricsFontStyleId) as HTMLStyleElement | null;
     if (fontFamily && fontURL) {
       const style = existing || document.createElement("style");
       style.id = fontStyleId;
@@ -1591,10 +1595,15 @@ export default function App() {
         "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', var(--font-cjk)",
       );
     }
-    if (lyricsFontFamily) {
+    if (lyricsFontFamily && lyricsFontURL) {
+      const style = existingLyricsFont || document.createElement("style");
+      style.id = lyricsFontStyleId;
+      style.textContent = `@font-face{font-family:"${lyricsFontFamily}";src:url("${lyricsFontURL}") format("${fontFormat(lyricsFontURL)}");font-display:swap;}`;
+      if (!existingLyricsFont) document.head.appendChild(style);
       document.documentElement.dataset.customLyricsFont = "true";
       document.documentElement.style.setProperty("--lyrics-font", `"${lyricsFontFamily}", var(--app-font)`);
     } else {
+      existingLyricsFont?.remove();
       delete document.documentElement.dataset.customLyricsFont;
       document.documentElement.style.removeProperty("--lyrics-font");
     }
@@ -1606,6 +1615,7 @@ export default function App() {
     settings.web_font_url,
     settings.web_font_family,
     settings.lyrics_font_family,
+    settings.lyrics_font_url,
     settings.lyrics_font_size,
     t,
   ]);
@@ -4590,10 +4600,7 @@ function AddToPlaylistDialog({
 
 function compactLibraryCount(value: number) {
   const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
-  return new Intl.NumberFormat(undefined, {
-    notation: safeValue >= 10000 ? "compact" : "standard",
-    maximumFractionDigits: safeValue >= 10000 ? 1 : 0,
-  }).format(safeValue);
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(safeValue);
 }
 
 function LibrarySummaryStats({
@@ -4727,6 +4734,22 @@ function HomeView({
           />
         ) : homePlayerStyle === "cassette" ? (
           <CassetteDeck
+            cover={coverUrl(displaySong)}
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
+            onCyclePlayMode={onCyclePlayMode}
+            onSeek={heroActive ? onSeek : undefined}
+          />
+        ) : homePlayerStyle === "ipod" ? (
+          <IpodPlayer
             cover={coverUrl(displaySong)}
             playing={heroPlaying}
             progress={heroActive ? progress : 0}
@@ -6866,7 +6889,6 @@ function SettingsPanel({
   const [nickname, setNickname] = useState(user.nickname || user.username);
   const [avatarDataURL, setAvatarDataURL] = useState(user.avatar_data_url || "");
   const [webFontFamily, setWebFontFamily] = useState(settings.web_font_family || "");
-  const [lyricsFontFamily, setLyricsFontFamily] = useState(settings.lyrics_font_family || "");
   const [libraryPathInput, setLibraryPathInput] = useState("");
   const [libraryNoteInput, setLibraryNoteInput] = useState("");
   const [libraryDirError, setLibraryDirError] = useState("");
@@ -6902,10 +6924,6 @@ function SettingsPanel({
   useEffect(() => {
     setWebFontFamily(settings.web_font_family || "");
   }, [settings.web_font_family]);
-
-  useEffect(() => {
-    setLyricsFontFamily(settings.lyrics_font_family || "");
-  }, [settings.lyrics_font_family]);
 
   useEffect(() => {
     if (activeTab !== "site") return;
@@ -7032,6 +7050,18 @@ function SettingsPanel({
       ...settings,
       web_font_family: font.family,
       web_font_url: sanitizeUploadedFontURL(font.url),
+    });
+  }
+
+  function applyLyricsFont(font?: WebFont) {
+    if (!font) {
+      setSettings({ ...settings, lyrics_font_family: "", lyrics_font_url: "" });
+      return;
+    }
+    setSettings({
+      ...settings,
+      lyrics_font_family: font.family,
+      lyrics_font_url: sanitizeUploadedFontURL(font.url),
     });
   }
 
@@ -7202,6 +7232,13 @@ function SettingsPanel({
                 onClick={() => onHomePlayerStyleChange("cassette")}
               >
                 {t("homePlayerCassette")}
+              </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "ipod" ? "active" : ""}
+                onClick={() => onHomePlayerStyleChange("ipod")}
+              >
+                {t("homePlayerIpod")}
               </button>
             </div>
           </div>
@@ -7627,11 +7664,21 @@ function SettingsPanel({
               <div className="settings-mini-grid">
                 <label>
                   {t("lyricsFontFamily")}
-                  <input
-                    value={lyricsFontFamily}
-                    placeholder={t("lyricsFontFamilyPlaceholder")}
-                    onChange={(event) => setLyricsFontFamily(event.target.value)}
-                  />
+                  <select
+                    value={settings.lyrics_font_url || ""}
+                    disabled={fontsLoading || fonts.length === 0}
+                    onChange={(event) => {
+                      const font = fonts.find((item) => item.url === event.target.value);
+                      applyLyricsFont(font);
+                    }}
+                  >
+                    <option value="">{t("lyricsFontFamilyPlaceholder")}</option>
+                    {fonts.map((font) => (
+                      <option key={font.name} value={font.url}>
+                        {font.family}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   {t("lyricsFontSize")}
@@ -7648,18 +7695,18 @@ function SettingsPanel({
                   />
                 </label>
               </div>
+              <div className="font-current-row">
+                <span>{t("currentFont")}</span>
+                <strong style={{ fontFamily: settings.lyrics_font_family ? `"${settings.lyrics_font_family}", var(--app-font)` : undefined }}>
+                  {settings.lyrics_font_family || t("defaultFont")}
+                </strong>
+              </div>
+              {!fonts.length ? <div className="settings-empty compact-empty">{fontsLoading ? t("loading") : t("noFontsUploaded")}</div> : null}
               <div className="font-actions">
                 <button
                   type="button"
-                  onClick={() => setSettings({ ...settings, lyrics_font_family: sanitizeFontFamily(lyricsFontFamily) })}
-                >
-                  {t("saveFontSettings")}
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
-                    setLyricsFontFamily("");
-                    setSettings({ ...settings, lyrics_font_family: "", lyrics_font_size: 0 });
+                    setSettings({ ...settings, lyrics_font_family: "", lyrics_font_url: "", lyrics_font_size: 0 });
                   }}
                 >
                   {t("useDefaultFont")}
@@ -8119,19 +8166,68 @@ function SongTable({
 
 const LazyCoverImage = memo(function LazyCoverImage({ src }: { src?: string }) {
   const [failedSrc, setFailedSrc] = useState("");
+  const [canLoad, setCanLoad] = useState(false);
+  const [deferredSrc, setDeferredSrc] = useState("");
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     if (src !== failedSrc) setFailedSrc("");
+    imageRef.current?.removeAttribute("data-loaded");
   }, [failedSrc, src]);
+
+  useEffect(() => {
+    setCanLoad(false);
+    setDeferredSrc("");
+    if (!src || failedSrc === src) return;
+    const node = imageRef.current;
+    if (!node || !("IntersectionObserver" in window)) {
+      setCanLoad(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setCanLoad(true);
+        observer.disconnect();
+      },
+      { rootMargin: "220px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [failedSrc, src]);
+
+  useEffect(() => {
+    setDeferredSrc("");
+    if (!canLoad || !src || failedSrc === src) return;
+    const win = window as typeof window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let idleHandle: number | null = null;
+    let timeoutHandle: number | null = null;
+    const load = () => setDeferredSrc(src);
+    if (win.requestIdleCallback) {
+      idleHandle = win.requestIdleCallback(load, { timeout: 700 });
+    } else {
+      timeoutHandle = window.setTimeout(load, 90);
+    }
+    return () => {
+      if (idleHandle != null) win.cancelIdleCallback?.(idleHandle);
+      if (timeoutHandle != null) window.clearTimeout(timeoutHandle);
+    };
+  }, [canLoad, failedSrc, src]);
 
   if (!src || failedSrc === src) return null;
   return (
     <img
+      ref={imageRef}
       className="cover-image"
-      src={src}
+      src={deferredSrc || undefined}
+      data-deferred={deferredSrc ? undefined : "true"}
       alt=""
       loading="lazy"
       decoding="async"
+      fetchPriority="low"
       onLoad={(event) => {
         event.currentTarget.dataset.loaded = "true";
       }}

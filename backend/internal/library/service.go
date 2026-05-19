@@ -1541,6 +1541,8 @@ const maxCatalogPredicateIDs = 5000
 const maxPlaybackQueueSongs = 500
 const defaultPlaybackSourceTTLHours = 24
 const defaultUISoundVolume = 0.85
+const collectionCoverHitTTL = 30 * 24 * time.Hour
+const collectionCoverMissTTL = 6 * time.Hour
 
 type songSearchCatalogEntry struct {
 	ID   int    `json:"id"`
@@ -2765,6 +2767,9 @@ func (s *Service) SongCover(ctx context.Context, id int) ([]byte, string, error)
 }
 
 func (s *Service) AlbumCover(ctx context.Context, id int) ([]byte, string, error) {
+	if data, mimeType, ok, err := s.readCollectionCoverCache("albums", strconv.Itoa(id)); err != nil || ok {
+		return data, mimeType, err
+	}
 	items, err := s.client.Song.Query().
 		Select(song.FieldID, song.FieldPath).
 		Where(song.HasAlbumWith(album.ID(id))).
@@ -2776,6 +2781,9 @@ func (s *Service) AlbumCover(ctx context.Context, id int) ([]byte, string, error
 	}
 	data, mimeType, err := s.firstEmbeddedCover(items)
 	if err != nil || len(data) > 0 {
+		if len(data) > 0 {
+			_ = s.writeCollectionCoverCache("albums", strconv.Itoa(id), mimeType, data)
+		}
 		return data, mimeType, err
 	}
 	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().Only(ctx)
@@ -2791,12 +2799,22 @@ func (s *Service) AlbumCover(ctx context.Context, id int) ([]byte, string, error
 		if strings.TrimSpace(info.Cover) == "" {
 			continue
 		}
-		return s.cachedRemoteImage(ctx, "album", strconv.Itoa(id), info.Cover)
+		data, mimeType, err := s.cachedRemoteImage(ctx, "album", strconv.Itoa(id), info.Cover)
+		if err != nil || len(data) > 0 {
+			if len(data) > 0 {
+				_ = s.writeCollectionCoverCache("albums", strconv.Itoa(id), mimeType, data)
+			}
+			return data, mimeType, err
+		}
 	}
+	_ = s.writeCollectionCoverMiss("albums", strconv.Itoa(id))
 	return nil, "", nil
 }
 
 func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, error) {
+	if data, mimeType, ok, err := s.readCollectionCoverCache("artists", strconv.Itoa(id)); err != nil || ok {
+		return data, mimeType, err
+	}
 	items, err := s.client.Song.Query().
 		Select(song.FieldID, song.FieldPath).
 		Where(song.HasArtistWith(artist.ID(id))).
@@ -2808,6 +2826,9 @@ func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, erro
 	}
 	data, mimeType, err := s.firstEmbeddedCover(items)
 	if err != nil || len(data) > 0 {
+		if len(data) > 0 {
+			_ = s.writeCollectionCoverCache("artists", strconv.Itoa(id), mimeType, data)
+		}
 		return data, mimeType, err
 	}
 	a, err := s.client.Artist.Query().Where(artist.ID(id)).WithAlbums(func(q *ent.AlbumQuery) {
@@ -2822,10 +2843,83 @@ func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, erro
 			if strings.TrimSpace(info.Cover) == "" {
 				continue
 			}
-			return s.cachedRemoteImage(ctx, "artist", strconv.Itoa(id), info.Cover)
+			data, mimeType, err := s.cachedRemoteImage(ctx, "artist", strconv.Itoa(id), info.Cover)
+			if err != nil || len(data) > 0 {
+				if len(data) > 0 {
+					_ = s.writeCollectionCoverCache("artists", strconv.Itoa(id), mimeType, data)
+				}
+				return data, mimeType, err
+			}
 		}
 	}
+	_ = s.writeCollectionCoverMiss("artists", strconv.Itoa(id))
 	return nil, "", nil
+}
+
+func (s *Service) readCollectionCoverCache(kind, key string) ([]byte, string, bool, error) {
+	cacheDir := s.collectionCoverCacheDir(kind)
+	safeKey := collectionCoverCacheKey(key)
+	missPath := filepath.Join(cacheDir, safeKey+".miss")
+	if info, err := os.Stat(missPath); err == nil {
+		if time.Since(info.ModTime()) < collectionCoverMissTTL {
+			return nil, "", true, nil
+		}
+		_ = os.Remove(missPath)
+	}
+	for _, ext := range []string{".jpg", ".png", ".webp", ".bin"} {
+		path := filepath.Join(cacheDir, safeKey+ext)
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		if time.Since(info.ModTime()) > collectionCoverHitTTL {
+			_ = os.Remove(path)
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, "", false, err
+		}
+		if len(data) > 0 {
+			return data, coverMimeByExt(ext), true, nil
+		}
+	}
+	return nil, "", false, nil
+}
+
+func (s *Service) writeCollectionCoverCache(kind, key, mimeType string, data []byte) error {
+	if len(data) == 0 {
+		return s.writeCollectionCoverMiss(kind, key)
+	}
+	cacheDir := s.collectionCoverCacheDir(kind)
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		return err
+	}
+	safeKey := collectionCoverCacheKey(key)
+	for _, ext := range []string{".jpg", ".png", ".webp", ".bin", ".miss"} {
+		_ = os.Remove(filepath.Join(cacheDir, safeKey+ext))
+	}
+	return os.WriteFile(filepath.Join(cacheDir, safeKey+coverExtByMime(mimeType)), data, 0o644)
+}
+
+func (s *Service) writeCollectionCoverMiss(kind, key string) error {
+	cacheDir := s.collectionCoverCacheDir(kind)
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		return err
+	}
+	safeKey := collectionCoverCacheKey(key)
+	for _, ext := range []string{".jpg", ".png", ".webp", ".bin"} {
+		_ = os.Remove(filepath.Join(cacheDir, safeKey+ext))
+	}
+	return os.WriteFile(filepath.Join(cacheDir, safeKey+".miss"), []byte(time.Now().Format(time.RFC3339Nano)), 0o644)
+}
+
+func (s *Service) collectionCoverCacheDir(kind string) string {
+	return filepath.Join(s.dataDir, "covers", kind)
+}
+
+func collectionCoverCacheKey(key string) string {
+	return strings.NewReplacer("/", "_", "\\", "_", ":", "_").Replace(strings.TrimSpace(key))
 }
 
 func (s *Service) cachedRemoteImage(ctx context.Context, kind, key, remoteURL string) ([]byte, string, error) {
@@ -4063,6 +4157,8 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.LyricsAutoSaveToSongDir = item.Value == "true"
 		case "lyrics_font_family":
 			settings.LyricsFontFamily = item.Value
+		case "lyrics_font_url":
+			settings.LyricsFontURL = item.Value
 		case "lyrics_font_size":
 			settings.LyricsFontSize, _ = strconv.Atoi(item.Value)
 		case "metadata_grouping":
@@ -4083,6 +4179,10 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 	}
 	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
 	settings.LyricsFontFamily = sanitizeFontFamily(settings.LyricsFontFamily)
+	settings.LyricsFontURL = sanitizeFontURL(settings.LyricsFontURL)
+	if settings.LyricsFontURL == "" {
+		settings.LyricsFontFamily = ""
+	}
 	settings.LyricsFontSize = normalizeLyricsFontSize(settings.LyricsFontSize)
 	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
 	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
@@ -4099,6 +4199,10 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 	settings.WebFontFamily = sanitizeFontFamily(settings.WebFontFamily)
 	settings.WebFontURL = sanitizeFontURL(settings.WebFontURL)
 	settings.LyricsFontFamily = sanitizeFontFamily(settings.LyricsFontFamily)
+	settings.LyricsFontURL = sanitizeFontURL(settings.LyricsFontURL)
+	if settings.LyricsFontURL == "" {
+		settings.LyricsFontFamily = ""
+	}
 	settings.LyricsFontSize = normalizeLyricsFontSize(settings.LyricsFontSize)
 	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
 	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
@@ -4115,6 +4219,7 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 		"web_font_url":                 settings.WebFontURL,
 		"lyrics_auto_save_to_song_dir": strconv.FormatBool(settings.LyricsAutoSaveToSongDir),
 		"lyrics_font_family":           settings.LyricsFontFamily,
+		"lyrics_font_url":              settings.LyricsFontURL,
 		"lyrics_font_size":             strconv.Itoa(settings.LyricsFontSize),
 		"metadata_grouping":            strconv.FormatBool(settings.MetadataGrouping),
 		"library_tag_writeback":        strconv.FormatBool(settings.LibraryTagWriteback),
@@ -4237,9 +4342,12 @@ func (s *Service) DeleteWebFont(ctx context.Context, name string) (models.Settin
 	if settings.WebFontURL == webFontModel(filename, 0).URL {
 		settings.WebFontFamily = ""
 		settings.WebFontURL = ""
-		return s.SaveSettings(ctx, settings)
 	}
-	return settings, nil
+	if settings.LyricsFontURL == webFontModel(filename, 0).URL {
+		settings.LyricsFontFamily = ""
+		settings.LyricsFontURL = ""
+	}
+	return s.SaveSettings(ctx, settings)
 }
 
 func webFontModel(filename string, size int64) models.WebFont {

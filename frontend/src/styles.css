@@ -146,6 +146,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .cover svg { width:62%; height:62%; opacity:.82; }
 .card-open { position:absolute; inset:0; z-index:1; width:100%; min-width:0; height:100%; min-height:0; padding:0; display:grid; place-items:center; border-radius:inherit; color:inherit; background:transparent; overflow:hidden; }
 .cover-image { position:absolute; inset:0; z-index:0; width:100%; height:100%; object-fit:cover; display:block; background:var(--panel2); transform:translateZ(0); pointer-events:none; }
+.cover-image[data-deferred='true'] { opacity:0; background:transparent; }
 .cover-image[hidden] { display:none; }
 .cover-image[data-loaded='true'] ~ svg { opacity:0 !important; }
 .media-card-title { min-width:0; min-height:0; padding:0; color:var(--text); text-align:left; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -648,9 +649,9 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .section-head.compact { margin:0 0 12px; }
 .section-head.compact h2 { font-size:clamp(20px,2vw,28px); }
 .section-head.compact button { min-height:38px; padding:8px 12px; }
-.library-summary-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.library-summary-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(132px,100%),1fr)); gap:8px; }
 .library-summary-stat { min-width:0; min-height:82px; padding:12px; border-radius:18px; background:var(--panel2); border:1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); display:grid; align-content:center; gap:4px; text-align:left; }
-.library-summary-stat strong { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:clamp(22px,3vw,38px); line-height:1; letter-spacing:-.06em; font-variant-numeric:tabular-nums; }
+.library-summary-stat strong { min-width:0; max-width:100%; overflow:visible; white-space:nowrap; font-size:clamp(22px, min(8vw, 3rem), 38px); line-height:1; letter-spacing:0; font-variant-numeric:tabular-nums; }
 .library-summary-stat span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:12px; }
 .summary-panel p { margin:12px 0 0; color:var(--muted); line-height:1.5; }
 .quick-song-list { display:grid; gap:8px; }
@@ -680,7 +681,9 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   .home-view { gap:12px; }
   .home-dashboard { gap:10px; }
   .summary-panel, .quick-panel { padding:12px; border-radius:20px; }
-  .library-summary-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .library-summary-stats { grid-template-columns:repeat(auto-fit,minmax(min(126px,100%),1fr)); }
+  .library-summary-stat { min-height:74px; padding:11px; }
+  .library-summary-stat strong { font-size:clamp(24px, 10vw, 34px); }
   .quick-song-list > button { grid-template-columns:46px minmax(0,1fr) 36px; min-height:58px; }
   .quick-song-list .mini-art { width:46px; height:46px; min-width:46px; min-height:46px; }
   .quick-shelves { gap:10px; }
@@ -2496,6 +2499,333 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
     filter:brightness(1) saturate(1);
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.12), inset 0 -18px 24px rgba(0,0,0,.18);
   }
+}
+
+/* iPod hero player style, adapted from the standalone reference and driven by site theme tokens. */
+.ipod-component {
+  --ipod-body: color-mix(in srgb, var(--panel2) 78%, #ece8e2);
+  --ipod-body-hi: color-mix(in srgb, var(--text) 14%, transparent);
+  --ipod-body-low: color-mix(in srgb, var(--bg) 22%, transparent);
+  --ipod-body-border: color-mix(in srgb, var(--line) 64%, #c8c0b8);
+  --ipod-wheel: radial-gradient(circle at 40% 38%, color-mix(in srgb, var(--panel) 82%, #f0f0f0) 20%, color-mix(in srgb, var(--panel2) 76%, #c8c0b8) 65%, color-mix(in srgb, var(--bg) 18%, #b8b0a8) 100%);
+  --ipod-wheel-text: color-mix(in srgb, var(--muted) 82%, #888078);
+  --ipod-screen: color-mix(in srgb, var(--bg) 86%, #050505);
+  --ipod-screen-border: color-mix(in srgb, var(--bg) 80%, #181818);
+  --ipod-screen-muted: color-mix(in srgb, var(--muted) 74%, #777);
+  --ipod-screen-accent: color-mix(in srgb, var(--accent) 72%, #4d80c0);
+  --ipod-port: color-mix(in srgb, var(--bg) 75%, #222);
+  width:min(286px, 100%);
+  display:grid;
+  place-items:center;
+  position:relative;
+  z-index:1;
+}
+.ipod-component.decorative { pointer-events:none; opacity:.16; filter:saturate(.8); }
+.ipod-shell {
+  position:relative;
+  width:260px;
+  min-height:452px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:24px 20px 24px;
+  border:1px solid var(--ipod-body-border);
+  border-radius:36px;
+  background:linear-gradient(160deg, var(--ipod-body-hi), transparent 22%), linear-gradient(180deg, var(--ipod-body), color-mix(in srgb, var(--ipod-body) 80%, var(--ipod-body-low)));
+  box-shadow:inset 0 2px 0 color-mix(in srgb, var(--text) 14%, transparent), inset 0 -1px 0 rgba(0,0,0,.1), 0 18px 54px rgba(0,0,0,.28), 0 2px 6px rgba(0,0,0,.14);
+  user-select:none;
+}
+.ipod-headphone-port {
+  position:absolute;
+  top:10px;
+  left:50%;
+  width:7px;
+  height:7px;
+  transform:translateX(-50%);
+  border-radius:50%;
+  background:var(--ipod-port);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.85);
+}
+.ipod-hold-switch {
+  position:absolute;
+  top:13px;
+  right:24px;
+  width:25px;
+  height:9px;
+  border-radius:999px;
+  background:color-mix(in srgb, var(--ipod-wheel-text) 46%, var(--ipod-body));
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.3);
+}
+.ipod-hold-switch::after {
+  content:'';
+  position:absolute;
+  left:2px;
+  top:1.5px;
+  width:13px;
+  height:6px;
+  border-radius:999px;
+  background:color-mix(in srgb, var(--text) 15%, var(--ipod-body));
+}
+.ipod-screen-bezel {
+  width:100%;
+  margin-bottom:20px;
+  padding:5px;
+  border-radius:10px;
+  background:var(--ipod-screen-border);
+  box-shadow:inset 0 3px 7px rgba(0,0,0,.82), 0 1px 0 color-mix(in srgb, var(--text) 18%, transparent);
+}
+.ipod-screen {
+  height:170px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border-radius:6px;
+  background:var(--ipod-screen);
+}
+.ipod-screen-topbar {
+  min-height:20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:3px 7px;
+  color:#fff;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--ipod-screen-accent) 84%, #78aae8), color-mix(in srgb, var(--ipod-screen-accent) 72%, #3060a0));
+  font-size:11px;
+  font-weight:800;
+}
+.ipod-battery { display:inline-flex; align-items:center; gap:2px; }
+.ipod-battery i {
+  position:relative;
+  width:20px;
+  height:9px;
+  overflow:hidden;
+  border:1.5px solid rgba(255,255,255,.74);
+  border-radius:2px;
+}
+.ipod-battery i::after {
+  content:'';
+  position:absolute;
+  inset:0 auto 0 0;
+  width:65%;
+  background:#4cd964;
+}
+.ipod-battery b { width:2px; height:5px; border-radius:0 1px 1px 0; background:rgba(255,255,255,.62); }
+.ipod-screen-content {
+  flex:1;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  padding:8px 8px 7px;
+}
+.ipod-now-row { min-width:0; display:flex; align-items:center; gap:8px; }
+.ipod-mini-art {
+  width:48px;
+  height:48px;
+  flex:0 0 48px;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border-radius:4px;
+  background:var(--ipod-cover-image), linear-gradient(135deg, color-mix(in srgb, var(--accent) 64%, #1a1030), color-mix(in srgb, var(--accent2) 60%, #4a2880));
+  background-size:cover;
+  background-position:center;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12), 0 4px 10px rgba(0,0,0,.24);
+}
+.ipod-mini-art[data-has-cover='true'] span { display:none; }
+.ipod-mini-art span {
+  width:22px;
+  height:22px;
+  display:grid;
+  place-items:center;
+  border:3px solid rgba(255,255,255,.18);
+  border-radius:50%;
+}
+.ipod-mini-art i { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,.28); }
+.ipod-mini-text { min-width:0; flex:1; display:grid; gap:3px; }
+.ipod-mini-text strong,
+.ipod-mini-text span {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.ipod-mini-text strong { color:#fff; font-size:12px; line-height:1.1; }
+.ipod-mini-text span { color:var(--ipod-screen-muted); font-size:10px; }
+.ipod-eq-row {
+  flex:1;
+  min-height:24px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  gap:3px;
+  padding-top:2px;
+}
+.ipod-eq-row i {
+  width:3px;
+  height:18px;
+  border-radius:2px;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--highlight) 48%, var(--ipod-screen-accent)), var(--ipod-screen-accent));
+  transform-origin:bottom;
+  animation:ipod-eq 720ms ease-in-out infinite alternate;
+  box-shadow:0 0 8px color-mix(in srgb, var(--ipod-screen-accent) 32%, transparent);
+}
+.ipod-component[data-playing='false'] .ipod-eq-row i { animation-play-state:paused; transform:scaleY(.28); opacity:.5; }
+.ipod-progress-area {
+  position:relative;
+  display:grid;
+  grid-template-rows:10px auto;
+  gap:2px;
+}
+.ipod-progress-track {
+  position:relative;
+  height:4px;
+  align-self:center;
+  overflow:visible;
+  border-radius:999px;
+  background:color-mix(in srgb, var(--ipod-screen-muted) 22%, #2a2a2a);
+}
+.ipod-progress-fill {
+  position:absolute;
+  inset:0 auto 0 0;
+  width:var(--ipod-progress-pct, 0%);
+  border-radius:999px;
+  background:linear-gradient(90deg, var(--ipod-screen-accent), color-mix(in srgb, var(--highlight) 58%, var(--ipod-screen-accent)));
+}
+.ipod-progress-fill i {
+  position:absolute;
+  right:-3px;
+  top:50%;
+  width:8px;
+  height:8px;
+  transform:translateY(-50%);
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 0 3px rgba(0,0,0,.55);
+}
+.ipod-progress-area input {
+  position:absolute;
+  left:0;
+  right:0;
+  top:-6px;
+  width:100%;
+  height:18px;
+  margin:0;
+  opacity:0;
+  cursor:pointer;
+}
+.ipod-progress-area input:disabled { cursor:not-allowed; }
+.ipod-progress-area:has(input:focus-visible) .ipod-progress-track {
+  outline:2px solid color-mix(in srgb, var(--ipod-screen-accent) 72%, transparent);
+  outline-offset:3px;
+}
+.ipod-time-row { display:flex; align-items:center; justify-content:space-between; }
+.ipod-time-row time {
+  color:color-mix(in srgb, var(--ipod-screen-muted) 78%, #555);
+  font:800 9px ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-variant-numeric:tabular-nums;
+}
+.ipod-wheel-wrap { display:grid; place-items:center; width:100%; }
+.ipod-click-wheel {
+  position:relative;
+  width:176px;
+  height:176px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:var(--ipod-wheel);
+  box-shadow:inset 0 3px 5px rgba(255,255,255,.42), inset 0 -2px 4px rgba(0,0,0,.2), 0 2px 10px rgba(0,0,0,.24);
+}
+.ipod-wheel-button {
+  position:absolute;
+  z-index:2;
+  min-width:36px;
+  width:44px;
+  height:44px;
+  min-height:36px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  color:var(--ipod-wheel-text);
+  background:transparent;
+  cursor:pointer;
+}
+.ipod-wheel-button svg { width:16px; height:16px; }
+.ipod-wheel-button:not(:disabled):hover,
+.ipod-center-button:not(:disabled):hover {
+  color:var(--accent);
+  background:color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.ipod-wheel-button:disabled,
+.ipod-center-button:disabled { opacity:.45; cursor:not-allowed; }
+.ipod-wheel-menu {
+  top:6px;
+  left:50%;
+  width:72px;
+  height:46px;
+  transform:translateX(-50%);
+  grid-template-columns:auto auto;
+  gap:4px;
+  border-radius:20px;
+  font-size:10px;
+  font-weight:900;
+}
+.ipod-wheel-menu em { display:grid; place-items:center; font-style:normal; opacity:.7; }
+.ipod-wheel-menu em svg { width:12px; height:12px; }
+.ipod-wheel-prev { left:6px; top:50%; transform:translateY(-50%); }
+.ipod-wheel-next { right:6px; top:50%; transform:translateY(-50%); }
+.ipod-wheel-play { left:50%; bottom:6px; transform:translateX(-50%); }
+.ipod-center-button {
+  z-index:3;
+  width:56px;
+  height:56px;
+  min-width:56px;
+  min-height:56px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:radial-gradient(circle at 40% 38%, color-mix(in srgb, var(--text) 14%, var(--ipod-body)) 0%, color-mix(in srgb, var(--bg) 12%, var(--ipod-body)) 100%);
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.42), inset 0 -1px 3px rgba(0,0,0,.22), 0 1px 4px rgba(0,0,0,.2);
+  cursor:pointer;
+}
+.ipod-center-button span {
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:color-mix(in srgb, var(--ipod-wheel-text) 36%, transparent);
+}
+.ipod-center-button:not(:disabled):active { transform:scale(.94); }
+.ipod-dock-port {
+  position:absolute;
+  left:50%;
+  bottom:13px;
+  width:38px;
+  height:7px;
+  transform:translateX(-50%);
+  border-radius:4px;
+  background:color-mix(in srgb, var(--ipod-port) 78%, #555);
+  box-shadow:inset 0 2px 3px rgba(0,0,0,.62);
+}
+@keyframes ipod-eq {
+  from { transform:scaleY(.28); }
+  to { transform:scaleY(1); }
+}
+@media (max-width:720px) {
+  .home-view .hero .ipod-component { width:min(100%, 300px); }
+  .home-view .hero .ipod-shell { width:250px; min-height:430px; padding:22px 18px 23px; }
+  .home-view .hero .ipod-screen { height:162px; }
+  .home-view .hero .ipod-click-wheel { width:168px; height:168px; }
+}
+@media (max-width:390px) {
+  .home-view .hero .ipod-shell { width:232px; min-height:408px; padding-inline:16px; border-radius:32px; }
+  .home-view .hero .ipod-screen { height:154px; }
+  .home-view .hero .ipod-click-wheel { width:158px; height:158px; }
+  .home-view .hero .ipod-center-button { width:52px; height:52px; min-width:52px; min-height:52px; }
 }
 @media (max-width:760px) {
   .cassette-component { padding:10px; }

@@ -3,6 +3,8 @@ package library
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -83,6 +85,7 @@ func TestSettingsPersistLyricsAndTagWritebackOptions(t *testing.T) {
 		NeteaseFallback:         true,
 		LyricsAutoSaveToSongDir: true,
 		LyricsFontFamily:        `"LXGW WenKai"`,
+		LyricsFontURL:           "/api/fonts/LXGW%20WenKai.woff2",
 		LyricsFontSize:          99,
 		LibraryTagWriteback:     true,
 		PlaybackSourceTTLHours:  24,
@@ -92,15 +95,31 @@ func TestSettingsPersistLyricsAndTagWritebackOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !saved.LyricsAutoSaveToSongDir || saved.LyricsFontFamily != "LXGW WenKai" || saved.LyricsFontSize != 72 || !saved.LibraryTagWriteback {
+	if !saved.LyricsAutoSaveToSongDir || saved.LyricsFontFamily != "LXGW WenKai" || saved.LyricsFontURL != "/api/fonts/LXGW%20WenKai.woff2" || saved.LyricsFontSize != 72 || !saved.LibraryTagWriteback {
 		t.Fatalf("unexpected saved lyrics/tag settings: %#v", saved)
 	}
 	loaded, err := service.GetSettings(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !loaded.LyricsAutoSaveToSongDir || loaded.LyricsFontFamily != "LXGW WenKai" || loaded.LyricsFontSize != 72 || !loaded.LibraryTagWriteback {
+	if !loaded.LyricsAutoSaveToSongDir || loaded.LyricsFontFamily != "LXGW WenKai" || loaded.LyricsFontURL != "/api/fonts/LXGW%20WenKai.woff2" || loaded.LyricsFontSize != 72 || !loaded.LibraryTagWriteback {
 		t.Fatalf("expected lyrics/tag settings to persist, got %#v", loaded)
+	}
+
+	cleared, err := service.SaveSettings(ctx, models.Settings{
+		Language:               "zh-CN",
+		Theme:                  "deep-space",
+		NeteaseFallback:        true,
+		LyricsFontFamily:       "Legacy Free Text",
+		PlaybackSourceTTLHours: 24,
+		TranscodePolicy:        "auto",
+		TranscodeQualityKbps:   192,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleared.LyricsFontFamily != "" || cleared.LyricsFontURL != "" {
+		t.Fatalf("expected lyrics font without uploaded font URL to be cleared, got %#v", cleared)
 	}
 }
 
@@ -114,8 +133,37 @@ func TestNewFeatureSettingsDefaultDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if settings.MetadataGrouping || settings.LibraryTagWriteback || settings.LyricsAutoSaveToSongDir || settings.LyricsFontFamily != "" || settings.LyricsFontSize != 0 || settings.SmartPlaylistsEnabled || settings.SharingEnabled || settings.SubsonicServerEnabled {
+	if settings.MetadataGrouping || settings.LibraryTagWriteback || settings.LyricsAutoSaveToSongDir || settings.LyricsFontFamily != "" || settings.LyricsFontURL != "" || settings.LyricsFontSize != 0 || settings.SmartPlaylistsEnabled || settings.SharingEnabled || settings.SubsonicServerEnabled {
 		t.Fatalf("expected new feature toggles to default disabled, got %#v", settings)
+	}
+}
+
+func TestCollectionCoverCacheStoresHitsAndMisses(t *testing.T) {
+	service := &Service{dataDir: t.TempDir()}
+
+	if err := service.writeCollectionCoverCache("albums", "12", "image/png", []byte("cover")); err != nil {
+		t.Fatal(err)
+	}
+	data, mimeType, ok, err := service.readCollectionCoverCache("albums", "12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || string(data) != "cover" || mimeType != "image/png" {
+		t.Fatalf("expected cached album cover hit, got ok=%v mime=%q data=%q", ok, mimeType, string(data))
+	}
+
+	if err := service.writeCollectionCoverMiss("albums", "12"); err != nil {
+		t.Fatal(err)
+	}
+	data, mimeType, ok, err = service.readCollectionCoverCache("albums", "12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(data) != 0 || mimeType != "" {
+		t.Fatalf("expected cached album cover miss, got ok=%v mime=%q data=%q", ok, mimeType, string(data))
+	}
+	if _, err := os.Stat(filepath.Join(service.collectionCoverCacheDir("albums"), "12.png")); !os.IsNotExist(err) {
+		t.Fatalf("expected hit cache to be removed after miss write, got err=%v", err)
 	}
 }
 

@@ -148,6 +148,7 @@ type settingsRequest struct {
 	WebFontURL              string `json:"web_font_url"`
 	LyricsAutoSaveToSongDir bool   `json:"lyrics_auto_save_to_song_dir"`
 	LyricsFontFamily        string `json:"lyrics_font_family"`
+	LyricsFontURL           string `json:"lyrics_font_url"`
 	LyricsFontSize          int    `json:"lyrics_font_size"`
 	MetadataGrouping        bool   `json:"metadata_grouping"`
 	LibraryTagWriteback     bool   `json:"library_tag_writeback"`
@@ -846,6 +847,7 @@ func (s *Server) handlePublicShareCover(c *echo.Context) error {
 		return mapError(err)
 	}
 	if len(data) == 0 {
+		c.Response().Header().Set("Cache-Control", "public, max-age=21600")
 		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
 	}
 	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
@@ -955,6 +957,7 @@ func (s *Server) handleCover(c *echo.Context) error {
 		return mapError(err)
 	}
 	if len(data) == 0 {
+		c.Response().Header().Set("Cache-Control", "public, max-age=21600")
 		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
 	}
 	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
@@ -971,6 +974,7 @@ func (s *Server) handleAlbumCover(c *echo.Context) error {
 		return mapError(err)
 	}
 	if len(data) == 0 {
+		c.Response().Header().Set("Cache-Control", "public, max-age=21600")
 		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
 	}
 	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
@@ -987,6 +991,7 @@ func (s *Server) handleArtistCover(c *echo.Context) error {
 		return mapError(err)
 	}
 	if len(data) == 0 {
+		c.Response().Header().Set("Cache-Control", "public, max-age=21600")
 		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
 	}
 	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
@@ -1627,6 +1632,7 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 		WebFontURL:              req.WebFontURL,
 		LyricsAutoSaveToSongDir: req.LyricsAutoSaveToSongDir,
 		LyricsFontFamily:        req.LyricsFontFamily,
+		LyricsFontURL:           req.LyricsFontURL,
 		LyricsFontSize:          req.LyricsFontSize,
 		MetadataGrouping:        req.MetadataGrouping,
 		LibraryTagWriteback:     req.LibraryTagWriteback,

@@ -242,6 +242,7 @@ type Settings struct {
 	WebFontURL              string `json:"web_font_url"`
 	LyricsAutoSaveToSongDir bool   `json:"lyrics_auto_save_to_song_dir"`
 	LyricsFontFamily        string `json:"lyrics_font_family"`
+	LyricsFontURL           string `json:"lyrics_font_url"`
 	LyricsFontSize          int    `json:"lyrics_font_size"`
 	MetadataGrouping        bool   `json:"metadata_grouping"`
 	LibraryTagWriteback     bool   `json:"library_tag_writeback"`
