@@ -934,9 +934,26 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		DetectLyrics: supportsEmbeddedLyrics(abs),
 		ReadLyrics:   false,
 	})
+	probedMeta := meta
 	applyMetadataFallback(abs, s.libraryDir, &meta)
-	if settings, err := s.GetSettings(ctx); err == nil && !settings.MetadataGrouping {
-		meta.AlbumArtist = meta.Artist
+	if settings, err := s.GetSettings(ctx); err == nil {
+		if !settings.MetadataGrouping {
+			meta.AlbumArtist = meta.Artist
+		}
+		if settings.LibraryTagWriteback {
+			written, err := writeBackCorrectedMetadata(abs, probedMeta, meta)
+			if err != nil {
+				return false, err
+			}
+			if written {
+				info, err = os.Stat(abs)
+				if err != nil {
+					return false, err
+				}
+				sizeBytes = info.Size()
+				modTimeUnixNano = info.ModTime().UnixNano()
+			}
+		}
 	}
 	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(abs)), ".")
 	mimeType := mime.TypeByExtension(filepath.Ext(abs))
@@ -1517,9 +1534,11 @@ const artistCatalogCacheKey = libraryCachePrefix + "catalog:v2:artists"
 const songCatalogCacheKey = libraryCachePrefix + "catalog:v2:songs"
 const transcodeWarmLeasePrefix = "runtime:v1:transcode-warm:"
 const playbackSourcePrefix = "runtime:v1:playback-source:"
+const playbackQueuePrefix = "runtime:v1:playback-queue:"
 const remoteAlbumSearchConcurrency = 3
 const searchCatalogBatchSize = 500
 const maxCatalogPredicateIDs = 5000
+const maxPlaybackQueueSongs = 500
 const defaultPlaybackSourceTTLHours = 24
 const defaultUISoundVolume = 0.85
 
@@ -1625,7 +1644,7 @@ func (s *Service) PlaybackSource(ctx context.Context, userID int) (*models.Playb
 	if err != nil || !ok {
 		return nil, err
 	}
-	if source.SourceID <= 0 || (source.Type != "album" && source.Type != "artist") {
+	if source.SourceID <= 0 || (source.Type != "album" && source.Type != "artist" && source.Type != "playlist") {
 		_ = s.ClearPlaybackSource(ctx, userID)
 		return nil, nil
 	}
@@ -1634,8 +1653,8 @@ func (s *Service) PlaybackSource(ctx context.Context, userID int) (*models.Playb
 
 func (s *Service) SavePlaybackSource(ctx context.Context, userID int, sourceType string, sourceID int) (models.PlaybackSource, error) {
 	sourceType = strings.ToLower(strings.TrimSpace(sourceType))
-	if sourceID <= 0 || (sourceType != "album" && sourceType != "artist") {
-		return models.PlaybackSource{}, errors.New("playback source must be album or artist")
+	if sourceID <= 0 || (sourceType != "album" && sourceType != "artist" && sourceType != "playlist") {
+		return models.PlaybackSource{}, errors.New("playback source must be album, artist or playlist")
 	}
 	switch sourceType {
 	case "album":
@@ -1644,6 +1663,10 @@ func (s *Service) SavePlaybackSource(ctx context.Context, userID int, sourceType
 		}
 	case "artist":
 		if _, err := s.client.Artist.Get(ctx, sourceID); err != nil {
+			return models.PlaybackSource{}, err
+		}
+	case "playlist":
+		if _, err := s.client.Playlist.Query().Where(playlist.ID(sourceID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx); err != nil {
 			return models.PlaybackSource{}, err
 		}
 	}
@@ -1670,6 +1693,80 @@ func (s *Service) ClearPlaybackSource(ctx context.Context, userID int) error {
 	return s.cache.Delete(ctx, key)
 }
 
+func (s *Service) PlaybackQueue(ctx context.Context, userID int) (*models.PlaybackQueue, error) {
+	if s.cache == nil {
+		return nil, nil
+	}
+	key, err := s.playbackQueueKey(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	var queue models.PlaybackQueue
+	ok, err := s.cacheGetJSON(ctx, key, &queue)
+	if err != nil || !ok {
+		return nil, err
+	}
+	queue.SongIDs = normalizePlaybackQueueSongIDs(queue.SongIDs, queue.CurrentID)
+	if len(queue.SongIDs) == 0 {
+		_ = s.ClearPlaybackQueue(ctx, userID)
+		return nil, nil
+	}
+	if queue.CurrentID <= 0 || !intSliceContains(queue.SongIDs, queue.CurrentID) {
+		queue.CurrentID = queue.SongIDs[0]
+	}
+	return &queue, nil
+}
+
+func (s *Service) SavePlaybackQueue(ctx context.Context, userID int, songIDs []int, currentID int) (models.PlaybackQueue, error) {
+	if s.cache == nil {
+		return models.PlaybackQueue{}, nil
+	}
+	ids := normalizePlaybackQueueSongIDs(songIDs, currentID)
+	if len(ids) == 0 {
+		return models.PlaybackQueue{}, s.ClearPlaybackQueue(ctx, userID)
+	}
+	existing, err := s.client.Song.Query().Where(song.IDIn(ids...)).Select(song.FieldID).All(ctx)
+	if err != nil {
+		return models.PlaybackQueue{}, err
+	}
+	exists := make(map[int]bool, len(existing))
+	for _, item := range existing {
+		exists[item.ID] = true
+	}
+	filtered := ids[:0]
+	for _, id := range ids {
+		if exists[id] {
+			filtered = append(filtered, id)
+		}
+	}
+	if len(filtered) == 0 {
+		return models.PlaybackQueue{}, s.ClearPlaybackQueue(ctx, userID)
+	}
+	if currentID <= 0 || !intSliceContains(filtered, currentID) {
+		currentID = filtered[0]
+	}
+	queue := models.PlaybackQueue{SongIDs: append([]int{}, filtered...), CurrentID: currentID, UpdatedAt: time.Now()}
+	key, err := s.playbackQueueKey(ctx, userID)
+	if err != nil {
+		return models.PlaybackQueue{}, err
+	}
+	if err := s.cacheSetJSONWithTTL(ctx, key, queue, s.playbackSourceTTL(ctx)); err != nil {
+		return models.PlaybackQueue{}, err
+	}
+	return queue, nil
+}
+
+func (s *Service) ClearPlaybackQueue(ctx context.Context, userID int) error {
+	if s.cache == nil {
+		return nil
+	}
+	key, err := s.playbackQueueKey(ctx, userID)
+	if err != nil {
+		return err
+	}
+	return s.cache.Delete(ctx, key)
+}
+
 func (s *Service) playbackSourceTTL(ctx context.Context) time.Duration {
 	settings, err := s.GetSettings(ctx)
 	if err != nil {
@@ -1687,6 +1784,52 @@ func (s *Service) playbackSourceKey(ctx context.Context, userID int) (string, er
 		return playbackSourcePrefix + strconv.Itoa(userID), nil
 	}
 	return playbackSourcePrefix + strconv.Itoa(userID) + ":" + deviceScope, nil
+}
+
+func (s *Service) playbackQueueKey(ctx context.Context, userID int) (string, error) {
+	if userID == 0 {
+		return "", ErrUnauthenticated
+	}
+	settings, err := s.GetPlaybackHistorySettings(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if !settings.SeparateByDevice {
+		return playbackQueuePrefix + strconv.Itoa(userID), nil
+	}
+	deviceScope := playbackDeviceTypeFromContext(ctx)
+	return playbackQueuePrefix + strconv.Itoa(userID) + ":" + deviceScope, nil
+}
+
+func normalizePlaybackQueueSongIDs(songIDs []int, currentID int) []int {
+	seen := map[int]bool{}
+	out := make([]int, 0, minInt(len(songIDs)+1, maxPlaybackQueueSongs))
+	appendID := func(id int) {
+		if id <= 0 || seen[id] || len(out) >= maxPlaybackQueueSongs {
+			return
+		}
+		seen[id] = true
+		out = append(out, id)
+	}
+	for _, id := range songIDs {
+		appendID(id)
+	}
+	if currentID > 0 && !seen[currentID] {
+		if len(out) >= maxPlaybackQueueSongs {
+			out = out[:maxPlaybackQueueSongs-1]
+		}
+		out = append([]int{currentID}, out...)
+	}
+	return out
+}
+
+func intSliceContains(items []int, target int) bool {
+	for _, item := range items {
+		if item == target {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizePlaybackSourceTTLHours(hours int) int {
@@ -1741,6 +1884,19 @@ func normalizeTranscodeQuality(kbps int) int {
 	default:
 		return kbps
 	}
+}
+
+func normalizeLyricsFontSize(px int) int {
+	if px <= 0 {
+		return 0
+	}
+	if px < 18 {
+		return 18
+	}
+	if px > 72 {
+		return 72
+	}
+	return px
 }
 
 func (s *Service) GetScrobblingSettings(ctx context.Context, userID int) (models.ScrobblingSettings, error) {
@@ -2962,7 +3118,9 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 			return models.Lyrics{SongID: id, Source: "embedded:not-found", Lyrics: ""}, nil
 		}
 		if strings.TrimSpace(item.LyricsEmbedded) != "" && strings.TrimSpace(item.LyricsSource) != "" {
-			return models.Lyrics{SongID: id, Source: item.LyricsSource, Lyrics: item.LyricsEmbedded}, nil
+			lyric := strings.TrimSpace(item.LyricsEmbedded)
+			s.saveLyricsSidecarIfEnabled(ctx, item.Path, lyric)
+			return models.Lyrics{SongID: id, Source: item.LyricsSource, Lyrics: lyric}, nil
 		}
 	}
 	if sourceID == "" {
@@ -2994,6 +3152,7 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 	if matchedSource == "" {
 		matchedSource = "online"
 	}
+	s.saveLyricsSidecarIfEnabled(ctx, item.Path, lyric)
 	update := item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(matchedSource)
 	if matchedSource == "netease" && matchedID != "" {
 		update.SetNeteaseID(matchedID)
@@ -3045,6 +3204,30 @@ func readSidecarLyrics(audioPath string) string {
 		}
 	}
 	return ""
+}
+
+func (s *Service) saveLyricsSidecarIfEnabled(ctx context.Context, audioPath, lyrics string) {
+	settings, err := s.GetSettings(ctx)
+	if err != nil || !settings.LyricsAutoSaveToSongDir {
+		return
+	}
+	_, _ = writeSidecarLyrics(audioPath, lyrics)
+}
+
+func writeSidecarLyrics(audioPath, lyrics string) (bool, error) {
+	audioPath = strings.TrimSpace(audioPath)
+	lyrics = strings.TrimSpace(lyrics)
+	if audioPath == "" || lyrics == "" {
+		return false, nil
+	}
+	target := strings.TrimSuffix(audioPath, filepath.Ext(audioPath)) + ".lrc"
+	if existing, err := os.ReadFile(target); err == nil && strings.TrimSpace(string(existing)) == lyrics {
+		return false, nil
+	}
+	if err := os.WriteFile(target, []byte(lyrics+"\n"), 0o644); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCandidate, error) {
@@ -3111,7 +3294,12 @@ func (s *Service) SelectLyrics(ctx context.Context, id int, source, sourceID str
 	if strings.TrimSpace(lyric) == "" {
 		return models.Lyrics{SongID: id, Source: source + ":not-found", Lyrics: ""}, nil
 	}
-	update := s.client.Song.UpdateOneID(id).SetLyricsEmbedded(lyric).SetLyricsSource(source)
+	item, err := s.client.Song.Query().Where(song.ID(id)).Only(ctx)
+	if err != nil {
+		return models.Lyrics{}, err
+	}
+	s.saveLyricsSidecarIfEnabled(ctx, item.Path, lyric)
+	update := item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(source)
 	if source == "netease" {
 		update.SetNeteaseID(sourceID)
 	}
@@ -3838,7 +4026,9 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 		NeteaseFallback:        true,
 		RegistrationEnabled:    false,
 		PlaybackSourceTTLHours: defaultPlaybackSourceTTLHours,
+		LyricsFontSize:         0,
 		MetadataGrouping:       false,
+		LibraryTagWriteback:    false,
 		SmartPlaylistsEnabled:  false,
 		SharingEnabled:         false,
 		SubsonicServerEnabled:  false,
@@ -3869,8 +4059,16 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.WebFontFamily = item.Value
 		case "web_font_url":
 			settings.WebFontURL = item.Value
+		case "lyrics_auto_save_to_song_dir":
+			settings.LyricsAutoSaveToSongDir = item.Value == "true"
+		case "lyrics_font_family":
+			settings.LyricsFontFamily = item.Value
+		case "lyrics_font_size":
+			settings.LyricsFontSize, _ = strconv.Atoi(item.Value)
 		case "metadata_grouping":
 			settings.MetadataGrouping = item.Value == "true"
+		case "library_tag_writeback":
+			settings.LibraryTagWriteback = item.Value == "true"
 		case "smart_playlists_enabled":
 			settings.SmartPlaylistsEnabled = item.Value == "true"
 		case "sharing_enabled":
@@ -3884,6 +4082,8 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 		}
 	}
 	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
+	settings.LyricsFontFamily = sanitizeFontFamily(settings.LyricsFontFamily)
+	settings.LyricsFontSize = normalizeLyricsFontSize(settings.LyricsFontSize)
 	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
 	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
 	return settings, nil
@@ -3898,25 +4098,31 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 	}
 	settings.WebFontFamily = sanitizeFontFamily(settings.WebFontFamily)
 	settings.WebFontURL = sanitizeFontURL(settings.WebFontURL)
+	settings.LyricsFontFamily = sanitizeFontFamily(settings.LyricsFontFamily)
+	settings.LyricsFontSize = normalizeLyricsFontSize(settings.LyricsFontSize)
 	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
 	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
 	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
 	pairs := map[string]string{
-		"language":                  settings.Language,
-		"theme":                     settings.Theme,
-		"sleep_timer_mins":          strconv.Itoa(settings.SleepTimerMins),
-		"netease_fallback":          strconv.FormatBool(settings.NeteaseFallback),
-		settingRegistrationEnabled:  strconv.FormatBool(settings.RegistrationEnabled),
-		"diagnostics_enabled":       strconv.FormatBool(settings.DiagnosticsEnabled),
-		"playback_source_ttl_hours": strconv.Itoa(settings.PlaybackSourceTTLHours),
-		"web_font_family":           settings.WebFontFamily,
-		"web_font_url":              settings.WebFontURL,
-		"metadata_grouping":         strconv.FormatBool(settings.MetadataGrouping),
-		"smart_playlists_enabled":   strconv.FormatBool(settings.SmartPlaylistsEnabled),
-		"sharing_enabled":           strconv.FormatBool(settings.SharingEnabled),
-		"subsonic_server_enabled":   strconv.FormatBool(settings.SubsonicServerEnabled),
-		"transcode_policy":          settings.TranscodePolicy,
-		"transcode_quality_kbps":    strconv.Itoa(settings.TranscodeQualityKbps),
+		"language":                     settings.Language,
+		"theme":                        settings.Theme,
+		"sleep_timer_mins":             strconv.Itoa(settings.SleepTimerMins),
+		"netease_fallback":             strconv.FormatBool(settings.NeteaseFallback),
+		settingRegistrationEnabled:     strconv.FormatBool(settings.RegistrationEnabled),
+		"diagnostics_enabled":          strconv.FormatBool(settings.DiagnosticsEnabled),
+		"playback_source_ttl_hours":    strconv.Itoa(settings.PlaybackSourceTTLHours),
+		"web_font_family":              settings.WebFontFamily,
+		"web_font_url":                 settings.WebFontURL,
+		"lyrics_auto_save_to_song_dir": strconv.FormatBool(settings.LyricsAutoSaveToSongDir),
+		"lyrics_font_family":           settings.LyricsFontFamily,
+		"lyrics_font_size":             strconv.Itoa(settings.LyricsFontSize),
+		"metadata_grouping":            strconv.FormatBool(settings.MetadataGrouping),
+		"library_tag_writeback":        strconv.FormatBool(settings.LibraryTagWriteback),
+		"smart_playlists_enabled":      strconv.FormatBool(settings.SmartPlaylistsEnabled),
+		"sharing_enabled":              strconv.FormatBool(settings.SharingEnabled),
+		"subsonic_server_enabled":      strconv.FormatBool(settings.SubsonicServerEnabled),
+		"transcode_policy":             settings.TranscodePolicy,
+		"transcode_quality_kbps":       strconv.Itoa(settings.TranscodeQualityKbps),
 	}
 	for key, value := range pairs {
 		if err := s.setSetting(ctx, key, value); err != nil {

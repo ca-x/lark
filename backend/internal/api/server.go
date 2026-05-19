@@ -102,6 +102,11 @@ type playbackSourceRequest struct {
 	SourceID int    `json:"source_id"`
 }
 
+type playbackQueueRequest struct {
+	SongIDs   []int `json:"song_ids"`
+	CurrentID int   `json:"current_id"`
+}
+
 type lyricSelectRequest struct {
 	Source string `json:"source"`
 	ID     string `json:"id"`
@@ -132,21 +137,25 @@ type networkSourceRequest struct {
 }
 
 type settingsRequest struct {
-	Language               string `json:"language"`
-	Theme                  string `json:"theme"`
-	SleepTimerMins         int    `json:"sleep_timer_mins"`
-	NeteaseFallback        bool   `json:"netease_fallback"`
-	RegistrationEnabled    bool   `json:"registration_enabled"`
-	DiagnosticsEnabled     bool   `json:"diagnostics_enabled"`
-	PlaybackSourceTTLHours int    `json:"playback_source_ttl_hours"`
-	WebFontFamily          string `json:"web_font_family"`
-	WebFontURL             string `json:"web_font_url"`
-	MetadataGrouping       bool   `json:"metadata_grouping"`
-	SmartPlaylistsEnabled  bool   `json:"smart_playlists_enabled"`
-	SharingEnabled         bool   `json:"sharing_enabled"`
-	SubsonicServerEnabled  bool   `json:"subsonic_server_enabled"`
-	TranscodePolicy        string `json:"transcode_policy"`
-	TranscodeQualityKbps   int    `json:"transcode_quality_kbps"`
+	Language                string `json:"language"`
+	Theme                   string `json:"theme"`
+	SleepTimerMins          int    `json:"sleep_timer_mins"`
+	NeteaseFallback         bool   `json:"netease_fallback"`
+	RegistrationEnabled     bool   `json:"registration_enabled"`
+	DiagnosticsEnabled      bool   `json:"diagnostics_enabled"`
+	PlaybackSourceTTLHours  int    `json:"playback_source_ttl_hours"`
+	WebFontFamily           string `json:"web_font_family"`
+	WebFontURL              string `json:"web_font_url"`
+	LyricsAutoSaveToSongDir bool   `json:"lyrics_auto_save_to_song_dir"`
+	LyricsFontFamily        string `json:"lyrics_font_family"`
+	LyricsFontSize          int    `json:"lyrics_font_size"`
+	MetadataGrouping        bool   `json:"metadata_grouping"`
+	LibraryTagWriteback     bool   `json:"library_tag_writeback"`
+	SmartPlaylistsEnabled   bool   `json:"smart_playlists_enabled"`
+	SharingEnabled          bool   `json:"sharing_enabled"`
+	SubsonicServerEnabled   bool   `json:"subsonic_server_enabled"`
+	TranscodePolicy         string `json:"transcode_policy"`
+	TranscodeQualityKbps    int    `json:"transcode_quality_kbps"`
 }
 
 type shareRequest struct {
@@ -270,6 +279,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/playback/source", s.handleGetPlaybackSource, auth)
 	e.PUT("/api/playback/source", s.handleSavePlaybackSource, auth)
 	e.DELETE("/api/playback/source", s.handleClearPlaybackSource, auth)
+	e.GET("/api/playback/queue", s.handleGetPlaybackQueue, auth)
+	e.PUT("/api/playback/queue", s.handleSavePlaybackQueue, auth)
+	e.DELETE("/api/playback/queue", s.handleClearPlaybackQueue, auth)
 	e.GET("/api/shares", s.handleListShares, auth)
 	e.POST("/api/shares", s.handleCreateShare, auth)
 	e.PATCH("/api/shares/:token", s.handleUpdateShare, auth)
@@ -854,8 +866,8 @@ func (s *Server) handleSavePlaybackSource(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	sourceType := strings.ToLower(strings.TrimSpace(req.Type))
-	if req.SourceID <= 0 || (sourceType != "album" && sourceType != "artist") {
-		return echo.NewHTTPError(http.StatusBadRequest, "playback source must be album or artist")
+	if req.SourceID <= 0 || (sourceType != "album" && sourceType != "artist" && sourceType != "playlist") {
+		return echo.NewHTTPError(http.StatusBadRequest, "playback source must be album, artist or playlist")
 	}
 	source, err := s.lib.SavePlaybackSource(c.Request().Context(), currentUserID(c), sourceType, req.SourceID)
 	if err != nil {
@@ -866,6 +878,33 @@ func (s *Server) handleSavePlaybackSource(c *echo.Context) error {
 
 func (s *Server) handleClearPlaybackSource(c *echo.Context) error {
 	if err := s.lib.ClearPlaybackSource(c.Request().Context(), currentUserID(c)); err != nil {
+		return mapError(err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) handleGetPlaybackQueue(c *echo.Context) error {
+	queue, err := s.lib.PlaybackQueue(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, models.PlaybackQueueStatus{Queue: queue})
+}
+
+func (s *Server) handleSavePlaybackQueue(c *echo.Context) error {
+	var req playbackQueueRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	queue, err := s.lib.SavePlaybackQueue(c.Request().Context(), currentUserID(c), req.SongIDs, req.CurrentID)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, models.PlaybackQueueStatus{Queue: &queue})
+}
+
+func (s *Server) handleClearPlaybackQueue(c *echo.Context) error {
+	if err := s.lib.ClearPlaybackQueue(c.Request().Context(), currentUserID(c)); err != nil {
 		return mapError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -1576,22 +1615,26 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{
-		Language:               req.Language,
-		Theme:                  req.Theme,
-		SleepTimerMins:         req.SleepTimerMins,
-		LibraryPath:            s.lib.LibraryDir(),
-		NeteaseFallback:        req.NeteaseFallback,
-		RegistrationEnabled:    req.RegistrationEnabled,
-		DiagnosticsEnabled:     req.DiagnosticsEnabled,
-		PlaybackSourceTTLHours: req.PlaybackSourceTTLHours,
-		WebFontFamily:          req.WebFontFamily,
-		WebFontURL:             req.WebFontURL,
-		MetadataGrouping:       req.MetadataGrouping,
-		SmartPlaylistsEnabled:  req.SmartPlaylistsEnabled,
-		SharingEnabled:         req.SharingEnabled,
-		SubsonicServerEnabled:  req.SubsonicServerEnabled,
-		TranscodePolicy:        req.TranscodePolicy,
-		TranscodeQualityKbps:   req.TranscodeQualityKbps,
+		Language:                req.Language,
+		Theme:                   req.Theme,
+		SleepTimerMins:          req.SleepTimerMins,
+		LibraryPath:             s.lib.LibraryDir(),
+		NeteaseFallback:         req.NeteaseFallback,
+		RegistrationEnabled:     req.RegistrationEnabled,
+		DiagnosticsEnabled:      req.DiagnosticsEnabled,
+		PlaybackSourceTTLHours:  req.PlaybackSourceTTLHours,
+		WebFontFamily:           req.WebFontFamily,
+		WebFontURL:              req.WebFontURL,
+		LyricsAutoSaveToSongDir: req.LyricsAutoSaveToSongDir,
+		LyricsFontFamily:        req.LyricsFontFamily,
+		LyricsFontSize:          req.LyricsFontSize,
+		MetadataGrouping:        req.MetadataGrouping,
+		LibraryTagWriteback:     req.LibraryTagWriteback,
+		SmartPlaylistsEnabled:   req.SmartPlaylistsEnabled,
+		SharingEnabled:          req.SharingEnabled,
+		SubsonicServerEnabled:   req.SubsonicServerEnabled,
+		TranscodePolicy:         req.TranscodePolicy,
+		TranscodeQualityKbps:    req.TranscodeQualityKbps,
 	})
 	if err != nil {
 		return mapError(err)

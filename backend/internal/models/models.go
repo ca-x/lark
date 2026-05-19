@@ -230,22 +230,26 @@ type WebFont struct {
 }
 
 type Settings struct {
-	Language               string `json:"language"`
-	Theme                  string `json:"theme"`
-	SleepTimerMins         int    `json:"sleep_timer_mins"`
-	LibraryPath            string `json:"library_path"`
-	NeteaseFallback        bool   `json:"netease_fallback"`
-	RegistrationEnabled    bool   `json:"registration_enabled"`
-	DiagnosticsEnabled     bool   `json:"diagnostics_enabled"`
-	PlaybackSourceTTLHours int    `json:"playback_source_ttl_hours"`
-	WebFontFamily          string `json:"web_font_family"`
-	WebFontURL             string `json:"web_font_url"`
-	MetadataGrouping       bool   `json:"metadata_grouping"`
-	SmartPlaylistsEnabled  bool   `json:"smart_playlists_enabled"`
-	SharingEnabled         bool   `json:"sharing_enabled"`
-	SubsonicServerEnabled  bool   `json:"subsonic_server_enabled"`
-	TranscodePolicy        string `json:"transcode_policy"`
-	TranscodeQualityKbps   int    `json:"transcode_quality_kbps"`
+	Language                string `json:"language"`
+	Theme                   string `json:"theme"`
+	SleepTimerMins          int    `json:"sleep_timer_mins"`
+	LibraryPath             string `json:"library_path"`
+	NeteaseFallback         bool   `json:"netease_fallback"`
+	RegistrationEnabled     bool   `json:"registration_enabled"`
+	DiagnosticsEnabled      bool   `json:"diagnostics_enabled"`
+	PlaybackSourceTTLHours  int    `json:"playback_source_ttl_hours"`
+	WebFontFamily           string `json:"web_font_family"`
+	WebFontURL              string `json:"web_font_url"`
+	LyricsAutoSaveToSongDir bool   `json:"lyrics_auto_save_to_song_dir"`
+	LyricsFontFamily        string `json:"lyrics_font_family"`
+	LyricsFontSize          int    `json:"lyrics_font_size"`
+	MetadataGrouping        bool   `json:"metadata_grouping"`
+	LibraryTagWriteback     bool   `json:"library_tag_writeback"`
+	SmartPlaylistsEnabled   bool   `json:"smart_playlists_enabled"`
+	SharingEnabled          bool   `json:"sharing_enabled"`
+	SubsonicServerEnabled   bool   `json:"subsonic_server_enabled"`
+	TranscodePolicy         string `json:"transcode_policy"`
+	TranscodeQualityKbps    int    `json:"transcode_quality_kbps"`
 }
 
 type ScrobblingSettings struct {
@@ -266,6 +270,16 @@ type PlaybackSource struct {
 
 type PlaybackSourceStatus struct {
 	Source *PlaybackSource `json:"source"`
+}
+
+type PlaybackQueue struct {
+	SongIDs   []int     `json:"song_ids"`
+	CurrentID int       `json:"current_id"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PlaybackQueueStatus struct {
+	Queue *PlaybackQueue `json:"queue"`
 }
 
 type LibrarySource struct {

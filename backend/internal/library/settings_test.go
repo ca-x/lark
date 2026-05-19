@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -70,6 +71,39 @@ func TestSettingsPersistPlaybackSourceTTL(t *testing.T) {
 	}
 }
 
+func TestSettingsPersistLyricsAndTagWritebackOptions(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	service := &Service{client: client}
+
+	saved, err := service.SaveSettings(ctx, models.Settings{
+		Language:                "zh-CN",
+		Theme:                   "deep-space",
+		NeteaseFallback:         true,
+		LyricsAutoSaveToSongDir: true,
+		LyricsFontFamily:        `"LXGW WenKai"`,
+		LyricsFontSize:          99,
+		LibraryTagWriteback:     true,
+		PlaybackSourceTTLHours:  24,
+		TranscodePolicy:         "auto",
+		TranscodeQualityKbps:    192,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !saved.LyricsAutoSaveToSongDir || saved.LyricsFontFamily != "LXGW WenKai" || saved.LyricsFontSize != 72 || !saved.LibraryTagWriteback {
+		t.Fatalf("unexpected saved lyrics/tag settings: %#v", saved)
+	}
+	loaded, err := service.GetSettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded.LyricsAutoSaveToSongDir || loaded.LyricsFontFamily != "LXGW WenKai" || loaded.LyricsFontSize != 72 || !loaded.LibraryTagWriteback {
+		t.Fatalf("expected lyrics/tag settings to persist, got %#v", loaded)
+	}
+}
+
 func TestNewFeatureSettingsDefaultDisabled(t *testing.T) {
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
@@ -80,7 +114,7 @@ func TestNewFeatureSettingsDefaultDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if settings.MetadataGrouping || settings.SmartPlaylistsEnabled || settings.SharingEnabled || settings.SubsonicServerEnabled {
+	if settings.MetadataGrouping || settings.LibraryTagWriteback || settings.LyricsAutoSaveToSongDir || settings.LyricsFontFamily != "" || settings.LyricsFontSize != 0 || settings.SmartPlaylistsEnabled || settings.SharingEnabled || settings.SubsonicServerEnabled {
 		t.Fatalf("expected new feature toggles to default disabled, got %#v", settings)
 	}
 }
@@ -225,7 +259,7 @@ func TestPlaybackSourceDropsInvalidKVRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := service.cacheSetJSONWithTTL(ctx, key, models.PlaybackSource{Type: "playlist", SourceID: 1}, time.Hour); err != nil {
+	if err := service.cacheSetJSONWithTTL(ctx, key, models.PlaybackSource{Type: "folder", SourceID: 1}, time.Hour); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := service.PlaybackSource(ctx, 9)
@@ -319,5 +353,129 @@ func TestPlaybackHistoryCanSeparateDeviceState(t *testing.T) {
 	}
 	if mobileSource == nil || mobileSource.Type != "artist" || mobileSource.SourceID != artistItem.ID {
 		t.Fatalf("expected mobile artist playback source, got %+v", mobileSource)
+	}
+}
+
+func TestPlaybackSourceAcceptsOwnedPlaylist(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	store := kv.NewMemoryStore()
+	defer store.Close()
+	service := &Service{client: client, cache: store}
+
+	owner, err := client.User.Create().SetUsername("playlist-owner").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := client.User.Create().SetUsername("playlist-other").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	playlistItem, err := client.Playlist.Create().SetName("Road Queue").SetOwnerID(owner.ID).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	saved, err := service.SavePlaybackSource(ctx, owner.ID, "playlist", playlistItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Type != "playlist" || saved.SourceID != playlistItem.ID {
+		t.Fatalf("unexpected playlist playback source: %+v", saved)
+	}
+	loaded, err := service.PlaybackSource(ctx, owner.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded == nil || loaded.Type != "playlist" || loaded.SourceID != playlistItem.ID {
+		t.Fatalf("expected playlist playback source to load, got %+v", loaded)
+	}
+	if _, err := service.SavePlaybackSource(ctx, other.ID, "playlist", playlistItem.ID); err == nil {
+		t.Fatal("expected playlist playback source to require ownership")
+	}
+}
+
+func TestPlaybackQueueUsesSharedAndDeviceScopedKV(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	store := kv.NewMemoryStore()
+	defer store.Close()
+	service := &Service{client: client, cache: store}
+
+	userItem, err := client.User.Create().SetUsername("queue-user").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artistItem, err := client.Artist.Create().SetName("Artist").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	albumItem, err := client.Album.Create().SetTitle("Album").SetAlbumArtist("Artist").SetArtist(artistItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	songA, err := client.Song.Create().SetTitle("A").SetPath("/music/a.flac").SetFileName("a.flac").SetArtist(artistItem).SetAlbum(albumItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	songB, err := client.Song.Create().SetTitle("B").SetPath("/music/b.flac").SetFileName("b.flac").SetArtist(artistItem).SetAlbum(albumItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	songC, err := client.Song.Create().SetTitle("C").SetPath("/music/c.flac").SetFileName("c.flac").SetArtist(artistItem).SetAlbum(albumItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pcCtx := WithPlaybackDeviceType(ctx, "pc")
+	mobileCtx := WithPlaybackDeviceType(ctx, "mobile")
+	if _, err := service.SavePlaybackQueue(pcCtx, userItem.ID, []int{songA.ID, songB.ID, songA.ID, 9999}, songB.ID); err != nil {
+		t.Fatal(err)
+	}
+	shared, err := service.PlaybackQueue(mobileCtx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shared == nil || !slices.Equal(shared.SongIDs, []int{songA.ID, songB.ID}) || shared.CurrentID != songB.ID {
+		t.Fatalf("expected queue to be shared before device separation, got %+v", shared)
+	}
+
+	if _, err := service.SavePlaybackHistorySettings(ctx, userItem.ID, models.PlaybackHistorySettings{SeparateByDevice: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SavePlaybackQueue(pcCtx, userItem.ID, []int{songA.ID}, songA.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SavePlaybackQueue(mobileCtx, userItem.ID, []int{songB.ID}, songC.ID); err != nil {
+		t.Fatal(err)
+	}
+	pcQueue, err := service.PlaybackQueue(pcCtx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mobileQueue, err := service.PlaybackQueue(mobileCtx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pcQueue == nil || !slices.Equal(pcQueue.SongIDs, []int{songA.ID}) || pcQueue.CurrentID != songA.ID {
+		t.Fatalf("expected pc queue to stay isolated, got %+v", pcQueue)
+	}
+	if mobileQueue == nil || !slices.Equal(mobileQueue.SongIDs, []int{songC.ID, songB.ID}) || mobileQueue.CurrentID != songC.ID {
+		t.Fatalf("expected mobile queue to prepend current song and stay isolated, got %+v", mobileQueue)
+	}
+	if err := service.ClearPlaybackQueue(pcCtx, userItem.ID); err != nil {
+		t.Fatal(err)
+	}
+	if cleared, err := service.PlaybackQueue(pcCtx, userItem.ID); err != nil {
+		t.Fatal(err)
+	} else if cleared != nil {
+		t.Fatalf("expected pc queue to be cleared, got %+v", cleared)
+	}
+	if stillMobile, err := service.PlaybackQueue(mobileCtx, userItem.ID); err != nil {
+		t.Fatal(err)
+	} else if stillMobile == nil || stillMobile.CurrentID != songC.ID {
+		t.Fatalf("expected mobile queue to survive pc clear, got %+v", stillMobile)
 	}
 }

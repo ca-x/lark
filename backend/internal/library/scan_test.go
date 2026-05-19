@@ -394,6 +394,36 @@ func TestReadSidecarLyricsPrefersLRCNextToAudio(t *testing.T) {
 	}
 }
 
+func TestWriteSidecarLyricsWritesSameNameLRC(t *testing.T) {
+	dir := t.TempDir()
+	audioPath := filepath.Join(dir, "track.wav")
+	if err := os.WriteFile(audioPath, []byte("audio"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	written, err := writeSidecarLyrics(audioPath, " [00:00.00]new lyric ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !written {
+		t.Fatal("expected sidecar lyric to be written")
+	}
+	target := filepath.Join(dir, "track.lrc")
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "[00:00.00]new lyric\n" {
+		t.Fatalf("unexpected sidecar lyric content: %q", string(data))
+	}
+	written, err = writeSidecarLyrics(audioPath, "[00:00.00]new lyric")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if written {
+		t.Fatal("expected unchanged sidecar lyric to be skipped")
+	}
+}
+
 func TestRelativeFolderPathRejectsEscapes(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "music")
 	outside := filepath.Join(filepath.Dir(root), "outside")
@@ -525,6 +555,43 @@ func TestApplyMetadataFallbackParsesTrackArtistTitleFromFilename(t *testing.T) {
 	}
 	if meta.AlbumArtist != "周杰伦" {
 		t.Fatalf("expected album artist to fall back to artist, got %q", meta.AlbumArtist)
+	}
+}
+
+func TestImportFileWritesCorrectedWAVTagsWhenEnabled(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	albumDir := filepath.Join(root, "叶惠美")
+	if err := os.MkdirAll(albumDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	audioPath := filepath.Join(albumDir, "01 - 周杰伦 - 晴天.wav")
+	writeMinimalWAVFile(t, audioPath)
+	client := enttest.Open(t, "sqlite3", "file:wav-tag-writeback?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: root}
+	if _, err := service.SaveSettings(ctx, models.Settings{
+		Language:               "zh-CN",
+		Theme:                  "deep-space",
+		NeteaseFallback:        true,
+		LibraryTagWriteback:    true,
+		PlaybackSourceTTLHours: 24,
+		TranscodePolicy:        "auto",
+		TranscodeQualityKbps:   192,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	added, err := service.importFile(ctx, audioPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added {
+		t.Fatal("expected WAV import to add song")
+	}
+	meta := probeWAVMetadata(audioPath)
+	if meta.Title != "晴天" || meta.Artist != "周杰伦" || meta.Album != "叶惠美" {
+		t.Fatalf("expected corrected WAV INFO tags, got title=%q artist=%q album=%q", meta.Title, meta.Artist, meta.Album)
 	}
 }
 
@@ -675,6 +742,39 @@ func wavInfoChunk(id string, value []byte) []byte {
 	out = append(out, size[:]...)
 	out = append(out, value...)
 	if len(value)%2 == 1 {
+		out = append(out, 0)
+	}
+	return out
+}
+
+func writeMinimalWAVFile(t *testing.T, path string) {
+	t.Helper()
+	fmtPayload := make([]byte, 16)
+	binary.LittleEndian.PutUint16(fmtPayload[0:2], 1)
+	binary.LittleEndian.PutUint16(fmtPayload[2:4], 1)
+	binary.LittleEndian.PutUint32(fmtPayload[4:8], 8000)
+	binary.LittleEndian.PutUint32(fmtPayload[8:12], 16000)
+	binary.LittleEndian.PutUint16(fmtPayload[12:14], 2)
+	binary.LittleEndian.PutUint16(fmtPayload[14:16], 16)
+	chunks := append(wavRawChunk("fmt ", fmtPayload), wavRawChunk("data", []byte{0, 0, 0, 0})...)
+	out := []byte("RIFF")
+	var size [4]byte
+	binary.LittleEndian.PutUint32(size[:], uint32(4+len(chunks)))
+	out = append(out, size[:]...)
+	out = append(out, []byte("WAVE")...)
+	out = append(out, chunks...)
+	if err := os.WriteFile(path, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func wavRawChunk(id string, payload []byte) []byte {
+	out := []byte(id)
+	var size [4]byte
+	binary.LittleEndian.PutUint32(size[:], uint32(len(payload)))
+	out = append(out, size[:]...)
+	out = append(out, payload...)
+	if len(payload)%2 == 1 {
 		out = append(out, 0)
 	}
 	return out

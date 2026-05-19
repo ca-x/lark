@@ -1,10 +1,14 @@
 package library
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 func probeWAVMetadata(path string) fileMetadata {
@@ -122,6 +126,9 @@ func decodeWAVInfoText(raw []byte) string {
 	}
 	if decoded, ok := tryDecodeUTF16WithoutBOM(raw); ok {
 		return cleanDecodedMetadata(decoded)
+	}
+	if utf8.Valid(raw) {
+		return cleanDecodedMetadata(string(raw))
 	}
 	if decoded, ok := bestSimplifiedChineseDecode(raw); ok {
 		return decoded
@@ -303,4 +310,150 @@ func preferredMetadataField(existing, candidate string) string {
 		return candidate
 	}
 	return existing
+}
+
+func writeBackCorrectedMetadata(path string, original, corrected fileMetadata) (bool, error) {
+	if strings.ToLower(strings.TrimPrefix(filepathExt(path), ".")) != "wav" {
+		return false, nil
+	}
+	meta := fileMetadata{
+		Title:  strings.TrimSpace(corrected.Title),
+		Artist: strings.TrimSpace(corrected.Artist),
+		Album:  strings.TrimSpace(corrected.Album),
+		Year:   corrected.Year,
+	}
+	if !metadataFieldNeedsWrite(original.Title, meta.Title) &&
+		!metadataFieldNeedsWrite(original.Artist, meta.Artist) &&
+		!metadataFieldNeedsWrite(original.Album, meta.Album) &&
+		(original.Year == meta.Year || meta.Year <= 0) {
+		return false, nil
+	}
+	return writeWAVInfoMetadata(path, meta)
+}
+
+func metadataFieldNeedsWrite(original, corrected string) bool {
+	original = strings.TrimSpace(original)
+	corrected = strings.TrimSpace(corrected)
+	if corrected == "" || original == corrected {
+		return false
+	}
+	return original == "" || metadataTextScore(corrected) > metadataTextScore(original)
+}
+
+func writeWAVInfoMetadata(path string, meta fileMetadata) (bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false, err
+	}
+	if len(data) < 12 || string(data[0:4]) != "RIFF" || string(data[8:12]) != "WAVE" {
+		return false, nil
+	}
+	listChunk := buildWAVInfoListChunk(meta)
+	if len(listChunk) == 0 {
+		return false, nil
+	}
+	out := append([]byte{}, data[:12]...)
+	replaced := false
+	for pos := 12; pos+8 <= len(data); {
+		chunkID := string(data[pos : pos+4])
+		chunkSize := int(binary.LittleEndian.Uint32(data[pos+4 : pos+8]))
+		chunkEnd := pos + 8 + chunkSize
+		if chunkSize < 0 || chunkEnd > len(data) {
+			return false, nil
+		}
+		paddedEnd := chunkEnd
+		if chunkSize%2 == 1 {
+			paddedEnd++
+		}
+		if paddedEnd > len(data) {
+			return false, nil
+		}
+		if chunkID == "LIST" && chunkSize >= 4 && string(data[pos+8:pos+12]) == "INFO" {
+			if !replaced {
+				out = append(out, listChunk...)
+				replaced = true
+			}
+		} else {
+			out = append(out, data[pos:paddedEnd]...)
+		}
+		pos = paddedEnd
+	}
+	if !replaced {
+		out = append(out, listChunk...)
+	}
+	riffSize := len(out) - 8
+	if riffSize < 0 || riffSize > int(^uint32(0)) {
+		return false, nil
+	}
+	binary.LittleEndian.PutUint32(out[4:8], uint32(riffSize))
+	if bytes.Equal(out, data) {
+		return false, nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
+	if err != nil {
+		return false, err
+	}
+	tmpPath := tmp.Name()
+	_, writeErr := tmp.Write(out)
+	closeErr := tmp.Close()
+	if writeErr != nil {
+		_ = os.Remove(tmpPath)
+		return false, writeErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmpPath)
+		return false, closeErr
+	}
+	if err := os.Chmod(tmpPath, info.Mode()); err != nil {
+		_ = os.Remove(tmpPath)
+		return false, err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return false, err
+	}
+	return true, nil
+}
+
+func buildWAVInfoListChunk(meta fileMetadata) []byte {
+	body := []byte("INFO")
+	body = append(body, wavInfoTextChunk("INAM", meta.Title)...)
+	body = append(body, wavInfoTextChunk("IART", meta.Artist)...)
+	body = append(body, wavInfoTextChunk("IPRD", meta.Album)...)
+	if meta.Year > 0 {
+		body = append(body, wavInfoTextChunk("ICRD", strconv.Itoa(meta.Year))...)
+	}
+	if len(body) == 4 {
+		return nil
+	}
+	out := []byte("LIST")
+	var size [4]byte
+	binary.LittleEndian.PutUint32(size[:], uint32(len(body)))
+	out = append(out, size[:]...)
+	out = append(out, body...)
+	if len(body)%2 == 1 {
+		out = append(out, 0)
+	}
+	return out
+}
+
+func wavInfoTextChunk(id, value string) []byte {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	payload := append([]byte(value), 0)
+	out := []byte(id)
+	var size [4]byte
+	binary.LittleEndian.PutUint32(size[:], uint32(len(payload)))
+	out = append(out, size[:]...)
+	out = append(out, payload...)
+	if len(payload)%2 == 1 {
+		out = append(out, 0)
+	}
+	return out
 }

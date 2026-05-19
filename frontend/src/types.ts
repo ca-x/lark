@@ -204,7 +204,7 @@ export interface HealthInfo {
   transcode_backend: string;
 }
 
-export type PlaybackSourceType = "album" | "artist";
+export type PlaybackSourceType = "album" | "artist" | "playlist";
 
 export interface PlaybackSource {
   type: PlaybackSourceType;
@@ -214,6 +214,16 @@ export interface PlaybackSource {
 
 export interface PlaybackSourceStatus {
   source?: PlaybackSource | null;
+}
+
+export interface PlaybackQueue {
+  song_ids: number[];
+  current_id: number;
+  updated_at: string;
+}
+
+export interface PlaybackQueueStatus {
+  queue?: PlaybackQueue | null;
 }
 
 export interface LibraryStats {
@@ -317,7 +327,11 @@ export interface Settings {
   playback_source_ttl_hours: number;
   web_font_family: string;
   web_font_url: string;
+  lyrics_auto_save_to_song_dir: boolean;
+  lyrics_font_family: string;
+  lyrics_font_size: number;
   metadata_grouping: boolean;
+  library_tag_writeback: boolean;
   smart_playlists_enabled: boolean;
   sharing_enabled: boolean;
   subsonic_server_enabled: boolean;

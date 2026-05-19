@@ -108,7 +108,11 @@ const defaultSettings: Settings = {
   playback_source_ttl_hours: 24,
   web_font_url: "",
   web_font_family: "",
+  lyrics_auto_save_to_song_dir: false,
+  lyrics_font_family: "",
+  lyrics_font_size: 0,
   metadata_grouping: false,
+  library_tag_writeback: false,
   smart_playlists_enabled: false,
   sharing_enabled: false,
   subsonic_server_enabled: false,
@@ -348,14 +352,15 @@ function persistentQueueStateKey(user: User) {
 function readPersistentQueueIDs(user: User) {
   try {
     const raw = window.localStorage.getItem(persistentQueueStateKey(user));
-    if (!raw) return { ids: [] as number[], currentId: 0 };
-    const parsed = JSON.parse(raw) as { ids?: number[]; currentId?: number };
+    if (!raw) return { ids: [] as number[], currentId: 0, updatedAt: 0 };
+    const parsed = JSON.parse(raw) as { ids?: number[]; currentId?: number; updatedAt?: number };
     return {
       ids: Array.isArray(parsed.ids) ? parsed.ids.filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE) : [],
       currentId: Number.isInteger(parsed.currentId) ? Number(parsed.currentId) : 0,
+      updatedAt: Number.isFinite(parsed.updatedAt) ? Number(parsed.updatedAt) : 0,
     };
   } catch {
-    return { ids: [] as number[], currentId: 0 };
+    return { ids: [] as number[], currentId: 0, updatedAt: 0 };
   }
 }
 
@@ -732,6 +737,12 @@ function fontFormat(url: string) {
   if (clean.endsWith(".woff")) return "woff";
   if (clean.endsWith(".otf")) return "opentype";
   return "truetype";
+}
+
+function normalizeLyricsFontSize(value?: number) {
+  const size = Number(value) || 0;
+  if (size <= 0) return 0;
+  return Math.max(18, Math.min(72, Math.round(size)));
 }
 
 function albumsFromSongs(
@@ -1273,6 +1284,7 @@ export default function App() {
   const [resumeMode, setResumeMode] = useState<ResumeMode>("resume");
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
   const [persistentQueueEnabled, setPersistentQueueEnabled] = useState(storedPersistentQueueEnabled);
+  const [queueSyncReady, setQueueSyncReady] = useState(false);
   const [scrobblingSettings, setScrobblingSettings] = useState<ScrobblingSettings | null>(null);
   const [uiSoundSettings, setUISoundSettingsState] = useState<UISoundSettings>({ enabled: false, volume: 0.85 });
   const [playbackHistorySettings, setPlaybackHistorySettings] = useState<PlaybackHistorySettings>({ separate_by_device: false });
@@ -1494,13 +1506,18 @@ export default function App() {
   }, [bassGain, trebleGain]);
 
   useEffect(() => {
-    if (!auth?.user) return;
-    if (!persistentQueueEnabled) {
+    if (!auth?.user || !queueSyncReady) return;
+    const ids = queue.map((song) => song.id).filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
+    if (persistentQueueEnabled) {
+      writePersistentQueue(auth.user, queue, current);
+    } else {
       clearPersistentQueue(auth.user);
+    }
+    if (!ids.length || !current) {
       return;
     }
-    writePersistentQueue(auth.user, queue, current);
-  }, [auth?.user?.id, persistentQueueEnabled, queue, current?.id]);
+    void api.savePlaybackQueue(ids, current.id).catch(() => undefined);
+  }, [auth?.user?.id, queueSyncReady, persistentQueueEnabled, queue, current?.id]);
 
   useEffect(() => {
     const toneActive = Math.abs(bassGain) >= 0.1 || Math.abs(trebleGain) >= 0.1;
@@ -1555,6 +1572,8 @@ export default function App() {
     window.requestAnimationFrame(() => syncLazycatChrome(settings.theme));
     const fontFamily = sanitizeFontFamily(settings.web_font_family);
     const fontURL = sanitizeUploadedFontURL(settings.web_font_url);
+    const lyricsFontFamily = sanitizeFontFamily(settings.lyrics_font_family);
+    const lyricsFontSize = normalizeLyricsFontSize(settings.lyrics_font_size);
     const fontStyleId = "lark-web-font";
     const existing = document.getElementById(fontStyleId) as HTMLStyleElement | null;
     if (fontFamily && fontURL) {
@@ -1572,7 +1591,24 @@ export default function App() {
         "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', var(--font-cjk)",
       );
     }
-  }, [settings.theme, settings.language, settings.web_font_url, settings.web_font_family, t]);
+    if (lyricsFontFamily) {
+      document.documentElement.dataset.customLyricsFont = "true";
+      document.documentElement.style.setProperty("--lyrics-font", `"${lyricsFontFamily}", var(--app-font)`);
+    } else {
+      delete document.documentElement.dataset.customLyricsFont;
+      document.documentElement.style.removeProperty("--lyrics-font");
+    }
+    if (lyricsFontSize) document.documentElement.style.setProperty("--lyrics-font-size", `${lyricsFontSize}px`);
+    else document.documentElement.style.removeProperty("--lyrics-font-size");
+  }, [
+    settings.theme,
+    settings.language,
+    settings.web_font_url,
+    settings.web_font_family,
+    settings.lyrics_font_family,
+    settings.lyrics_font_size,
+    t,
+  ]);
   useEffect(() => {
     if (!current) return;
     const shouldResume =
@@ -1927,6 +1963,7 @@ export default function App() {
   }
 
   async function loadAppData() {
+    setQueueSyncReady(false);
     const loaded = await api.settings().catch(() => defaultSettings);
     setSettings({ ...defaultSettings, ...loaded, theme: normalizeTheme(loaded.theme) });
     await refreshAll({ initializeQueue: true });
@@ -1946,6 +1983,7 @@ export default function App() {
 
   async function logout() {
     await api.logout().catch(() => undefined);
+    setQueueSyncReady(false);
     setSongs([]);
     setFavoriteSongs([]);
     setFavoriteAlbums([]);
@@ -2084,7 +2122,7 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
-    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem] =
+    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem, playbackQueueItem] =
       await Promise.all([
         api.songsPage(query, libraryPage, libraryPageSize),
         api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
@@ -2113,6 +2151,9 @@ export default function App() {
         api.scrobblingSettings().catch(() => null),
         api.uiSoundSettings().catch(() => ({ enabled: false, volume: 0.85 })),
         api.playbackHistorySettings().catch(() => ({ separate_by_device: false })),
+        options.initializeQueue && persistentQueueEnabled
+          ? api.playbackQueue().catch(() => null)
+          : Promise.resolve(null),
       ]);
     const songItems = songPageItem.items;
     setSongs(songItems);
@@ -2144,7 +2185,15 @@ export default function App() {
     let restoredCurrent: Song | null = null;
     if (options.initializeQueue && auth?.user && persistentQueueEnabled) {
       const saved = readPersistentQueueIDs(auth.user);
-      if (saved.ids.length) {
+      const serverQueue = playbackQueueItem?.queue;
+      const serverUpdatedAt = serverQueue?.updated_at ? new Date(serverQueue.updated_at).getTime() : 0;
+      const restoreIDs = serverQueue?.song_ids?.length && serverUpdatedAt > saved.updatedAt
+        ? serverQueue.song_ids
+        : saved.ids;
+      const restoreCurrentID = serverQueue?.song_ids?.length && serverUpdatedAt > saved.updatedAt
+        ? serverQueue.current_id
+        : saved.currentId;
+      if (restoreIDs.length) {
         const localSongs = new Map([
           ...songItems,
           ...dailyItems,
@@ -2152,9 +2201,9 @@ export default function App() {
           ...recentAddedItems,
           ...favoriteSongPageItem.items,
         ].map((song) => [song.id, song] as const));
-        restoredQueue = (await Promise.all(saved.ids.map((id) => localSongs.get(id) ?? api.song(id).catch(() => null))))
+        restoredQueue = (await Promise.all(restoreIDs.map((id) => localSongs.get(id) ?? api.song(id).catch(() => null))))
           .filter((song): song is Song => Boolean(song));
-        restoredCurrent = restoredQueue.find((song) => song.id === saved.currentId) ?? restoredQueue[0] ?? null;
+        restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
       }
     }
     setQueue((old) => {
@@ -2168,6 +2217,7 @@ export default function App() {
     if (nextCurrent && (nextCurrent.id !== current?.id || nextCurrent !== current)) {
       setCurrent(nextCurrent);
     }
+    if (options.initializeQueue) setQueueSyncReady(true);
     setCollection((old) => {
       if (!old) return old;
       return {
@@ -2308,18 +2358,45 @@ export default function App() {
     }
   }
 
+  async function songsForPlaybackQueueIDs(ids: number[]) {
+    const localSongs = new Map([
+      ...queue,
+      ...songs,
+      ...dailyMix,
+      ...recentPlayedSongs,
+      ...recentAddedSongs,
+      ...favoriteSongs,
+    ].map((song) => [song.id, song] as const));
+    return (await Promise.all(ids.map((id) => localSongs.get(id) ?? api.song(id).catch(() => null))))
+      .filter((song): song is Song => Boolean(song));
+  }
+
+  async function playFromStoredPlaybackQueue(song: Song) {
+    const status = await api.playbackQueue().catch(() => null);
+    const ids = status?.queue?.song_ids?.filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE) ?? [];
+    if (!ids.includes(song.id)) return false;
+    const items = await songsForPlaybackQueueIDs(ids);
+    const matched = items.find((item) => item.id === song.id);
+    if (!matched) return false;
+    void playSong(matched, items, { startMode: "resume" });
+    return true;
+  }
+
   async function resumePlayback(song: Song) {
     const status = await api.playbackSource().catch(() => null);
     const source = status?.source;
     if (!source) {
+      if (await playFromStoredPlaybackQueue(song)) return;
       void playSong(song, [song], { startMode: "resume" });
       return;
     }
 
     const sourceMatchesSong =
       (source.type === "album" && song.album_id === source.source_id) ||
-      (source.type === "artist" && song.artist_id === source.source_id);
+      (source.type === "artist" && song.artist_id === source.source_id) ||
+      source.type === "playlist";
     if (!sourceMatchesSong) {
+      if (await playFromStoredPlaybackQueue(song)) return;
       queuePlaybackSourceMutation(api.clearPlaybackSource);
       void playSong(song, [song], { startMode: "resume" });
       return;
@@ -2328,6 +2405,8 @@ export default function App() {
     const items = await (
       source.type === "album"
         ? api.albumSongs(source.source_id, RESUME_SOURCE_QUEUE_LIMIT)
+        : source.type === "playlist"
+          ? api.playlistSongs(source.source_id, RESUME_SOURCE_QUEUE_LIMIT)
         : api.artistSongs(source.source_id, RESUME_SOURCE_QUEUE_LIMIT)
     ).catch(() => []);
     const matched = items.find((item) => item.id === song.id);
@@ -2758,6 +2837,23 @@ export default function App() {
   }
 
   async function saveSettings(nextSettings: Settings) {
+    if (
+      nextSettings.transcode_quality_kbps !== settings.transcode_quality_kbps &&
+      currentRef.current &&
+      streamModeRef.current === "adaptive"
+    ) {
+      const audio = audioRef.current;
+      const resumeAt = Math.max(0, streamOffsetRef.current + (audio?.currentTime || 0));
+      resumeSeekRef.current = resumeAt;
+      pendingAutoplayRef.current = playingRef.current || pendingAutoplayRef.current;
+      setStreamOffset(resumeAt);
+      setProgress(resumeAt);
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      if (pendingAutoplayRef.current) setBuffering(true);
+    }
     setSettings(nextSettings);
     const saved = await api.saveSettings(nextSettings).catch(() => nextSettings);
     setSettings({ ...defaultSettings, ...saved, theme: normalizeTheme(saved.theme) });
@@ -2961,7 +3057,7 @@ export default function App() {
   }
 
   function playbackSourceForCollection(target: Collection): PlaybackSourceInput | undefined {
-    if (!target.id || (target.type !== "album" && target.type !== "artist")) return undefined;
+    if (!target.id || (target.type !== "album" && target.type !== "artist" && target.type !== "playlist")) return undefined;
     return { type: target.type, source_id: target.id };
   }
 
@@ -3188,7 +3284,7 @@ export default function App() {
 
   async function playPlaylist(playlist: Playlist) {
     const items = await api.playlistSongs(playlist.id, MAX_PLAYBACK_QUEUE_SIZE);
-    if (items[0]) void playSong(items[0], items);
+    if (items[0]) void playSong(items[0], items, { source: { type: "playlist", source_id: playlist.id } });
   }
 
   async function playSmartPlaylist(playlist: SmartPlaylist) {
@@ -6770,6 +6866,7 @@ function SettingsPanel({
   const [nickname, setNickname] = useState(user.nickname || user.username);
   const [avatarDataURL, setAvatarDataURL] = useState(user.avatar_data_url || "");
   const [webFontFamily, setWebFontFamily] = useState(settings.web_font_family || "");
+  const [lyricsFontFamily, setLyricsFontFamily] = useState(settings.lyrics_font_family || "");
   const [libraryPathInput, setLibraryPathInput] = useState("");
   const [libraryNoteInput, setLibraryNoteInput] = useState("");
   const [libraryDirError, setLibraryDirError] = useState("");
@@ -6805,6 +6902,10 @@ function SettingsPanel({
   useEffect(() => {
     setWebFontFamily(settings.web_font_family || "");
   }, [settings.web_font_family]);
+
+  useEffect(() => {
+    setLyricsFontFamily(settings.lyrics_font_family || "");
+  }, [settings.lyrics_font_family]);
 
   useEffect(() => {
     if (activeTab !== "site") return;
@@ -7493,6 +7594,77 @@ function SettingsPanel({
               <button type="button" className="feature-entry-button" onClick={onOpenPlaylists}>
                 {t("openFeatureEntry")} · {t("playlists")}
               </button>
+              <label className="switch-row">
+                <span>
+                  <span>{t("libraryTagWriteback")}</span>
+                  <small>{t("libraryTagWritebackHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.library_tag_writeback}
+                  onChange={(e) => setSettings({ ...settings, library_tag_writeback: e.target.checked })}
+                />
+              </label>
+            </div>
+          ) : null}
+          {user.role === "admin" ? (
+            <div className="font-settings-card settings-wide-row">
+              <div>
+                <strong>{t("lyricsSettings")}</strong>
+                <span>{t("lyricsAutoSaveHint")}</span>
+              </div>
+              <label className="switch-row">
+                <span>
+                  <span>{t("lyricsAutoSave")}</span>
+                  <small>{t("lyricsAutoSaveHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.lyrics_auto_save_to_song_dir}
+                  onChange={(e) => setSettings({ ...settings, lyrics_auto_save_to_song_dir: e.target.checked })}
+                />
+              </label>
+              <div className="settings-mini-grid">
+                <label>
+                  {t("lyricsFontFamily")}
+                  <input
+                    value={lyricsFontFamily}
+                    placeholder={t("lyricsFontFamilyPlaceholder")}
+                    onChange={(event) => setLyricsFontFamily(event.target.value)}
+                  />
+                </label>
+                <label>
+                  {t("lyricsFontSize")}
+                  <input
+                    type="number"
+                    min={18}
+                    max={72}
+                    step={1}
+                    value={settings.lyrics_font_size || ""}
+                    placeholder={t("lyricsFontSizeDefault")}
+                    onChange={(event) =>
+                      setSettings({ ...settings, lyrics_font_size: normalizeLyricsFontSize(Number(event.target.value)) })
+                    }
+                  />
+                </label>
+              </div>
+              <div className="font-actions">
+                <button
+                  type="button"
+                  onClick={() => setSettings({ ...settings, lyrics_font_family: sanitizeFontFamily(lyricsFontFamily) })}
+                >
+                  {t("saveFontSettings")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLyricsFontFamily("");
+                    setSettings({ ...settings, lyrics_font_family: "", lyrics_font_size: 0 });
+                  }}
+                >
+                  {t("useDefaultFont")}
+                </button>
+              </div>
             </div>
           ) : null}
           {user.role === "admin" ? (
