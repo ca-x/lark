@@ -105,7 +105,7 @@ export function AlbumSlidePlayer({
           </div>
         </div>
         <div className="album-slide-cover" data-has-cover={cover ? "true" : "false"}>
-          {!cover ? <Record weight="fill" /> : null}
+          {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
         </div>
       </div>
     </div>
