@@ -164,7 +164,11 @@ function ArtistAlbumShowcase({
       moved: false,
     };
     node.dataset.dragging = "false";
-    node.setPointerCapture(event.pointerId);
+    try {
+      node.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic pointer events may not have an active pointer to capture.
+    }
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
