@@ -80,6 +80,10 @@ async function handleMessage(type, payload) {
   if (type === "GET_OFFLINE_USAGE") {
     return offlineUsage();
   }
+  if (type === "DELETE_URLS") {
+    const urls = Array.isArray(payload?.urls) ? payload.urls.filter(Boolean) : [];
+    return deleteURLs(urls);
+  }
   if (type === "CLEAR_OFFLINE_CACHE") {
     await caches.delete(OFFLINE_CACHE);
     await caches.open(OFFLINE_CACHE);
@@ -108,6 +112,12 @@ async function cacheURLs(urls, failOnError = true) {
   }));
   if (failOnError && failures.length) throw new Error(failures[0]);
   return { cached, failed: failures.length };
+}
+
+async function deleteURLs(urls) {
+  const cache = await caches.open(OFFLINE_CACHE);
+  const deleted = await Promise.all(urls.map((url) => cache.delete(url, { ignoreVary: true })));
+  return { deleted: deleted.filter(Boolean).length };
 }
 
 async function precacheShell() {

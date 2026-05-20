@@ -1,4 +1,4 @@
-import { ArrowClockwise, Trash } from "@phosphor-icons/react";
+import { ArrowClockwise, FolderOpen } from "@phosphor-icons/react";
 import type { OfflineCacheUsage } from "./cache";
 
 type OfflineSettingsCardProps = {
@@ -6,12 +6,10 @@ type OfflineSettingsCardProps = {
   usageLabel: string;
   description: string;
   refreshLabel: string;
-  clearLabel: string;
-  clearing: boolean;
-  disabled: boolean;
+  manageLabel: string;
   formatBytes: (bytes: number) => string;
   onRefresh: () => void;
-  onClear: () => void;
+  onManage: () => void;
 };
 
 export function OfflineSettingsCard({
@@ -19,12 +17,10 @@ export function OfflineSettingsCard({
   usageLabel,
   description,
   refreshLabel,
-  clearLabel,
-  clearing,
-  disabled,
+  manageLabel,
   formatBytes,
   onRefresh,
-  onClear,
+  onManage,
 }: OfflineSettingsCardProps) {
   return (
     <div className="offline-settings-card settings-wide-row">
@@ -44,13 +40,11 @@ export function OfflineSettingsCard({
         </button>
         <button
           type="button"
-          className="danger"
-          disabled={disabled || clearing}
-          onClick={onClear}
-          title={clearLabel}
-          aria-label={clearLabel}
+          onClick={onManage}
+          title={manageLabel}
+          aria-label={manageLabel}
         >
-          <Trash />
+          <FolderOpen />
         </button>
       </div>
     </div>

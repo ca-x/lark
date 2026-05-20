@@ -22,6 +22,9 @@ import {
   Playlist as PlaylistIcon,
   Plus,
   CopySimple,
+  CheckCircle,
+  CircleNotch,
+  DownloadSimple,
   Queue,
   Record,
   Repeat,
@@ -69,8 +72,11 @@ import {
   offlineCachedSongIds,
   offlineSongEntries,
   readOfflineSongIndex,
+  removeOfflineSongEntry,
   upsertOfflineSongEntry,
   type OfflineCacheUsage,
+  OfflineLibraryPanel,
+  type OfflineSongEntry,
   OfflineCacheButton,
   type OfflineCacheButtonState,
   OfflineSettingsCard,
@@ -262,7 +268,7 @@ type ThemeLabel =
   | "foobarLight";
 type ThemeMode = "dark" | "light";
 type SettingsTab = "profile" | "users" | "site";
-type LibraryTab = "songs" | "folders" | "network" | "radio";
+type LibraryTab = "songs" | "offline" | "folders" | "network" | "radio";
 type Collection = {
   type: "playlist" | "album" | "artist";
   id?: number;
@@ -280,7 +286,14 @@ type Collection = {
 type OfflineCacheControls = {
   cachedSongIds: Set<number>;
   cachingSongIds: Set<number>;
+  entries: OfflineSongEntry[];
+  usage: OfflineCacheUsage;
+  clearing: boolean;
+  removingKeys: Set<string>;
   onCacheSong: (song: Song) => void;
+  onCacheSongs: (songs: Song[]) => void;
+  onRemoveSong: (entry: OfflineSongEntry) => void;
+  onClearAll: () => void;
 };
 const themes: { id: Theme; label: ThemeLabel; mode: ThemeMode }[] = [
   { id: "deep-space", label: "deepSpace", mode: "dark" },
@@ -328,11 +341,12 @@ const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
 const HOME_PLAYER_STYLE_KEY = "lark.home-player-style";
 const ARTIST_ALBUM_DISPLAY_STYLE_KEY = "lark.artist-album-display-style";
 const PERSISTENT_QUEUE_KEY = "lark.persistent-queue-enabled";
+const AUTO_CACHE_PLAYED_KEY = "lark.auto-cache-played-enabled";
 const AUTH_REDIRECT_KEY = "lark.auth.redirect";
 const defaultLibraryTab: LibraryTab = "songs";
 
 function normalizeLibraryTab(value?: string | null): LibraryTab {
-  return value === "folders" || value === "network" || value === "radio" || value === "songs"
+  return value === "folders" || value === "network" || value === "radio" || value === "offline" || value === "songs"
     ? value
     : defaultLibraryTab;
 }
@@ -424,6 +438,23 @@ function rememberLibraryTab(tab: LibraryTab) {
     window.localStorage.setItem(LIBRARY_SOURCE_TAB_KEY, tab);
   } catch {
     // localStorage can be unavailable in private/webview modes; local source remains default.
+  }
+}
+
+function storedAutoCachePlayedEnabled() {
+  try {
+    return window.localStorage.getItem(AUTO_CACHE_PLAYED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberAutoCachePlayedEnabled(enabled: boolean) {
+  try {
+    if (enabled) window.localStorage.setItem(AUTO_CACHE_PLAYED_KEY, "1");
+    else window.localStorage.removeItem(AUTO_CACHE_PLAYED_KEY);
+  } catch {
+    // localStorage can be unavailable in private/webview modes.
   }
 }
 
@@ -775,6 +806,10 @@ function defaultStreamMode(song?: Song | null): StreamMode {
   if (song.bit_rate > 320_000 || song.size_bytes > 28 * 1024 * 1024)
     return "adaptive";
   return "auto";
+}
+
+function shouldPreferOfflinePlayback(offlineMode: boolean, networkReachable: boolean) {
+  return offlineMode || !networkReachable;
 }
 
 function sanitizeFontFamily(value?: string) {
@@ -1277,6 +1312,8 @@ export default function App() {
   const [offlineCachingIds, setOfflineCachingIds] = useState<Set<number>>(() => new Set());
   const [offlineUsage, setOfflineUsage] = useState<OfflineCacheUsage>(emptyOfflineUsage);
   const [offlineClearing, setOfflineClearing] = useState(false);
+  const [offlineRemovingKeys, setOfflineRemovingKeys] = useState<Set<string>>(() => new Set());
+  const [autoCachePlayed, setAutoCachePlayed] = useState(storedAutoCachePlayedEnabled);
   const [route, setRoute] = useState(() => currentBrowserRoute());
   const [songs, setSongs] = useState<Song[]>([]);
   const [recentPlayedSongs, setRecentPlayedSongs] = useState<Song[]>([]);
@@ -1419,6 +1456,10 @@ export default function App() {
   const streamOffsetRef = useRef(0);
   const resumeModeRef = useRef<ResumeMode>(resumeMode);
   const offlineModeRef = useRef(false);
+  const networkReachableRef = useRef(networkReachable);
+  const autoCachePlayedRef = useRef(autoCachePlayed);
+  const autoCacheTriggeredRef = useRef<Set<number>>(new Set());
+  const offlineReconnectRef = useRef(false);
   const playbackStartModeRef = useRef<PlaybackStartMode>("resume");
   const audioOutputSnapshotRef = useRef<AudioOutputSnapshot | null>(null);
   currentRef.current = current;
@@ -1433,8 +1474,11 @@ export default function App() {
   streamOffsetRef.current = streamOffset;
   resumeModeRef.current = resumeMode;
   offlineModeRef.current = offlineMode;
+  networkReachableRef.current = networkReachable;
+  autoCachePlayedRef.current = autoCachePlayed;
   const t = useMemo(() => createT(settings.language), [settings.language]);
   const offlineCachedIds = useMemo(() => offlineCachedSongIds(offlineIndex), [offlineIndex]);
+  const offlineEntries = useMemo(() => offlineSongEntries(offlineIndex), [offlineIndex]);
   const libraryPageSize = pageSizing.songs;
   const gridPageSize = pageSizing.cards;
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
@@ -1546,13 +1590,34 @@ export default function App() {
 
   useEffect(() => {
     const updateNetworkState = () => setNetworkReachable(navigator.onLine);
+    updateNetworkState();
+    const timer = window.setInterval(updateNetworkState, 3000);
     window.addEventListener("online", updateNetworkState);
     window.addEventListener("offline", updateNetworkState);
     return () => {
+      window.clearInterval(timer);
       window.removeEventListener("online", updateNetworkState);
       window.removeEventListener("offline", updateNetworkState);
     };
   }, []);
+
+  useEffect(() => {
+    if (!offlineMode) return;
+    let canceled = false;
+    const tryReconnect = () => {
+      if (canceled || !navigator.onLine || offlineReconnectRef.current) return;
+      offlineReconnectRef.current = true;
+      void bootstrap().finally(() => {
+        offlineReconnectRef.current = false;
+      });
+    };
+    tryReconnect();
+    const timer = window.setInterval(tryReconnect, 5000);
+    return () => {
+      canceled = true;
+      window.clearInterval(timer);
+    };
+  }, [offlineMode]);
 
   useEffect(() => {
     void refreshOfflineCacheUsage();
@@ -1749,7 +1814,9 @@ export default function App() {
       playbackStartModeRef.current === "resume" && resumeModeRef.current === "resume";
     const resume = shouldResume ? resumePosition(current) : 0;
     playbackStartModeRef.current = "restart";
-    const cachedEntry = findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps);
+    const cachedEntry = shouldPreferOfflinePlayback(offlineMode, networkReachable)
+      ? findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps)
+      : undefined;
     const nextMode = cachedEntry ? "auto" : defaultStreamMode(current);
     resumeSeekRef.current = resume;
     setProgress(resume);
@@ -1769,12 +1836,17 @@ export default function App() {
       .finally(() => setLyricsLoading(false));
   }, [current?.id]);
   useEffect(() => {
-    if (!current || !findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps)) return;
-    if (streamModeRef.current !== "auto") {
+    if (!current) return;
+    const cachedEntry = findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps);
+    if (shouldPreferOfflinePlayback(offlineMode, networkReachable) && cachedEntry && streamModeRef.current !== "auto") {
       setStreamMode("auto");
       setStreamOffset(0);
+      return;
     }
-  }, [current?.id, offlineIndex, settings.transcode_quality_kbps]);
+    if (!offlineMode && networkReachable && cachedEntry && streamModeRef.current === "auto") {
+      setStreamMode(defaultStreamMode(current));
+    }
+  }, [current?.id, networkReachable, offlineIndex, offlineMode, settings.transcode_quality_kbps]);
   const requestAudioPlay = useCallback(() => {
     const audio = audioRef.current;
     const song = currentRef.current;
@@ -2109,7 +2181,7 @@ export default function App() {
   }, [lyricsFullScreen, mobilePlayerExpanded]);
 
   useLayoutEffect(() => {
-    if (view !== "home" || lyricsFullScreen) return;
+    if (lyricsFullScreen) return;
     mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [view, lyricsFullScreen]);
 
@@ -2158,6 +2230,8 @@ export default function App() {
     setFolders([]);
     setQueue(cachedSongs);
     setCurrent((old) => old ?? cachedSongs[0] ?? null);
+    rememberLibraryTab("offline");
+    setQuery("");
     setView("library");
     return true;
   }
@@ -2175,6 +2249,8 @@ export default function App() {
       await clearOfflineCache();
       setOfflineIndex({});
       setOfflineUsage(emptyOfflineUsage);
+      setOfflineRemovingKeys(new Set());
+      autoCacheTriggeredRef.current.clear();
       if (offlineModeRef.current) {
         setSongs([]);
         setLibrarySongPage({ items: [], total: 0, limit: libraryPageSize, offset: 0, page: 1 });
@@ -2188,11 +2264,62 @@ export default function App() {
     }
   }
 
-  async function cacheSongOffline(song: Song) {
-    if (offlineCachedIds.has(song.id) || offlineCachingIds.has(song.id)) return;
+  function setAutoCachePlayedSetting(enabled: boolean) {
+    setAutoCachePlayed(enabled);
+    rememberAutoCachePlayedEnabled(enabled);
+    if (!enabled) autoCacheTriggeredRef.current.clear();
+  }
+
+  function openOfflineCacheManager() {
+    rememberLibraryTab("offline");
+    setQuery("");
+    setLibraryPage(1);
+    setView("library");
+  }
+
+  async function removeOfflineCachedSong(entry: OfflineSongEntry) {
+    const key = `${entry.song.id}:${entry.quality}`;
+    if (offlineRemovingKeys.has(key)) return;
+    if (!window.confirm(t("offlineCacheRemoveConfirm").replace("{title}", entry.song.title))) return;
+    setOfflineRemovingKeys((old) => new Set(old).add(key));
+    try {
+      const nextIndex = await removeOfflineSongEntry(entry.song.id, entry.quality);
+      setOfflineIndex(nextIndex);
+      await refreshOfflineCacheUsage();
+      autoCacheTriggeredRef.current.delete(entry.song.id);
+      if (offlineModeRef.current) {
+        const cachedSongs = uniqueSongs(offlineSongEntries(nextIndex).map((item) => item.song), MAX_PLAYBACK_QUEUE_SIZE);
+        setSongs(cachedSongs);
+        setLibrarySongPage({
+          items: cachedSongs.slice(0, libraryPageSize),
+          total: cachedSongs.length,
+          limit: libraryPageSize,
+          offset: 0,
+          page: 1,
+        });
+        setQueue((old) => old.filter((song) => song.id !== entry.song.id));
+        setCurrent((old) => (old?.id === entry.song.id ? cachedSongs[0] ?? null : old));
+        if (!cachedSongs.length) setPlaying(false);
+      }
+      showMessage(t("offlineCacheRemoved"));
+    } finally {
+      setOfflineRemovingKeys((old) => {
+        const next = new Set(old);
+        next.delete(key);
+        return next;
+      });
+    }
+  }
+
+  async function cacheSongOffline(song: Song, options: { silent?: boolean } = {}) {
     const quality = settings.transcode_quality_kbps || 192;
+    const storedIndex = readOfflineSongIndex();
+    if (offlineCachedSongIds(storedIndex).has(song.id) || offlineCachingIds.has(song.id)) {
+      setOfflineIndex(storedIndex);
+      return false;
+    }
     setOfflineCachingIds((old) => new Set(old).add(song.id));
-    showMessage(t("offlineCachePreparing"), 0);
+    if (!options.silent) showMessage(t("offlineCachePreparing"), 0);
     try {
       let status = await api.prepareOfflineSong(song.id, quality);
       for (let attempt = 0; status.status !== "ready" && attempt < OFFLINE_STATUS_MAX_POLLS; attempt += 1) {
@@ -2208,9 +2335,11 @@ export default function App() {
       const nextIndex = upsertOfflineSongEntry(status, song);
       setOfflineIndex(nextIndex);
       await refreshOfflineCacheUsage();
-      showMessage(t("offlineCacheReady"));
+      if (!options.silent) showMessage(t("offlineCacheReady"));
+      return true;
     } catch (error) {
-      showMessage(readableErrorMessage(error, t("offlineCacheFailed")));
+      if (!options.silent) showMessage(readableErrorMessage(error, t("offlineCacheFailed")));
+      return false;
     } finally {
       setOfflineCachingIds((old) => {
         const next = new Set(old);
@@ -2218,6 +2347,43 @@ export default function App() {
         return next;
       });
     }
+  }
+
+  async function cacheSongsOffline(items: Song[]) {
+    const targets = uniqueSongs(items).filter((song) => !offlineCachedSongIds(readOfflineSongIndex()).has(song.id));
+    if (!targets.length) {
+      showMessage(t("offlineCacheBatchAlready"));
+      return;
+    }
+    showMessage(t("offlineCacheBatchPreparing").replace("{count}", String(targets.length)), 0);
+    let cached = 0;
+    for (const song of targets) {
+      if (offlineCachedSongIds(readOfflineSongIndex()).has(song.id)) continue;
+      if (await cacheSongOffline(song, { silent: true })) cached += 1;
+    }
+    await refreshOfflineCacheUsage();
+    showMessage(
+      cached > 0
+        ? t("offlineCacheBatchReady").replace("{count}", String(cached))
+        : t("offlineCacheFailed"),
+    );
+  }
+
+  function maybeAutoCachePlayedSong(song: Song | null, currentProgress: number, currentDuration: number, completed = false) {
+    if (!song || !autoCachePlayedRef.current || offlineModeRef.current || !networkReachableRef.current) return;
+    if (currentRadioRef.current || currentNetworkTrackRef.current) return;
+    if (
+      findOfflineSongEntry(readOfflineSongIndex(), song.id, settings.transcode_quality_kbps) ||
+      offlineCachingIds.has(song.id) ||
+      autoCacheTriggeredRef.current.has(song.id)
+    ) return;
+    const resolvedDuration = currentDuration || song.duration_seconds || 0;
+    const threshold = resolvedDuration > 0 ? Math.min(30, Math.max(5, resolvedDuration * 0.8)) : 30;
+    if (!completed && currentProgress < threshold) return;
+    autoCacheTriggeredRef.current.add(song.id);
+    void cacheSongOffline(song, { silent: true }).then((cached) => {
+      if (!cached) autoCacheTriggeredRef.current.delete(song.id);
+    });
   }
 
   async function bootstrap() {
@@ -2324,6 +2490,7 @@ export default function App() {
       Number.isFinite(mediaDuration) && mediaDuration && mediaDuration > 0
         ? mediaDuration
         : duration || current.duration_seconds || 0;
+    maybeAutoCachePlayedSong(current, currentProgress, currentDuration, completed);
     const now = Date.now();
     const last = lastProgressSyncRef.current;
     if (
@@ -2338,9 +2505,11 @@ export default function App() {
       at: now,
       progress: currentProgress,
     };
-    void api
-      .saveProgress(current.id, currentProgress, currentDuration, completed)
-      .catch(() => undefined);
+    if (!offlineModeRef.current && networkReachableRef.current) {
+      void api
+        .saveProgress(current.id, currentProgress, currentDuration, completed)
+        .catch(() => undefined);
+    }
   }
 
   function updateBuffered(media: HTMLAudioElement) {
@@ -3641,6 +3810,16 @@ export default function App() {
     if (items[0]) void playSong(items[0], items, { source: { type: "album", source_id: album.id } });
   }
 
+  async function cacheCollectionOffline(target: Collection) {
+    const source =
+      target.songs.length
+        ? target.songs
+        : target.type === "album" && target.id
+          ? await api.albumSongs(target.id)
+        : [];
+    await cacheSongsOffline(source);
+  }
+
   async function playArtist(artist: Artist) {
     const items = await api.artistSongs(artist.id, MAX_PLAYBACK_QUEUE_SIZE);
     if (items[0]) void playSong(items[0], items, { source: { type: "artist", source_id: artist.id } });
@@ -3720,11 +3899,24 @@ export default function App() {
     ? ({ "--cover-url": `url(${currentArtwork})` } as React.CSSProperties)
     : undefined;
   const currentOfflineEntry = current ? findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps) : undefined;
-  const currentStreamUrl = currentRadio?.url || currentNetworkTrack?.stream_url || currentOfflineEntry?.audio_url || streamUrl(current, streamMode, streamOffset, settings.transcode_quality_kbps);
+  const shouldUseOfflineAudio = Boolean(currentOfflineEntry && shouldPreferOfflinePlayback(offlineMode, networkReachable));
+  const currentStreamUrl =
+    currentRadio?.url ||
+    currentNetworkTrack?.stream_url ||
+    (shouldUseOfflineAudio
+      ? currentOfflineEntry?.audio_url
+      : streamUrl(current, streamMode, streamOffset, settings.transcode_quality_kbps));
   const offlineCacheControls: OfflineCacheControls = {
     cachedSongIds: offlineCachedIds,
     cachingSongIds: offlineCachingIds,
+    entries: offlineEntries,
+    usage: offlineUsage,
+    clearing: offlineClearing,
+    removingKeys: offlineRemovingKeys,
     onCacheSong: (song) => void cacheSongOffline(song),
+    onCacheSongs: (items) => void cacheSongsOffline(items),
+    onRemoveSong: (entry) => void removeOfflineCachedSong(entry),
+    onClearAll: () => void clearOfflineCacheData(),
   };
   const nowTitle = current?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("nowPlaying");
   const radioDownloadSpeed = radioDownloadKbps > 0 ? `${t("downloadSpeed")} ${formatDownloadSpeed(radioDownloadKbps)}` : "";
@@ -4070,6 +4262,7 @@ export default function App() {
                 onInsertNext={(items) => insertNextBatch(items)}
                 offlineCache={offlineCacheControls}
                 onInsertCollection={() => void insertCollectionNext(collection)}
+                onCacheCollection={() => void cacheCollectionOffline(collection)}
                 onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
                 onShareCollection={
                   settings.sharing_enabled && collection.id
@@ -4232,9 +4425,10 @@ export default function App() {
                 playbackHistorySettings={playbackHistorySettings}
                 onPlaybackHistorySettingsChange={setPlaybackHistorySettings}
                 offlineUsage={offlineUsage}
-                offlineClearing={offlineClearing}
+                autoCachePlayed={autoCachePlayed}
+                onAutoCachePlayedChange={setAutoCachePlayedSetting}
                 onRefreshOfflineUsage={() => void refreshOfflineCacheUsage()}
-                onClearOfflineCache={() => void clearOfflineCacheData()}
+                onManageOfflineCache={openOfflineCacheManager}
                 scrobblingSettings={scrobblingSettings}
                 onScrobblingSettingsChange={setScrobblingSettings}
                 activeTab={settingsTab}
@@ -5970,6 +6164,7 @@ function CollectionView({
   onInsertNext,
   offlineCache,
   onInsertCollection,
+  onCacheCollection,
   onShareSong,
   onShareCollection,
   onFavoriteCollection,
@@ -5992,6 +6187,7 @@ function CollectionView({
   onInsertNext: (songs: Song[]) => void;
   offlineCache: OfflineCacheControls;
   onInsertCollection: () => void;
+  onCacheCollection?: () => void;
   onShareSong?: (song: Song) => void;
   onShareCollection?: () => void;
   onFavoriteCollection?: () => void;
@@ -6012,6 +6208,12 @@ function CollectionView({
         : albumsFromSongs(collection.songs, collection.artistId, collection.artistName),
     [collection],
   );
+  const collectionCacheKnown = collection.songs.length > 0;
+  const collectionFullyCached =
+    collectionCacheKnown && collection.songs.every((song) => offlineCache.cachedSongIds.has(song.id));
+  const collectionCaching =
+    collectionCacheKnown && collection.songs.some((song) => offlineCache.cachingSongIds.has(song.id));
+  const cacheCollectionLabel = collectionFullyCached ? t("offlineCacheAllReady") : t("offlineCacheAllAlbum");
 
   return (
     <section className="collection-view">
@@ -6055,6 +6257,24 @@ function CollectionView({
             >
               <SkipForward /> {t("insertNext")}
             </button>
+            {collection.type === "album" && onCacheCollection ? (
+              <button
+                className={collectionFullyCached ? "active" : ""}
+                disabled={!hasResolvableSongs || collectionCaching || collectionFullyCached}
+                onClick={onCacheCollection}
+                title={cacheCollectionLabel}
+                aria-label={cacheCollectionLabel}
+              >
+                {collectionFullyCached ? (
+                  <CheckCircle weight="fill" />
+                ) : collectionCaching ? (
+                  <CircleNotch weight="bold" className="offline-cache-spinner" />
+                ) : (
+                  <DownloadSimple />
+                )}
+                {cacheCollectionLabel}
+              </button>
+            ) : null}
             {onFavoriteCollection ? (
               <button
                 className={collection.favorite ? "active" : ""}
@@ -6293,6 +6513,12 @@ function LibraryView({
           {t("folderBrowser")} · {folders.length}
         </button>
         <button
+          className={tab === "offline" ? "active" : ""}
+          onClick={() => setTab("offline")}
+        >
+          {t("offlineCacheTab")} · {offlineCache.entries.length}
+        </button>
+        <button
           className={tab === "network" ? "active" : ""}
           onClick={() => setTab("network")}
         >
@@ -6314,6 +6540,34 @@ function LibraryView({
         />
       ) : tab === "radio" ? (
         <LibraryRadioSources sources={radioSources} t={t} onOpenRadio={onOpenRadio} onPlayRadio={onPlayRadio} />
+      ) : tab === "offline" ? (
+        <OfflineLibraryPanel
+          entries={offlineCache.entries}
+          usage={offlineCache.usage}
+          current={current}
+          labels={{
+            title: t("offlineCacheTab"),
+            description: t("offlineCacheLibraryHint"),
+            empty: t("offlineCacheEmpty"),
+            play: t("play"),
+            playNext: t("playNext"),
+            addToPlaylist: t("addToPlaylist"),
+            remove: t("offlineCacheRemove"),
+            clearAll: t("clearOfflineCache"),
+            cachedAt: t("offlineCacheCachedAt"),
+            quality: t("quality"),
+            entries: t("songs"),
+          }}
+          clearing={offlineCache.clearing}
+          removingKeys={offlineCache.removingKeys}
+          formatBytes={(bytes) => bytes > 0 ? formatBytes(bytes) : "0 KB"}
+          formatDateTime={formatDateTime}
+          onPlay={onPlay}
+          onInsertNext={onInsertNext}
+          onAdd={onAdd}
+          onRemove={offlineCache.onRemoveSong}
+          onClearAll={offlineCache.onClearAll}
+        />
       ) : tab === "folders" ? (
         <FolderBrowser
           current={current}
@@ -7328,9 +7582,10 @@ function SettingsPanel({
   playbackHistorySettings,
   onPlaybackHistorySettingsChange,
   offlineUsage,
-  offlineClearing,
+  autoCachePlayed,
+  onAutoCachePlayedChange,
   onRefreshOfflineUsage,
-  onClearOfflineCache,
+  onManageOfflineCache,
   scrobblingSettings,
   onScrobblingSettingsChange,
   activeTab,
@@ -7358,9 +7613,10 @@ function SettingsPanel({
   playbackHistorySettings: PlaybackHistorySettings;
   onPlaybackHistorySettingsChange: (settings: PlaybackHistorySettings) => void;
   offlineUsage: OfflineCacheUsage;
-  offlineClearing: boolean;
+  autoCachePlayed: boolean;
+  onAutoCachePlayedChange: (enabled: boolean) => void;
   onRefreshOfflineUsage: () => void;
-  onClearOfflineCache: () => void;
+  onManageOfflineCache: () => void;
   scrobblingSettings: ScrobblingSettings | null;
   onScrobblingSettingsChange: (settings: ScrobblingSettings) => void;
   activeTab: SettingsTab;
@@ -7782,13 +8038,22 @@ function SettingsPanel({
             usageLabel={t("offlineCacheUsage")}
             description={t("offlineCacheUsageHint")}
             refreshLabel={t("refresh")}
-            clearLabel={t("clearOfflineCache")}
-            clearing={offlineClearing}
-            disabled={offlineUsage.entries === 0}
+            manageLabel={t("offlineCacheManage")}
             formatBytes={(bytes) => bytes > 0 ? formatBytes(bytes) : "0 KB"}
             onRefresh={onRefreshOfflineUsage}
-            onClear={onClearOfflineCache}
+            onManage={onManageOfflineCache}
           />
+          <label className="switch-row settings-wide-row">
+            <span>
+              <span>{t("offlineCacheAutoPlayed")}</span>
+              <small>{t("offlineCacheAutoPlayedHint")}</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={autoCachePlayed}
+              onChange={(e) => onAutoCachePlayedChange(e.target.checked)}
+            />
+          </label>
           <div className="switch-row settings-wide-row">
             <span>
               <span>{t("uiSounds")}</span>

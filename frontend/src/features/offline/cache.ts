@@ -49,7 +49,11 @@ function safeParseIndex(value: string | null): OfflineSongIndex {
 }
 
 function writeOfflineSongIndex(index: OfflineSongIndex) {
-  window.localStorage.setItem(OFFLINE_INDEX_KEY, JSON.stringify(index));
+  if (Object.keys(index).length) {
+    window.localStorage.setItem(OFFLINE_INDEX_KEY, JSON.stringify(index));
+    return;
+  }
+  clearOfflineSongIndex();
 }
 
 export function readOfflineSongIndex(): OfflineSongIndex {
@@ -148,6 +152,12 @@ async function cacheURLsWithoutServiceWorker(urls: string[], failOnError = true)
   if (failOnError && failures.length) throw new Error(failures[0]);
 }
 
+async function deleteURLsWithoutServiceWorker(urls: string[]) {
+  if (!("caches" in window)) return;
+  const cache = await caches.open(OFFLINE_CACHE_NAME);
+  await Promise.all(urls.map((url) => cache.delete(url, { ignoreVary: true })));
+}
+
 export async function cacheOfflineSongAssets(status: OfflineAudioStatus) {
   if (!status.audio_url) throw new Error(status.error || "offline audio is not ready");
   try {
@@ -192,6 +202,22 @@ export async function offlineCacheUsage(): Promise<OfflineCacheUsage> {
   } catch {
     return offlineUsageWithoutServiceWorker();
   }
+}
+
+export async function removeOfflineSongEntry(songId: number, quality: number) {
+  const index = readOfflineSongIndex();
+  const key = offlineEntryKey(songId, quality);
+  const entry = index[key];
+  if (!entry) return index;
+  const urls = [entry.audio_url, entry.cover_url].filter(Boolean) as string[];
+  try {
+    await postToServiceWorker("DELETE_URLS", { urls });
+  } catch {
+    await deleteURLsWithoutServiceWorker(urls);
+  }
+  delete index[key];
+  writeOfflineSongIndex(index);
+  return index;
 }
 
 export async function clearOfflineCache() {
