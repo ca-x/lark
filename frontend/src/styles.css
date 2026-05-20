@@ -3645,12 +3645,22 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   z-index:2;
   display:grid;
   place-items:center;
+  isolation:isolate;
   color:var(--bg);
   background:transparent;
   border:1px solid color-mix(in srgb, var(--text) 14%, transparent);
   overflow:hidden;
 }
+.album-slide-cover[data-has-cover='true']::before {
+  content:'';
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:var(--album-slide-surface);
+}
 .album-slide-cover img {
+  position:relative;
+  z-index:1;
   width:100%;
   height:100%;
   display:block;
