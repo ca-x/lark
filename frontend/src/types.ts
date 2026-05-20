@@ -173,6 +173,18 @@ export interface AuthStatus {
   user?: User;
 }
 
+export interface OfflineAudioStatus {
+  song_id: number;
+  quality: number;
+  status: "ready" | "building" | "missing" | "failed" | string;
+  audio_url?: string;
+  cover_url?: string;
+  size_bytes: number;
+  etag?: string;
+  error?: string;
+  song?: Song;
+}
+
 export interface MCPTokenStatus {
   configured: boolean;
   hint: string;

@@ -69,6 +69,18 @@ type AuthStatus struct {
 	User                *User `json:"user,omitempty"`
 }
 
+type OfflineAudioStatus struct {
+	SongID    int    `json:"song_id"`
+	Quality   int    `json:"quality"`
+	Status    string `json:"status"`
+	AudioURL  string `json:"audio_url,omitempty"`
+	CoverURL  string `json:"cover_url,omitempty"`
+	SizeBytes int64  `json:"size_bytes,omitempty"`
+	ETag      string `json:"etag,omitempty"`
+	Error     string `json:"error,omitempty"`
+	Song      *Song  `json:"song,omitempty"`
+}
+
 type MCPTokenStatus struct {
 	Configured bool   `json:"configured"`
 	Hint       string `json:"hint"`

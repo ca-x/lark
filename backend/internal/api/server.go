@@ -44,6 +44,7 @@ type Server struct {
 	transcodeWarmersActive int
 	transcodeWarmTTL       time.Duration
 	transcodeWarmLimit     int
+	offlineTranscodeErrors sync.Map
 	diagnosticsEnabled     atomic.Bool
 }
 
@@ -55,7 +56,14 @@ type transcodeCacheLock struct {
 const (
 	defaultTranscodeWarmTTL   = 2 * time.Minute
 	defaultTranscodeWarmLimit = 2
+	offlinePrepareTimeout     = 15 * time.Minute
+	offlineFailureTTL         = 10 * time.Minute
 )
+
+type offlineTranscodeError struct {
+	message string
+	at      time.Time
+}
 
 type Option func(*Server)
 
@@ -294,6 +302,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.POST("/api/shares", s.handleCreateShare, auth)
 	e.PATCH("/api/shares/:token", s.handleUpdateShare, auth)
 	e.DELETE("/api/shares/:token", s.handleDeleteShare, auth)
+	e.POST("/api/offline/songs/:id/prepare", s.handlePrepareOfflineSong, auth)
+	e.GET("/api/offline/songs/:id/status", s.handleOfflineSongStatus, auth)
+	e.GET("/api/offline/songs/:id/audio", s.handleOfflineSongAudio, auth)
 	e.GET("/api/songs/:id/stream", s.handleStream, auth)
 	e.GET("/api/songs/:id/cover", s.handleCover, auth)
 	e.GET("/api/songs/:id/lyrics/candidates", s.handleLyricCandidates, auth)
@@ -975,6 +986,260 @@ func (s *Server) streamSong(c *echo.Context, id int) error {
 		return s.transcodeAudio(c, item.Path)
 	}
 	return echo.NewHTTPError(http.StatusBadRequest, "mode must be auto, raw or transcode")
+}
+
+func (s *Server) handlePrepareOfflineSong(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	item, err := s.lib.RawSong(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	quality, err := transcodeQuality(c.QueryParam("quality"))
+	if err != nil {
+		return err
+	}
+	status, _, err := s.offlineAudioStatus(c.Request().Context(), currentUserID(c), item, quality, true)
+	if err != nil {
+		return mapError(err)
+	}
+	if status.Status == "ready" {
+		return c.JSON(http.StatusOK, status)
+	}
+	ffmpeg := strings.TrimSpace(s.lib.FFmpegBin())
+	if ffmpeg == "" {
+		status.Status = "failed"
+		status.Error = "ffmpeg is not configured for this audio format"
+		return c.JSON(http.StatusUnsupportedMediaType, status)
+	}
+	started, err := s.startOfflineTranscodePrepare(ffmpeg, item.Path, quality)
+	if err != nil {
+		return mapError(err)
+	}
+	if !started {
+		status.Status = "failed"
+		status.Error = "transcode queue is busy"
+		return c.JSON(http.StatusTooManyRequests, status)
+	}
+	status.Status = "building"
+	status.Error = ""
+	return c.JSON(http.StatusAccepted, status)
+}
+
+func (s *Server) handleOfflineSongStatus(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	item, err := s.lib.RawSong(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	quality, err := transcodeQuality(c.QueryParam("quality"))
+	if err != nil {
+		return err
+	}
+	status, _, err := s.offlineAudioStatus(c.Request().Context(), currentUserID(c), item, quality, true)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, status)
+}
+
+func (s *Server) handleOfflineSongAudio(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	item, err := s.lib.RawSong(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	quality, err := transcodeQuality(c.QueryParam("quality"))
+	if err != nil {
+		return err
+	}
+	status, readyPath, err := s.offlineAudioStatus(c.Request().Context(), currentUserID(c), item, quality, false)
+	if err != nil {
+		return mapError(err)
+	}
+	if status.Status != "ready" || readyPath == "" {
+		code := http.StatusNotFound
+		if status.Status == "building" {
+			code = http.StatusAccepted
+		} else if status.Status == "failed" {
+			code = http.StatusConflict
+		}
+		return c.JSON(code, status)
+	}
+	return serveOfflineAudioFile(c, readyPath, status.ETag)
+}
+
+func (s *Server) offlineAudioStatus(ctx context.Context, userID int, item *ent.Song, quality int, includeSong bool) (models.OfflineAudioStatus, string, error) {
+	version := offlineAudioVersion(item, quality)
+	status := models.OfflineAudioStatus{
+		SongID:   item.ID,
+		Quality:  quality,
+		Status:   "missing",
+		AudioURL: fmt.Sprintf("/api/offline/songs/%d/audio?quality=%d&v=%s", item.ID, quality, version),
+		CoverURL: fmt.Sprintf("/api/songs/%d/cover", item.ID),
+	}
+	if includeSong {
+		songModel, err := s.lib.Song(ctx, userID, item.ID)
+		if err != nil {
+			return status, "", err
+		}
+		status.Song = &songModel
+	}
+	cachePath, err := s.transcodeCachePath(item.Path, quality)
+	if err != nil {
+		return status, "", err
+	}
+	if size, ok := cachedAudioFileSize(cachePath); ok {
+		status.Status = "ready"
+		status.SizeBytes = size
+		status.ETag = offlineAudioETag(item, quality, "transcode")
+		return status, cachePath, nil
+	}
+	if isMP3Source(item) {
+		if size, ok := sourceAudioFileSize(item.Path); ok {
+			status.Status = "ready"
+			status.SizeBytes = size
+			status.ETag = offlineAudioETag(item, quality, "source")
+			return status, item.Path, nil
+		}
+	}
+	if message := s.offlineTranscodeError(cachePath); message != "" {
+		status.Status = "failed"
+		status.Error = message
+		return status, "", nil
+	}
+	if _, ok := s.transcodeCacheWarmers.Load(cachePath); ok {
+		status.Status = "building"
+		return status, "", nil
+	}
+	return status, "", nil
+}
+
+func (s *Server) startOfflineTranscodePrepare(ffmpeg, sourcePath string, quality int) (bool, error) {
+	cachePath, err := s.transcodeCachePath(sourcePath, quality)
+	if err != nil {
+		return false, err
+	}
+	s.offlineTranscodeErrors.Delete(cachePath)
+	if validCachedFile(cachePath) {
+		return false, nil
+	}
+	if _, ok := s.transcodeCacheWarmers.Load(cachePath); ok {
+		return true, nil
+	}
+	if !s.reserveTranscodeWarmer(cachePath) {
+		return false, nil
+	}
+	parent := s.ctx
+	if parent == nil {
+		parent = context.Background()
+	}
+	acquired, err := s.lib.TryAcquireTranscodeWarmLease(parent, cachePath, offlinePrepareTimeout)
+	if err != nil {
+		s.releaseTranscodeWarmer(cachePath)
+		return false, err
+	}
+	if !acquired {
+		s.releaseTranscodeWarmer(cachePath)
+		return true, nil
+	}
+	s.transcodeWarmersWG.Add(1)
+	go func() {
+		defer s.transcodeWarmersWG.Done()
+		defer s.releaseTranscodeWarmer(cachePath)
+		defer s.lib.ReleaseTranscodeWarmLease(parent, cachePath)
+		ctx, cancel := context.WithTimeout(parent, offlinePrepareTimeout)
+		defer cancel()
+		if _, err := s.ensureTranscodeCache(ctx, ffmpeg, sourcePath, quality); err != nil {
+			s.offlineTranscodeErrors.Store(cachePath, offlineTranscodeError{message: err.Error(), at: time.Now()})
+		}
+	}()
+	return true, nil
+}
+
+func (s *Server) offlineTranscodeError(cachePath string) string {
+	value, ok := s.offlineTranscodeErrors.Load(cachePath)
+	if !ok {
+		return ""
+	}
+	item, ok := value.(offlineTranscodeError)
+	if !ok || time.Since(item.at) > offlineFailureTTL {
+		s.offlineTranscodeErrors.Delete(cachePath)
+		return ""
+	}
+	return item.message
+}
+
+func isMP3Source(item *ent.Song) bool {
+	format := strings.ToLower(strings.TrimPrefix(item.Format, "."))
+	mimeType := strings.ToLower(item.Mime)
+	return format == "mp3" || mimeType == "audio/mpeg" || strings.EqualFold(filepath.Ext(item.Path), ".mp3")
+}
+
+func cachedAudioFileSize(path string) (int64, bool) {
+	info, err := os.Stat(path)
+	if err != nil || info.Size() < transcodeChunkSize/4 {
+		return 0, false
+	}
+	return info.Size(), true
+}
+
+func sourceAudioFileSize(path string) (int64, bool) {
+	info, err := os.Stat(path)
+	if err != nil || info.Size() <= 0 {
+		return 0, false
+	}
+	return info.Size(), true
+}
+
+func offlineAudioETag(item *ent.Song, quality int, source string) string {
+	return `"` + offlineAudioVersionWithSource(item, quality, source) + `"`
+}
+
+func offlineAudioVersion(item *ent.Song, quality int) string {
+	source := "transcode"
+	if isMP3Source(item) {
+		source = "source"
+	}
+	return offlineAudioVersionWithSource(item, quality, source)
+}
+
+func offlineAudioVersionWithSource(item *ent.Song, quality int, source string) string {
+	seed := strings.TrimSpace(item.ContentHash)
+	if seed == "" {
+		seed = fmt.Sprintf("%s:%d:%d", item.Path, item.SizeBytes, item.ModTimeUnixNano)
+	}
+	sum := sha1.Sum([]byte(fmt.Sprintf("%s:%s:%s:%d", seed, strings.ToLower(item.Format), source, quality)))
+	return hex.EncodeToString(sum[:])
+}
+
+func serveOfflineAudioFile(c *echo.Context, path, etag string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return mapError(err)
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return mapError(err)
+	}
+	header := c.Response().Header()
+	header.Set("Accept-Ranges", "bytes")
+	header.Set("Cache-Control", "private, max-age=604800, immutable")
+	header.Set("Content-Type", "audio/mpeg")
+	if etag != "" {
+		header.Set("ETag", etag)
+	}
+	http.ServeContent(c.Response(), c.Request(), filepath.Base(path), info.ModTime(), file)
+	return nil
 }
 
 func (s *Server) handleCover(c *echo.Context) error {

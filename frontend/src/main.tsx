@@ -1,7 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { registerServiceWorker } from './features/offline'
 import './styles.css'
+
+void registerServiceWorker().catch(() => undefined)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

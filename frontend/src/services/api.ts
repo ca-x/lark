@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
 
 function currentDeviceType() {
   if (typeof navigator === 'undefined') return 'pc'
@@ -67,6 +67,8 @@ export const api = {
   playbackQueue: () => request<PlaybackQueueStatus>('/api/playback/queue'),
   savePlaybackQueue: (song_ids: number[], current_id: number) => request<PlaybackQueueStatus>('/api/playback/queue', { method: 'PUT', body: JSON.stringify({ song_ids, current_id }) }),
   clearPlaybackQueue: () => request<void>('/api/playback/queue', { method: 'DELETE' }),
+  prepareOfflineSong: (id: number, quality = 192) => request<OfflineAudioStatus>(`/api/offline/songs/${id}/prepare?quality=${quality}`, { method: 'POST' }),
+  offlineSongStatus: (id: number, quality = 192) => request<OfflineAudioStatus>(`/api/offline/songs/${id}/status?quality=${quality}`),
   shares: () => request<ShareList>('/api/shares'),
   createShare: (type: Share['type'], id: number, expires_at?: string) => request<Share>('/api/shares', { method: 'POST', body: JSON.stringify({ type, id, expires_at: expires_at || null }) }),
   updateShare: (token: string, expires_at?: string) => request<Share>(`/api/shares/${encodeURIComponent(token)}`, { method: 'PATCH', body: JSON.stringify({ expires_at: expires_at || null }) }),

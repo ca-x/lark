@@ -61,6 +61,21 @@ import {
   type AudioOutputSnapshot,
 } from "./services/playbackControl";
 import { playUISound, previewUISound, setUISoundSettings } from "./services/uiSounds";
+import {
+  cacheOfflineSongAssets,
+  clearOfflineCache,
+  findOfflineSongEntry,
+  offlineCacheUsage,
+  offlineCachedSongIds,
+  offlineSongEntries,
+  readOfflineSongIndex,
+  upsertOfflineSongEntry,
+  type OfflineCacheUsage,
+  OfflineCacheButton,
+  type OfflineCacheButtonState,
+  OfflineSettingsCard,
+  type OfflineSongIndex,
+} from "./features/offline";
 import type {
   Album,
   AlbumPage,
@@ -182,9 +197,17 @@ const MAX_PLAYBACK_QUEUE_SIZE = 500;
 const RESUME_SOURCE_QUEUE_LIMIT = 50;
 const FAVORITES_FETCH_LIMIT = 500;
 const COLLECTION_DETAIL_SONG_LIMIT = MAX_PLAYBACK_QUEUE_SIZE;
+const OFFLINE_STATUS_POLL_MS = 1400;
+const OFFLINE_STATUS_MAX_POLLS = 120;
 type PageSizing = {
   songs: number;
   cards: number;
+};
+
+const emptyOfflineUsage: OfflineCacheUsage = {
+  bytes: 0,
+  entries: 0,
+  audio_entries: 0,
 };
 
 function clampPageSize(value: number, min: number, max: number) {
@@ -254,6 +277,11 @@ type Collection = {
   artistId?: number;
   artistName?: string;
 };
+type OfflineCacheControls = {
+  cachedSongIds: Set<number>;
+  cachingSongIds: Set<number>;
+  onCacheSong: (song: Song) => void;
+};
 const themes: { id: Theme; label: ThemeLabel; mode: ThemeMode }[] = [
   { id: "deep-space", label: "deepSpace", mode: "dark" },
   { id: "amber-film", label: "amberFilm", mode: "dark" },
@@ -315,6 +343,23 @@ function storedLibraryTab(): LibraryTab {
   } catch {
     return defaultLibraryTab;
   }
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function offlineUser(): User {
+  const now = new Date(0).toISOString();
+  return {
+    id: -1,
+    username: "offline",
+    nickname: "Offline",
+    avatar_data_url: "",
+    role: "user",
+    created_at: now,
+    updated_at: now,
+  };
 }
 
 function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
@@ -490,6 +535,17 @@ function friendlyLoadError(error: unknown, t: ReturnType<typeof createT>) {
     return t("loadTimeout");
   }
   return t("loadFailed");
+}
+
+function readableErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (!message) return fallback;
+  try {
+    const parsed = JSON.parse(message) as { error?: string; message?: string };
+    return parsed.error || parsed.message || fallback;
+  } catch {
+    return message;
+  }
 }
 
 function normalizeTheme(theme: string): Theme {
@@ -1215,6 +1271,12 @@ export default function App() {
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [networkReachable, setNetworkReachable] = useState(() => navigator.onLine);
+  const [offlineIndex, setOfflineIndex] = useState<OfflineSongIndex>(() => readOfflineSongIndex());
+  const [offlineCachingIds, setOfflineCachingIds] = useState<Set<number>>(() => new Set());
+  const [offlineUsage, setOfflineUsage] = useState<OfflineCacheUsage>(emptyOfflineUsage);
+  const [offlineClearing, setOfflineClearing] = useState(false);
   const [route, setRoute] = useState(() => currentBrowserRoute());
   const [songs, setSongs] = useState<Song[]>([]);
   const [recentPlayedSongs, setRecentPlayedSongs] = useState<Song[]>([]);
@@ -1356,6 +1418,7 @@ export default function App() {
   const streamModeRef = useRef<StreamMode>(streamMode);
   const streamOffsetRef = useRef(0);
   const resumeModeRef = useRef<ResumeMode>(resumeMode);
+  const offlineModeRef = useRef(false);
   const playbackStartModeRef = useRef<PlaybackStartMode>("resume");
   const audioOutputSnapshotRef = useRef<AudioOutputSnapshot | null>(null);
   currentRef.current = current;
@@ -1369,7 +1432,9 @@ export default function App() {
   streamModeRef.current = streamMode;
   streamOffsetRef.current = streamOffset;
   resumeModeRef.current = resumeMode;
+  offlineModeRef.current = offlineMode;
   const t = useMemo(() => createT(settings.language), [settings.language]);
+  const offlineCachedIds = useMemo(() => offlineCachedSongIds(offlineIndex), [offlineIndex]);
   const libraryPageSize = pageSizing.songs;
   const gridPageSize = pageSizing.cards;
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
@@ -1477,6 +1542,20 @@ export default function App() {
 
   useEffect(() => {
     void bootstrap();
+  }, []);
+
+  useEffect(() => {
+    const updateNetworkState = () => setNetworkReachable(navigator.onLine);
+    window.addEventListener("online", updateNetworkState);
+    window.addEventListener("offline", updateNetworkState);
+    return () => {
+      window.removeEventListener("online", updateNetworkState);
+      window.removeEventListener("offline", updateNetworkState);
+    };
+  }, []);
+
+  useEffect(() => {
+    void refreshOfflineCacheUsage();
   }, []);
 
   useEffect(() => {
@@ -1670,7 +1749,8 @@ export default function App() {
       playbackStartModeRef.current === "resume" && resumeModeRef.current === "resume";
     const resume = shouldResume ? resumePosition(current) : 0;
     playbackStartModeRef.current = "restart";
-    const nextMode = defaultStreamMode(current);
+    const cachedEntry = findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps);
+    const nextMode = cachedEntry ? "auto" : defaultStreamMode(current);
     resumeSeekRef.current = resume;
     setProgress(resume);
     setDuration(current.duration_seconds || 0);
@@ -1688,6 +1768,13 @@ export default function App() {
       .catch(() => setLyrics(null))
       .finally(() => setLyricsLoading(false));
   }, [current?.id]);
+  useEffect(() => {
+    if (!current || !findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps)) return;
+    if (streamModeRef.current !== "auto") {
+      setStreamMode("auto");
+      setStreamOffset(0);
+    }
+  }, [current?.id, offlineIndex, settings.transcode_quality_kbps]);
   const requestAudioPlay = useCallback(() => {
     const audio = audioRef.current;
     const song = currentRef.current;
@@ -2043,6 +2130,96 @@ export default function App() {
     container.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
   }, [activeLyric, lyricsFullScreen]);
 
+  function activateOfflineSession(index = readOfflineSongIndex()) {
+    const cachedSongs = uniqueSongs(offlineSongEntries(index).map((entry) => entry.song), MAX_PLAYBACK_QUEUE_SIZE);
+    if (!cachedSongs.length) return false;
+    setOfflineMode(true);
+    setOfflineIndex(index);
+    setSettings(defaultSettings);
+    setAuth({ initialized: true, registration_enabled: false, user: offlineUser() });
+    setSongs(cachedSongs);
+    setLibrarySongPage({
+      items: cachedSongs.slice(0, libraryPageSize),
+      total: cachedSongs.length,
+      limit: libraryPageSize,
+      offset: 0,
+      page: 1,
+    });
+    setRecentPlayedSongs([]);
+    setRecentAddedSongs([]);
+    setDailyMix([]);
+    setFavoriteSongs([]);
+    setFavoriteAlbums([]);
+    setFavoriteArtists([]);
+    setAlbums([]);
+    setArtists([]);
+    setPlaylists([]);
+    setSmartPlaylists([]);
+    setFolders([]);
+    setQueue(cachedSongs);
+    setCurrent((old) => old ?? cachedSongs[0] ?? null);
+    setView("library");
+    return true;
+  }
+
+  async function refreshOfflineCacheUsage() {
+    const usage = await offlineCacheUsage().catch(() => emptyOfflineUsage);
+    setOfflineUsage(usage);
+  }
+
+  async function clearOfflineCacheData() {
+    if (offlineClearing) return;
+    if (!window.confirm(t("offlineCacheClearConfirm"))) return;
+    setOfflineClearing(true);
+    try {
+      await clearOfflineCache();
+      setOfflineIndex({});
+      setOfflineUsage(emptyOfflineUsage);
+      if (offlineModeRef.current) {
+        setSongs([]);
+        setLibrarySongPage({ items: [], total: 0, limit: libraryPageSize, offset: 0, page: 1 });
+        setQueue([]);
+        setCurrent(null);
+        setPlaying(false);
+      }
+      showMessage(t("offlineCacheCleared"));
+    } finally {
+      setOfflineClearing(false);
+    }
+  }
+
+  async function cacheSongOffline(song: Song) {
+    if (offlineCachedIds.has(song.id) || offlineCachingIds.has(song.id)) return;
+    const quality = settings.transcode_quality_kbps || 192;
+    setOfflineCachingIds((old) => new Set(old).add(song.id));
+    showMessage(t("offlineCachePreparing"), 0);
+    try {
+      let status = await api.prepareOfflineSong(song.id, quality);
+      for (let attempt = 0; status.status !== "ready" && attempt < OFFLINE_STATUS_MAX_POLLS; attempt += 1) {
+        if (status.status === "failed") throw new Error(status.error || t("offlineCacheFailed"));
+        await wait(OFFLINE_STATUS_POLL_MS);
+        status =
+          status.status === "missing"
+            ? await api.prepareOfflineSong(song.id, quality)
+            : await api.offlineSongStatus(song.id, quality);
+      }
+      if (status.status !== "ready") throw new Error(t("loadTimeout"));
+      await cacheOfflineSongAssets(status);
+      const nextIndex = upsertOfflineSongEntry(status, song);
+      setOfflineIndex(nextIndex);
+      await refreshOfflineCacheUsage();
+      showMessage(t("offlineCacheReady"));
+    } catch (error) {
+      showMessage(readableErrorMessage(error, t("offlineCacheFailed")));
+    } finally {
+      setOfflineCachingIds((old) => {
+        const next = new Set(old);
+        next.delete(song.id);
+        return next;
+      });
+    }
+  }
+
   async function bootstrap() {
     setAuthLoading(true);
     setAuthError("");
@@ -2051,6 +2228,7 @@ export default function App() {
       setAuth(status);
       void api.health().then(setHealth).catch(() => undefined);
       if (status.initialized && status.user) {
+        setOfflineMode(false);
         const nextResumeMode = storedResumeMode(status.user);
         resumeModeRef.current = nextResumeMode;
         setResumeMode(nextResumeMode);
@@ -2058,6 +2236,10 @@ export default function App() {
         await loadAppData(status.user);
       }
     } catch (error) {
+      if (activateOfflineSession()) {
+        setAuthError("");
+        return;
+      }
       setAuthError(error instanceof Error ? error.message : String(error));
     } finally {
       setAuthLoading(false);
@@ -2259,6 +2441,10 @@ export default function App() {
   }
 
   async function refreshAll(options: { initializeQueue?: boolean } = {}) {
+    if (offlineModeRef.current) {
+      activateOfflineSession(readOfflineSongIndex());
+      return;
+    }
     const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem, playbackQueueItem] =
       await Promise.all([
         api.songsPage(query, libraryPage, libraryPageSize),
@@ -2370,6 +2556,10 @@ export default function App() {
   }
 
   async function refreshLibraryDataOnly() {
+    if (offlineModeRef.current) {
+      activateOfflineSession(readOfflineSongIndex());
+      return;
+    }
     const [songPageItem, recentAddedItems, folderItems, libraryStatsItem] = await Promise.all([
       api.songsPage(query, libraryPage, libraryPageSize),
       api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => recentAddedSongs),
@@ -2387,6 +2577,25 @@ export default function App() {
     const nextPage = Math.max(1, page);
     setLibraryPageLoading(true);
     try {
+      if (offlineModeRef.current) {
+        const cachedSongs = uniqueSongs(offlineSongEntries(readOfflineSongIndex()).map((entry) => entry.song), MAX_PLAYBACK_QUEUE_SIZE)
+          .filter((song) => {
+            const q = search.trim().toLowerCase();
+            if (!q) return true;
+            return [song.title, song.artist, song.album].some((value) => value.toLowerCase().includes(q));
+          });
+        const offset = (nextPage - 1) * libraryPageSize;
+        setLibraryPage(nextPage);
+        setSongs(cachedSongs.slice(offset, offset + libraryPageSize));
+        setLibrarySongPage({
+          items: cachedSongs.slice(offset, offset + libraryPageSize),
+          total: cachedSongs.length,
+          limit: libraryPageSize,
+          offset,
+          page: nextPage,
+        });
+        return;
+      }
       const pageItem = await api.songsPage(search, nextPage, libraryPageSize);
       setLibraryPage(pageItem.page);
       setLibrarySongPage(pageItem);
@@ -2398,6 +2607,12 @@ export default function App() {
 
   async function loadAlbumPage(page: number, artistId = albumArtistFilter) {
     const nextPage = Math.max(1, page);
+    if (offlineModeRef.current) {
+      setAlbumPage(nextPage);
+      setAlbumPageData({ items: [], total: 0, limit: gridPageSize, offset: 0, page: nextPage });
+      setAlbums([]);
+      return;
+    }
     setAlbumPageLoading(true);
     try {
       const pageItem = await api.albumsPage(nextPage, gridPageSize, artistId);
@@ -2424,6 +2639,12 @@ export default function App() {
 
   async function loadArtistPage(page: number) {
     const nextPage = Math.max(1, page);
+    if (offlineModeRef.current) {
+      setArtistPage(nextPage);
+      setArtistPageData({ items: [], total: 0, limit: gridPageSize, offset: 0, page: nextPage });
+      setArtists([]);
+      return;
+    }
     setArtistPageLoading(true);
     try {
       const pageItem = await api.artistsPage(nextPage, gridPageSize);
@@ -2437,6 +2658,12 @@ export default function App() {
 
   async function loadPlaylistPage(page: number) {
     const nextPage = Math.max(1, page);
+    if (offlineModeRef.current) {
+      setPlaylistPage(nextPage);
+      setPlaylistPageData({ items: [], total: 0, limit: gridPageSize, offset: 0, page: nextPage });
+      setPlaylists([]);
+      return;
+    }
     setPlaylistPageLoading(true);
     try {
       const pageItem = await api.playlistsPage(nextPage, gridPageSize);
@@ -3492,7 +3719,13 @@ export default function App() {
   const playerStyle = currentArtwork
     ? ({ "--cover-url": `url(${currentArtwork})` } as React.CSSProperties)
     : undefined;
-  const currentStreamUrl = currentRadio?.url || currentNetworkTrack?.stream_url || streamUrl(current, streamMode, streamOffset, settings.transcode_quality_kbps);
+  const currentOfflineEntry = current ? findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps) : undefined;
+  const currentStreamUrl = currentRadio?.url || currentNetworkTrack?.stream_url || currentOfflineEntry?.audio_url || streamUrl(current, streamMode, streamOffset, settings.transcode_quality_kbps);
+  const offlineCacheControls: OfflineCacheControls = {
+    cachedSongIds: offlineCachedIds,
+    cachingSongIds: offlineCachingIds,
+    onCacheSong: (song) => void cacheSongOffline(song),
+  };
   const nowTitle = current?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("nowPlaying");
   const radioDownloadSpeed = radioDownloadKbps > 0 ? `${t("downloadSpeed")} ${formatDownloadSpeed(radioDownloadKbps)}` : "";
   const nowSubtitle = currentRadio
@@ -3640,6 +3873,9 @@ export default function App() {
               ) : (
                 <span className="topbar-search-spacer" aria-hidden="true" />
               )}
+              {offlineMode || !networkReachable ? (
+                <span className="offline-status-pill">{t("offlineMode")}</span>
+              ) : null}
               {view !== "settings" ? (
                 <UserMenu
                   user={auth.user}
@@ -3720,6 +3956,7 @@ export default function App() {
                 onFavoriteSong={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
+                offlineCache={offlineCacheControls}
                 onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
                 onOpenAlbum={(album) => void openAlbum(album)}
                 onPlayAlbum={(album) => void playAlbum(album)}
@@ -3744,6 +3981,7 @@ export default function App() {
                 onFavorite={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
+                offlineCache={offlineCacheControls}
                 onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
                 onOpenAlbum={(song) => {
                   void openSongAlbum(song);
@@ -3830,6 +4068,7 @@ export default function App() {
                 onFavorite={toggleFavorite}
                 onAdd={addToPlaylist}
                 onInsertNext={(items) => insertNextBatch(items)}
+                offlineCache={offlineCacheControls}
                 onInsertCollection={() => void insertCollectionNext(collection)}
                 onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
                 onShareCollection={
@@ -3992,6 +4231,10 @@ export default function App() {
                 onUISoundSettingsChange={setUISoundSettingsState}
                 playbackHistorySettings={playbackHistorySettings}
                 onPlaybackHistorySettingsChange={setPlaybackHistorySettings}
+                offlineUsage={offlineUsage}
+                offlineClearing={offlineClearing}
+                onRefreshOfflineUsage={() => void refreshOfflineCacheUsage()}
+                onClearOfflineCache={() => void clearOfflineCacheData()}
                 scrobblingSettings={scrobblingSettings}
                 onScrobblingSettingsChange={setScrobblingSettings}
                 activeTab={settingsTab}
@@ -5332,6 +5575,7 @@ function FavoritesView({
   onFavoriteSong,
   onAdd,
   onInsertNext,
+  offlineCache,
   onShareSong,
   onOpenAlbum,
   onPlayAlbum,
@@ -5355,6 +5599,7 @@ function FavoritesView({
   onFavoriteSong: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  offlineCache: OfflineCacheControls;
   onShareSong?: (song: Song) => void;
   onOpenAlbum: (album: Album) => void;
   onPlayAlbum: (album: Album) => void;
@@ -5437,6 +5682,7 @@ function FavoritesView({
           onFavorite={onFavoriteSong}
           onAdd={onAdd}
           onInsertNext={(song) => onInsertNext([song])}
+          offlineCache={offlineCache}
           onShare={onShareSong}
         />
       ) : tab === "albums" ? (
@@ -5722,6 +5968,7 @@ function CollectionView({
   onFavorite,
   onAdd,
   onInsertNext,
+  offlineCache,
   onInsertCollection,
   onShareSong,
   onShareCollection,
@@ -5743,6 +5990,7 @@ function CollectionView({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  offlineCache: OfflineCacheControls;
   onInsertCollection: () => void;
   onShareSong?: (song: Song) => void;
   onShareCollection?: () => void;
@@ -5874,6 +6122,7 @@ function CollectionView({
           onFavorite={onFavorite}
           onAdd={onAdd}
           onInsertNext={(song) => onInsertNext([song])}
+          offlineCache={offlineCache}
           onShare={onShareSong}
           onOpenAlbum={onOpenAlbum}
           onOpenArtist={onOpenArtist}
@@ -5921,6 +6170,7 @@ function LibraryView({
   onFavorite,
   onAdd,
   onInsertNext,
+  offlineCache,
   onShareSong,
   onOpenAlbum,
   onOpenArtist,
@@ -5951,6 +6201,7 @@ function LibraryView({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  offlineCache: OfflineCacheControls;
   onShareSong?: (song: Song) => void;
   onOpenAlbum: (song: Song) => void;
   onOpenArtist: (song: Song) => void;
@@ -6071,6 +6322,7 @@ function LibraryView({
           onFavorite={onFavorite}
           onAdd={onAdd}
           onInsertNext={onInsertNext}
+          offlineCache={offlineCache}
           onShareSong={onShareSong}
           onOpenAlbum={onOpenAlbum}
           onOpenArtist={onOpenArtist}
@@ -6086,6 +6338,7 @@ function LibraryView({
             onFavorite={onFavorite}
             onAdd={onAdd}
             onInsertNext={(song) => onInsertNext([song])}
+            offlineCache={offlineCache}
             onShare={onShareSong}
             onOpenAlbum={onOpenAlbum}
             onOpenArtist={onOpenArtist}
@@ -6315,6 +6568,7 @@ function FolderBrowser({
   onFavorite,
   onAdd,
   onInsertNext,
+  offlineCache,
   onShareSong,
   onOpenAlbum,
   onOpenArtist,
@@ -6326,6 +6580,7 @@ function FolderBrowser({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext: (songs: Song[]) => void;
+  offlineCache: OfflineCacheControls;
   onShareSong?: (song: Song) => void;
   onOpenAlbum: (song: Song) => void;
   onOpenArtist: (song: Song) => void;
@@ -6476,6 +6731,7 @@ function FolderBrowser({
                 onFavorite={onFavorite}
                 onAdd={onAdd}
                 onInsertNext={(song) => onInsertNext([song])}
+                offlineCache={offlineCache}
                 onShare={onShareSong}
                 onOpenAlbum={onOpenAlbum}
                 onOpenArtist={onOpenArtist}
@@ -7071,6 +7327,10 @@ function SettingsPanel({
   onUISoundSettingsChange,
   playbackHistorySettings,
   onPlaybackHistorySettingsChange,
+  offlineUsage,
+  offlineClearing,
+  onRefreshOfflineUsage,
+  onClearOfflineCache,
   scrobblingSettings,
   onScrobblingSettingsChange,
   activeTab,
@@ -7097,6 +7357,10 @@ function SettingsPanel({
   onUISoundSettingsChange: (settings: UISoundSettings) => void;
   playbackHistorySettings: PlaybackHistorySettings;
   onPlaybackHistorySettingsChange: (settings: PlaybackHistorySettings) => void;
+  offlineUsage: OfflineCacheUsage;
+  offlineClearing: boolean;
+  onRefreshOfflineUsage: () => void;
+  onClearOfflineCache: () => void;
   scrobblingSettings: ScrobblingSettings | null;
   onScrobblingSettingsChange: (settings: ScrobblingSettings) => void;
   activeTab: SettingsTab;
@@ -7513,6 +7777,18 @@ function SettingsPanel({
               onChange={(e) => onPersistentQueueChange(e.target.checked)}
             />
           </label>
+          <OfflineSettingsCard
+            usage={offlineUsage}
+            usageLabel={t("offlineCacheUsage")}
+            description={t("offlineCacheUsageHint")}
+            refreshLabel={t("refresh")}
+            clearLabel={t("clearOfflineCache")}
+            clearing={offlineClearing}
+            disabled={offlineUsage.entries === 0}
+            formatBytes={(bytes) => bytes > 0 ? formatBytes(bytes) : "0 KB"}
+            onRefresh={onRefreshOfflineUsage}
+            onClear={onClearOfflineCache}
+          />
           <div className="switch-row settings-wide-row">
             <span>
               <span>{t("uiSounds")}</span>
@@ -8262,6 +8538,7 @@ function SongTable({
   onFavorite,
   onAdd,
   onInsertNext,
+  offlineCache,
   onShare,
   onOpenAlbum,
   onOpenArtist,
@@ -8275,6 +8552,7 @@ function SongTable({
   onFavorite: (song: Song) => void;
   onAdd: (song: Song) => void;
   onInsertNext?: (song: Song) => void;
+  offlineCache?: OfflineCacheControls;
   onShare?: (song: Song) => void;
   onOpenAlbum?: (song: Song) => void;
   onOpenArtist?: (song: Song) => void;
@@ -8323,6 +8601,11 @@ function SongTable({
     );
     return { start, items: songs.slice(start, end) };
   }, [songs, scrollTop, viewportHeight, virtual]);
+  const offlineButtonState = (song: Song): OfflineCacheButtonState => {
+    if (offlineCache?.cachingSongIds.has(song.id)) return "caching";
+    if (offlineCache?.cachedSongIds.has(song.id)) return "cached";
+    return "idle";
+  };
   const renderRow = (song: Song, absoluteIndex: number) => (
     <div
       key={song.id}
@@ -8386,6 +8669,17 @@ function SongTable({
           >
             <SkipForward />
           </button>
+        ) : null}
+        {offlineCache ? (
+          <OfflineCacheButton
+            state={offlineButtonState(song)}
+            labels={{
+              cache: t("offlineCacheSong"),
+              caching: t("offlineCachePreparingShort"),
+              cached: t("offlineCacheReadyShort"),
+            }}
+            onClick={() => offlineCache.onCacheSong(song)}
+          />
         ) : null}
         <button onClick={() => onAdd(song)} title={t("addToPlaylist")} aria-label={t("addToPlaylist")}>
           <PlaylistIcon />
