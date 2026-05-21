@@ -2,7 +2,6 @@ import type { CSSProperties } from "react";
 import {
   CaretLeft,
   ChatText,
-  DotsThree,
   Heart,
   HeartStraight,
   MusicNotes,
@@ -113,23 +112,13 @@ export function MobileArtPlayer({
     <div className={`mobile-art-player mobile-art-${variant}`} data-playing={playing ? "true" : "false"} style={style}>
       <div className="mobile-art-phone">
         <div className="mobile-art-bg" aria-hidden="true" />
-        {(onBack || onQueue) ? (
+        {onBack ? (
           <div className="mobile-art-topbar">
-            {onBack ? (
-              <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>
-                <CaretLeft weight="bold" />
-              </button>
-            ) : (
-              <span className="mobile-art-topbar-icon" aria-hidden="true" />
-            )}
+            <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>
+              <CaretLeft weight="bold" />
+            </button>
             <span>{variant === "soft-vinyl" || variant === "stage-glass" || variant === "indiewave" ? text.nowPlaying : album}</span>
-            {onQueue ? (
-              <button type="button" className={queueActive ? "mobile-art-topbar-icon active" : "mobile-art-topbar-icon"} aria-label={text.queue} onClick={onQueue}>
-                <DotsThree weight="bold" />
-              </button>
-            ) : (
-              <span className="mobile-art-topbar-icon" aria-hidden="true" />
-            )}
+            <span className="mobile-art-topbar-icon" aria-hidden="true" />
           </div>
         ) : null}
 

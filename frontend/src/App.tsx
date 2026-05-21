@@ -4082,6 +4082,7 @@ export default function App() {
     <div
       className={lyricsFullScreen ? "app-shell lyrics-mode" : "app-shell"}
       data-mobile-player-expanded={mobilePlayerExpanded ? "true" : "false"}
+      data-mobile-theme={mobileHomePlayerStyle}
     >
       <a className="skip-link" href="#main-content">
         {t("skipToContent")}
