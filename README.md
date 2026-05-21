@@ -70,6 +70,15 @@ Lark intentionally keeps the default build CGO-free:
 
 ---
 
+## Screenshot
+<img width="1338" height="407" alt="a52cba264a961b1a2af28d17ebbadc2f" src="https://github.com/user-attachments/assets/5060aa84-964b-4ce8-a544-868d4dd87daa" />
+
+<img width="2516" height="1371" alt="image" src="https://github.com/user-attachments/assets/de8653f7-c166-4fc2-ae31-6f5bc4648646" />
+
+<img width="2520" height="1370" alt="image" src="https://github.com/user-attachments/assets/7bc38bbe-9003-436c-bd16-14d9e94be07c" />
+
+
+
 ## Local development
 
 ### Prerequisites
