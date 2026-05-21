@@ -183,7 +183,7 @@ type View =
   | "shares"
   | "settings"
   | "about";
-const MOBILE_PLAYBACK_VIEWS = new Set<View>(["home", "favorites", "library", "playlists", "albums", "artists", "collection"]);
+const MOBILE_PLAYBACK_VIEWS = new Set<View>(["home", "favorites", "library", "playlists", "albums", "artists", "collection", "settings"]);
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
 type PlaybackStartMode = "resume" | "restart";
@@ -3944,10 +3944,10 @@ export default function App() {
     view === "radio" ||
     (view === "collection" && collection?.type !== "playlist");
   const mobileBottomNavItems = [
-    { key: "home", label: t("home"), icon: <House />, active: view === "home", onSelect: () => openNavigationView("home") },
-    { key: "favorites", label: t("favorites"), icon: <Heart />, active: view === "favorites", onSelect: () => openNavigationView("favorites") },
-    { key: "library", label: t("library"), icon: <MusicNotes />, active: mobileLibraryActive, onSelect: () => openNavigationView("library") },
-    { key: "playlists", label: t("playlists"), icon: <PlaylistIcon />, active: view === "playlists" || (view === "collection" && collection?.type === "playlist"), onSelect: () => openNavigationView("playlists") },
+    { key: "home", label: t("home"), icon: <House />, active: !mobilePlayerExpanded && view === "home", onSelect: () => openNavigationView("home") },
+    { key: "favorites", label: t("favorites"), icon: <Heart />, active: !mobilePlayerExpanded && view === "favorites", onSelect: () => openNavigationView("favorites") },
+    { key: "library", label: t("library"), icon: <MusicNotes />, active: !mobilePlayerExpanded && mobileLibraryActive, onSelect: () => openNavigationView("library") },
+    { key: "playlists", label: t("playlists"), icon: <PlaylistIcon />, active: !mobilePlayerExpanded && (view === "playlists" || (view === "collection" && collection?.type === "playlist")), onSelect: () => openNavigationView("playlists") },
     { key: "player", label: t("mobileNavPlayer"), icon: <Play />, active: mobilePlayerExpanded, onSelect: () => {
       setLyricsFullScreen(false);
       setMobilePlayerExpanded((value) => !value);
@@ -3956,7 +3956,9 @@ export default function App() {
   const screenTitle =
     collection && view === "collection"
       ? collection.title
-      : (playbackNav.find((item) => item.id === view)?.label ?? t("brand"));
+      : view === "settings"
+        ? t("profileSettings")
+        : (playbackNav.find((item) => item.id === view)?.label ?? t("brand"));
   const topbarHasScreenTitle = !([
     "favorites",
     "library",
@@ -4048,14 +4050,6 @@ export default function App() {
     queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
     lyrics: t("lyrics"),
   };
-  const mobileThemeOptions = [
-    { value: "neon-console" as const, label: t("mobileHomePlayerNeonConsole") },
-    { value: "soft-vinyl" as const, label: t("mobileHomePlayerSoftVinyl") },
-    { value: "indiewave" as const, label: t("mobileHomePlayerIndiewave") },
-    { value: "editorial-pulse" as const, label: t("mobileHomePlayerEditorialPulse") },
-    { value: "stage-glass" as const, label: t("mobileHomePlayerStageGlass") },
-    { value: "blue-halo" as const, label: t("mobileHomePlayerBlueHalo") },
-  ];
   const seekStyle = {
     "--played": playedPercent,
     "--buffered": bufferedPercent,
@@ -4154,7 +4148,7 @@ export default function App() {
                   <h1>{screenTitle}</h1>
                 </div>
               ) : null}
-              {view !== "radio" && view !== "library" ? (
+              {view !== "radio" && view !== "library" && !(mobileViewport && view === "settings") ? (
                 <SongSearchBox
                   t={t}
                   value={query}
@@ -4175,7 +4169,7 @@ export default function App() {
                 <UserMenu
                   user={auth.user}
                   t={t}
-                  profileEnabled={!mobileViewport}
+                  profileEnabled
                   onOpenProfile={() => {
                     setLyricsFullScreen(false);
                     setSettingsTab("profile");
@@ -4214,7 +4208,6 @@ export default function App() {
                 playModeLabel={playModeLabel}
                 homePlayerStyle={homePlayerStyle}
                 mobileHomePlayerStyle={mobileHomePlayerStyle}
-                mobileThemeOptions={mobileThemeOptions}
                 mobileViewport={mobileViewport}
                 t={t}
                 onPlay={playSong}
@@ -4231,7 +4224,6 @@ export default function App() {
                 onResetTone={() => { updateBassGain(0); updateTrebleGain(0); }}
                 onCyclePlayMode={cyclePlayMode}
                 onSeek={seekTo}
-                onMobileThemeChange={setMobileHomePlayerStyle}
                 onPlayAlbum={playAlbum}
                 onOpenAlbum={openAlbum}
                 onPlayArtist={playArtist}
@@ -5421,7 +5413,6 @@ function HomeView({
   playModeLabel,
   homePlayerStyle,
   mobileHomePlayerStyle,
-  mobileThemeOptions,
   mobileViewport,
   t,
   onPlay,
@@ -5435,7 +5426,6 @@ function HomeView({
   onResetTone,
   onCyclePlayMode,
   onSeek,
-  onMobileThemeChange,
   onPlayAlbum,
   onOpenAlbum,
   onPlayArtist,
@@ -5469,7 +5459,6 @@ function HomeView({
   playModeLabel: string;
   homePlayerStyle: HomePlayerStyle;
   mobileHomePlayerStyle: MobileHomePlayerStyle;
-  mobileThemeOptions: { value: MobileHomePlayerStyle; label: string }[];
   mobileViewport: boolean;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
@@ -5483,7 +5472,6 @@ function HomeView({
   onResetTone: () => void;
   onCyclePlayMode: () => void;
   onSeek: (seconds: number) => void;
-  onMobileThemeChange: (theme: MobileHomePlayerStyle) => void;
   onPlayAlbum: (album: Album) => void;
   onOpenAlbum: (album: Album) => void;
   onPlayArtist: (artist: Artist) => void;
@@ -5520,7 +5508,6 @@ function HomeView({
       <section className="home-view mobile-home-view">
         <MobileHomeSurface
           theme={mobileHomePlayerStyle}
-          themeOptions={mobileThemeOptions}
           displaySong={displaySong}
           current={current}
           playing={playing}
@@ -5535,7 +5522,6 @@ function HomeView({
           onPlay={onPlay}
           onResume={onResume}
           onTogglePlayback={onTogglePlayback}
-          onThemeChange={onMobileThemeChange}
           onOpenLibrary={onOpenLibrary}
           onOpenFavorites={onOpenFavorites}
           onOpenAlbums={onOpenAlbums}
@@ -7925,11 +7911,14 @@ function SettingsPanel({
   const publicShareEntry = `${window.location.origin}/share/<token>`;
   const subsonicEndpoint = `${window.location.origin}/rest`;
   const mcpTokenExample = mcpToken?.token || mcpToken?.hint || "lark_mcp_...";
-  const tabs: { id: SettingsTab; label: string }[] = [
-    { id: "profile", label: t("profileSettings") },
-    { id: "users", label: t("userManagement") },
-    { id: "site", label: t("siteSettings") },
-  ];
+  const tabs: { id: SettingsTab; label: string }[] = mobileViewport
+    ? [{ id: "profile", label: t("profileSettings") }]
+    : [
+        { id: "profile", label: t("profileSettings") },
+        { id: "users", label: t("userManagement") },
+        { id: "site", label: t("siteSettings") },
+      ];
+  const settingsActiveTab: SettingsTab = mobileViewport ? "profile" : activeTab;
 
   useEffect(() => {
     setNickname(user.nickname || user.username);
@@ -7937,31 +7926,35 @@ function SettingsPanel({
   }, [user]);
 
   useEffect(() => {
+    if (mobileViewport && activeTab !== "profile") onTabChange("profile");
+  }, [activeTab, mobileViewport, onTabChange]);
+
+  useEffect(() => {
     setWebFontFamily(settings.web_font_family || "");
   }, [settings.web_font_family]);
 
   useEffect(() => {
-    if (activeTab !== "site") return;
+    if (settingsActiveTab !== "site") return;
     setFontsLoading(true);
     void api
       .fonts()
       .then(setFonts)
       .catch(() => setFonts([]))
       .finally(() => setFontsLoading(false));
-  }, [activeTab]);
+  }, [settingsActiveTab]);
 
   useEffect(() => {
-    if (activeTab !== "users" || user.role !== "admin") return;
+    if (settingsActiveTab !== "users" || user.role !== "admin") return;
     setUsersLoading(true);
     void api
       .users()
       .then(setUsers)
       .catch(() => setUsers([]))
       .finally(() => setUsersLoading(false));
-  }, [activeTab, user.role]);
+  }, [settingsActiveTab, user.role]);
 
   useEffect(() => {
-    if (activeTab !== "profile") return;
+    if (settingsActiveTab !== "profile") return;
     void api
       .mcpToken()
       .then(setMcpToken)
@@ -7978,7 +7971,7 @@ function SettingsPanel({
       .scrobblingSettings()
       .then(onScrobblingSettingsChange)
       .catch(() => undefined);
-  }, [activeTab]);
+  }, [settingsActiveTab]);
 
   useEffect(() => {
     document.body.dataset.mcpHelpOpen = mcpHelpOpen ? "true" : "false";
@@ -8162,21 +8155,23 @@ function SettingsPanel({
 
   return (
     <section className="settings-page">
-      <div className="settings-tabs" role="tablist" aria-label={t("settings")}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            className={activeTab === tab.id ? "active" : ""}
-            onClick={() => onTabChange(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {tabs.length > 1 ? (
+        <div className="settings-tabs" role="tablist" aria-label={t("settings")}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={settingsActiveTab === tab.id}
+              className={settingsActiveTab === tab.id ? "active" : ""}
+              onClick={() => onTabChange(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
-      {activeTab === "profile" && (
+      {settingsActiveTab === "profile" && (
         <div className="settings-grid settings-tab-panel" role="tabpanel">
           <div className="profile-settings-card">
             <div className="profile-settings-head">
@@ -8279,7 +8274,7 @@ function SettingsPanel({
               <strong>{t("mobileHomePlayerStyle")}</strong>
               <span>{t("mobileHomePlayerStyleHint")}</span>
             </div>
-            <div className="segmented-control segmented-control-fluid" role="group" aria-label={t("mobileHomePlayerStyle")}>
+            <div className="segmented-control segmented-control-fluid mobile-theme-picker" role="group" aria-label={t("mobileHomePlayerStyle")}>
               <button
                 type="button"
                 className={mobileHomePlayerStyle === "neon-console" ? "active" : ""}
@@ -8602,7 +8597,7 @@ function SettingsPanel({
         </div>
       )}
 
-      {activeTab === "users" && (
+      {settingsActiveTab === "users" && (
         <div className="settings-grid settings-tab-panel" role="tabpanel">
           {user.role === "admin" ? (
             <>
@@ -8643,7 +8638,7 @@ function SettingsPanel({
         </div>
       )}
 
-      {activeTab === "site" && (
+      {settingsActiveTab === "site" && (
         <div className="settings-grid settings-tab-panel" role="tabpanel">
           <label>
             {t("language")}

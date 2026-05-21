@@ -43,7 +43,6 @@ function MobileCollectionCover({
 
 export function MobileHomeSurface({
   theme,
-  themeOptions,
   displaySong,
   current,
   playing,
@@ -58,7 +57,6 @@ export function MobileHomeSurface({
   onPlay,
   onResume,
   onTogglePlayback,
-  onThemeChange,
   onOpenLibrary,
   onOpenFavorites,
   onOpenAlbums,
@@ -69,7 +67,6 @@ export function MobileHomeSurface({
   onOpenPlaylist,
 }: {
   theme: MobileHomePlayerStyle;
-  themeOptions: { value: MobileHomePlayerStyle; label: string }[];
   displaySong?: Song | null;
   current: Song | null;
   playing: boolean;
@@ -84,7 +81,6 @@ export function MobileHomeSurface({
   onPlay: (song: Song, list?: Song[]) => void;
   onResume: (song: Song) => void;
   onTogglePlayback: () => void;
-  onThemeChange: (theme: MobileHomePlayerStyle) => void;
   onOpenLibrary: () => void;
   onOpenFavorites: () => void;
   onOpenAlbums: () => void;
@@ -137,19 +133,6 @@ export function MobileHomeSurface({
           {heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
         </button>
       </section>
-
-      <div className="mobile-theme-strip" role="group" aria-label={t("mobileHomePlayerStyle")}>
-        {themeOptions.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            className={theme === item.value ? "active" : ""}
-            onClick={() => onThemeChange(item.value)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
 
       <div className="mobile-home-highlight">
         <div>
