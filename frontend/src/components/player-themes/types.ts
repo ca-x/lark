@@ -4,17 +4,19 @@ export type MobileArtPlayerVariant = "neon-console" | "indiewave" | "editorial-p
 export type MobileArtPlayerLabels = Partial<{
   nowPlaying: string;
   position: string;
+  volume: string;
   previous: string;
   next: string;
   play: string;
   pause: string;
-  newRelease: string;
+  recentAdded: string;
   musicEditor: string;
   ready: string;
   by: string;
   back: string;
   menu: string;
   favorite: string;
+  soundEffects: string;
   queue: string;
   lyrics: string;
 }>;

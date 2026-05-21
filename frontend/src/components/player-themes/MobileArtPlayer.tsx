@@ -5,6 +5,7 @@ import {
   DotsThree,
   Heart,
   HeartStraight,
+  MusicNotes,
   Pause,
   Play,
   Queue,
@@ -22,17 +23,19 @@ import type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode
 const DEFAULT_LABELS = {
   nowPlaying: "Now playing",
   position: "Position",
+  volume: "Volume",
   previous: "Previous",
   next: "Next",
   play: "Play",
   pause: "Pause",
-  newRelease: "New release",
+  recentAdded: "Recently added",
   musicEditor: "Music Editor",
   ready: "Ready",
   by: "By",
   back: "Back",
   menu: "Menu",
   favorite: "Favorite",
+  soundEffects: "Sound effects",
   queue: "Queue",
   lyrics: "Lyrics",
 };
@@ -43,6 +46,7 @@ export function MobileArtPlayer({
   playing,
   progress = 0,
   duration = 0,
+  volume = 0.85,
   title = "Lark",
   artist = "Sonora",
   album = "Now Playing",
@@ -54,11 +58,14 @@ export function MobileArtPlayer({
   onNext,
   onCyclePlayMode,
   onSeek,
+  onVolume,
   onBack,
   onFavorite,
+  onSoundEffects,
   onQueue,
   onLyrics,
   favoriteActive = false,
+  soundEffectsActive = false,
   queueActive = false,
   lyricsActive = false,
 }: {
@@ -67,6 +74,7 @@ export function MobileArtPlayer({
   playing: boolean;
   progress?: number;
   duration?: number;
+  volume?: number;
   title?: string;
   artist?: string;
   album?: string;
@@ -78,21 +86,24 @@ export function MobileArtPlayer({
   onNext?: () => void;
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
+  onVolume?: (value: number) => void;
   onBack?: () => void;
   onFavorite?: () => void;
+  onSoundEffects?: () => void;
   onQueue?: () => void;
   onLyrics?: () => void;
   favoriteActive?: boolean;
+  soundEffectsActive?: boolean;
   queueActive?: boolean;
   lyricsActive?: boolean;
 }) {
   const text = { ...DEFAULT_LABELS, ...labels };
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
+  const volumePct = Math.min(1, Math.max(0, volume));
   const canSeek = Boolean(duration && onSeek);
   const coverImage = cover ? `url("${cover.replace(/"/g, "%22")}")` : undefined;
   const style = {
     "--mobile-art-progress-pct": `${(pct * 100).toFixed(2)}%`,
-    "--mobile-art-progress-angle": `${(pct * 180).toFixed(2)}deg`,
     ...(coverImage ? { "--mobile-art-cover-image": coverImage } : {}),
   } as CSSProperties;
   const modeIcon =
@@ -102,38 +113,32 @@ export function MobileArtPlayer({
     <div className={`mobile-art-player mobile-art-${variant}`} data-playing={playing ? "true" : "false"} style={style}>
       <div className="mobile-art-phone">
         <div className="mobile-art-bg" aria-hidden="true" />
-        <div className="mobile-art-chrome">
-          <span>9:40</span>
-          <span><i /><i /><i /></span>
-        </div>
-        <div className="mobile-art-topbar">
-          {onBack ? (
-            <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>
-              <CaretLeft weight="bold" />
-            </button>
-          ) : (
-            <span className="mobile-art-topbar-icon" aria-hidden="true">
-              <CaretLeft weight="bold" />
-            </span>
-          )}
-          <span>{variant === "soft-vinyl" || variant === "stage-glass" || variant === "indiewave" ? text.nowPlaying : album}</span>
-          {onQueue ? (
-            <button type="button" className={queueActive ? "mobile-art-topbar-icon active" : "mobile-art-topbar-icon"} aria-label={text.queue} onClick={onQueue}>
-              <DotsThree weight="bold" />
-            </button>
-          ) : (
-            <span className="mobile-art-topbar-icon" aria-hidden="true">
-              <DotsThree weight="bold" />
-            </span>
-          )}
-        </div>
+        {(onBack || onQueue) ? (
+          <div className="mobile-art-topbar">
+            {onBack ? (
+              <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>
+                <CaretLeft weight="bold" />
+              </button>
+            ) : (
+              <span className="mobile-art-topbar-icon" aria-hidden="true" />
+            )}
+            <span>{variant === "soft-vinyl" || variant === "stage-glass" || variant === "indiewave" ? text.nowPlaying : album}</span>
+            {onQueue ? (
+              <button type="button" className={queueActive ? "mobile-art-topbar-icon active" : "mobile-art-topbar-icon"} aria-label={text.queue} onClick={onQueue}>
+                <DotsThree weight="bold" />
+              </button>
+            ) : (
+              <span className="mobile-art-topbar-icon" aria-hidden="true" />
+            )}
+          </div>
+        ) : null}
 
         {variant === "neon-console" ? (
-          <NeonConsoleVisual cover={cover} title={title} playing={playing} />
+          <NeonConsoleVisual cover={cover} playing={playing} />
         ) : variant === "indiewave" ? (
-          <IndiewaveVisual cover={cover} title={title} artist={artist} album={album} labels={text} />
+          <IndiewaveVisual cover={cover} />
         ) : variant === "editorial-pulse" ? (
-          <EditorialPulseVisual title={title} artist={artist} album={album} playing={playing} labels={text} />
+          <EditorialPulseVisual playing={playing} labels={text} />
         ) : variant === "soft-vinyl" ? (
           <SoftVinylVisual cover={cover} />
         ) : variant === "stage-glass" ? (
@@ -152,6 +157,9 @@ export function MobileArtPlayer({
           <button type="button" className={favoriteActive ? "active" : ""} aria-label={text.favorite} disabled={!onFavorite} onClick={onFavorite}>
             <HeartStraight weight={favoriteActive ? "fill" : "regular"} />
           </button>
+          <button type="button" className={soundEffectsActive ? "active" : ""} aria-label={text.soundEffects} disabled={!onSoundEffects} onClick={onSoundEffects}>
+            <MusicNotes weight={soundEffectsActive ? "fill" : "regular"} />
+          </button>
           <button type="button" className={lyricsActive ? "active" : ""} aria-label={text.lyrics} disabled={!onLyrics} onClick={onLyrics}>
             <ChatText weight={lyricsActive ? "fill" : "regular"} />
           </button>
@@ -160,8 +168,9 @@ export function MobileArtPlayer({
           </button>
         </div>
 
+        <VolumeTicks value={volumePct} label={text.volume} onChange={onVolume} />
+
         <div className="mobile-art-progress">
-          <Waveform bars={variant === "stage-glass" ? 32 : 18} />
           <div className="mobile-art-progress-rail">
             <span aria-hidden="true"><i /></span>
             <input
@@ -200,6 +209,43 @@ export function MobileArtPlayer({
   );
 }
 
+function VolumeTicks({
+  value,
+  label,
+  onChange,
+}: {
+  value: number;
+  label: string;
+  onChange?: (value: number) => void;
+}) {
+  const activeCount = Math.round(value * 18);
+  return (
+    <div className="mobile-art-volume" data-muted={value <= 0.01 ? "true" : "false"}>
+      <span className="mobile-art-volume-icon" aria-hidden="true">
+        {value <= 0.01 ? <SpeakerSimpleX weight="bold" /> : <SpeakerSimpleHigh weight="bold" />}
+      </span>
+      <div className="mobile-art-volume-ticks">
+        <span className="mobile-art-volume-bars" aria-hidden="true">
+          {Array.from({ length: 18 }, (_, index) => (
+            <i key={index} className={index < activeCount ? "active" : ""} />
+          ))}
+        </span>
+        <input
+          aria-label={label}
+          aria-valuetext={`${Math.round(value * 100)}%`}
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={value}
+          disabled={!onChange}
+          onChange={(event) => onChange?.(Number(event.target.value))}
+        />
+      </div>
+    </div>
+  );
+}
+
 function SoftVinylVisual({ cover }: { cover?: string }) {
   return (
     <div className="mobile-soft-stage">
@@ -216,54 +262,33 @@ function SoftVinylVisual({ cover }: { cover?: string }) {
   );
 }
 
-function NeonConsoleVisual({ cover, title, playing }: { cover?: string; title: string; playing: boolean }) {
+function NeonConsoleVisual({ cover, playing }: { cover?: string; playing: boolean }) {
   return (
     <div className="mobile-neon-visual">
       <div className="mobile-neon-record" data-has-cover={cover ? "true" : "false"}>
         {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
         <span />
       </div>
-      <div className="mobile-neon-titleplate">
-        <strong>{title}</strong>
-      </div>
-      <div className="mobile-neon-notches" aria-hidden="true">
-        {Array.from({ length: 18 }, (_, index) => <i key={index} className={index < 3 ? "hot" : ""} />)}
-      </div>
       <span className={playing ? "mobile-neon-led on" : "mobile-neon-led"} />
     </div>
   );
 }
 
-function IndiewaveVisual({ cover, title, artist, album, labels }: { cover?: string; title: string; artist: string; album: string; labels: Required<typeof DEFAULT_LABELS> }) {
+function IndiewaveVisual({ cover }: { cover?: string }) {
   return (
     <div className="mobile-indie-visual">
       <div className="mobile-indie-cover" data-has-cover={cover ? "true" : "false"}>
         {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
         <span aria-hidden="true" />
       </div>
-      <div className="mobile-indie-release">
-        <span>{labels.newRelease}</span>
-        <strong>{album}</strong>
-        <em>{artist}</em>
-      </div>
-      <div className="mobile-indie-equalizer" aria-hidden="true">
-        {Array.from({ length: 16 }, (_, index) => <i key={index} style={{ animationDelay: `${index * -42}ms` }} />)}
-      </div>
-      <strong className="mobile-indie-title">{title}</strong>
     </div>
   );
 }
 
 function EditorialPulseVisual({
-  title,
-  artist,
-  album,
   playing,
   labels,
 }: {
-  title: string;
-  artist: string;
-  album: string;
   playing: boolean;
   labels: Required<typeof DEFAULT_LABELS>;
 }) {
@@ -286,13 +311,13 @@ function EditorialPulseVisual({
       <div className="mobile-editorial-stack">
         <span className="mobile-editorial-item green">
           <i>T</i>
-          <strong>{title}</strong>
-          <em>{artist}</em>
+          <strong>{labels.musicEditor}</strong>
+          <em>{playing ? labels.nowPlaying : labels.ready}</em>
         </span>
         <span className="mobile-editorial-item red">
           <i>Q</i>
-          <strong>{album}</strong>
-          <em>{playing ? labels.nowPlaying : labels.ready}</em>
+          <strong>{labels.ready}</strong>
+          <em>{labels.recentAdded}</em>
         </span>
       </div>
     </div>
@@ -330,16 +355,6 @@ function BlueHaloVisual({ cover, title, artist }: { cover?: string; title: strin
       <span className="mobile-blue-heart" aria-hidden="true">
         <Heart weight="fill" />
       </span>
-    </div>
-  );
-}
-
-function Waveform({ bars }: { bars: number }) {
-  return (
-    <div className="mobile-art-wave" aria-hidden="true">
-      {Array.from({ length: bars }, (_, index) => (
-        <i key={index} style={{ animationDelay: `${index * -58}ms` }} />
-      ))}
     </div>
   );
 }

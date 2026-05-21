@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   ArrowUp,
   CaretDown,
-  CaretUp,
   CaretRight,
   ChatText,
   Cloud,
@@ -131,6 +130,7 @@ import { MobileBottomNav } from "./components/mobile/MobileBottomNav";
 import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
+import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
 import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, IpodPlayer, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
@@ -4032,20 +4032,30 @@ export default function App() {
   const mobilePlayerLabels = {
     nowPlaying: t("nowPlaying"),
     position: t("position"),
+    volume: t("volume"),
     previous: t("previous"),
     next: t("next"),
     play: t("play"),
     pause: t("pause"),
-    newRelease: t("mobileNewRelease"),
+    recentAdded: t("recentAdded"),
     musicEditor: t("mobileMusicEditor"),
     ready: t("ready"),
     by: t("byArtist"),
     back: t("minimizePlayer"),
     menu: t("mobilePlayerMenu"),
     favorite: t("favorites"),
+    soundEffects: t("mobileSoundEffects"),
     queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
     lyrics: t("lyrics"),
   };
+  const mobileThemeOptions = [
+    { value: "neon-console" as const, label: t("mobileHomePlayerNeonConsole") },
+    { value: "soft-vinyl" as const, label: t("mobileHomePlayerSoftVinyl") },
+    { value: "indiewave" as const, label: t("mobileHomePlayerIndiewave") },
+    { value: "editorial-pulse" as const, label: t("mobileHomePlayerEditorialPulse") },
+    { value: "stage-glass" as const, label: t("mobileHomePlayerStageGlass") },
+    { value: "blue-halo" as const, label: t("mobileHomePlayerBlueHalo") },
+  ];
   const seekStyle = {
     "--played": playedPercent,
     "--buffered": bufferedPercent,
@@ -4204,6 +4214,7 @@ export default function App() {
                 playModeLabel={playModeLabel}
                 homePlayerStyle={homePlayerStyle}
                 mobileHomePlayerStyle={mobileHomePlayerStyle}
+                mobileThemeOptions={mobileThemeOptions}
                 mobileViewport={mobileViewport}
                 t={t}
                 onPlay={playSong}
@@ -4220,12 +4231,15 @@ export default function App() {
                 onResetTone={() => { updateBassGain(0); updateTrebleGain(0); }}
                 onCyclePlayMode={cyclePlayMode}
                 onSeek={seekTo}
+                onMobileThemeChange={setMobileHomePlayerStyle}
                 onPlayAlbum={playAlbum}
                 onOpenAlbum={openAlbum}
                 onPlayArtist={playArtist}
                 onOpenArtist={openArtistById}
                 onPlayPlaylist={playPlaylist}
                 onOpenPlaylist={openPlaylist}
+                onOpenLibrary={() => openNavigationView("library")}
+                onOpenFavorites={() => openNavigationView("favorites")}
                 onOpenAlbums={() => {
                   setView("albums");
                   void loadAlbumPage(1);
@@ -4520,6 +4534,7 @@ export default function App() {
                   setResumeMode(mode);
                   window.localStorage.setItem(resumePreferenceKey(auth.user), mode);
                 }}
+                mobileViewport={mobileViewport}
                 homePlayerStyle={homePlayerStyle}
                 onHomePlayerStyleChange={setHomePlayerStyle}
                 mobileHomePlayerStyle={mobileHomePlayerStyle}
@@ -4634,6 +4649,7 @@ export default function App() {
           playing={playing}
           progress={progress}
           duration={playableDuration}
+          volume={volume}
           title={mobileDisplaySong?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("brand")}
           artist={mobileDisplaySong?.artist ?? currentNetworkTrack?.artist ?? currentRadio?.country ?? t("nowPlaying")}
           album={mobileDisplaySong?.album ?? currentNetworkTrack?.album ?? t("onlineRadio")}
@@ -4648,14 +4664,17 @@ export default function App() {
           onNext={() => next(1)}
           onCyclePlayMode={cyclePlayMode}
           onSeek={seekTo}
+          onVolume={updateVolume}
           onBack={() => setMobilePlayerExpanded(false)}
           onFavorite={canFavoriteCurrent ? toggleCurrentFavorite : undefined}
+          onSoundEffects={toggleEqualizerPanel}
           onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
           onLyrics={current ? () => {
             setMobilePlayerExpanded(false);
             setLyricsFullScreen(true);
           } : undefined}
           favoriteActive={Boolean(currentRadio?.favorite || current?.favorite)}
+          soundEffectsActive={eqPanelOpen || eqEnabled}
           queueActive={queueOpen}
           lyricsActive={lyricsFullScreen || inlineLyrics}
         />
@@ -4875,16 +4894,6 @@ export default function App() {
             }}
           />
         </div>
-        <button
-          type="button"
-          className="player-minimize-toggle"
-          aria-label={mobilePlayerExpanded ? t("minimizePlayer") : t("expandPlayer")}
-          title={mobilePlayerExpanded ? t("minimizePlayer") : t("expandPlayer")}
-          onClick={() => setMobilePlayerExpanded((value) => !value)}
-        >
-          {mobilePlayerExpanded ? <CaretDown weight="bold" /> : <CaretUp weight="bold" />}
-          <span>{mobilePlayerExpanded ? t("minimizePlayer") : t("expandPlayer")}</span>
-        </button>
         <audio
           ref={setAudioNode}
           preload="auto"
@@ -5044,16 +5053,27 @@ export default function App() {
       {eqPanelOpen ? (
         <div className="eq-layer">
           <button className="eq-scrim" type="button" aria-label={t("close")} onClick={() => setEqPanelOpen(false)} />
-          <EqualizerPanel
-            t={t}
-            enabled={eqEnabled}
-            bands={eqBands}
-            onToggle={() => setEqEnabled((value) => !value)}
-            onChange={updateEqBand}
-            onReset={resetEqualizer}
-            onApplyPreset={(presetBands) => setEqBands(presetBands)}
-            onClose={() => setEqPanelOpen(false)}
-          />
+          {mobileViewport ? (
+            <MobileSoundPanel
+              t={t}
+              enabled={eqEnabled}
+              bands={eqBands}
+              onToggle={() => setEqEnabled((value) => !value)}
+              onApplyPreset={(presetBands) => setEqBands(presetBands)}
+              onClose={() => setEqPanelOpen(false)}
+            />
+          ) : (
+            <EqualizerPanel
+              t={t}
+              enabled={eqEnabled}
+              bands={eqBands}
+              onToggle={() => setEqEnabled((value) => !value)}
+              onChange={updateEqBand}
+              onReset={resetEqualizer}
+              onApplyPreset={(presetBands) => setEqBands(presetBands)}
+              onClose={() => setEqPanelOpen(false)}
+            />
+          )}
         </div>
       ) : null}
     </div>
@@ -5401,6 +5421,7 @@ function HomeView({
   playModeLabel,
   homePlayerStyle,
   mobileHomePlayerStyle,
+  mobileThemeOptions,
   mobileViewport,
   t,
   onPlay,
@@ -5414,12 +5435,15 @@ function HomeView({
   onResetTone,
   onCyclePlayMode,
   onSeek,
+  onMobileThemeChange,
   onPlayAlbum,
   onOpenAlbum,
   onPlayArtist,
   onOpenArtist,
   onPlayPlaylist,
   onOpenPlaylist,
+  onOpenLibrary,
+  onOpenFavorites,
   onOpenAlbums,
   onOpenArtists,
   onOpenPlaylists,
@@ -5445,6 +5469,7 @@ function HomeView({
   playModeLabel: string;
   homePlayerStyle: HomePlayerStyle;
   mobileHomePlayerStyle: MobileHomePlayerStyle;
+  mobileThemeOptions: { value: MobileHomePlayerStyle; label: string }[];
   mobileViewport: boolean;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
@@ -5458,12 +5483,15 @@ function HomeView({
   onResetTone: () => void;
   onCyclePlayMode: () => void;
   onSeek: (seconds: number) => void;
+  onMobileThemeChange: (theme: MobileHomePlayerStyle) => void;
   onPlayAlbum: (album: Album) => void;
   onOpenAlbum: (album: Album) => void;
   onPlayArtist: (artist: Artist) => void;
   onOpenArtist: (id: number, fallbackName?: string) => void;
   onPlayPlaylist: (playlist: Playlist) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
+  onOpenLibrary: () => void;
+  onOpenFavorites: () => void;
   onOpenAlbums: () => void;
   onOpenArtists: () => void;
   onOpenPlaylists: () => void;
@@ -5492,15 +5520,12 @@ function HomeView({
       <section className="home-view mobile-home-view">
         <MobileHomeSurface
           theme={mobileHomePlayerStyle}
+          themeOptions={mobileThemeOptions}
           displaySong={displaySong}
           current={current}
           playing={playing}
-          progress={progress}
-          duration={duration}
-          playMode={playMode}
-          playModeLabel={playModeLabel}
           recentSongs={mobileRecent}
-          newSongs={recentAddedSongs.slice(0, 6)}
+          recentAddedSongs={recentAddedSongs.slice(0, 6)}
           recommendedSongs={mobileLibrary}
           albums={featuredAlbums}
           artists={featuredArtists}
@@ -5510,10 +5535,9 @@ function HomeView({
           onPlay={onPlay}
           onResume={onResume}
           onTogglePlayback={onTogglePlayback}
-          onPrevious={onPrevious}
-          onNext={onNext}
-          onCyclePlayMode={onCyclePlayMode}
-          onSeek={onSeek}
+          onThemeChange={onMobileThemeChange}
+          onOpenLibrary={onOpenLibrary}
+          onOpenFavorites={onOpenFavorites}
           onOpenAlbums={onOpenAlbums}
           onOpenArtists={onOpenArtists}
           onOpenPlaylists={onOpenPlaylists}
@@ -7812,6 +7836,7 @@ function SettingsPanel({
   user,
   resumeMode,
   onResumeModeChange,
+  mobileViewport,
   homePlayerStyle,
   onHomePlayerStyleChange,
   mobileHomePlayerStyle,
@@ -7845,6 +7870,7 @@ function SettingsPanel({
   user: User;
   resumeMode: ResumeMode;
   onResumeModeChange: (mode: ResumeMode) => void;
+  mobileViewport: boolean;
   homePlayerStyle: HomePlayerStyle;
   onHomePlayerStyleChange: (style: HomePlayerStyle) => void;
   mobileHomePlayerStyle: MobileHomePlayerStyle;
@@ -8202,6 +8228,7 @@ function SettingsPanel({
               </button>
             </div>
           </div>
+          {!mobileViewport ? (
           <div className="resume-settings-card settings-wide-row">
             <div>
               <strong>{t("homePlayerStyle")}</strong>
@@ -8245,6 +8272,8 @@ function SettingsPanel({
               </button>
             </div>
           </div>
+          ) : null}
+          {mobileViewport ? (
           <div className="resume-settings-card settings-wide-row">
             <div>
               <strong>{t("mobileHomePlayerStyle")}</strong>
@@ -8295,6 +8324,7 @@ function SettingsPanel({
               </button>
             </div>
           </div>
+          ) : null}
           <div className="resume-settings-card settings-wide-row">
             <div>
               <strong>{t("artistAlbumDisplayStyle")}</strong>

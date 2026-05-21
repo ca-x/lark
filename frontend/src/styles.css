@@ -277,7 +277,6 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .volume button.active, .sleep-control.active, .player-favorite:hover { color:var(--text); border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
 .player-favorite { min-width:54px !important; min-height:54px !important; border-radius:14px !important; color:var(--text) !important; }
 .player-favorite svg { width:28px; height:28px; }
-.player-minimize-toggle { display:none; }
 .radio-mini-art { position:relative; background-image:var(--cover-url), linear-gradient(135deg, color-mix(in srgb, var(--accent) 76%, #185FA5), color-mix(in srgb, var(--panel2) 80%, #0C447C)); }
 .radio-mini-art span { position:absolute; right:6px; bottom:6px; width:8px; height:8px; border-radius:50%; background:#e24b4a; box-shadow:0 0 0 3px color-mix(in srgb, #e24b4a 20%, transparent); animation:pulse 1.4s ease-in-out infinite; }
 .radio-now-meta { display:flex !important; align-items:center; gap:6px; }

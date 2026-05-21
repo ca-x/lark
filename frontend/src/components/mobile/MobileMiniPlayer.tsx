@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { CaretUp, HeartStraight, Pause, Play, Queue, Record } from "@phosphor-icons/react";
+import { HeartStraight, Pause, Play, Queue, Record } from "@phosphor-icons/react";
 
 import type { MobileHomePlayerStyle } from "../../types";
 
@@ -55,17 +55,14 @@ export function MobileMiniPlayer({
         <strong>{title}</strong>
         <span>{artist}</span>
       </button>
-      <button type="button" className={favoriteActive ? "active" : ""} aria-label={labels.favorite} disabled={!onFavorite} onClick={onFavorite}>
+      <button type="button" className={favoriteActive ? "mobile-mini-favorite active" : "mobile-mini-favorite"} aria-label={labels.favorite} disabled={!onFavorite} onClick={onFavorite}>
         <HeartStraight weight={favoriteActive ? "fill" : "regular"} />
       </button>
       <button type="button" className="mobile-mini-play" aria-label={playing ? labels.pause : labels.play} onClick={onToggle}>
         {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
       </button>
-      <button type="button" className={queueActive ? "active" : ""} aria-label={labels.queue} disabled={!onQueue} onClick={onQueue}>
+      <button type="button" className={queueActive ? "mobile-mini-queue active" : "mobile-mini-queue"} aria-label={labels.queue} disabled={!onQueue} onClick={onQueue}>
         <Queue weight={queueActive ? "fill" : "regular"} />
-      </button>
-      <button type="button" className="mobile-mini-expand" aria-label={labels.expand} onClick={onExpand}>
-        <CaretUp weight="bold" />
       </button>
       <span className="mobile-mini-progress" aria-hidden="true" />
     </div>

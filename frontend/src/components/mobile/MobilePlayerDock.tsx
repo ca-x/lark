@@ -7,6 +7,7 @@ export function MobilePlayerDock({
   playing,
   progress,
   duration,
+  volume,
   title,
   artist,
   album,
@@ -18,11 +19,14 @@ export function MobilePlayerDock({
   onNext,
   onCyclePlayMode,
   onSeek,
+  onVolume,
   onBack,
   onFavorite,
+  onSoundEffects,
   onQueue,
   onLyrics,
   favoriteActive,
+  soundEffectsActive,
   queueActive,
   lyricsActive,
 }: {
@@ -31,6 +35,7 @@ export function MobilePlayerDock({
   playing: boolean;
   progress: number;
   duration: number;
+  volume: number;
   title: string;
   artist: string;
   album: string;
@@ -42,11 +47,14 @@ export function MobilePlayerDock({
   onNext: () => void;
   onCyclePlayMode: () => void;
   onSeek: (seconds: number) => void;
+  onVolume: (value: number) => void;
   onBack?: () => void;
   onFavorite?: () => void;
+  onSoundEffects?: () => void;
   onQueue?: () => void;
   onLyrics?: () => void;
   favoriteActive?: boolean;
+  soundEffectsActive?: boolean;
   queueActive?: boolean;
   lyricsActive?: boolean;
 }) {
@@ -57,6 +65,7 @@ export function MobilePlayerDock({
       playing={playing}
       progress={progress}
       duration={duration}
+      volume={volume}
       title={title}
       artist={artist}
       album={album}
@@ -68,11 +77,14 @@ export function MobilePlayerDock({
       onNext={onNext}
       onCyclePlayMode={onCyclePlayMode}
       onSeek={onSeek}
+      onVolume={onVolume}
       onBack={onBack}
       onFavorite={onFavorite}
+      onSoundEffects={onSoundEffects}
       onQueue={onQueue}
       onLyrics={onLyrics}
       favoriteActive={favoriteActive}
+      soundEffectsActive={soundEffectsActive}
       queueActive={queueActive}
       lyricsActive={lyricsActive}
     />

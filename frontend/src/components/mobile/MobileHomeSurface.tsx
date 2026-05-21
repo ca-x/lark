@@ -1,9 +1,8 @@
 import type { CSSProperties } from "react";
-import { Disc, MicrophoneStage, Play, Playlist as PlaylistIcon, Record } from "@phosphor-icons/react";
+import { Disc, MicrophoneStage, Pause, Play, Playlist as PlaylistIcon, Record } from "@phosphor-icons/react";
 
 import type { createT } from "../../i18n";
 import type { Album, Artist, LibraryStats, MobileHomePlayerStyle, Playlist, Song } from "../../types";
-import { MobileArtPlayer, type PlayerThemePlayMode } from "../player-themes";
 
 function coverUrl(song?: Song | null) {
   return song ? `/api/songs/${song.id}/cover` : undefined;
@@ -44,15 +43,12 @@ function MobileCollectionCover({
 
 export function MobileHomeSurface({
   theme,
+  themeOptions,
   displaySong,
   current,
   playing,
-  progress,
-  duration,
-  playMode,
-  playModeLabel,
   recentSongs,
-  newSongs,
+  recentAddedSongs,
   recommendedSongs,
   albums,
   artists,
@@ -62,10 +58,9 @@ export function MobileHomeSurface({
   onPlay,
   onResume,
   onTogglePlayback,
-  onPrevious,
-  onNext,
-  onCyclePlayMode,
-  onSeek,
+  onThemeChange,
+  onOpenLibrary,
+  onOpenFavorites,
   onOpenAlbums,
   onOpenArtists,
   onOpenPlaylists,
@@ -74,15 +69,12 @@ export function MobileHomeSurface({
   onOpenPlaylist,
 }: {
   theme: MobileHomePlayerStyle;
+  themeOptions: { value: MobileHomePlayerStyle; label: string }[];
   displaySong?: Song | null;
   current: Song | null;
   playing: boolean;
-  progress: number;
-  duration: number;
-  playMode: PlayerThemePlayMode;
-  playModeLabel: string;
   recentSongs: Song[];
-  newSongs: Song[];
+  recentAddedSongs: Song[];
   recommendedSongs: Song[];
   albums: Album[];
   artists: Artist[];
@@ -92,10 +84,9 @@ export function MobileHomeSurface({
   onPlay: (song: Song, list?: Song[]) => void;
   onResume: (song: Song) => void;
   onTogglePlayback: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
-  onCyclePlayMode: () => void;
-  onSeek: (seconds: number) => void;
+  onThemeChange: (theme: MobileHomePlayerStyle) => void;
+  onOpenLibrary: () => void;
+  onOpenFavorites: () => void;
   onOpenAlbums: () => void;
   onOpenArtists: () => void;
   onOpenPlaylists: () => void;
@@ -106,61 +97,72 @@ export function MobileHomeSurface({
   const heroActive = Boolean(current);
   const heroPlaying = playing && heroActive;
   const canResumeDisplaySong = !heroActive && Boolean(displaySong);
-  const releaseSong = newSongs[0] ?? recommendedSongs[0] ?? displaySong ?? null;
-  const releaseQueue = newSongs.length ? newSongs : recommendedSongs.length ? recommendedSongs : releaseSong ? [releaseSong] : [];
+  const highlightSong = recentAddedSongs[0] ?? recommendedSongs[0] ?? displaySong ?? null;
+  const highlightQueue = recentAddedSongs.length ? recentAddedSongs : recommendedSongs.length ? recommendedSongs : highlightSong ? [highlightSong] : [];
+  const highlightLabel = recentAddedSongs.length ? t("recentAdded") : t("mobileForYou");
   const featuredAlbum = albums[0];
   const featuredArtist = artists[0];
   const featuredPlaylist = playlists[0];
-  const playerLabels = {
-    nowPlaying: t("nowPlaying"),
-    position: t("position"),
-    previous: t("previous"),
-    next: t("next"),
-    play: t("play"),
-    pause: t("pause"),
-    newRelease: t("mobileNewRelease"),
-    musicEditor: t("mobileMusicEditor"),
-    ready: t("ready"),
-    by: t("byArtist"),
-    menu: t("mobilePlayerMenu"),
-    favorite: t("favorites"),
-    queue: t("queue"),
-    lyrics: t("lyrics"),
-  };
 
   return (
     <section className="mobile-home-surface" data-mobile-theme={theme}>
-      <MobileArtPlayer
-        variant={theme}
-        cover={coverUrl(displaySong)}
-        playing={heroPlaying}
-        progress={heroActive ? progress : 0}
-        duration={heroActive ? duration : displaySong?.duration_seconds || 0}
-        title={displaySong?.title}
-        artist={displaySong?.artist}
-        album={displaySong?.album}
-        playMode={playMode}
-        playModeLabel={playModeLabel}
-        labels={playerLabels}
-        onToggle={heroActive ? onTogglePlayback : canResumeDisplaySong && displaySong ? () => onResume(displaySong) : undefined}
-        onPrevious={heroActive ? onPrevious : undefined}
-        onNext={heroActive ? onNext : undefined}
-        onCyclePlayMode={onCyclePlayMode}
-        onSeek={heroActive ? onSeek : undefined}
-      />
+      <nav className="mobile-home-tabs" aria-label={t("home")}>
+        <button type="button" className="active">
+          {t("mobileForYou")}
+        </button>
+        <button type="button" onClick={onOpenLibrary}>
+          {t("library")}
+        </button>
+        <button type="button" onClick={onOpenFavorites}>
+          {t("favorites")}
+        </button>
+        <button type="button" onClick={onOpenPlaylists}>
+          {t("playlists")}
+        </button>
+      </nav>
 
-      <div className="mobile-home-release">
+      <section className="mobile-home-now">
         <div>
-          <span>{t("mobileNewRelease")}</span>
-          <strong>{releaseSong?.title ?? t("noSongs")}</strong>
-          <small>{releaseSong ? `${releaseSong.artist} · ${releaseSong.album}` : t("emptyCollection")}</small>
+          <span>{t("nowPlaying")}</span>
+          <strong>{displaySong?.title ?? t("brand")}</strong>
+          <small>{displaySong ? `${displaySong.artist} · ${displaySong.album}` : t("emptyCollection")}</small>
         </div>
         <button
           type="button"
-          disabled={!releaseSong}
-          onClick={() => releaseSong && onPlay(releaseSong, releaseQueue)}
+          disabled={!displaySong}
+          aria-label={heroPlaying ? t("pause") : t("play")}
+          onClick={heroActive ? onTogglePlayback : canResumeDisplaySong && displaySong ? () => onResume(displaySong) : undefined}
         >
-          <MobileSongCover song={releaseSong} playing={Boolean(releaseSong && playing && releaseSong.id === current?.id)} />
+          <MobileSongCover song={displaySong} playing={heroPlaying} />
+          {heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
+        </button>
+      </section>
+
+      <div className="mobile-theme-strip" role="group" aria-label={t("mobileHomePlayerStyle")}>
+        {themeOptions.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            className={theme === item.value ? "active" : ""}
+            onClick={() => onThemeChange(item.value)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mobile-home-highlight">
+        <div>
+          <span>{highlightLabel}</span>
+          <strong>{highlightSong?.title ?? t("noSongs")}</strong>
+          <small>{highlightSong ? `${highlightSong.artist} · ${highlightSong.album}` : t("emptyCollection")}</small>
+        </div>
+        <button
+          type="button"
+          disabled={!highlightSong}
+          onClick={() => highlightSong && onPlay(highlightSong, highlightQueue)}
+        >
+          <MobileSongCover song={highlightSong} playing={Boolean(highlightSong && playing && highlightSong.id === current?.id)} />
           <Play weight="fill" />
         </button>
       </div>
