@@ -217,25 +217,26 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if defaults.HomePlayerStyle != "vinyl" || defaults.ArtistAlbumDisplayStyle != "classic" {
+	if defaults.HomePlayerStyle != "vinyl" || defaults.MobileHomePlayerStyle != "neon-console" || defaults.ArtistAlbumDisplayStyle != "classic" {
 		t.Fatalf("expected default user preferences, got %#v", defaults)
 	}
 
 	saved, err := service.SaveUserPreferences(ctx, 7, models.UserPreferences{
 		HomePlayerStyle:         "album-slide",
+		MobileHomePlayerStyle:   "indiewave",
 		ArtistAlbumDisplayStyle: "showcase",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.HomePlayerStyle != "album-slide" || saved.ArtistAlbumDisplayStyle != "showcase" {
+	if saved.HomePlayerStyle != "album-slide" || saved.MobileHomePlayerStyle != "indiewave" || saved.ArtistAlbumDisplayStyle != "showcase" {
 		t.Fatalf("expected saved user preferences to persist, got %#v", saved)
 	}
 	loaded, err := service.GetUserPreferences(ctx, 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.HomePlayerStyle != "album-slide" || loaded.ArtistAlbumDisplayStyle != "showcase" {
+	if loaded.HomePlayerStyle != "album-slide" || loaded.MobileHomePlayerStyle != "indiewave" || loaded.ArtistAlbumDisplayStyle != "showcase" {
 		t.Fatalf("expected user preferences to load from database, got %#v", loaded)
 	}
 
@@ -243,18 +244,19 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if otherUser.HomePlayerStyle != "vinyl" || otherUser.ArtistAlbumDisplayStyle != "classic" {
+	if otherUser.HomePlayerStyle != "vinyl" || otherUser.MobileHomePlayerStyle != "neon-console" || otherUser.ArtistAlbumDisplayStyle != "classic" {
 		t.Fatalf("expected user preferences to be scoped per user, got %#v", otherUser)
 	}
 
 	normalized, err := service.SaveUserPreferences(ctx, 7, models.UserPreferences{
 		HomePlayerStyle:         "bad-value",
+		MobileHomePlayerStyle:   "bad-value",
 		ArtistAlbumDisplayStyle: "bad-value",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if normalized.HomePlayerStyle != "vinyl" || normalized.ArtistAlbumDisplayStyle != "classic" {
+	if normalized.HomePlayerStyle != "vinyl" || normalized.MobileHomePlayerStyle != "neon-console" || normalized.ArtistAlbumDisplayStyle != "classic" {
 		t.Fatalf("expected invalid user preferences to normalize, got %#v", normalized)
 	}
 }

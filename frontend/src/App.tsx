@@ -97,6 +97,7 @@ import type {
   LyricCandidate,
   Lyrics,
   MCPTokenStatus,
+  MobileHomePlayerStyle,
   Playlist,
   PlaylistPage,
   ScanStatus,
@@ -126,12 +127,17 @@ import { LoadingStage } from "./components/LoadingStage";
 import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
 import { radioGroupName } from "./components/radio";
 import { ArtistAlbumBrowser } from "./components/ArtistAlbumBrowser";
+import { MobileBottomNav } from "./components/mobile/MobileBottomNav";
+import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
+import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
+import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
 import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, IpodPlayer, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
 import { EqualizerPanel } from "./components/EqualizerPanel";
 import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
+import { useMediaQuery } from "./hooks/useMediaQuery";
 
 const defaultSettings: Settings = {
   language: "zh-CN",
@@ -177,6 +183,7 @@ type View =
   | "shares"
   | "settings"
   | "about";
+const MOBILE_PLAYBACK_VIEWS = new Set<View>(["home", "favorites", "library", "playlists", "albums", "artists", "collection"]);
 type PlayMode = "sequence" | "shuffle" | "repeat-one";
 type ResumeMode = "resume" | "restart";
 type PlaybackStartMode = "resume" | "restart";
@@ -339,6 +346,7 @@ const VIRTUAL_OVERSCAN = 8;
 const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
 const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
 const HOME_PLAYER_STYLE_KEY = "lark.home-player-style";
+const MOBILE_HOME_PLAYER_STYLE_KEY = "lark.mobile-home-player-style";
 const ARTIST_ALBUM_DISPLAY_STYLE_KEY = "lark.artist-album-display-style";
 const PERSISTENT_QUEUE_KEY = "lark.persistent-queue-enabled";
 const AUTO_CACHE_PLAYED_KEY = "lark.auto-cache-played-enabled";
@@ -396,6 +404,26 @@ function rememberHomePlayerStyle(style: HomePlayerStyle) {
   }
 }
 
+function normalizeMobileHomePlayerStyle(value?: string | null): MobileHomePlayerStyle {
+  return value === "indiewave" || value === "editorial-pulse" || value === "soft-vinyl" || value === "stage-glass" || value === "blue-halo" ? value : "neon-console";
+}
+
+function storedMobileHomePlayerStyle(): MobileHomePlayerStyle {
+  try {
+    return normalizeMobileHomePlayerStyle(window.localStorage.getItem(MOBILE_HOME_PLAYER_STYLE_KEY));
+  } catch {
+    return "neon-console";
+  }
+}
+
+function rememberMobileHomePlayerStyle(style: MobileHomePlayerStyle) {
+  try {
+    window.localStorage.setItem(MOBILE_HOME_PLAYER_STYLE_KEY, style);
+  } catch {
+    // localStorage can be unavailable in private/webview modes; neon console remains default.
+  }
+}
+
 function normalizeArtistAlbumDisplayStyle(value?: string | null): ArtistAlbumDisplayStyle {
   return value === "showcase" ? "showcase" : "classic";
 }
@@ -403,6 +431,7 @@ function normalizeArtistAlbumDisplayStyle(value?: string | null): ArtistAlbumDis
 function normalizeUserPreferences(value?: Partial<UserPreferences> | null): UserPreferences {
   return {
     home_player_style: normalizeHomePlayerStyle(value?.home_player_style),
+    mobile_home_player_style: normalizeMobileHomePlayerStyle(value?.mobile_home_player_style),
     artist_album_display_style: normalizeArtistAlbumDisplayStyle(value?.artist_album_display_style),
   };
 }
@@ -410,6 +439,7 @@ function normalizeUserPreferences(value?: Partial<UserPreferences> | null): User
 function sameUserPreferences(left: UserPreferences | null, right: UserPreferences) {
   if (!left) return false;
   return left.home_player_style === right.home_player_style &&
+    left.mobile_home_player_style === right.mobile_home_player_style &&
     left.artist_album_display_style === right.artist_album_display_style;
 }
 
@@ -1385,6 +1415,7 @@ export default function App() {
   const [sleepLeft, setSleepLeft] = useState(0);
   const [resumeMode, setResumeMode] = useState<ResumeMode>("resume");
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
+  const [mobileHomePlayerStyle, setMobileHomePlayerStyle] = useState<MobileHomePlayerStyle>(storedMobileHomePlayerStyle);
   const [artistAlbumDisplayStyle, setArtistAlbumDisplayStyle] = useState<ArtistAlbumDisplayStyle>(() => storedArtistAlbumDisplayStyle());
   const userPreferencesReadyRef = useRef(false);
   const lastSavedUserPreferencesRef = useRef<UserPreferences | null>(null);
@@ -1399,6 +1430,7 @@ export default function App() {
   const [bufferedEnd, setBufferedEnd] = useState(0);
   const [buffering, setBuffering] = useState(false);
   const [radioDownloadKbps, setRadioDownloadKbps] = useState(0);
+  const mobileViewport = useMediaQuery("(max-width: 720px)");
   const [volume, setVolume] = useState(0.85);
   const initialEq = useMemo(storedEqualizer, []);
   const initialTone = useMemo(storedToneControls, []);
@@ -1721,6 +1753,10 @@ export default function App() {
   }, [homePlayerStyle]);
 
   useEffect(() => {
+    rememberMobileHomePlayerStyle(mobileHomePlayerStyle);
+  }, [mobileHomePlayerStyle]);
+
+  useEffect(() => {
     rememberArtistAlbumDisplayStyle(artistAlbumDisplayStyle, auth?.user);
   }, [artistAlbumDisplayStyle, auth?.user?.id]);
 
@@ -1728,6 +1764,7 @@ export default function App() {
     if (!auth?.user || !userPreferencesReadyRef.current) return;
     const nextPreferences = normalizeUserPreferences({
       home_player_style: homePlayerStyle,
+      mobile_home_player_style: mobileHomePlayerStyle,
       artist_album_display_style: artistAlbumDisplayStyle,
     });
     if (sameUserPreferences(lastSavedUserPreferencesRef.current, nextPreferences)) return;
@@ -1742,7 +1779,7 @@ export default function App() {
         })
         .catch(() => undefined);
     }, 250);
-  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle]);
+  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, mobileHomePlayerStyle]);
 
   useEffect(() => {
     return () => {
@@ -1755,6 +1792,14 @@ export default function App() {
   useEffect(() => {
     if (!settings.sharing_enabled && view === "shares") setView("home");
   }, [settings.sharing_enabled, view]);
+
+  useEffect(() => {
+    if (mobileViewport && !MOBILE_PLAYBACK_VIEWS.has(view)) {
+      setView("home");
+      setSettingsTab("profile");
+    }
+  }, [mobileViewport, view]);
+
   useEffect(() => {
     document.documentElement.dataset.theme = settings.theme;
     document.documentElement.lang = settings.language;
@@ -2424,8 +2469,10 @@ export default function App() {
       const normalized = normalizeUserPreferences(preferences);
       lastSavedUserPreferencesRef.current = normalized;
       setHomePlayerStyle(normalized.home_player_style);
+      setMobileHomePlayerStyle(normalized.mobile_home_player_style);
       setArtistAlbumDisplayStyle(normalized.artist_album_display_style);
       rememberHomePlayerStyle(normalized.home_player_style);
+      rememberMobileHomePlayerStyle(normalized.mobile_home_player_style);
       rememberArtistAlbumDisplayStyle(normalized.artist_album_display_style, user);
       userPreferencesReadyRef.current = true;
     } else {
@@ -3841,17 +3888,29 @@ export default function App() {
     if (items[0]) void playSong(items[0], items);
   }
 
-  const nav: { id: View; label: string; icon: ReactNode }[] = [
+  const playbackNav: { id: View; label: string; icon: ReactNode }[] = [
     { id: "home", label: t("home"), icon: <House /> },
     { id: "favorites", label: t("favorites"), icon: <Heart /> },
     { id: "library", label: t("library"), icon: <MusicNotes /> },
     { id: "playlists", label: t("playlists"), icon: <PlaylistIcon /> },
     { id: "albums", label: t("albums"), icon: <Disc /> },
     { id: "artists", label: t("artists"), icon: <Record /> },
+  ];
+  const desktopNav: { id: View; label: string; icon: ReactNode }[] = [
+    ...playbackNav,
     { id: "settings", label: t("settings"), icon: <GearSix /> },
     ...(settings.sharing_enabled ? [{ id: "shares" as const, label: t("myShares"), icon: <ShareNetwork /> }] : []),
     { id: "about", label: t("about"), icon: <Info /> },
   ];
+  const openNavigationView = (id: View) => {
+    setLyricsFullScreen(false);
+    setMobilePlayerExpanded(false);
+    setView(id);
+    if (id === "library") void loadLibrarySongsPage(1);
+    if (id === "playlists") void loadPlaylistPage(1);
+    if (id === "albums") void loadAlbumPage(1);
+    if (id === "artists") void loadArtistPage(1);
+  };
   const activeNav = (id: View) =>
     view === id ||
     (view === "radio" && id === "library") ||
@@ -3878,10 +3937,26 @@ export default function App() {
   const bufferedPercent = playableDuration
     ? `${Math.min(100, Math.max(0, (bufferedEnd / playableDuration) * 100))}%`
     : "0%";
+  const mobileLibraryActive =
+    view === "library" ||
+    view === "albums" ||
+    view === "artists" ||
+    view === "radio" ||
+    (view === "collection" && collection?.type !== "playlist");
+  const mobileBottomNavItems = [
+    { key: "home", label: t("home"), icon: <House />, active: view === "home", onSelect: () => openNavigationView("home") },
+    { key: "favorites", label: t("favorites"), icon: <Heart />, active: view === "favorites", onSelect: () => openNavigationView("favorites") },
+    { key: "library", label: t("library"), icon: <MusicNotes />, active: mobileLibraryActive, onSelect: () => openNavigationView("library") },
+    { key: "playlists", label: t("playlists"), icon: <PlaylistIcon />, active: view === "playlists" || (view === "collection" && collection?.type === "playlist"), onSelect: () => openNavigationView("playlists") },
+    { key: "player", label: t("mobileNavPlayer"), icon: <Play />, active: mobilePlayerExpanded, onSelect: () => {
+      setLyricsFullScreen(false);
+      setMobilePlayerExpanded((value) => !value);
+    } },
+  ];
   const screenTitle =
     collection && view === "collection"
       ? collection.title
-      : (nav.find((item) => item.id === view)?.label ?? t("brand"));
+      : (playbackNav.find((item) => item.id === view)?.label ?? t("brand"));
   const topbarHasScreenTitle = !([
     "favorites",
     "library",
@@ -3898,6 +3973,7 @@ export default function App() {
   const playerStyle = currentArtwork
     ? ({ "--cover-url": `url(${currentArtwork})` } as React.CSSProperties)
     : undefined;
+  const mobileDisplaySong = current ?? heroSong;
   const currentOfflineEntry = current ? findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps) : undefined;
   const shouldUseOfflineAudio = Boolean(currentOfflineEntry && shouldPreferOfflinePlayback(offlineMode, networkReachable));
   const currentStreamUrl =
@@ -3906,6 +3982,11 @@ export default function App() {
     (shouldUseOfflineAudio
       ? currentOfflineEntry?.audio_url
       : streamUrl(current, streamMode, streamOffset, settings.transcode_quality_kbps));
+  const canFavoriteCurrent = Boolean(current || currentRadio);
+  const toggleCurrentFavorite = () => {
+    if (currentRadio) void toggleRadioFavorite(currentRadio);
+    else if (current) void toggleFavorite(current);
+  };
   const offlineCacheControls: OfflineCacheControls = {
     cachedSongIds: offlineCachedIds,
     cachingSongIds: offlineCachingIds,
@@ -3948,6 +4029,23 @@ export default function App() {
     return out;
   }, [currentRadio, radioQueue, radioSources, radioStations]);
   const queuePanelMode = currentRadio ? "radio" : "songs";
+  const mobilePlayerLabels = {
+    nowPlaying: t("nowPlaying"),
+    position: t("position"),
+    previous: t("previous"),
+    next: t("next"),
+    play: t("play"),
+    pause: t("pause"),
+    newRelease: t("mobileNewRelease"),
+    musicEditor: t("mobileMusicEditor"),
+    ready: t("ready"),
+    by: t("byArtist"),
+    back: t("minimizePlayer"),
+    menu: t("mobilePlayerMenu"),
+    favorite: t("favorites"),
+    queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
+    lyrics: t("lyrics"),
+  };
   const seekStyle = {
     "--played": playedPercent,
     "--buffered": bufferedPercent,
@@ -3984,25 +4082,18 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         {t("skipToContent")}
       </a>
-      <aside className="sidebar">
+      <aside className="sidebar desktop-sidebar">
         <div className="brand">
           <img src="/logo.png" alt={t("brand")} /> <span>{t("brand")}</span>
         </div>
         <nav aria-label="Primary">
-          {nav.map((item) => (
+          {desktopNav.map((item) => (
             <button
               key={item.id}
               title={item.label}
               aria-label={item.label}
               className={activeNav(item.id) ? "active" : ""}
-              onClick={() => {
-                setLyricsFullScreen(false);
-                setView(item.id);
-                if (item.id === "library") void loadLibrarySongsPage(1);
-                if (item.id === "playlists") void loadPlaylistPage(1);
-                if (item.id === "albums") void loadAlbumPage(1);
-                if (item.id === "artists") void loadArtistPage(1);
-              }}
+              onClick={() => openNavigationView(item.id)}
             >
               {item.icon}
               <span>{item.label}</span>
@@ -4010,6 +4101,8 @@ export default function App() {
           ))}
         </nav>
       </aside>
+
+      <MobileBottomNav items={mobileBottomNavItems} label={t("primaryNavigation")} />
 
       <main id="main-content" className="main" tabIndex={-1} ref={mainRef}>
         {lyricsFullScreen ? (
@@ -4072,6 +4165,7 @@ export default function App() {
                 <UserMenu
                   user={auth.user}
                   t={t}
+                  profileEnabled={!mobileViewport}
                   onOpenProfile={() => {
                     setLyricsFullScreen(false);
                     setSettingsTab("profile");
@@ -4109,6 +4203,8 @@ export default function App() {
                 playMode={playMode}
                 playModeLabel={playModeLabel}
                 homePlayerStyle={homePlayerStyle}
+                mobileHomePlayerStyle={mobileHomePlayerStyle}
+                mobileViewport={mobileViewport}
                 t={t}
                 onPlay={playSong}
                 onResume={(song) => void resumePlayback(song)}
@@ -4130,6 +4226,18 @@ export default function App() {
                 onOpenArtist={openArtistById}
                 onPlayPlaylist={playPlaylist}
                 onOpenPlaylist={openPlaylist}
+                onOpenAlbums={() => {
+                  setView("albums");
+                  void loadAlbumPage(1);
+                }}
+                onOpenArtists={() => {
+                  setView("artists");
+                  void loadArtistPage(1);
+                }}
+                onOpenPlaylists={() => {
+                  setView("playlists");
+                  void loadPlaylistPage(1);
+                }}
               />
             )}
 
@@ -4167,6 +4275,7 @@ export default function App() {
                 folders={folders}
                 networkSources={networkSources}
                 radioSources={radioSources}
+                mobileBasic={mobileViewport}
                 current={current}
                 t={t}
                 onPlay={playSong}
@@ -4323,11 +4432,11 @@ export default function App() {
                 <CardGrid
                   t={t}
                   title={t("playlists")}
-                  action={
+                  action={mobileViewport ? undefined : (
                     <button onClick={createPlaylist}>
                       <Plus /> {t("createPlaylist")}
                     </button>
-                  }
+                  )}
                   items={playlists.map((p) => ({
                     id: p.id,
                     title: p.name,
@@ -4413,6 +4522,8 @@ export default function App() {
                 }}
                 homePlayerStyle={homePlayerStyle}
                 onHomePlayerStyleChange={setHomePlayerStyle}
+                mobileHomePlayerStyle={mobileHomePlayerStyle}
+                onMobileHomePlayerStyleChange={setMobileHomePlayerStyle}
                 artistAlbumDisplayStyle={artistAlbumDisplayStyle}
                 onArtistAlbumDisplayStyleChange={setArtistAlbumDisplayStyle}
                 persistentQueueEnabled={persistentQueueEnabled}
@@ -4489,6 +4600,65 @@ export default function App() {
       ) : null}
 
       <footer className="player" style={playerStyle}>
+        <MobileMiniPlayer
+          theme={mobileHomePlayerStyle}
+          cover={currentArtwork || coverUrl(mobileDisplaySong)}
+          title={mobileDisplaySong?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("brand")}
+          artist={mobileDisplaySong?.artist ?? currentNetworkTrack?.artist ?? currentRadio?.country ?? t("nowPlaying")}
+          playing={playing}
+          progress={progress}
+          duration={playableDuration}
+          favoriteActive={Boolean(currentRadio?.favorite || current?.favorite)}
+          queueActive={queueOpen}
+          labels={{
+            play: t("play"),
+            pause: t("pause"),
+            favorite: t("favorites"),
+            queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
+            expand: t("expandPlayer"),
+          }}
+          onToggle={() => setPlaying((value) => {
+            playUISound(value ? "pause" : "play");
+            return !value;
+          })}
+          onExpand={() => {
+            setLyricsFullScreen(false);
+            setMobilePlayerExpanded(true);
+          }}
+          onFavorite={canFavoriteCurrent ? toggleCurrentFavorite : undefined}
+          onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
+        />
+        <MobilePlayerDock
+          theme={mobileHomePlayerStyle}
+          cover={currentArtwork || coverUrl(mobileDisplaySong)}
+          playing={playing}
+          progress={progress}
+          duration={playableDuration}
+          title={mobileDisplaySong?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("brand")}
+          artist={mobileDisplaySong?.artist ?? currentNetworkTrack?.artist ?? currentRadio?.country ?? t("nowPlaying")}
+          album={mobileDisplaySong?.album ?? currentNetworkTrack?.album ?? t("onlineRadio")}
+          playMode={playMode}
+          playModeLabel={playModeLabel}
+          labels={mobilePlayerLabels}
+          onToggle={() => setPlaying((value) => {
+            playUISound(value ? "pause" : "play");
+            return !value;
+          })}
+          onPrevious={() => next(-1)}
+          onNext={() => next(1)}
+          onCyclePlayMode={cyclePlayMode}
+          onSeek={seekTo}
+          onBack={() => setMobilePlayerExpanded(false)}
+          onFavorite={canFavoriteCurrent ? toggleCurrentFavorite : undefined}
+          onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
+          onLyrics={current ? () => {
+            setMobilePlayerExpanded(false);
+            setLyricsFullScreen(true);
+          } : undefined}
+          favoriteActive={Boolean(currentRadio?.favorite || current?.favorite)}
+          queueActive={queueOpen}
+          lyricsActive={lyricsFullScreen || inlineLyrics}
+        />
         <PlayerMood
           theme={settings.theme}
           playing={playing}
@@ -4575,11 +4745,8 @@ export default function App() {
           </span>
           <button
             className="player-favorite"
-            disabled={!current && !currentRadio}
-            onClick={() => {
-              if (currentRadio) void toggleRadioFavorite(currentRadio);
-              else if (current) void toggleFavorite(current);
-            }}
+            disabled={!canFavoriteCurrent}
+            onClick={toggleCurrentFavorite}
           >
             <HeartStraight weight={(currentRadio?.favorite || current?.favorite) ? "fill" : "regular"} />
           </button>
@@ -5233,6 +5400,8 @@ function HomeView({
   playMode,
   playModeLabel,
   homePlayerStyle,
+  mobileHomePlayerStyle,
+  mobileViewport,
   t,
   onPlay,
   onResume,
@@ -5251,6 +5420,9 @@ function HomeView({
   onOpenArtist,
   onPlayPlaylist,
   onOpenPlaylist,
+  onOpenAlbums,
+  onOpenArtists,
+  onOpenPlaylists,
 }: {
   songs: Song[];
   recentPlayedSongs: Song[];
@@ -5272,6 +5444,8 @@ function HomeView({
   playMode: PlayMode;
   playModeLabel: string;
   homePlayerStyle: HomePlayerStyle;
+  mobileHomePlayerStyle: MobileHomePlayerStyle;
+  mobileViewport: boolean;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
   onResume: (song: Song) => void;
@@ -5290,6 +5464,9 @@ function HomeView({
   onOpenArtist: (id: number, fallbackName?: string) => void;
   onPlayPlaylist: (playlist: Playlist) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
+  onOpenAlbums: () => void;
+  onOpenArtists: () => void;
+  onOpenPlaylists: () => void;
 }) {
   const [recentTab, setRecentTab] = useState<RecentHomeTab>("played");
   const [dailyView, setDailyView] = useState<DailyDiscoveryView>("songs");
@@ -5308,6 +5485,46 @@ function HomeView({
   const heroAlbum = displaySong
     ? albums.find((album) => album.id === displaySong.album_id)
     : undefined;
+  const mobileRecent = recentSongs.length ? recentSongs : songs.slice(0, 5);
+  const mobileLibrary = dailySongs.length ? dailySongs : songs.slice(0, 8);
+  if (mobileViewport) {
+    return (
+      <section className="home-view mobile-home-view">
+        <MobileHomeSurface
+          theme={mobileHomePlayerStyle}
+          displaySong={displaySong}
+          current={current}
+          playing={playing}
+          progress={progress}
+          duration={duration}
+          playMode={playMode}
+          playModeLabel={playModeLabel}
+          recentSongs={mobileRecent}
+          newSongs={recentAddedSongs.slice(0, 6)}
+          recommendedSongs={mobileLibrary}
+          albums={featuredAlbums}
+          artists={featuredArtists}
+          playlists={featuredPlaylists}
+          stats={stats}
+          t={t}
+          onPlay={onPlay}
+          onResume={onResume}
+          onTogglePlayback={onTogglePlayback}
+          onPrevious={onPrevious}
+          onNext={onNext}
+          onCyclePlayMode={onCyclePlayMode}
+          onSeek={onSeek}
+          onOpenAlbums={onOpenAlbums}
+          onOpenArtists={onOpenArtists}
+          onOpenPlaylists={onOpenPlaylists}
+          onOpenAlbum={onOpenAlbum}
+          onOpenArtist={onOpenArtist}
+          onOpenPlaylist={onOpenPlaylist}
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="home-view">
       <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : "hero"}>
@@ -6380,6 +6597,7 @@ function LibraryView({
   folders,
   networkSources,
   radioSources,
+  mobileBasic,
   stats,
   songPage,
   pageLoading,
@@ -6411,6 +6629,7 @@ function LibraryView({
   folders: Folder[];
   networkSources: NetworkSource[];
   radioSources: RadioSource[];
+  mobileBasic: boolean;
   stats: LibraryStats | null;
   songPage: SongPage | null;
   pageLoading: boolean;
@@ -6441,10 +6660,18 @@ function LibraryView({
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [tab, setTabState] = useState<LibraryTab>(() => storedLibraryTab());
   const scanRunning = Boolean(scanStatus?.running);
+  const activeTab = mobileBasic && tab !== "songs" && tab !== "folders" ? "songs" : tab;
   const setTab = (nextTab: LibraryTab) => {
+    if (mobileBasic && nextTab !== "songs" && nextTab !== "folders") return;
     setTabState(nextTab);
     rememberLibraryTab(nextTab);
   };
+  useEffect(() => {
+    if (mobileBasic && tab !== "songs" && tab !== "folders") {
+      setTabState("songs");
+      rememberLibraryTab("songs");
+    }
+  }, [mobileBasic, tab]);
   useEffect(() => {
     if (!searchQuery.trim()) return;
     setTabState("songs");
@@ -6469,10 +6696,10 @@ function LibraryView({
       <div className="section-head library-actions">
         <h2>{t("library")}</h2>
         <div>
-          {tab === "songs" ? (
+          {activeTab === "songs" ? (
             <SongSearchBox t={t} value={searchQuery} onSearch={onSongSearch} />
           ) : null}
-          {tab === "songs" && selectedSongs.length ? (
+          {activeTab === "songs" && selectedSongs.length ? (
             <div className="selection-actions">
               <span>
                 {selectedSongs.length} {t("selected")}
@@ -6485,10 +6712,10 @@ function LibraryView({
               </button>
             </div>
           ) : null}
-          <button onClick={onScan} disabled={scanRunning}>
+          <button className="desktop-only-action" onClick={onScan} disabled={scanRunning}>
             <MagnifyingGlass /> {t("scan")}
           </button>
-          <label className="upload">
+          <label className="upload desktop-only-action">
             <UploadSimple /> {t("upload")}
             <input
               type="file"
@@ -6498,49 +6725,53 @@ function LibraryView({
           </label>
         </div>
       </div>
-      {scanStatus ? <ScanProgress status={scanStatus} t={t} onCancel={onCancelScan} onClose={onDismissScan} /> : null}
+      {scanStatus && !mobileBasic ? <ScanProgress status={scanStatus} t={t} onCancel={onCancelScan} onClose={onDismissScan} /> : null}
       <div className="collection-tabs library-tabs">
         <button
-          className={tab === "songs" ? "active" : ""}
+          className={activeTab === "songs" ? "active" : ""}
           onClick={() => setTab("songs")}
         >
           {t("localLibrary")} · {songTotal}
         </button>
         <button
-          className={tab === "folders" ? "active" : ""}
+          className={activeTab === "folders" ? "active" : ""}
           onClick={() => setTab("folders")}
         >
           {t("folderBrowser")} · {folders.length}
         </button>
-        <button
-          className={tab === "offline" ? "active" : ""}
-          onClick={() => setTab("offline")}
-        >
-          {t("offlineCacheTab")} · {offlineCache.entries.length}
-        </button>
-        <button
-          className={tab === "network" ? "active" : ""}
-          onClick={() => setTab("network")}
-        >
-          {t("networkLibrary")} · {networkSources.length}
-        </button>
-        <button
-          className={tab === "radio" ? "active" : ""}
-          onClick={() => setTab("radio")}
-        >
-          {t("onlineRadio")} · {radioSources.length}
-        </button>
+        {!mobileBasic ? (
+          <>
+            <button
+              className={tab === "offline" ? "active" : ""}
+              onClick={() => setTab("offline")}
+            >
+              {t("offlineCacheTab")} · {offlineCache.entries.length}
+            </button>
+            <button
+              className={tab === "network" ? "active" : ""}
+              onClick={() => setTab("network")}
+            >
+              {t("networkLibrary")} · {networkSources.length}
+            </button>
+            <button
+              className={tab === "radio" ? "active" : ""}
+              onClick={() => setTab("radio")}
+            >
+              {t("onlineRadio")} · {radioSources.length}
+            </button>
+          </>
+        ) : null}
       </div>
-      {tab === "network" ? (
+      {activeTab === "network" ? (
         <NetworkLibrarySources
           configuredSources={networkSources}
           t={t}
           onSourcesChange={onNetworkSourcesChange}
           onPlayTrack={onPlayNetworkTrack}
         />
-      ) : tab === "radio" ? (
+      ) : activeTab === "radio" ? (
         <LibraryRadioSources sources={radioSources} t={t} onOpenRadio={onOpenRadio} onPlayRadio={onPlayRadio} />
-      ) : tab === "offline" ? (
+      ) : activeTab === "offline" ? (
         <OfflineLibraryPanel
           entries={offlineCache.entries}
           usage={offlineCache.usage}
@@ -6568,7 +6799,7 @@ function LibraryView({
           onRemove={offlineCache.onRemoveSong}
           onClearAll={offlineCache.onClearAll}
         />
-      ) : tab === "folders" ? (
+      ) : activeTab === "folders" ? (
         <FolderBrowser
           current={current}
           t={t}
@@ -6602,7 +6833,7 @@ function LibraryView({
           <PaginationControls page={songPage} itemCount={songs.length} loading={pageLoading} t={t} onPageChange={onPageChange} />
         </>
       ) : (
-        <EmptyLibrary t={t} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
+        <EmptyLibrary t={t} mobileBasic={mobileBasic} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
       )}
     </section>
   );
@@ -7262,11 +7493,13 @@ function ScanProgress({
 
 function EmptyLibrary({
   t,
+  mobileBasic,
   onScan,
   onUpload,
   scanStatus,
 }: {
   t: ReturnType<typeof createT>;
+  mobileBasic?: boolean;
   onScan: () => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   scanStatus: ScanStatus | null;
@@ -7279,21 +7512,25 @@ function EmptyLibrary({
       </div>
       <h2>{t("emptyTitle")}</h2>
       <p>{t("emptyBody")}</p>
-      <div className="empty-actions">
-        <button className="primary" onClick={onScan} disabled={scanRunning}>
-          <MagnifyingGlass /> {t("scan")}
-        </button>
-        <label className="upload">
-          <UploadSimple /> {t("upload")}
-          <input
-            type="file"
-            accept="audio/*,.flac,.dsf,.dff,.dst,.ape"
-            onChange={(event) => onUpload(event)}
-          />
-        </label>
-      </div>
-      <small>{t("scanHint")}</small>
-      {scanStatus ? <ScanProgress status={scanStatus} t={t} compact /> : null}
+      {!mobileBasic ? (
+        <>
+          <div className="empty-actions">
+            <button className="primary" onClick={onScan} disabled={scanRunning}>
+              <MagnifyingGlass /> {t("scan")}
+            </button>
+            <label className="upload">
+              <UploadSimple /> {t("upload")}
+              <input
+                type="file"
+                accept="audio/*,.flac,.dsf,.dff,.dst,.ape"
+                onChange={(event) => onUpload(event)}
+              />
+            </label>
+          </div>
+          <small>{t("scanHint")}</small>
+          {scanStatus ? <ScanProgress status={scanStatus} t={t} compact /> : null}
+        </>
+      ) : null}
     </section>
   );
 }
@@ -7439,11 +7676,13 @@ function UserAvatar({ user }: { user: User }) {
 function UserMenu({
   user,
   t,
+  profileEnabled = true,
   onOpenProfile,
   onLogout,
 }: {
   user: User;
   t: ReturnType<typeof createT>;
+  profileEnabled?: boolean;
   onOpenProfile: () => void;
   onLogout: () => void;
 }) {
@@ -7482,16 +7721,18 @@ function UserMenu({
               <span>@{user.username}</span>
             </div>
           </div>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onOpenProfile();
-            }}
-          >
-            <UserCircle /> {t("profileSettings")}
-          </button>
+          {profileEnabled ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onOpenProfile();
+              }}
+            >
+              <UserCircle /> {t("profileSettings")}
+            </button>
+          ) : null}
           <button
             type="button"
             role="menuitem"
@@ -7573,6 +7814,8 @@ function SettingsPanel({
   onResumeModeChange,
   homePlayerStyle,
   onHomePlayerStyleChange,
+  mobileHomePlayerStyle,
+  onMobileHomePlayerStyleChange,
   artistAlbumDisplayStyle,
   onArtistAlbumDisplayStyleChange,
   persistentQueueEnabled,
@@ -7604,6 +7847,8 @@ function SettingsPanel({
   onResumeModeChange: (mode: ResumeMode) => void;
   homePlayerStyle: HomePlayerStyle;
   onHomePlayerStyleChange: (style: HomePlayerStyle) => void;
+  mobileHomePlayerStyle: MobileHomePlayerStyle;
+  onMobileHomePlayerStyleChange: (style: MobileHomePlayerStyle) => void;
   artistAlbumDisplayStyle: ArtistAlbumDisplayStyle;
   onArtistAlbumDisplayStyleChange: (style: ArtistAlbumDisplayStyle) => void;
   persistentQueueEnabled: boolean;
@@ -7997,6 +8242,56 @@ function SettingsPanel({
                 onClick={() => onHomePlayerStyleChange("album-slide")}
               >
                 {t("homePlayerAlbumSlide")}
+              </button>
+            </div>
+          </div>
+          <div className="resume-settings-card settings-wide-row">
+            <div>
+              <strong>{t("mobileHomePlayerStyle")}</strong>
+              <span>{t("mobileHomePlayerStyleHint")}</span>
+            </div>
+            <div className="segmented-control segmented-control-fluid" role="group" aria-label={t("mobileHomePlayerStyle")}>
+              <button
+                type="button"
+                className={mobileHomePlayerStyle === "neon-console" ? "active" : ""}
+                onClick={() => onMobileHomePlayerStyleChange("neon-console")}
+              >
+                {t("mobileHomePlayerNeonConsole")}
+              </button>
+              <button
+                type="button"
+                className={mobileHomePlayerStyle === "soft-vinyl" ? "active" : ""}
+                onClick={() => onMobileHomePlayerStyleChange("soft-vinyl")}
+              >
+                {t("mobileHomePlayerSoftVinyl")}
+              </button>
+              <button
+                type="button"
+                className={mobileHomePlayerStyle === "indiewave" ? "active" : ""}
+                onClick={() => onMobileHomePlayerStyleChange("indiewave")}
+              >
+                {t("mobileHomePlayerIndiewave")}
+              </button>
+              <button
+                type="button"
+                className={mobileHomePlayerStyle === "editorial-pulse" ? "active" : ""}
+                onClick={() => onMobileHomePlayerStyleChange("editorial-pulse")}
+              >
+                {t("mobileHomePlayerEditorialPulse")}
+              </button>
+              <button
+                type="button"
+                className={mobileHomePlayerStyle === "stage-glass" ? "active" : ""}
+                onClick={() => onMobileHomePlayerStyleChange("stage-glass")}
+              >
+                {t("mobileHomePlayerStageGlass")}
+              </button>
+              <button
+                type="button"
+                className={mobileHomePlayerStyle === "blue-halo" ? "active" : ""}
+                onClick={() => onMobileHomePlayerStyleChange("blue-halo")}
+              >
+                {t("mobileHomePlayerBlueHalo")}
               </button>
             </div>
           </div>

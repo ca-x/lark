@@ -204,9 +204,11 @@ export interface PlaybackHistorySettings {
   separate_by_device: boolean;
 }
 export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide";
+export type MobileHomePlayerStyle = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "stage-glass" | "blue-halo";
 export type ArtistAlbumDisplayStyle = "classic" | "showcase";
 export interface UserPreferences {
   home_player_style: HomePlayerStyle;
+  mobile_home_player_style: MobileHomePlayerStyle;
   artist_album_display_style: ArtistAlbumDisplayStyle;
 }
 export interface HealthInfo {

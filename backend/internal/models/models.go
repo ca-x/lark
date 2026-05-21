@@ -105,6 +105,7 @@ type PlaybackHistorySettings struct {
 
 type UserPreferences struct {
 	HomePlayerStyle         string `json:"home_player_style"`
+	MobileHomePlayerStyle   string `json:"mobile_home_player_style"`
 	ArtistAlbumDisplayStyle string `json:"artist_album_display_style"`
 }
 

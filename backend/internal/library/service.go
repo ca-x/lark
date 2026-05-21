@@ -2149,6 +2149,7 @@ func userPreferencesKey(userID int) string {
 func defaultUserPreferences() models.UserPreferences {
 	return models.UserPreferences{
 		HomePlayerStyle:         "vinyl",
+		MobileHomePlayerStyle:   "neon-console",
 		ArtistAlbumDisplayStyle: "classic",
 	}
 }
@@ -2156,6 +2157,7 @@ func defaultUserPreferences() models.UserPreferences {
 func normalizeUserPreferences(preferences models.UserPreferences) models.UserPreferences {
 	return models.UserPreferences{
 		HomePlayerStyle:         normalizeUserHomePlayerStyle(preferences.HomePlayerStyle),
+		MobileHomePlayerStyle:   normalizeUserMobileHomePlayerStyle(preferences.MobileHomePlayerStyle),
 		ArtistAlbumDisplayStyle: normalizeArtistAlbumDisplayStyle(preferences.ArtistAlbumDisplayStyle),
 	}
 }
@@ -2166,6 +2168,15 @@ func normalizeUserHomePlayerStyle(value string) string {
 		return strings.TrimSpace(value)
 	default:
 		return "vinyl"
+	}
+}
+
+func normalizeUserMobileHomePlayerStyle(value string) string {
+	switch strings.TrimSpace(value) {
+	case "neon-console", "indiewave", "editorial-pulse", "soft-vinyl", "stage-glass", "blue-halo":
+		return strings.TrimSpace(value)
+	default:
+		return "neon-console"
 	}
 }
 
