@@ -2,7 +2,6 @@ import type { CSSProperties } from "react";
 import {
   CaretLeft,
   ChatText,
-  Heart,
   HeartStraight,
   MusicNotes,
   Pause,
@@ -15,6 +14,7 @@ import {
   SkipForward,
   SpeakerSimpleHigh,
   SpeakerSimpleX,
+  Waveform,
 } from "@phosphor-icons/react";
 
 import type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode } from "./types";
@@ -143,16 +143,16 @@ export function MobileArtPlayer({
         </div>
 
         <div className="mobile-art-actions" aria-label={text.menu}>
-          <button type="button" className={favoriteActive ? "active" : ""} aria-label={text.favorite} disabled={!onFavorite} onClick={onFavorite}>
+          <button type="button" className={favoriteActive ? "active" : ""} aria-label={text.favorite} aria-pressed={favoriteActive} disabled={!onFavorite} onClick={onFavorite}>
             <HeartStraight weight={favoriteActive ? "fill" : "regular"} />
           </button>
-          <button type="button" className={soundEffectsActive ? "active" : ""} aria-label={text.soundEffects} disabled={!onSoundEffects} onClick={onSoundEffects}>
+          <button type="button" className={soundEffectsActive ? "active" : ""} aria-label={text.soundEffects} aria-pressed={soundEffectsActive} disabled={!onSoundEffects} onClick={onSoundEffects}>
             <MusicNotes weight={soundEffectsActive ? "fill" : "regular"} />
           </button>
-          <button type="button" className={lyricsActive ? "active" : ""} aria-label={text.lyrics} disabled={!onLyrics} onClick={onLyrics}>
+          <button type="button" className={lyricsActive ? "active" : ""} aria-label={text.lyrics} aria-pressed={lyricsActive} disabled={!onLyrics} onClick={onLyrics}>
             <ChatText weight={lyricsActive ? "fill" : "regular"} />
           </button>
-          <button type="button" className={queueActive ? "active" : ""} aria-label={text.queue} disabled={!onQueue} onClick={onQueue}>
+          <button type="button" className={queueActive ? "active" : ""} aria-label={text.queue} aria-pressed={queueActive} disabled={!onQueue} onClick={onQueue}>
             <Queue weight={queueActive ? "fill" : "regular"} />
           </button>
         </div>
@@ -189,7 +189,7 @@ export function MobileArtPlayer({
           <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}>
             <SkipForward weight="fill" />
           </button>
-          <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>
+          <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} aria-pressed={playMode !== "sequence"} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>
             {modeIcon}
           </button>
         </div>
@@ -318,8 +318,8 @@ function BlueHaloVisual({ cover }: { cover?: string }) {
         <span className="mobile-blue-statue" aria-hidden="true" />
       </div>
       <div className="mobile-blue-orbit" aria-hidden="true" />
-      <span className="mobile-blue-heart" aria-hidden="true">
-        <Heart weight="fill" />
+      <span className="mobile-blue-signal" aria-hidden="true">
+        <Waveform weight="bold" />
       </span>
     </div>
   );

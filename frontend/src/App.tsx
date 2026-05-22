@@ -7418,6 +7418,7 @@ function FullLyrics({
               key={line.key}
               data-lyric-key={line.key}
               data-lyric-at={line.at}
+              aria-current={line.key === activeLyric ? "true" : undefined}
               className={[
                 line.key === activeLyric ? "live" : "",
                 line.key === seekTargetKey ? "seek-target" : "",
