@@ -117,7 +117,7 @@ export function MobileArtPlayer({
             <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>
               <CaretLeft weight="bold" />
             </button>
-            <span>{variant === "soft-vinyl" || variant === "stage-glass" || variant === "indiewave" ? text.nowPlaying : album}</span>
+            <span>{variant === "soft-vinyl" || variant === "stage-glass" || variant === "indiewave" || variant === "editorial-pulse" ? text.nowPlaying : album}</span>
             <span className="mobile-art-topbar-icon" aria-hidden="true" />
           </div>
         ) : null}
@@ -127,7 +127,7 @@ export function MobileArtPlayer({
         ) : variant === "indiewave" ? (
           <IndiewaveVisual cover={cover} />
         ) : variant === "editorial-pulse" ? (
-          <EditorialPulseVisual playing={playing} labels={text} />
+          <EditorialPulseVisual cover={cover} playing={playing} title={title} artist={artist} album={album} labels={text} />
         ) : variant === "soft-vinyl" ? (
           <SoftVinylVisual cover={cover} />
         ) : variant === "stage-glass" ? (
@@ -275,39 +275,38 @@ function IndiewaveVisual({ cover }: { cover?: string }) {
 }
 
 function EditorialPulseVisual({
+  cover,
   playing,
+  title,
+  artist,
+  album,
   labels,
 }: {
+  cover?: string;
   playing: boolean;
+  title: string;
+  artist: string;
+  album: string;
   labels: Required<typeof DEFAULT_LABELS>;
 }) {
   return (
     <div className="mobile-editorial-visual">
-      <div className="mobile-editorial-title">
-        {labels.musicEditor.split(" ").slice(0, 2).map((part) => (
-          <strong key={part}>{part}</strong>
-        ))}
+      <div className="mobile-editorial-cover" data-has-cover={cover ? "true" : "false"}>
+        {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
+        <span aria-hidden="true" />
       </div>
-      <div className="mobile-editorial-date">
-        <span>F</span>
-        <strong>24</strong>
+      <div className="mobile-editorial-record" aria-hidden="true">
+        <span />
+      </div>
+      <div className="mobile-editorial-caption">
+        <span>{playing ? labels.nowPlaying : album}</span>
+        <strong>{title}</strong>
+        <em>{artist}</em>
       </div>
       <div className="mobile-editorial-arcs" aria-hidden="true">
         <span className="green"><i /></span>
         <span className="orange"><i /></span>
         <span className="red"><i /></span>
-      </div>
-      <div className="mobile-editorial-stack">
-        <span className="mobile-editorial-item green">
-          <i>T</i>
-          <strong>{labels.musicEditor}</strong>
-          <em>{playing ? labels.nowPlaying : labels.ready}</em>
-        </span>
-        <span className="mobile-editorial-item red">
-          <i>Q</i>
-          <strong>{labels.ready}</strong>
-          <em>{labels.recentAdded}</em>
-        </span>
       </div>
     </div>
   );

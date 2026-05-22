@@ -3959,6 +3959,7 @@ export default function App() {
     "artists",
     "collection",
   ] as View[]).includes(view);
+  const showTopbarScreenTitle = topbarHasScreenTitle && !(mobileViewport && view === "home");
   const currentAlbum =
     current && current.album_id
       ? albums.find((item) => item.id === current.album_id)
@@ -4138,7 +4139,7 @@ export default function App() {
         ) : (
           <>
             <header className="topbar">
-              {topbarHasScreenTitle ? (
+              {showTopbarScreenTitle ? (
                 <div className="top-title">
                   <span>{t("brand")}</span>
                   <h1>{screenTitle}</h1>
@@ -4611,13 +4612,11 @@ export default function App() {
           playing={playing}
           progress={progress}
           duration={playableDuration}
-          queueActive={queueOpen}
           labels={{
             previous: t("previous"),
             next: t("next"),
             play: t("play"),
             pause: t("pause"),
-            queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
             expand: t("expandPlayer"),
           }}
           onToggle={() => setPlaying((value) => {
@@ -4630,7 +4629,6 @@ export default function App() {
           }}
           onPrevious={() => next(-1)}
           onNext={() => next(1)}
-          onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
         />
         <MobilePlayerDock
           theme={mobileHomePlayerStyle}
