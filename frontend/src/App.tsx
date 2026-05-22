@@ -2078,10 +2078,6 @@ export default function App() {
   }, [lyricsFullScreen]);
 
   useEffect(() => {
-    if (lyricsFullScreen && mobilePlayerExpanded) setMobilePlayerExpanded(false);
-  }, [lyricsFullScreen, mobilePlayerExpanded]);
-
-  useEffect(() => {
     if (!hasClientMediaSession()) return;
     if (current) {
       const artwork = coverUrl(current);
@@ -3948,10 +3944,6 @@ export default function App() {
     { key: "favorites", label: t("favorites"), icon: <Heart />, active: !mobilePlayerExpanded && view === "favorites", onSelect: () => openNavigationView("favorites") },
     { key: "library", label: t("library"), icon: <MusicNotes />, active: !mobilePlayerExpanded && mobileLibraryActive, onSelect: () => openNavigationView("library") },
     { key: "playlists", label: t("playlists"), icon: <PlaylistIcon />, active: !mobilePlayerExpanded && (view === "playlists" || (view === "collection" && collection?.type === "playlist")), onSelect: () => openNavigationView("playlists") },
-    { key: "player", label: t("mobileNavPlayer"), icon: <Play />, active: mobilePlayerExpanded, onSelect: () => {
-      setLyricsFullScreen(false);
-      setMobilePlayerExpanded((value) => !value);
-    } },
   ];
   const screenTitle =
     collection && view === "collection"
@@ -4119,7 +4111,10 @@ export default function App() {
             loading={lyricsLoading}
             t={t}
             scrollRef={lyricsScrollRef}
-            onToggleView={() => setLyricsFullScreen(false)}
+            onToggleView={() => {
+              setLyricsFullScreen(false);
+              if (mobileViewport) setMobilePlayerExpanded(true);
+            }}
             onSeek={seekTo}
             candidates={lyricCandidates}
             candidatesOpen={lyricCandidatesOpen}
@@ -4616,12 +4611,12 @@ export default function App() {
           playing={playing}
           progress={progress}
           duration={playableDuration}
-          favoriteActive={Boolean(currentRadio?.favorite || current?.favorite)}
           queueActive={queueOpen}
           labels={{
+            previous: t("previous"),
+            next: t("next"),
             play: t("play"),
             pause: t("pause"),
-            favorite: t("favorites"),
             queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
             expand: t("expandPlayer"),
           }}
@@ -4633,7 +4628,8 @@ export default function App() {
             setLyricsFullScreen(false);
             setMobilePlayerExpanded(true);
           }}
-          onFavorite={canFavoriteCurrent ? toggleCurrentFavorite : undefined}
+          onPrevious={() => next(-1)}
+          onNext={() => next(1)}
           onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
         />
         <MobilePlayerDock
@@ -4663,7 +4659,7 @@ export default function App() {
           onSoundEffects={toggleEqualizerPanel}
           onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
           onLyrics={current ? () => {
-            setMobilePlayerExpanded(false);
+            setMobilePlayerExpanded(mobileViewport);
             setLyricsFullScreen(true);
           } : undefined}
           favoriteActive={Boolean(currentRadio?.favorite || current?.favorite)}
@@ -7333,8 +7329,8 @@ function FullLyrics({
         <button
           className="full-lyrics-cover-button"
           type="button"
-          title={t("lyrics")}
-          aria-label={t("lyrics")}
+          title={t("expandPlayer")}
+          aria-label={t("expandPlayer")}
           onClick={onToggleView}
         >
           <MiniCover song={song} playing={false} />

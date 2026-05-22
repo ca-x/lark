@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { HeartStraight, Pause, Play, Queue, Record } from "@phosphor-icons/react";
+import { Pause, Play, Queue, Record, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { MobileHomePlayerStyle } from "../../types";
 
@@ -11,12 +11,12 @@ export function MobileMiniPlayer({
   playing,
   progress,
   duration,
-  favoriteActive,
   queueActive,
   labels,
   onToggle,
   onExpand,
-  onFavorite,
+  onPrevious,
+  onNext,
   onQueue,
 }: {
   theme: MobileHomePlayerStyle;
@@ -26,18 +26,19 @@ export function MobileMiniPlayer({
   playing: boolean;
   progress: number;
   duration: number;
-  favoriteActive?: boolean;
   queueActive?: boolean;
   labels: {
+    previous: string;
+    next: string;
     play: string;
     pause: string;
-    favorite: string;
     queue: string;
     expand: string;
   };
   onToggle: () => void;
   onExpand: () => void;
-  onFavorite?: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
   onQueue?: () => void;
 }) {
   const pct = duration > 0 ? Math.min(100, Math.max(0, (progress / duration) * 100)) : 0;
@@ -51,15 +52,18 @@ export function MobileMiniPlayer({
       <button type="button" className="mobile-mini-art" aria-label={labels.expand} onClick={onExpand}>
         {cover ? null : <Record weight="fill" />}
       </button>
-      <button type="button" className="mobile-mini-meta" onClick={onExpand}>
+      <div className="mobile-mini-meta">
         <strong>{title}</strong>
         <span>{artist}</span>
-      </button>
-      <button type="button" className={favoriteActive ? "mobile-mini-favorite active" : "mobile-mini-favorite"} aria-label={labels.favorite} disabled={!onFavorite} onClick={onFavorite}>
-        <HeartStraight weight={favoriteActive ? "fill" : "regular"} />
+      </div>
+      <button type="button" className="mobile-mini-previous" aria-label={labels.previous} disabled={!onPrevious} onClick={onPrevious}>
+        <SkipBack weight="fill" />
       </button>
       <button type="button" className="mobile-mini-play" aria-label={playing ? labels.pause : labels.play} onClick={onToggle}>
         {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
+      </button>
+      <button type="button" className="mobile-mini-next" aria-label={labels.next} disabled={!onNext} onClick={onNext}>
+        <SkipForward weight="fill" />
       </button>
       <button type="button" className={queueActive ? "mobile-mini-queue active" : "mobile-mini-queue"} aria-label={labels.queue} disabled={!onQueue} onClick={onQueue}>
         <Queue weight={queueActive ? "fill" : "regular"} />
