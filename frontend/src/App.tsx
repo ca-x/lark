@@ -7918,7 +7918,7 @@ function SettingsPanel({
         { id: "users", label: t("userManagement") },
         { id: "site", label: t("siteSettings") },
       ];
-  const settingsActiveTab: SettingsTab = mobileViewport ? "profile" : activeTab;
+  const settingsActiveTab: SettingsTab = activeTab;
 
   useEffect(() => {
     setNickname(user.nickname || user.username);
@@ -7926,7 +7926,6 @@ function SettingsPanel({
   }, [user]);
 
   useEffect(() => {
-    if (mobileViewport && activeTab !== "profile") onTabChange("profile");
   }, [activeTab, mobileViewport, onTabChange]);
 
   useEffect(() => {
