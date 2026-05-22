@@ -138,6 +138,8 @@ import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
 import { EqualizerPanel } from "./components/EqualizerPanel";
 import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
 import { useMediaQuery } from "./hooks/useMediaQuery";
+import { useScrollRestore } from "./hooks/useScrollRestore";
+import { useKeyboardAware } from "./hooks/useKeyboardAware";
 
 const defaultSettings: Settings = {
   language: "zh-CN",
@@ -1429,6 +1431,8 @@ export default function App() {
   const [duration, setDuration] = useState(0);
   const [bufferedEnd, setBufferedEnd] = useState(0);
   const [buffering, setBuffering] = useState(false);
+  useScrollRestore(mainRef, view);
+  useKeyboardAware();
   const [radioDownloadKbps, setRadioDownloadKbps] = useState(0);
   const mobileViewport = useMediaQuery("(max-width: 720px)");
   const [volume, setVolume] = useState(0.85);

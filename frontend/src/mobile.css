@@ -182,7 +182,7 @@
   .main { position:relative; z-index:1; padding:12px; scroll-padding-bottom:18px; }
   .player { position:relative; z-index:20; overflow:visible; grid-template-columns:1fr; grid-template-rows:48px 42px 40px; gap:3px; min-height:var(--player-h); padding:9px 12px; border-radius:22px; }
   .sidebar { position:relative; z-index:50; overflow:hidden; padding:6px 6px calc(6px + var(--safe-bottom)); background:color-mix(in srgb, var(--panel) 98%, var(--bg)); border-color:color-mix(in srgb, var(--accent) 18%, var(--line)); box-shadow:0 -10px 34px rgba(0,0,0,.34); }
-  .sidebar nav { display:flex; width:100%; gap:4px; overflow-x:auto; overflow-y:hidden; padding:0 2px; scroll-snap-type:x proximity; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .sidebar nav { display:flex; width:100%; gap:4px; overflow-x:auto; overflow-y:hidden; padding:0 2px; scroll-snap-type:x proximity; scroll-snap-stop:always; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
   .sidebar nav::-webkit-scrollbar { display:none; }
   .sidebar nav button { flex:0 0 66px; scroll-snap-align:center; min-height:60px; padding:7px 4px; border-radius:17px; font-size:10px; line-height:1.05; pointer-events:auto; }
   .sidebar nav button svg { width:22px; height:22px; }
@@ -316,7 +316,7 @@
     border:1px solid color-mix(in srgb, var(--accent) 20%, var(--line));
     box-shadow:0 14px 42px rgba(0,0,0,.42);
     backdrop-filter:blur(18px);
-    scroll-snap-type:x proximity;
+    scroll-snap-type:x proximity; scroll-snap-stop:always;
     scrollbar-width:none;
     -webkit-overflow-scrolling:touch;
   }
@@ -436,7 +436,7 @@
   .pagination-controls div { justify-content:space-between; }
   .pagination-controls label { flex:1 1 auto; }
   .pagination-controls input { width:64px; }
-  .settings-tabs { border-radius:18px; scroll-snap-type:x proximity; }
+  .settings-tabs { border-radius:18px; scroll-snap-type:x proximity; scroll-snap-stop:always; }
   .settings-tabs button { scroll-snap-align:start; }
   .settings-page {
     gap:12px;
@@ -2855,7 +2855,7 @@
     width:100%;
     overflow:hidden;
     border-radius:999px;
-    background:color-mix(in srgb, var(--text) 10%, transparent);
+    background:color-mix(in srgb, var(--text) 14%, transparent);
   }
   .mobile-mini-progress::before {
     content:'';
@@ -4318,5 +4318,51 @@
   .mobile-mini-player[data-playing='true'] .mobile-mini-play {
     animation:none !important;
     transform:none !important;
+  }
+}
+
+/* Mobile UX hardening: prevent accidental selection and double-tap zoom */
+.app-shell[data-mobile-theme] button,
+.app-shell[data-mobile-theme] .mobile-home-tabs,
+.app-shell[data-mobile-theme] .mobile-bottom-nav,
+.app-shell[data-mobile-theme] .mobile-home-surface,
+.app-shell[data-mobile-theme] .mobile-mini-player,
+.app-shell[data-mobile-theme] .mobile-art-player {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.app-shell[data-mobile-theme] button,
+.app-shell[data-mobile-theme] .mobile-home-tabs button,
+.app-shell[data-mobile-theme] .mobile-home-now > button {
+  touch-action: manipulation;
+}
+
+/* Editorial-pulse: warmer accent shadow for active buttons on yellow bg */
+.app-shell[data-mobile-theme='editorial-pulse'] .mobile-bottom-nav button.active,
+.app-shell[data-mobile-theme='editorial-pulse'] .mobile-home-tabs button.active,
+.app-shell[data-mobile-theme='editorial-pulse'] .collection-tabs button.active,
+.app-shell[data-mobile-theme='editorial-pulse'] .collection-actions .primary {
+  box-shadow: 0 10px 24px color-mix(in srgb, #b8202a 28%, transparent);
+}
+
+/* Kill decorative turntable in lyrics mode on mobile — it reads as rendering artifact */
+.app-shell.lyrics-mode .full-lyrics > .turntable.decorative {
+  display: none !important;
+}
+
+@media (max-width:720px) {
+  /* Sticky topbar with solid background for scroll context */
+  .app-shell[data-mobile-theme] .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding-bottom: 10px;
+    background: color-mix(in srgb, var(--panel) 96%, transparent);
+    backdrop-filter: blur(14px);
+  }
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .topbar {
+    position: sticky;
+    top: -12px;
+    padding-top: 12px;
   }
 }

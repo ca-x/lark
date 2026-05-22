@@ -41,7 +41,7 @@
 :root[data-theme='winamp-light'] { color-scheme:light; --bg:#D4D0C8; --panel:#C8C4BC; --panel2:#BCBAB2; --text:#000000; --muted:#444444; --accent:#2090C0; --accent2:#005080; --line:#AAAAAA; --track:#999999; --progress:#2090C0; --highlight:#1070A0; --hero:linear-gradient(135deg,#E8E4DC,#D4D0C8 70%); --cover:linear-gradient(135deg,#BCBAB2,#AAAAAA); --shadow:2px 2px 0px #888888; --vu-low:#00AA00; --vu-mid:#AAAA00; --vu-high:#CC3300; --hover-bg:rgba(0,0,0,.05); --active-bg:rgba(0,0,0,.10); --selected-bg:rgba(32,144,192,.15); --focus-ring:rgba(32,144,192,.40); }
 :root[data-theme='foobar-light'] { color-scheme:light; --bg:#F3F3F3; --panel:#FFFFFF; --panel2:#F0F0F0; --text:#1E1E1E; --muted:#717171; --accent:#007ACC; --accent2:#004080; --line:#D4D4D4; --track:#D4D4D4; --progress:#007ACC; --highlight:#005FA3; --hero:radial-gradient(circle at 22% 20%,rgba(0,122,204,.13),transparent 34%),#FFFFFF; --cover:linear-gradient(135deg,#E8E8E8,#CCCCCC); --shadow:0 1px 6px rgba(0,0,0,.10); --vu-low:#2E9E6B; --vu-mid:#BB8A00; --vu-high:#DC3545; --hover-bg:rgba(0,0,0,.04); --active-bg:rgba(0,0,0,.07); --selected-bg:rgba(0,122,204,.10); --focus-ring:rgba(0,122,204,.35); }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { min-height: 100%; background: var(--bg); }
 body { margin:0; min-width:0; overflow:hidden; background:var(--bg); }
 button, input, select { font: inherit; }
