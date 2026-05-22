@@ -137,6 +137,7 @@ import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
 import { EqualizerPanel } from "./components/EqualizerPanel";
 import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
+import { SkeletonSongList } from "./components/Skeleton";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { useScrollRestore } from "./hooks/useScrollRestore";
 import { useKeyboardAware } from "./hooks/useKeyboardAware";
@@ -1431,10 +1432,10 @@ export default function App() {
   const [duration, setDuration] = useState(0);
   const [bufferedEnd, setBufferedEnd] = useState(0);
   const [buffering, setBuffering] = useState(false);
-  useScrollRestore(mainRef, view);
-  useKeyboardAware();
   const [radioDownloadKbps, setRadioDownloadKbps] = useState(0);
   const mobileViewport = useMediaQuery("(max-width: 720px)");
+  useScrollRestore(mainRef, view, mobileViewport);
+  useKeyboardAware(mobileViewport);
   const [volume, setVolume] = useState(0.85);
   const initialEq = useMemo(storedEqualizer, []);
   const initialTone = useMemo(storedToneControls, []);
@@ -6822,6 +6823,8 @@ function LibraryView({
           onOpenArtist={onOpenArtist}
           onPlayFolder={onPlayFolder}
         />
+      ) : pageLoading && activeTab === "songs" ? (
+        <SkeletonSongList count={mobileBasic ? 6 : 8} />
       ) : songs.length ? (
         <>
           <SongTable
@@ -7911,13 +7914,11 @@ function SettingsPanel({
   const publicShareEntry = `${window.location.origin}/share/<token>`;
   const subsonicEndpoint = `${window.location.origin}/rest`;
   const mcpTokenExample = mcpToken?.token || mcpToken?.hint || "lark_mcp_...";
-  const tabs: { id: SettingsTab; label: string }[] = mobileViewport
-    ? [{ id: "profile", label: t("profileSettings") }]
-    : [
-        { id: "profile", label: t("profileSettings") },
-        { id: "users", label: t("userManagement") },
-        { id: "site", label: t("siteSettings") },
-      ];
+  const tabs: { id: SettingsTab; label: string }[] = [
+    { id: "profile", label: t("profileSettings") },
+    { id: "users", label: t("userManagement") },
+    { id: "site", label: t("siteSettings") },
+  ];
   const settingsActiveTab: SettingsTab = activeTab;
 
   useEffect(() => {

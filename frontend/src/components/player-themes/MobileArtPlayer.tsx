@@ -39,6 +39,10 @@ const DEFAULT_LABELS = {
   lyrics: "Lyrics",
 };
 
+function isSwipeIgnoredTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest("button, input, select, textarea, a, [role='button'], [data-no-swipe='true']"));
+}
+
 export function MobileArtPlayer({
   variant,
   cover,
@@ -105,29 +109,42 @@ export function MobileArtPlayer({
     "--mobile-art-progress-pct": `${(pct * 100).toFixed(2)}%`,
     ...(coverImage ? { "--mobile-art-cover-image": coverImage } : {}),
   } as CSSProperties;
-  const phoneRef = useRef<HTMLDivElement>(null);
   const [swipeY, setSwipeY] = useState(0);
-  const swipeStartY = useRef(0);
+  const swipeStart = useRef({ x: 0, y: 0, tracking: false });
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    swipeStartY.current = e.touches[0].clientY;
-  }, []);
+    if (!onBack || isSwipeIgnoredTarget(e.target)) {
+      swipeStart.current.tracking = false;
+      return;
+    }
+    const touch = e.touches[0];
+    swipeStart.current = { x: touch.clientX, y: touch.clientY, tracking: true };
+  }, [onBack]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const delta = e.touches[0].clientY - swipeStartY.current;
-    if (delta > 0) setSwipeY(delta);
+    if (!swipeStart.current.tracking) return;
+    const touch = e.touches[0];
+    const deltaY = touch.clientY - swipeStart.current.y;
+    const deltaX = Math.abs(touch.clientX - swipeStart.current.x);
+    if (deltaY > 10 && deltaY > deltaX * 1.25) setSwipeY(deltaY);
   }, []);
 
   const handleTouchEnd = useCallback(() => {
     if (swipeY > 100) onBack?.();
+    swipeStart.current.tracking = false;
     setSwipeY(0);
   }, [swipeY, onBack]);
+
+  const handleTouchCancel = useCallback(() => {
+    swipeStart.current.tracking = false;
+    setSwipeY(0);
+  }, []);
   const modeIcon =
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
 
   return (
     <div className={`mobile-art-player mobile-art-${variant}`} data-playing={playing ? "true" : "false"} style={style}>
-      <div className="mobile-art-phone" ref={phoneRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ transform: swipeY > 0 ? `translateY(${swipeY * 0.6}px)` : undefined, transition: swipeY === 0 ? "transform .35s var(--ease)" : "none", opacity: swipeY > 0 ? Math.max(0, 1 - swipeY / 400) : undefined }}>
+      <div className="mobile-art-phone" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchCancel} style={{ transform: swipeY > 0 ? `translateY(${swipeY * 0.6}px)` : undefined, transition: swipeY === 0 ? "transform .35s var(--ease)" : "none", opacity: swipeY > 0 ? Math.max(0, 1 - swipeY / 400) : undefined }}>
         <div className="mobile-art-bg" aria-hidden="true" />
         {onBack ? (
           <div className="mobile-art-topbar">

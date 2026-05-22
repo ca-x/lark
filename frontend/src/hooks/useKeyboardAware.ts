@@ -5,8 +5,9 @@ import { useEffect } from "react";
  * This hook ensures the active element stays visible by scrolling it into
  * view when the viewport changes.
  */
-export function useKeyboardAware() {
+export function useKeyboardAware(enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
     if (!window.visualViewport) return;
 
     const onResize = () => {
@@ -25,5 +26,5 @@ export function useKeyboardAware() {
     const vp = window.visualViewport;
     vp.addEventListener("resize", onResize);
     return () => vp.removeEventListener("resize", onResize);
-  }, []);
+  }, [enabled]);
 }

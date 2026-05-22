@@ -9,11 +9,13 @@ function scrollKey(view: string) {
 export function useScrollRestore(
   containerRef: RefObject<HTMLElement | null>,
   view: string,
+  enabled = true,
 ) {
-  const restored = useRef(false);
+  const restoredKeyRef = useRef("");
 
   // Save scroll position before unmount / view change
   useEffect(() => {
+    if (!enabled) return;
     const el = containerRef.current;
     if (!el) return;
 
@@ -27,23 +29,25 @@ export function useScrollRestore(
 
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [containerRef, view]);
+  }, [containerRef, enabled, view]);
 
   // Restore scroll position on mount / view change
   useEffect(() => {
-    if (restored.current) return;
+    if (!enabled) return;
     const el = containerRef.current;
     if (!el) return;
+    const key = scrollKey(view);
+    if (restoredKeyRef.current === key) return;
 
     try {
-      const saved = sessionStorage.getItem(scrollKey(view));
+      const saved = sessionStorage.getItem(key);
       if (saved !== null) {
         const top = Number(saved);
         if (Number.isFinite(top) && top > 0) {
           // Use requestAnimationFrame so the DOM has laid out
           requestAnimationFrame(() => {
             el.scrollTop = top;
-            restored.current = true;
+            restoredKeyRef.current = key;
           });
           return;
         }
@@ -52,11 +56,11 @@ export function useScrollRestore(
       // ignore
     }
 
-    restored.current = true;
-  }, [containerRef, view]);
+    restoredKeyRef.current = key;
+  }, [containerRef, enabled, view]);
 
-  // Reset restored flag when view changes
+  // Re-check the current view if the mobile-only behavior is toggled off and on.
   useEffect(() => {
-    restored.current = false;
-  }, [view]);
+    if (!enabled) restoredKeyRef.current = "";
+  }, [enabled]);
 }

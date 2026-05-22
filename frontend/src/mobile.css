@@ -4321,28 +4321,30 @@
   }
 }
 
-/* Mobile UX hardening: prevent accidental selection and double-tap zoom */
-.app-shell[data-mobile-theme] button,
-.app-shell[data-mobile-theme] .mobile-home-tabs,
-.app-shell[data-mobile-theme] .mobile-bottom-nav,
-.app-shell[data-mobile-theme] .mobile-home-surface,
-.app-shell[data-mobile-theme] .mobile-mini-player,
-.app-shell[data-mobile-theme] .mobile-art-player {
-  user-select: none;
-  -webkit-user-select: none;
-}
-.app-shell[data-mobile-theme] button,
-.app-shell[data-mobile-theme] .mobile-home-tabs button,
-.app-shell[data-mobile-theme] .mobile-home-now > button {
-  touch-action: manipulation;
-}
+@media (max-width:720px) {
+  /* Mobile UX hardening: prevent accidental selection and double-tap zoom */
+  .app-shell[data-mobile-theme] button,
+  .app-shell[data-mobile-theme] .mobile-home-tabs,
+  .app-shell[data-mobile-theme] .mobile-bottom-nav,
+  .app-shell[data-mobile-theme] .mobile-home-surface,
+  .app-shell[data-mobile-theme] .mobile-mini-player,
+  .app-shell[data-mobile-theme] .mobile-art-player {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .app-shell[data-mobile-theme] button,
+  .app-shell[data-mobile-theme] .mobile-home-tabs button,
+  .app-shell[data-mobile-theme] .mobile-home-now > button {
+    touch-action: manipulation;
+  }
 
-/* Editorial-pulse: warmer accent shadow for active buttons on yellow bg */
-.app-shell[data-mobile-theme='editorial-pulse'] .mobile-bottom-nav button.active,
-.app-shell[data-mobile-theme='editorial-pulse'] .mobile-home-tabs button.active,
-.app-shell[data-mobile-theme='editorial-pulse'] .collection-tabs button.active,
-.app-shell[data-mobile-theme='editorial-pulse'] .collection-actions .primary {
-  box-shadow: 0 10px 24px color-mix(in srgb, #b8202a 28%, transparent);
+  /* Editorial-pulse: warmer accent shadow for active buttons on yellow bg */
+  .app-shell[data-mobile-theme='editorial-pulse'] .mobile-bottom-nav button.active,
+  .app-shell[data-mobile-theme='editorial-pulse'] .mobile-home-tabs button.active,
+  .app-shell[data-mobile-theme='editorial-pulse'] .collection-tabs button.active,
+  .app-shell[data-mobile-theme='editorial-pulse'] .collection-actions .primary {
+    box-shadow: 0 10px 24px color-mix(in srgb, #b8202a 28%, transparent);
+  }
 }
 
 
@@ -4355,6 +4357,9 @@
 
 @media (max-width:720px) {
   /* Allow native pull-to-refresh on the main scroll area */
+  body:has(.app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode)) {
+    overscroll-behavior-y: auto;
+  }
   .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .main {
     overscroll-behavior-y: auto;
   }
