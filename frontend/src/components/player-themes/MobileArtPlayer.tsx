@@ -117,7 +117,7 @@ export function MobileArtPlayer({
             <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>
               <CaretLeft weight="bold" />
             </button>
-            <span>{variant === "soft-vinyl" || variant === "stage-glass" || variant === "indiewave" || variant === "editorial-pulse" ? text.nowPlaying : album}</span>
+            <span>{text.nowPlaying}</span>
             <span className="mobile-art-topbar-icon" aria-hidden="true" />
           </div>
         ) : null}
@@ -127,13 +127,13 @@ export function MobileArtPlayer({
         ) : variant === "indiewave" ? (
           <IndiewaveVisual cover={cover} />
         ) : variant === "editorial-pulse" ? (
-          <EditorialPulseVisual cover={cover} playing={playing} title={title} artist={artist} album={album} labels={text} />
+          <EditorialPulseVisual cover={cover} />
         ) : variant === "soft-vinyl" ? (
           <SoftVinylVisual cover={cover} />
         ) : variant === "stage-glass" ? (
           <StageGlassVisual cover={cover} playing={playing} />
         ) : (
-          <BlueHaloVisual cover={cover} title={title} artist={artist} />
+          <BlueHaloVisual cover={cover} />
         )}
 
         <div className="mobile-art-meta">
@@ -274,21 +274,7 @@ function IndiewaveVisual({ cover }: { cover?: string }) {
   );
 }
 
-function EditorialPulseVisual({
-  cover,
-  playing,
-  title,
-  artist,
-  album,
-  labels,
-}: {
-  cover?: string;
-  playing: boolean;
-  title: string;
-  artist: string;
-  album: string;
-  labels: Required<typeof DEFAULT_LABELS>;
-}) {
+function EditorialPulseVisual({ cover }: { cover?: string }) {
   return (
     <div className="mobile-editorial-visual">
       <div className="mobile-editorial-cover" data-has-cover={cover ? "true" : "false"}>
@@ -297,11 +283,6 @@ function EditorialPulseVisual({
       </div>
       <div className="mobile-editorial-record" aria-hidden="true">
         <span />
-      </div>
-      <div className="mobile-editorial-caption">
-        <span>{playing ? labels.nowPlaying : album}</span>
-        <strong>{title}</strong>
-        <em>{artist}</em>
       </div>
       <div className="mobile-editorial-arcs" aria-hidden="true">
         <span className="green"><i /></span>
@@ -329,17 +310,14 @@ function StageGlassVisual({ cover, playing }: { cover?: string; playing: boolean
   );
 }
 
-function BlueHaloVisual({ cover, title, artist }: { cover?: string; title: string; artist: string }) {
+function BlueHaloVisual({ cover }: { cover?: string }) {
   return (
     <div className="mobile-blue-visual">
       <div className="mobile-blue-art" data-has-cover={cover ? "true" : "false"}>
         {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
         <span className="mobile-blue-statue" aria-hidden="true" />
       </div>
-      <div className="mobile-blue-orbit" aria-hidden="true">
-        <span>{artist}</span>
-        <strong>{title}</strong>
-      </div>
+      <div className="mobile-blue-orbit" aria-hidden="true" />
       <span className="mobile-blue-heart" aria-hidden="true">
         <Heart weight="fill" />
       </span>
