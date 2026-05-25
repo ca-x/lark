@@ -4425,3 +4425,233 @@
     animation: fade-up .22s var(--ease);
   }
 }
+
+/* v0.6.6 mobile typography pass — pairs with the desktop block in styles.css.
+   Fixes the bottom-nav micro-label legibility, hero/CJK heading rhythm, mobile
+   player meta line-heights, and lyrics readability on phone screens. */
+@media (max-width:720px) {
+  /* Bottom-nav labels were 9px and tight — barely legible at arm's length. Bump to a true 10.5px
+     with looser tracking and a mid weight. Touch target stays 56px high. */
+  .sidebar nav button {
+    font-size: 10.5px;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+    font-weight: 800;
+  }
+  /* CJK headlines on small screens: prevent broken character pairs and tame the desktop -.06em
+     tracking that was inherited via clamp() font sizes. */
+  :lang(zh) .top-title h1,
+  :lang(ja) .top-title h1,
+  :lang(zh) .hero h1,
+  :lang(ja) .hero h1,
+  :lang(zh) .collection-hero h1,
+  :lang(ja) .collection-hero h1,
+  :lang(zh) .full-lyrics-head h1,
+  :lang(ja) .full-lyrics-head h1 {
+    letter-spacing: -0.005em;
+    line-height: 1.1;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  /* Mobile art player meta: existing 22px title at line-height 1.08 clips Chinese descenders.
+     Give it a hair more leading; keep the truncation. */
+  .mobile-art-meta strong { line-height: 1.18; }
+  .mobile-art-meta span,
+  .mobile-art-meta em { line-height: 1.35; }
+  /* Mobile transport / progress times use tabular numerals to avoid the digits dancing. */
+  .mobile-art-time,
+  .mobile-art-time span,
+  .mobile-art-time time { font-variant-numeric: tabular-nums; }
+  /* Lyrics on phone: existing weight 850 looks waxy in synthesized bold for CJK uploads.
+     Drop to 700 (real weight) and add a touch more leading so multi-character lines breathe. */
+  :lang(zh) .full-lyrics-lines,
+  :lang(ja) .full-lyrics-lines {
+    font-weight: 700;
+    line-height: 1.45;
+  }
+  :lang(zh) .full-lyrics-lines p.live,
+  :lang(ja) .full-lyrics-lines p.live { font-weight: 800; }
+  /* List rows (queue, song-row, daily picks) need a little more leading on phones —
+     the desktop snap rule from styles.css already covers .song-row, this hardens it
+     against any later mobile-specific overrides. */
+  .song-row strong, .song-row small,
+  .queue-list strong, .queue-list small { line-height: 1.32; }
+  /* Search and filter inputs: prevent iOS auto-zoom on focus by floor-locking at 16px logical. */
+  .search input,
+  .auth-form input,
+  .modal-card input,
+  .settings-grid input,
+  .settings-grid select { font-size: max(16px, 1rem); }
+  /* Section eyebrows and timestamps in the home dashboard: tighten letter-spacing for CJK only. */
+  :lang(zh) :is(.section-head h2, .section-head.compact h2,
+    .library-summary-stat span, .empty-library h2, .auth-card p,
+    .modal-card p, .public-share-list-head),
+  :lang(ja) :is(.section-head h2, .section-head.compact h2,
+    .library-summary-stat span, .empty-library h2, .auth-card p,
+    .modal-card p, .public-share-list-head) {
+    letter-spacing: 0.04em;
+  }
+  /* Buttons and pill controls feel cramped at default leading when the label wraps. */
+  button, .primary, .upload, .filter-pill,
+  .segmented-control button { line-height: 1.2; }
+  /* App toast: prose, not label. Loosen the leading and align the wide-string overflow. */
+  .app-toast { line-height: 1.5; }
+}
+
+@media (max-width:420px) {
+  /* On the smallest phones, the 8-column nav crushes label width. Drop labels to icons-only
+     when font would have to shrink under 10px to fit. Buttons stay 56px tall, so touch is fine. */
+  .sidebar nav button {
+    font-size: 10px;
+    letter-spacing: 0.015em;
+  }
+  /* Hero on very narrow screens: keep clamp font but drop tracking entirely so 4-character
+     CJK titles don't break across two visual blocks. */
+  :lang(zh) .hero h1,
+  :lang(ja) .hero h1 { letter-spacing: 0; }
+}
+
+/* v0.6.6 mobile native-feel pass — pairs with the desktop block in styles.css.
+   Mobile-specific hardening: kill iOS long-press previews, lock down text selection
+   on chrome, provide tap-state feedback, and keep momentum scroll intact. */
+@media (max-width:720px) {
+  /* --- iOS long-press / force-touch suppression --- */
+  .app-shell img,
+  .app-shell svg,
+  .app-shell button,
+  .app-shell a,
+  .app-shell [role='button'],
+  .app-shell .mobile-home-tabs button,
+  .app-shell .mobile-bottom-nav button,
+  .app-shell .song-row,
+  .app-shell .queue-item,
+  .app-shell .media-card,
+  .app-shell .folder-card,
+  .app-shell .daily-cover-card,
+  .app-shell .playlist-card,
+  .app-shell .album-slide,
+  .app-shell .collection-brick {
+    -webkit-touch-callout: none;
+  }
+
+  /* --- No image dragging on mobile (prevents ghost-drag on long-press) --- */
+  .app-shell img,
+  .app-shell svg {
+    -webkit-user-drag: none;
+  }
+
+  /* --- Extended user-select lockdown on mobile chrome --- */
+  .app-shell .topbar,
+  .app-shell .topbar h1,
+  .app-shell .topbar button,
+  .app-shell .mobile-home-tabs,
+  .app-shell .mobile-bottom-nav,
+  .app-shell .mobile-mini-player,
+  .app-shell .mobile-art-player,
+  .app-shell .mobile-art-controls,
+  .app-shell .section-head,
+  .app-shell .player-controls,
+  .app-shell .transport-bar,
+  .app-shell .volume-control,
+  .app-shell .collection-tabs,
+  .app-shell .settings-tabs,
+  .app-shell .vinyl-shell,
+  .app-shell .cassette-shell,
+  .app-shell .ipod-shell,
+  .app-shell .audio-scope-controls,
+  .app-shell .empty-state,
+  .app-shell .app-toast {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* --- Re-enable text selection on mobile content surfaces --- */
+  .app-shell .full-lyrics-lines,
+  .app-shell .full-lyrics-lines p,
+  .app-shell .full-lyrics-lines span,
+  .app-shell .song-row strong,
+  .app-shell .song-row small,
+  .app-shell .queue-list strong,
+  .app-shell .queue-list small,
+  .app-shell .search-results .song-row strong,
+  .app-shell .settings-grid input,
+  .app-shell .settings-grid textarea,
+  .app-shell .auth-form input,
+  .app-shell .modal-card input,
+  .app-shell .error-boundary pre,
+  .app-shell .code-field,
+  .app-shell .token-field {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  /* --- Kill hover-lift transforms on mobile rows/cards ---
+     Touch devices don't hover; lingering :hover transforms fire on
+     tap-and-hold, causing a jarring "stuck" lifted state. */
+  .folder-card:hover,
+  .folder-tree-row:hover,
+  .daily-cover-card:hover,
+  .playlist-card:hover,
+  .media-card:hover,
+  .album-slide:hover {
+    transform: none;
+  }
+
+  /* --- Platform tap-active feedback ---
+     Subtle press-down scale. Duration kept tight (< 80ms) so it feels
+     like a native touch response, not a web animation. */
+  .song-row:active,
+  .queue-item:active,
+  .media-card:active,
+  .folder-card:active,
+  .daily-cover-card:active,
+  .playlist-card:active,
+  .album-slide:active,
+  .collection-brick:active,
+  .mobile-home-tabs button:active,
+  .mobile-bottom-nav button:active,
+  .settings-tabs button:active,
+  .collection-tabs button:active {
+    scale: 0.985;
+    transition: scale 0.06s var(--ease);
+  }
+
+  /* --- No text-decoration on chrome title hover (mobile) ---
+     Matches the desktop rule: native apps don't underline nav chrome. */
+  .media-card-title:hover,
+  .card-meta-button:hover,
+  .folder-name:hover,
+  .playlist-name:hover,
+  .section-head h2:hover {
+    text-decoration: none;
+  }
+
+  /* --- Focus ring discipline for mobile keyboard nav --- */
+  .app-shell :focus-visible {
+    outline-offset: 1px;
+  }
+}
+
+/* --- System font stack for mobile ---
+   iOS uses San Francisco, Android uses Roboto via system-ui fallback.
+   Guarded to avoid stomping theme-specific faces. */
+@media (max-width:720px) {
+  :root:not([data-custom-font='true']):not([data-theme='amber-film']):not([data-theme='mountain-mist']):not([data-theme='oat-latte']):not([data-theme='carbon-volt']):not([data-theme='plum-silk']):not([data-theme='matcha-frost']) {
+    --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Roboto', system-ui, ui-sans-serif, sans-serif;
+    --font-head: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'Roboto', system-ui, ui-sans-serif, sans-serif;
+  }
+}
+
+/* --- prefers-reduced-motion: snap all mobile transitions to instant --- */
+@media (max-width:720px) {
+  @media (prefers-reduced-motion: reduce) {
+    .app-shell *,
+    .app-shell *::before,
+    .app-shell *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+

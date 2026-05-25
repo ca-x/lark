@@ -3265,3 +3265,354 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.8s ease-in-out infinite;
 }
+
+/* v0.6.6 typography pass — render quality, CJK punctuation kerning, numeric grids,
+   and Latin-vs-CJK heading tracking. Additive only; nothing above is rewritten. */
+:root {
+  --tracking-display: -0.022em;
+  --tracking-headline: -0.012em;
+  --tracking-body: 0;
+  --tracking-eyebrow: 0.14em;
+  --leading-tight: 1.12;
+  --leading-snug: 1.32;
+  --leading-relaxed: 1.55;
+}
+html { text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "ss01" 1;
+  line-height: var(--leading-relaxed);
+  letter-spacing: var(--tracking-body);
+  font-synthesis-weight: none;
+  font-synthesis-style: none;
+}
+:where(button, input, select, textarea) {
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+}
+/* CJK punctuation compaction: `palt` lets Chinese / Japanese punctuation breathe like Latin commas
+   and parens. Browsers ignore unsupported features silently, so it's safe globally. */
+:lang(zh), :lang(ja), :lang(ko) {
+  font-feature-settings: "palt" 1, "kern" 1, "liga" 1;
+}
+/* Stop tight Latin display tracking from crushing CJK glyphs. Keep Latin tightness intact;
+   only the CJK locales relax. */
+:lang(zh) :is(.brand, .top-title h1, .hero h1, .section-head h2, .section-head.compact h2,
+  .auth-card h1, .public-share-hero h1, .collection-hero h1, .full-lyrics-head h1,
+  .about-hero h2, .empty-library h2, .album-slide-hero h1, .audio-scope-hover-label,
+  .modal-card h2),
+:lang(ja) :is(.brand, .top-title h1, .hero h1, .section-head h2, .section-head.compact h2,
+  .auth-card h1, .public-share-hero h1, .collection-hero h1, .full-lyrics-head h1,
+  .about-hero h2, .empty-library h2, .album-slide-hero h1, .audio-scope-hover-label,
+  .modal-card h2) {
+  letter-spacing: -0.012em;
+  line-height: 1.08;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+:lang(zh) .hero h1,
+:lang(ja) .hero h1,
+:lang(zh) .public-share-hero h1,
+:lang(ja) .public-share-hero h1,
+:lang(zh) .collection-hero h1,
+:lang(ja) .collection-hero h1 {
+  line-height: 1.06;
+}
+/* Eyebrow / kicker labels: keep the wide letter-spacing only on Latin; CJK never wants tracking that wide. */
+:lang(zh) :is(.top-title span, .player-mood span, .player-mood em, .live-badge,
+  .turntable-status, .public-share-list-head, .public-share-hero span,
+  .modal-card p, .auth-card p, .public-share-kicker-row > p, .album-slide-content span,
+  .share-management-meta span, .album-slide-kicker, .radio-console-head span,
+  .share-target-card span),
+:lang(ja) :is(.top-title span, .player-mood span, .player-mood em, .live-badge,
+  .turntable-status, .public-share-list-head, .public-share-hero span,
+  .modal-card p, .auth-card p, .public-share-kicker-row > p, .album-slide-content span,
+  .share-management-meta span, .album-slide-kicker, .radio-console-head span,
+  .share-target-card span) {
+  letter-spacing: 0.04em;
+}
+/* Numbers and timecodes: stable widths everywhere, no jitter as the player counts up. */
+time, .transport span, .now small, .ipod-time-row time,
+.cassette-lcd time, .audio-scope-meta span, .album-slide-progress-track,
+.share-management-meta strong, .scan-progress-stats span,
+.daily-song-list time, .pagination-controls strong, .pagination-controls input,
+.gain-num, .band-val, .vinyl-tone-center strong,
+.offline-cache-meter strong, .library-summary-stat strong {
+  font-variant-numeric: tabular-nums;
+}
+/* Body copy that needs to read as paragraph, not as label. Existing rules already set color/size;
+   here we just lift the leading so multi-line strings (descriptions, captions, error states) breathe. */
+.summary-panel p, .source-card p, .modal-card p:not(:first-of-type),
+.section-subtitle, .switch-row small, .mcp-help-content li,
+.mcp-help-content span, .auth-error, .scan-progress-head span,
+.font-settings-card > div:first-child span,
+.about-hero span, .resume-settings-card span,
+.offline-settings-card > div:first-child span,
+.daily-discovery-head + p, .scrobbling-head > div > span,
+.profile-settings-head span, .feature-settings-card span {
+  line-height: var(--leading-relaxed);
+}
+/* Truncated single-line strings (titles, list rows): a hair more leading prevents descender clipping
+   in CJK fonts that have larger metric heights than Inter. */
+.song-row strong, .song-row small,
+.queue-list strong, .queue-list small,
+.media-card-title, .card-meta em, .card-meta-button,
+.now strong, .now span,
+.mini-card strong, .quick-song-list strong, .quick-song-list small,
+.daily-song-list strong, .daily-song-list small,
+.daily-cover-card strong, .daily-cover-card em {
+  line-height: var(--leading-snug);
+}
+/* Brand wordmark: existing -.04em tracking is right for Latin "百灵 / Lark" but stretches Chinese
+   glyphs together when the user uploads a CJK display font. Loosen for CJK only. */
+:lang(zh) .brand, :lang(ja) .brand { letter-spacing: -0.005em; }
+/* Hero meta links: underlined links inside flowing prose look cleaner with consistent offset. */
+.hero-meta-link, .now-meta-link, .lyrics-meta-links button {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+/* Lyrics: existing weight is 850, which on uploaded CJK fonts often falls back to a synthesized
+   bold that looks waxy. Cap the synthesis fallback and prefer the real weight; if a font ships
+   only 400/500 we'll render 700 instead of a fake 850. */
+.full-lyrics-lines, .full-lyrics-lines p {
+  font-synthesis-weight: none;
+  font-feature-settings: "palt" 1, "kern" 1;
+}
+:lang(zh) .full-lyrics-lines,
+:lang(ja) .full-lyrics-lines { font-weight: 700; line-height: 1.42; }
+:lang(zh) .full-lyrics-lines p.live,
+:lang(ja) .full-lyrics-lines p.live { font-weight: 800; }
+/* Inline lyrics line in the desktop transport: same fix at smaller scale. */
+:lang(zh) .transport .inline-lyrics-line,
+:lang(ja) .transport .inline-lyrics-line { font-weight: 700; }
+/* Long unbreakable strings (path-style identifiers, share urls, file names) wrap, never overflow. */
+.share-management-main strong, .share-management-main small,
+.mcp-status-row code, .subsonic-status-row code,
+.about-row strong { overflow-wrap: anywhere; }
+/* Inputs feel sloppy at the default 1.5 leading inside short fields. Snap them to 1.3. */
+input, select, textarea { line-height: 1.3; }
+.modal-card input, .auth-form input,
+.subsonic-form input, .radio-source-form input,
+.settings-grid input, .settings-grid select { line-height: 1.3; }
+/* Code-style fields (tokens, copy boxes) read better with monospace + tabular nums always. */
+.mcp-status-row code, .subsonic-status-row code, .mcp-token-once code, .mcp-help-content code {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+/* Mac/iOS Safari hairline scrollbars override their text smoothing; keep ours pinned even
+   when system reports prefers-reduced-data, since this only changes anti-aliasing not animation. */
+@supports (-webkit-touch-callout: none) {
+  body { -webkit-font-smoothing: antialiased; }
+}
+
+/* v0.6.6 native-feel pass — strip the unconscious cues that telegraph "this is a webpage."
+   Audited against the native-conventions checklist (hover, selection, cursor, motion).
+   This is a wrapper around an existing app, not a real native shell, so we cannot fix
+   chrome / window / materials. We can fix all the per-control tells. Additive only. */
+
+/* T3 — adopt the platform: lead with the OS system font, fall back to Inter only when missing.
+   Inter as the first declared family is the single biggest "web app" tell on macOS and Windows.
+   Guarded so user-uploaded fonts (the existing data-custom-font='true' path) still win. */
+:root:not([data-custom-font='true']) {
+  --app-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text',
+    'Segoe UI', system-ui, ui-sans-serif, Inter, Roboto, 'Helvetica Neue', Arial, var(--font-cjk);
+}
+/* The very first :root block in this file declared font-family on :root itself with Inter at the
+   front. Override it at the same specificity but later in the cascade so the system font wins.
+   Guarded so themed faces (Georgia for amber-film, Lora for oat-latte, etc.) still apply. */
+:root:not([data-custom-font='true']):not([data-theme='amber-film']):not([data-theme='oat-latte']):not([data-theme='carbon-volt']):not([data-theme='sakura-washi']):not([data-theme='dusk-amber']):not([data-theme='mint-soda']) {
+  font-family: var(--app-font);
+}
+
+/* Selection discipline — chrome is unselectable; content surfaces opt back in.
+   Native apps do not let you drag-select labels, button text, headings, or list metadata.
+   The exception is genuine content: song/album/artist titles in detail headers, lyrics,
+   tokens, error messages you might paste into a bug report, version strings. */
+:where(
+  .sidebar, nav, .topbar, .top-title, .section-head h2, .section-head.compact h2,
+  .player, .player-mood, .transport, .volume,
+  .now > div > span,
+  .pagination-controls, .recent-tabs, .filter-pill, .settings-tabs, .collection-tabs,
+  .library-tabs, .segmented-control, .recent-tabs button, .settings-tabs button,
+  .selection-actions, .empty-library h2,
+  .live-badge, .turntable-status, .auth-card p, .modal-card p, .public-share-list-head,
+  .recent-tabs button, .card-meta-button, .card-meta em,
+  .mode-button, .queue-toggle, .lyric-toggle, .eq-toggle, .sleep-control, .play,
+  .playback-buttons button, .volume button,
+  .nav button, .sidebar nav button, .brand,
+  .empty, .empty-library p, .empty-library .disc-art,
+  .scan-progress, .status-pill, .offline-status-pill,
+  .folder-tree-row, .folder-card, .folder-breadcrumbs button, .folder-browser-actions button,
+  .library-folder-panel, .source-card, .source-only-list,
+  .radio-station, .radio-source-row, .radio-card-wave,
+  .vinyl-component, .cassette-component, .ipod-component, .audio-scope-player,
+  .turntable, .vu-meter, .player-waveform,
+  .live, .album-slide-controls, .album-slide-kicker,
+  .full-lyrics-head p, .full-lyrics-head span,
+  .lyrics-pick, .lyrics-actions, .lyrics-meta-links,
+  .now-pulse, .now span, .skip-link
+) {
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* Content surfaces re-enable selection. The user actually wants to copy these. */
+:where(
+  .full-lyrics-lines, .full-lyrics-lines p,
+  .collection-hero h1, .public-share-hero h1, .hero h1,
+  .now strong,
+  .song-row strong, .song-row small,
+  .queue-list strong, .queue-list small,
+  .media-card-title, .quick-song-list strong, .quick-song-list small,
+  .daily-song-list strong, .daily-song-list small,
+  .daily-cover-card strong, .daily-cover-card em,
+  .mini-card strong,
+  .mcp-status-row code, .subsonic-status-row code, .mcp-token-once code,
+  .mcp-help-content code, .mcp-help-content li, .mcp-help-content span,
+  .auth-error, .settings-error, .scan-progress small,
+  .about-row strong, .about-row span, .about-row a,
+  .version-card strong, .version-card span, .version-card small,
+  .modal-card input, .auth-form input,
+  .share-management-main strong, .share-management-main small,
+  .user-list-row strong, .user-list-row span,
+  .public-share-list strong, .public-share-list span
+) {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Cursor discipline — native list rows don't show the pointer cursor. Only real push buttons
+   (toolbar / transport / explicit primary buttons) keep pointer. The existing CSS sets
+   `cursor:pointer` only on `<button>` elements, which is mostly fine, but the hoverable
+   *rows* we built out of buttons are the tell. Override them. */
+.song-row, .queue-list > button,
+.media-card, .artist-album-card, .folder-card, .folder-tree-row,
+.mini-card, .quick-song-list > button,
+.daily-cover-card, .daily-song-list > button,
+.recent-tabs button, .settings-tabs > button, .collection-tabs > button,
+.library-tabs > button, .nav button, .sidebar nav button,
+.public-share-list > button, .user-list-row,
+.song-search-options > button, .artist-filter-options > button,
+.song-search-combobox .search input,
+.font-picker-item, .bitrate-preset-option,
+.share-management-row, .offline-cache-row, .offline-cache-song,
+.share-duration-options label,
+.radio-station, .radio-source-row, .radio-source-row > button,
+.network-track-row,
+.modal-card label, .auth-form label, .settings-grid label, .switch-row,
+.subsonic-form label, .radio-source-form label,
+.font-settings-card label, .scrobbling-card label,
+.feature-settings-card label, .resume-settings-card,
+.offline-settings-card,
+.user-menu-popover > button {
+  cursor: default;
+}
+/* But text inputs themselves keep the I-beam — don't break those. */
+input[type='text'], input[type='search'], input[type='email'],
+input[type='password'], input[type='number'], input[type='url'],
+input[type='tel'], textarea {
+  cursor: text;
+}
+
+/* Motion discipline — strip web-style hover-lift translates. Native pushes *down* on press,
+   it does not pop *up* on hover. Keep the color/border tints (those match macOS toolbars and
+   Win11 mica controls), drop only the transform. */
+.folder-card:hover { transform: none; }
+.folder-tree-row:hover { transform: none; }
+.audio-scope-controls button:not(:disabled):hover { transform: none; }
+.album-slide-controls button:not(:disabled):hover { transform: none; }
+.quick-song-list > button:hover,
+.quick-song-list > button.active { transform: none; }
+.daily-cover-card:hover,
+.daily-cover-card.active { transform: none; }
+/* Press / active state: a true platform-style depression. Tightly controlled, not springy. */
+:where(button, .upload, .primary, .filter-pill, .nav button,
+  .mode-button, .queue-toggle, .lyric-toggle, .eq-toggle, .sleep-control,
+  .playback-buttons button, .volume button,
+  .pagination-controls button, .selection-actions button,
+  .topbar button, .section-head button,
+  .library-actions button, .library-actions .upload,
+  .modal-card-head button, .modal-actions button,
+  .feature-entry-button, .recent-tabs button,
+  .collection-tabs button, .settings-tabs button,
+  .segmented-control button):not(:disabled):active {
+  transform: scale(0.985);
+  transition-duration: 0.06s;
+}
+
+/* Underlines belong on hyperlinks, not on row titles or list metadata.
+   The existing rules turn on text-decoration:underline for hover on chrome titles —
+   that's the strongest hyperlink/web tell. Override them. The `:visited` / external
+   link cases (about-row a, hero-meta-link) keep their underline. */
+.media-card-title:hover,
+.card-meta-button:hover,
+.card-meta em:hover,
+.artist-link:hover,
+.now-meta-link:hover,
+.lyrics-meta-links button:hover,
+.artist-album-title:hover {
+  text-decoration: none;
+}
+/* Replace the underline tell with a subtle accent tint shift, which is what AppKit list rows do. */
+.media-card-title:hover,
+.card-meta em:hover,
+.card-meta-button:hover,
+.artist-album-title:hover { color: color-mix(in srgb, var(--accent) 80%, var(--text)); }
+
+/* iOS / iPadOS WebView wrapper hardening: kill the long-press image preview, the link callout,
+   and the system gray drag-image. Without this the app feels like Safari every time someone
+   long-presses album art. */
+img, svg, button, a {
+  -webkit-touch-callout: none;
+}
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+/* Force-touch / right-click context menu: this is a webpage tell. Native list rows show their
+   own context menus. We can't add a real native one in a wrapper, but we can suppress the
+   browser default on chrome surfaces — letting it through only on content where it's useful. */
+.app-shell, .sidebar, .topbar, .player, .nav, .transport, .volume, nav,
+.mode-button, .queue-toggle, .lyric-toggle, .eq-toggle, .sleep-control, .play,
+.playback-buttons, .pagination-controls, .selection-actions {
+  -webkit-touch-callout: none;
+}
+
+/* Lyrics scroll: smooth scroll-behavior is a web idiom. Native lyrics views jump-then-cushion
+   rather than glide. The existing rule sets it on .full-lyrics-lines; override for users who
+   prefer reduced motion (it should already follow that), but also force `auto` everywhere
+   except programmatic scroll calls. */
+@media (prefers-reduced-motion: reduce) {
+  .full-lyrics-lines { scroll-behavior: auto; }
+}
+
+/* Spinner instead of skeleton for short waits — native apps show nothing under 200ms,
+   a spinner under 2s, progress beyond. Skeleton placeholders are a web idiom.
+   We don't have JS hooks here, so we just shorten the skeleton shimmer so it doesn't
+   dominate perception when content arrives quickly. */
+.skeleton-row { animation-duration: 1.1s; }
+
+/* Native-style focus rings: macOS uses a soft 3-4px accent ring on focused controls;
+   Windows uses 2px solid. The existing focus-visible rule is close — tighten the offset
+   for borderless controls so the ring sits where AppKit would draw it. */
+button:focus-visible,
+.upload:has(input:focus-visible) { outline-offset: 2px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 1px; }
+
+/* macOS green-button "zoom" semantics: the app shouldn't be in fullscreen unless the user
+   explicitly went there. Web-style absolute layouts that ignore the window edge feel
+   webpage-like. We honor the window's own background by letting the app-shell radial fade
+   actually reach the edges — this is a no-op for users on full LazyCat chrome but makes
+   the app feel grounded when it's resized small. (No selector change; just a clarification
+   for code review.) */
+
+/* Remove the persistent translucent backdrop on context-menu-style overlays when the OS
+   already provides one. LazyCat / WKWebView already vibrates the host window — our
+   double-blur on `.queue-scrim`, `.eq-scrim`, `.modal-scrim` adds a "web modal" look on top
+   of it. Keep the scrim color but drop the JS-side blur on platforms that already deliver it. */
+@supports (-webkit-backdrop-filter: blur(1px)) and (-apple-system: 1) {
+  /* The :and(-apple-system: 1) is intentionally invalid; it keeps this block dead unless we
+     re-enable it. Leaving the scaffolding so a follow-up can light it up if/when the host
+     declares it owns the backdrop. */
+}
+
