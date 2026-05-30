@@ -50,11 +50,20 @@ import (
 	"lark/backend/internal/qqmusic"
 )
 
-var supportedExts = map[string]bool{
+var supportedAudioExts = map[string]bool{
 	".mp3": true, ".flac": true, ".wav": true, ".aiff": true, ".aif": true,
 	".m4a": true, ".aac": true, ".ogg": true, ".oga": true, ".opus": true,
 	".dsf": true, ".dff": true, ".dst": true, ".ape": true, ".alac": true,
 }
+
+var supportedExts = func() map[string]bool {
+	out := make(map[string]bool, len(supportedAudioExts)+1)
+	for ext, ok := range supportedAudioExts {
+		out[ext] = ok
+	}
+	out[".cue"] = true
+	return out
+}()
 
 var embeddedLyricsExts = map[string]bool{
 	".mp3": true, ".flac": true, ".m4a": true, ".aac": true, ".alac": true,
@@ -421,6 +430,14 @@ func (s *Service) runLibraryWatcher(ctx context.Context, state *libraryWatcher) 
 		go func() {
 			importCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
+			if isCUEFile(path) {
+				_, _ = s.importCUEFile(importCtx, path, true)
+				return
+			}
+			if cuePath, ok := s.firstCueReferencingAudio(importCtx, path); ok {
+				_, _ = s.importCUEFile(importCtx, cuePath, true)
+				return
+			}
 			_, _ = s.ImportFile(importCtx, path)
 		}()
 	}
@@ -614,6 +631,10 @@ func (s *Service) rootDisplayName(root libraryRoot) string {
 
 func IsSupported(path string) bool { return supportedExts[strings.ToLower(filepath.Ext(path))] }
 
+func IsAudioSupported(path string) bool {
+	return supportedAudioExts[strings.ToLower(filepath.Ext(path))]
+}
+
 func (s *Service) ScanStatus() models.ScanStatus {
 	s.scanMu.RLock()
 	defer s.scanMu.RUnlock()
@@ -648,6 +669,7 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 	}()
 	for _, root := range roots {
 		rootPath := root.Path
+		cueReferencedAudio := s.cueReferencedAudioPaths(scanCtx, rootPath)
 		err := filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
 			if scanCtx.Err() != nil {
 				result.Canceled = true
@@ -671,6 +693,36 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 			result.CurrentDir = filepath.Dir(path)
 			s.updateScanProgress(path, result.CurrentDir, &result)
 			if !IsSupported(path) {
+				result.Skipped++
+				s.updateScanProgress(path, result.CurrentDir, &result)
+				return nil
+			}
+			if isCUEFile(path) {
+				cueResult, err := s.importCUEFile(scanCtx, path, false)
+				if scanCtx.Err() != nil {
+					result.Canceled = true
+					s.updateScanProgress(path, result.CurrentDir, &result)
+					return ErrScanCanceled
+				}
+				if err != nil {
+					result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", path, err))
+					s.updateScanProgress(path, result.CurrentDir, &result)
+					return nil
+				}
+				result.Scanned += cueResult.Scanned
+				result.Added += cueResult.Added
+				result.Updated += cueResult.Updated
+				for _, audioPath := range cueResult.AudioPaths {
+					cueReferencedAudio[audioPath] = true
+				}
+				if cueResult.Scanned == 0 {
+					result.Skipped++
+				}
+				s.updateScanProgress(path, result.CurrentDir, &result)
+				return nil
+			}
+			abs, err := filepath.Abs(path)
+			if err == nil && cueReferencedAudio[abs] {
 				result.Skipped++
 				s.updateScanProgress(path, result.CurrentDir, &result)
 				return nil
@@ -771,22 +823,12 @@ func (s *Service) cleanupMissingLibraryEntries(ctx context.Context, roots []stri
 		lastID = batch[len(batch)-1].ID
 		missingIDs := make([]int, 0, minInt(batchSize, len(batch)))
 		for _, item := range batch {
-			if _, err := os.Stat(item.Path); os.IsNotExist(err) {
+			if songPathMissing(item.Path) {
 				missingIDs = append(missingIDs, item.ID)
 			}
 		}
 		if len(missingIDs) > 0 {
-			if _, err := s.client.UserSongFavorite.Delete().
-				Where(usersongfavorite.HasSongWith(song.IDIn(missingIDs...))).
-				Exec(ctx); err != nil {
-				return err
-			}
-			if _, err := s.client.PlayHistory.Delete().
-				Where(playhistory.HasSongWith(song.IDIn(missingIDs...))).
-				Exec(ctx); err != nil {
-				return err
-			}
-			if _, err := s.client.Song.Delete().Where(song.IDIn(missingIDs...)).Exec(ctx); err != nil {
+			if err := s.deleteSongIDs(ctx, missingIDs); err != nil {
 				return err
 			}
 		}
@@ -871,6 +913,21 @@ func samePath(a, b string) bool {
 	return filepath.Clean(a) == filepath.Clean(b)
 }
 
+func songPathMissing(path string) bool {
+	ref, ok := parseCueVirtualSongPath(path)
+	if ok {
+		if _, err := os.Stat(ref.AudioPath); err != nil {
+			return os.IsNotExist(err)
+		}
+		if _, err := os.Stat(ref.CuePath); err != nil {
+			return os.IsNotExist(err)
+		}
+		return false
+	}
+	_, err := os.Stat(path)
+	return os.IsNotExist(err)
+}
+
 func (s *Service) updateScanProgress(currentPath, currentDir string, result *models.ScanResult) {
 	s.setScanStatus(func(status *models.ScanStatus) {
 		status.CurrentPath = currentPath
@@ -908,6 +965,10 @@ func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
 }
 
 func (s *Service) importFile(ctx context.Context, path string, invalidate bool) (bool, error) {
+	if isCUEFile(path) {
+		result, err := s.importCUEFile(ctx, path, invalidate)
+		return result.Added > 0, err
+	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return false, err
@@ -916,7 +977,7 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 	if err != nil {
 		return false, err
 	}
-	if info.IsDir() || !IsSupported(abs) {
+	if info.IsDir() || !IsAudioSupported(abs) {
 		return false, fmt.Errorf("unsupported audio file")
 	}
 	sizeBytes := info.Size()
@@ -1041,6 +1102,280 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		s.invalidateSearchCatalogs(ctx)
 	}
 	return reusedMissingContent, err
+}
+
+func (s *Service) importCUEFile(ctx context.Context, cuePath string, invalidate bool) (cueImportResult, error) {
+	absCue, err := filepath.Abs(cuePath)
+	if err != nil {
+		return cueImportResult{}, err
+	}
+	cueInfo, err := os.Stat(absCue)
+	if err != nil {
+		return cueImportResult{}, err
+	}
+	sheet, err := s.parseCueSheet(ctx, absCue)
+	if err != nil {
+		return cueImportResult{}, err
+	}
+	result := cueImportResult{AudioPaths: uniqueCueAudioPaths(sheet)}
+	currentPaths := map[string]bool{}
+	audioMeta := map[string]fileMetadata{}
+	audioInfo := map[string]os.FileInfo{}
+
+	for _, audioPath := range result.AudioPaths {
+		if !IsAudioSupported(audioPath) {
+			return result, fmt.Errorf("unsupported cue audio format: %s", audioPath)
+		}
+		info, err := os.Stat(audioPath)
+		if err != nil {
+			return result, err
+		}
+		audioInfo[audioPath] = info
+		audioMeta[audioPath] = s.probe(ctx, audioPath, probeOptions{
+			DetectLyrics: supportsEmbeddedLyrics(audioPath),
+			ReadLyrics:   false,
+		})
+	}
+
+	for _, track := range sheet.Tracks {
+		if track.File == "" || !IsAudioSupported(track.File) {
+			continue
+		}
+		info := audioInfo[track.File]
+		baseMeta := audioMeta[track.File]
+		if info == nil {
+			continue
+		}
+		duration := 0.0
+		if track.EndSeconds > track.StartSeconds {
+			duration = track.EndSeconds - track.StartSeconds
+		}
+		if duration <= 0 && len(sheet.Tracks) == 1 && baseMeta.Duration > 0 {
+			duration = baseMeta.Duration
+		}
+		title := firstString(track.Title, fmt.Sprintf("Track %02d", track.Number))
+		trackArtist := firstString(track.Performer, sheet.Performer, baseMeta.Artist, "Unknown Artist")
+		albumTitle := firstString(sheet.Title, baseMeta.Album, fallbackAlbumFromFolder(track.File, s.libraryDir), "Unknown Album")
+		albumArtist := firstString(sheet.Performer, baseMeta.AlbumArtist, trackArtist)
+		meta := fileMetadata{
+			Title:       title,
+			Artist:      trackArtist,
+			Album:       albumTitle,
+			AlbumArtist: albumArtist,
+			HasLyrics:   baseMeta.HasLyrics,
+			Duration:    duration,
+			SampleRate:  baseMeta.SampleRate,
+			BitRate:     baseMeta.BitRate,
+			BitDepth:    baseMeta.BitDepth,
+			Year:        baseMeta.Year,
+		}
+		if settings, err := s.GetSettings(ctx); err == nil && !settings.MetadataGrouping {
+			meta.AlbumArtist = meta.Artist
+		}
+		sizeBytes := info.Size() + cueInfo.Size()
+		modTime := info.ModTime()
+		if cueInfo.ModTime().After(modTime) {
+			modTime = cueInfo.ModTime()
+		}
+		virtualPath := cueVirtualSongPath(track.File, absCue, track.Number, track.StartSeconds, track.EndSeconds)
+		currentPaths[virtualPath] = true
+		result.Scanned++
+		added, err := s.upsertCUETrack(ctx, virtualPath, track.File, meta, sizeBytes, modTime.UnixNano())
+		if err != nil {
+			return result, err
+		}
+		if added {
+			result.Added++
+		} else {
+			result.Updated++
+		}
+	}
+	if err := s.cleanupCUESongRows(ctx, absCue, result.AudioPaths, currentPaths); err != nil {
+		return result, err
+	}
+	if invalidate {
+		s.invalidateLibraryCache(ctx)
+		s.invalidateSearchCatalogs(ctx)
+	}
+	return result, nil
+}
+
+func (s *Service) upsertCUETrack(ctx context.Context, virtualPath, audioPath string, meta fileMetadata, sizeBytes, modTimeUnixNano int64) (bool, error) {
+	existing, err := s.client.Song.Query().Where(song.Path(virtualPath)).Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return false, err
+	}
+	existingNotFound := ent.IsNotFound(err)
+	if err == nil && existing.SizeBytes == sizeBytes && existing.ModTimeUnixNano == modTimeUnixNano {
+		return false, nil
+	}
+	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(audioPath)), ".")
+	mimeType := mime.TypeByExtension(filepath.Ext(audioPath))
+	if mimeType == "" {
+		mimeType = audioMime(format)
+	}
+	artistEntity, err := s.ensureArtist(ctx, meta.Artist)
+	if err != nil {
+		return false, err
+	}
+	albumEntity, err := s.ensureAlbum(ctx, meta.Album, meta.AlbumArtist, artistEntity, meta.Year)
+	if err != nil {
+		return false, err
+	}
+	contentHash := cueTrackContentHash(virtualPath, meta)
+	lyricsSource := ""
+	if meta.HasLyrics {
+		lyricsSource = "embedded"
+	}
+	if existingNotFound {
+		create := s.client.Song.Create().
+			SetTitle(meta.Title).
+			SetPath(virtualPath).
+			SetFileName(filepath.Base(audioPath)).
+			SetFormat(format).
+			SetMime(mimeType).
+			SetSizeBytes(sizeBytes).
+			SetModTimeUnixNano(modTimeUnixNano).
+			SetContentHash(contentHash).
+			SetDurationSeconds(meta.Duration).
+			SetSampleRate(meta.SampleRate).
+			SetBitRate(meta.BitRate).
+			SetBitDepth(meta.BitDepth).
+			SetYear(meta.Year).
+			SetArtist(artistEntity).
+			SetAlbum(albumEntity)
+		if lyricsSource != "" {
+			create.SetLyricsSource(lyricsSource)
+		}
+		_, err := create.Save(ctx)
+		return true, err
+	}
+	update := existing.Update().
+		SetTitle(meta.Title).
+		SetPath(virtualPath).
+		SetFileName(filepath.Base(audioPath)).
+		SetFormat(format).
+		SetMime(mimeType).
+		SetSizeBytes(sizeBytes).
+		SetModTimeUnixNano(modTimeUnixNano).
+		SetContentHash(contentHash).
+		SetDurationSeconds(meta.Duration).
+		SetSampleRate(meta.SampleRate).
+		SetBitRate(meta.BitRate).
+		SetBitDepth(meta.BitDepth).
+		SetYear(meta.Year).
+		SetArtist(artistEntity).
+		SetAlbum(albumEntity)
+	if meta.HasLyrics {
+		update.SetLyricsEmbedded("").SetLyricsSource("embedded")
+	} else if existing.LyricsSource == "embedded" {
+		update.SetLyricsEmbedded("").SetLyricsSource("")
+	}
+	return false, update.Exec(ctx)
+}
+
+func cueTrackContentHash(virtualPath string, meta fileMetadata) string {
+	seed := strings.Join([]string{virtualPath, meta.Artist, meta.Album, meta.Title}, "\x00")
+	sum := sha1.Sum([]byte(seed))
+	return hex.EncodeToString(sum[:])
+}
+
+func (s *Service) cleanupCUESongRows(ctx context.Context, cuePath string, audioPaths []string, currentPaths map[string]bool) error {
+	deleteIDs := []int{}
+	if len(audioPaths) > 0 {
+		fullAudioRows, err := s.client.Song.Query().Select(song.FieldID).Where(song.PathIn(audioPaths...)).All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, item := range fullAudioRows {
+			deleteIDs = append(deleteIDs, item.ID)
+		}
+	}
+	virtualRows, err := s.client.Song.Query().
+		Select(song.FieldID, song.FieldPath).
+		Where(song.PathContains(cueVirtualMarker)).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, item := range virtualRows {
+		ref, ok := parseCueVirtualSongPath(item.Path)
+		if !ok || ref.CuePath != cuePath || currentPaths[item.Path] {
+			continue
+		}
+		deleteIDs = append(deleteIDs, item.ID)
+	}
+	return s.deleteSongIDs(ctx, deleteIDs)
+}
+
+func (s *Service) deleteSongIDs(ctx context.Context, ids []int) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if _, err := s.client.UserSongFavorite.Delete().
+		Where(usersongfavorite.HasSongWith(song.IDIn(ids...))).
+		Exec(ctx); err != nil {
+		return err
+	}
+	if _, err := s.client.PlayHistory.Delete().
+		Where(playhistory.HasSongWith(song.IDIn(ids...))).
+		Exec(ctx); err != nil {
+		return err
+	}
+	_, err := s.client.Song.Delete().Where(song.IDIn(ids...)).Exec(ctx)
+	return err
+}
+
+func (s *Service) cueReferencedAudioPaths(ctx context.Context, root string) map[string]bool {
+	out := map[string]bool{}
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err != nil || d.IsDir() || !isCUEFile(path) {
+			return nil
+		}
+		paths, err := cueSheetAudioPaths(path)
+		if err != nil {
+			return nil
+		}
+		for _, audioPath := range paths {
+			out[audioPath] = true
+		}
+		return nil
+	})
+	return out
+}
+
+func (s *Service) firstCueReferencingAudio(ctx context.Context, audioPath string) (string, bool) {
+	absAudio, err := filepath.Abs(audioPath)
+	if err != nil {
+		return "", false
+	}
+	dir := filepath.Dir(absAudio)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !isCUEFile(entry.Name()) {
+			continue
+		}
+		cuePath := filepath.Join(dir, entry.Name())
+		paths, err := cueSheetAudioPaths(cuePath)
+		if err != nil {
+			continue
+		}
+		for _, path := range paths {
+			if ctx.Err() != nil {
+				return "", false
+			}
+			if samePath(path, absAudio) {
+				return cuePath, true
+			}
+		}
+	}
+	return "", false
 }
 
 func (s *Service) Songs(ctx context.Context, userID int, q string, favorites bool, limit int) ([]models.Song, error) {
@@ -3091,7 +3426,8 @@ func (s *Service) cachedEmbeddedCover(item *ent.Song) ([]byte, string, error) {
 	if item == nil || strings.TrimSpace(item.Path) == "" {
 		return nil, "", nil
 	}
-	abs, err := filepath.Abs(item.Path)
+	audioPath := ActualAudioPath(item.Path)
+	abs, err := filepath.Abs(audioPath)
 	if err != nil {
 		return nil, "", err
 	}
@@ -3299,7 +3635,7 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 		}
 		if strings.TrimSpace(item.LyricsEmbedded) != "" && strings.TrimSpace(item.LyricsSource) != "" {
 			lyric := strings.TrimSpace(item.LyricsEmbedded)
-			s.saveLyricsSidecarIfEnabled(ctx, item.Path, lyric)
+			s.saveLyricsSidecarIfEnabled(ctx, ActualAudioPath(item.Path), lyric)
 			return models.Lyrics{SongID: id, Source: item.LyricsSource, Lyrics: lyric}, nil
 		}
 	}
@@ -3332,7 +3668,7 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 	if matchedSource == "" {
 		matchedSource = "online"
 	}
-	s.saveLyricsSidecarIfEnabled(ctx, item.Path, lyric)
+	s.saveLyricsSidecarIfEnabled(ctx, ActualAudioPath(item.Path), lyric)
 	update := item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(matchedSource)
 	if matchedSource == "netease" && matchedID != "" {
 		update.SetNeteaseID(matchedID)
@@ -3347,17 +3683,18 @@ func (s *Service) preferredLocalLyrics(ctx context.Context, item *ent.Song, incl
 		return "", ""
 	}
 	if includeSidecar {
-		if lyric := readSidecarLyrics(item.Path); lyric != "" {
+		if lyric := readSidecarLyrics(ActualAudioPath(item.Path)); lyric != "" {
 			return lyric, "file"
 		}
 	}
 	if item != nil && item.LyricsSource == "embedded" && strings.TrimSpace(item.LyricsEmbedded) != "" {
 		return strings.TrimSpace(item.LyricsEmbedded), "embedded"
 	}
-	if !supportsEmbeddedLyrics(item.Path) {
+	audioPath := ActualAudioPath(item.Path)
+	if !supportsEmbeddedLyrics(audioPath) {
 		return "", ""
 	}
-	if lyric := strings.TrimSpace(s.probe(ctx, item.Path, probeOptions{DetectLyrics: true, ReadLyrics: true}).Lyrics); lyric != "" {
+	if lyric := strings.TrimSpace(s.probe(ctx, audioPath, probeOptions{DetectLyrics: true, ReadLyrics: true}).Lyrics); lyric != "" {
 		_, _ = item.Update().SetLyricsEmbedded(lyric).SetLyricsSource("embedded").Save(ctx)
 		s.invalidateSongCatalog(ctx)
 		return lyric, "embedded"
@@ -3478,7 +3815,7 @@ func (s *Service) SelectLyrics(ctx context.Context, id int, source, sourceID str
 	if err != nil {
 		return models.Lyrics{}, err
 	}
-	s.saveLyricsSidecarIfEnabled(ctx, item.Path, lyric)
+	s.saveLyricsSidecarIfEnabled(ctx, ActualAudioPath(item.Path), lyric)
 	update := item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(source)
 	if source == "netease" {
 		update.SetNeteaseID(sourceID)
@@ -5094,6 +5431,8 @@ func audioMime(format string) string {
 		return "audio/opus"
 	case "aiff", "aif":
 		return "audio/aiff"
+	case "ape":
+		return "audio/x-ape"
 	default:
 		return "application/octet-stream"
 	}

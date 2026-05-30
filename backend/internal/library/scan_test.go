@@ -7,11 +7,13 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"unicode/utf16"
 
 	"lark/backend/ent"
 	"lark/backend/ent/enttest"
+	"lark/backend/ent/song"
 	"lark/backend/internal/kv"
 	"lark/backend/internal/models"
 
@@ -246,6 +248,72 @@ func TestImportFileReusesMissingSongWithSameContentHash(t *testing.T) {
 	}
 	if items[0].ContentHash == "" {
 		t.Fatal("expected reused song to keep content hash")
+	}
+}
+
+func TestScanImportsCueTracksFromCustomLibraryDirectory(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	customRoot := t.TempDir()
+	audioPath := filepath.Join(customRoot, "album.ape")
+	if err := os.WriteFile(audioPath, []byte("fake ape image"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cuePath := filepath.Join(customRoot, "album.cue")
+	cue := `PERFORMER "Album Artist"
+TITLE "Cue Album"
+FILE "album.ape" WAVE
+  TRACK 01 AUDIO
+    TITLE "Opening"
+    PERFORMER "Singer One"
+    INDEX 01 00:00:00
+  TRACK 02 AUDIO
+    TITLE "Finale"
+    INDEX 01 01:05:00
+`
+	if err := os.WriteFile(cuePath, []byte(cue), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:scan-cue-custom?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	userItem, err := client.User.Create().SetUsername("owner").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := &Service{client: client, libraryDir: root}
+	if _, err := service.AddLibraryDirectory(ctx, userItem.ID, customRoot, "cue root"); err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.Scan(ctx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Scanned != 2 {
+		t.Fatalf("expected two cue tracks scanned, got %+v", result)
+	}
+	items, err := client.Song.Query().WithArtist().WithAlbum().Order(ent.Asc(song.FieldTitle)).All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected two cue tracks and no full image row, got %d", len(items))
+	}
+	if items[0].Title != "Finale" || items[1].Title != "Opening" {
+		t.Fatalf("unexpected cue track titles: %q, %q", items[0].Title, items[1].Title)
+	}
+	for _, item := range items {
+		if item.Path == audioPath || !strings.Contains(item.Path, cueVirtualMarker) {
+			t.Fatalf("expected virtual cue path for %q, got %q", item.Title, item.Path)
+		}
+		if item.Format != "ape" || item.Mime != "audio/x-ape" {
+			t.Fatalf("expected APE format metadata, got format=%q mime=%q", item.Format, item.Mime)
+		}
+		if item.Edges.Album == nil || item.Edges.Album.Title != "Cue Album" {
+			t.Fatalf("expected cue album title, got %#v", item.Edges.Album)
+		}
+	}
+	if items[1].DurationSeconds != 65 {
+		t.Fatalf("expected first cue track duration from next INDEX, got %.3f", items[1].DurationSeconds)
 	}
 }
 

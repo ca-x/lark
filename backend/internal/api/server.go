@@ -979,13 +979,14 @@ func (s *Server) streamSong(c *echo.Context, id int) error {
 			c.Request().URL.RawQuery = q.Encode()
 		}
 	}
-	if mode == "raw" || (mode == "auto" && canBrowserPlayDirect(item.Format)) {
+	source := library.ResolveAudioSegment(item.Path)
+	if !source.IsCUETrack && (mode == "raw" || (mode == "auto" && canBrowserPlayDirect(item.Format))) {
 		c.Response().Header().Set("Accept-Ranges", "bytes")
-		http.ServeFile(c.Response(), c.Request(), item.Path)
+		http.ServeFile(c.Response(), c.Request(), source.Path)
 		return nil
 	}
-	if mode == "auto" || mode == "transcode" {
-		return s.transcodeAudio(c, item.Path)
+	if mode == "auto" || mode == "transcode" || (mode == "raw" && source.IsCUETrack) {
+		return s.transcodeAudio(c, source)
 	}
 	return echo.NewHTTPError(http.StatusBadRequest, "mode must be auto, raw or transcode")
 }
@@ -1016,7 +1017,7 @@ func (s *Server) handlePrepareOfflineSong(c *echo.Context) error {
 		status.Error = "ffmpeg is not configured for this audio format"
 		return c.JSON(http.StatusUnsupportedMediaType, status)
 	}
-	started, err := s.startOfflineTranscodePrepare(ffmpeg, item.Path, quality)
+	started, err := s.startOfflineTranscodePrepare(ffmpeg, library.ResolveAudioSegment(item.Path), quality)
 	if err != nil {
 		return mapError(err)
 	}
@@ -1095,7 +1096,8 @@ func (s *Server) offlineAudioStatus(ctx context.Context, userID int, item *ent.S
 		}
 		status.Song = &songModel
 	}
-	cachePath, err := s.transcodeCachePath(item.Path, quality)
+	source := library.ResolveAudioSegment(item.Path)
+	cachePath, err := s.transcodeCachePath(source, quality)
 	if err != nil {
 		return status, "", err
 	}
@@ -1105,12 +1107,12 @@ func (s *Server) offlineAudioStatus(ctx context.Context, userID int, item *ent.S
 		status.ETag = offlineAudioETag(item, quality, "transcode")
 		return status, cachePath, nil
 	}
-	if isMP3Source(item) {
-		if size, ok := sourceAudioFileSize(item.Path); ok {
+	if !source.IsCUETrack && isMP3Source(item) {
+		if size, ok := sourceAudioFileSize(source.Path); ok {
 			status.Status = "ready"
 			status.SizeBytes = size
 			status.ETag = offlineAudioETag(item, quality, "source")
-			return status, item.Path, nil
+			return status, source.Path, nil
 		}
 	}
 	if message := s.offlineTranscodeError(cachePath); message != "" {
@@ -1125,8 +1127,8 @@ func (s *Server) offlineAudioStatus(ctx context.Context, userID int, item *ent.S
 	return status, "", nil
 }
 
-func (s *Server) startOfflineTranscodePrepare(ffmpeg, sourcePath string, quality int) (bool, error) {
-	cachePath, err := s.transcodeCachePath(sourcePath, quality)
+func (s *Server) startOfflineTranscodePrepare(ffmpeg string, source library.AudioSegment, quality int) (bool, error) {
+	cachePath, err := s.transcodeCachePath(source, quality)
 	if err != nil {
 		return false, err
 	}
@@ -1160,7 +1162,7 @@ func (s *Server) startOfflineTranscodePrepare(ffmpeg, sourcePath string, quality
 		defer s.lib.ReleaseTranscodeWarmLease(parent, cachePath)
 		ctx, cancel := context.WithTimeout(parent, offlinePrepareTimeout)
 		defer cancel()
-		if _, err := s.ensureTranscodeCache(ctx, ffmpeg, sourcePath, quality); err != nil {
+		if _, err := s.ensureTranscodeCache(ctx, ffmpeg, source, quality); err != nil {
 			s.offlineTranscodeErrors.Store(cachePath, offlineTranscodeError{message: err.Error(), at: time.Now()})
 		}
 	}()
@@ -1295,7 +1297,7 @@ func (s *Server) handleArtistCover(c *echo.Context) error {
 	return c.Blob(http.StatusOK, mimeType, data)
 }
 
-func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
+func (s *Server) transcodeAudio(c *echo.Context, source library.AudioSegment) error {
 	ffmpeg := strings.TrimSpace(s.lib.FFmpegBin())
 	if ffmpeg == "" {
 		return echo.NewHTTPError(http.StatusUnsupportedMediaType, "ffmpeg is not configured for this audio format")
@@ -1306,7 +1308,7 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 	}
 	start := queryFloat(c, "start", 0)
 	if queryBool(c, "cache") {
-		cachePath, err := s.transcodeCachePath(sourcePath, quality)
+		cachePath, err := s.transcodeCachePath(source, quality)
 		if err != nil {
 			return mapError(err)
 		}
@@ -1318,9 +1320,9 @@ func (s *Server) transcodeAudio(c *echo.Context, sourcePath string) error {
 			http.ServeFile(c.Response(), c.Request(), cachePath)
 			return nil
 		}
-		s.startTranscodeCacheWarm(ffmpeg, sourcePath, quality)
+		s.startTranscodeCacheWarm(ffmpeg, source, quality)
 	}
-	return s.pipeTranscodedAudio(c, ffmpeg, sourcePath, quality, start)
+	return s.pipeTranscodedAudio(c, ffmpeg, source, quality, start)
 }
 
 func transcodeQuality(raw string) (int, error) {
@@ -1340,6 +1342,17 @@ func transcodeQuality(raw string) (int, error) {
 		}
 	}
 	return quality, nil
+}
+
+func sourceDurationFromStart(source library.AudioSegment, start float64) float64 {
+	if source.EndSeconds <= source.StartSeconds {
+		return 0
+	}
+	duration := source.EndSeconds - source.StartSeconds - start
+	if duration <= 0 {
+		return 0
+	}
+	return duration
 }
 
 func prepareExternalCommand(cmd *exec.Cmd) {
@@ -1364,17 +1377,23 @@ func terminateExternalCommand(cmd *exec.Cmd) {
 	_ = cmd.Process.Kill()
 }
 
-func (s *Server) pipeTranscodedAudio(c *echo.Context, ffmpeg, sourcePath string, quality int, start float64) error {
+func (s *Server) pipeTranscodedAudio(c *echo.Context, ffmpeg string, source library.AudioSegment, quality int, start float64) error {
 	ctx, cancel := context.WithCancel(c.Request().Context())
 	defer cancel()
 	args := []string{"-hide_banner", "-loglevel", "error"}
-	if start > 0 {
-		args = append(args, "-ss", fmt.Sprintf("%.3f", start))
+	startAt := source.StartSeconds + start
+	if startAt > 0 {
+		args = append(args, "-ss", fmt.Sprintf("%.3f", startAt))
 	}
 	args = append(args,
-		"-i", sourcePath,
+		"-i", source.Path,
 		"-vn",
 		"-map", "0:a:0",
+	)
+	if duration := sourceDurationFromStart(source, start); duration > 0 {
+		args = append(args, "-t", fmt.Sprintf("%.3f", duration))
+	}
+	args = append(args,
 		"-acodec", "libmp3lame",
 		"-b:a", fmt.Sprintf("%dk", quality),
 		"-flush_packets", "1",
@@ -1404,7 +1423,7 @@ func (s *Server) pipeTranscodedAudio(c *echo.Context, ffmpeg, sourcePath string,
 	return copyErr
 }
 
-func (s *Server) startTranscodeCacheWarm(ffmpeg, sourcePath string, quality int) {
+func (s *Server) startTranscodeCacheWarm(ffmpeg string, source library.AudioSegment, quality int) {
 	ttl := s.transcodeWarmTTL
 	if ttl <= 0 || s.transcodeWarmLimit <= 0 {
 		return
@@ -1418,7 +1437,7 @@ func (s *Server) startTranscodeCacheWarm(ffmpeg, sourcePath string, quality int)
 		return
 	default:
 	}
-	cachePath, err := s.transcodeCachePath(sourcePath, quality)
+	cachePath, err := s.transcodeCachePath(source, quality)
 	if err != nil {
 		return
 	}
@@ -1441,7 +1460,7 @@ func (s *Server) startTranscodeCacheWarm(ffmpeg, sourcePath string, quality int)
 		defer s.releaseTranscodeWarmer(cachePath)
 		ctx, cancel := context.WithTimeout(parent, ttl)
 		defer cancel()
-		_, _ = s.ensureTranscodeCache(ctx, ffmpeg, sourcePath, quality)
+		_, _ = s.ensureTranscodeCache(ctx, ffmpeg, source, quality)
 	}()
 }
 
@@ -1467,8 +1486,8 @@ func (s *Server) releaseTranscodeWarmer(cachePath string) {
 	}
 }
 
-func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath string, quality int) (string, error) {
-	cachePath, err := s.transcodeCachePath(sourcePath, quality)
+func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg string, source library.AudioSegment, quality int) (string, error) {
+	cachePath, err := s.transcodeCachePath(source, quality)
 	if err != nil {
 		return "", mapError(err)
 	}
@@ -1482,11 +1501,19 @@ func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath st
 	}
 	tmpPath := fmt.Sprintf("%s.%d.tmp", cachePath, time.Now().UnixNano())
 	defer os.Remove(tmpPath)
-	cmd := exec.CommandContext(ctx, ffmpeg,
-		"-hide_banner", "-loglevel", "error",
-		"-i", sourcePath,
+	args := []string{"-hide_banner", "-loglevel", "error"}
+	if source.StartSeconds > 0 {
+		args = append(args, "-ss", fmt.Sprintf("%.3f", source.StartSeconds))
+	}
+	args = append(args,
+		"-i", source.Path,
 		"-vn",
 		"-map", "0:a:0",
+	)
+	if duration := sourceDurationFromStart(source, 0); duration > 0 {
+		args = append(args, "-t", fmt.Sprintf("%.3f", duration))
+	}
+	args = append(args,
 		"-map_metadata", "0",
 		"-acodec", "libmp3lame",
 		"-b:a", fmt.Sprintf("%dk", quality),
@@ -1494,6 +1521,7 @@ func (s *Server) ensureTranscodeCache(ctx context.Context, ffmpeg, sourcePath st
 		"-f", "mp3",
 		tmpPath,
 	)
+	cmd := exec.CommandContext(ctx, ffmpeg, args...)
 	prepareExternalCommand(cmd)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -1536,16 +1564,16 @@ func (s *Server) releaseTranscodeCacheLock(cachePath string, lock *transcodeCach
 	}
 }
 
-func (s *Server) transcodeCachePath(sourcePath string, quality int) (string, error) {
-	info, err := os.Stat(sourcePath)
+func (s *Server) transcodeCachePath(source library.AudioSegment, quality int) (string, error) {
+	info, err := os.Stat(source.Path)
 	if err != nil {
 		return "", err
 	}
-	abs, err := filepath.Abs(sourcePath)
+	abs, err := filepath.Abs(source.Path)
 	if err != nil {
 		return "", err
 	}
-	seed := fmt.Sprintf("%s:%d:%d:%d", abs, info.Size(), info.ModTime().UnixNano(), quality)
+	seed := fmt.Sprintf("%s:%d:%d:%d:%.3f:%.3f", abs, info.Size(), info.ModTime().UnixNano(), quality, source.StartSeconds, source.EndSeconds)
 	sum := sha1.Sum([]byte(seed))
 	name := hex.EncodeToString(sum[:]) + fmt.Sprintf("-%dk.mp3", quality)
 	return filepath.Join(s.lib.DataDir(), "transcodes", name), nil

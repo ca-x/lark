@@ -1558,6 +1558,7 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .source-form-actions { display:grid; grid-template-columns:1fr auto; gap:8px; }
 .radio-directory-head { align-items:center; }
 .library-dir-card { display:grid; gap:12px; padding:16px; border-radius:20px; background:var(--panel2); border:1px solid var(--line); }
+.library-dir-card-compact { padding:12px; border-radius:18px; }
 .library-dir-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
 .library-dir-head-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 .library-dir-head-actions button { min-height:34px; padding:6px 10px; }
@@ -1582,6 +1583,10 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .dir-status.online { color:var(--accent); }
 .library-dir-form { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:10px; align-items:end; }
 .library-dir-form button { min-height:44px; }
+.mobile-library-manage-actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+.mobile-library-manage-actions button,
+.mobile-library-manage-actions .upload { width:100%; min-height:44px; justify-content:center; }
+.mobile-library-manage-actions .upload input { display:none; }
 .feature-settings-card,
 .scrobbling-card { display:grid; gap:12px; padding:16px; border-radius:20px; background:var(--panel2); border:1px solid var(--line); }
 .feature-entry-button { justify-self:start; min-height:38px; padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 82%, transparent); color:var(--text); font-weight:850; }
@@ -3615,4 +3620,3 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
      re-enable it. Leaving the scaffolding so a follow-up can light it up if/when the host
      declares it owns the backdrop. */
 }
-

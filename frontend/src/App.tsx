@@ -278,7 +278,7 @@ type ThemeLabel =
   | "foobarLight";
 type ThemeMode = "dark" | "light";
 type SettingsTab = "profile" | "users" | "site";
-type LibraryTab = "songs" | "offline" | "folders" | "network" | "radio";
+type LibraryTab = "songs" | "offline" | "folders" | "network" | "radio" | "manage";
 type Collection = {
   type: "playlist" | "album" | "artist";
   id?: number;
@@ -357,7 +357,7 @@ const AUTH_REDIRECT_KEY = "lark.auth.redirect";
 const defaultLibraryTab: LibraryTab = "songs";
 
 function normalizeLibraryTab(value?: string | null): LibraryTab {
-  return value === "folders" || value === "network" || value === "radio" || value === "offline" || value === "songs"
+  return value === "folders" || value === "network" || value === "radio" || value === "offline" || value === "manage" || value === "songs"
     ? value
     : defaultLibraryTab;
 }
@@ -4283,7 +4283,11 @@ export default function App() {
                 folders={folders}
                 networkSources={networkSources}
                 radioSources={radioSources}
+                libraryDirectories={libraryDirectories}
+                onLibraryDirectoriesChange={setLibraryDirectories}
                 mobileBasic={mobileViewport}
+                language={settings.language}
+                userRole={auth.user.role}
                 current={current}
                 t={t}
                 onPlay={playSong}
@@ -6607,7 +6611,11 @@ function LibraryView({
   folders,
   networkSources,
   radioSources,
+  libraryDirectories,
+  onLibraryDirectoriesChange,
   mobileBasic,
+  language,
+  userRole,
   stats,
   songPage,
   pageLoading,
@@ -6639,7 +6647,11 @@ function LibraryView({
   folders: Folder[];
   networkSources: NetworkSource[];
   radioSources: RadioSource[];
+  libraryDirectories: LibraryDirectory[];
+  onLibraryDirectoriesChange: (directories: LibraryDirectory[]) => void;
   mobileBasic: boolean;
+  language: Language;
+  userRole: User["role"];
   stats: LibraryStats | null;
   songPage: SongPage | null;
   pageLoading: boolean;
@@ -6670,14 +6682,14 @@ function LibraryView({
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [tab, setTabState] = useState<LibraryTab>(() => storedLibraryTab());
   const scanRunning = Boolean(scanStatus?.running);
-  const activeTab = mobileBasic && tab !== "songs" && tab !== "folders" ? "songs" : tab;
+  const activeTab = mobileBasic && tab !== "songs" && tab !== "folders" && tab !== "manage" ? "songs" : tab;
   const setTab = (nextTab: LibraryTab) => {
-    if (mobileBasic && nextTab !== "songs" && nextTab !== "folders") return;
+    if (mobileBasic && nextTab !== "songs" && nextTab !== "folders" && nextTab !== "manage") return;
     setTabState(nextTab);
     rememberLibraryTab(nextTab);
   };
   useEffect(() => {
-    if (mobileBasic && tab !== "songs" && tab !== "folders") {
+    if (mobileBasic && tab !== "songs" && tab !== "folders" && tab !== "manage") {
       setTabState("songs");
       rememberLibraryTab("songs");
     }
@@ -6729,7 +6741,7 @@ function LibraryView({
             <UploadSimple /> {t("upload")}
             <input
               type="file"
-              accept="audio/*,.flac,.dsf,.dff,.dst,.ape"
+              accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.cue"
               onChange={(event) => onUpload(event)}
             />
           </label>
@@ -6749,6 +6761,14 @@ function LibraryView({
         >
           {t("folderBrowser")} · {folders.length}
         </button>
+        {mobileBasic ? (
+          <button
+            className={activeTab === "manage" ? "active" : ""}
+            onClick={() => setTab("manage")}
+          >
+            {t("libraryDirectories")} · {libraryDirectories.length}
+          </button>
+        ) : null}
         {!mobileBasic ? (
           <>
             <button
@@ -6772,7 +6792,21 @@ function LibraryView({
           </>
         ) : null}
       </div>
-      {activeTab === "network" ? (
+      {activeTab === "manage" ? (
+        <LibraryDirectoryManager
+          directories={libraryDirectories}
+          onDirectoriesChange={onLibraryDirectoriesChange}
+          language={language}
+          userRole={userRole}
+          t={t}
+          scanStatus={scanStatus}
+          onScan={onScan}
+          onCancelScan={onCancelScan}
+          onDismissScan={onDismissScan}
+          onUpload={onUpload}
+          compact={mobileBasic}
+        />
+      ) : activeTab === "network" ? (
         <NetworkLibrarySources
           configuredSources={networkSources}
           t={t}
@@ -6848,6 +6882,169 @@ function LibraryView({
         <EmptyLibrary t={t} mobileBasic={mobileBasic} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
       )}
     </section>
+  );
+}
+
+function LibraryDirectoryManager({
+  directories,
+  onDirectoriesChange,
+  language,
+  userRole,
+  t,
+  scanStatus,
+  onScan,
+  onCancelScan,
+  onDismissScan,
+  onUpload,
+  compact = false,
+}: {
+  directories: LibraryDirectory[];
+  onDirectoriesChange: (directories: LibraryDirectory[]) => void;
+  language: Language;
+  userRole: User["role"];
+  t: ReturnType<typeof createT>;
+  scanStatus?: ScanStatus | null;
+  onScan?: () => void;
+  onCancelScan?: () => void;
+  onDismissScan?: () => void;
+  onUpload?: (event: ChangeEvent<HTMLInputElement>) => void;
+  compact?: boolean;
+}) {
+  const [pathInput, setPathInput] = useState("");
+  const [noteInput, setNoteInput] = useState("");
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+  const scanRunning = Boolean(scanStatus?.running);
+
+  async function refreshDirectories() {
+    onDirectoriesChange(await api.libraryDirectories().catch(() => []));
+  }
+
+  async function checkDirectories() {
+    setChecking(true);
+    setError("");
+    try {
+      onDirectoriesChange(await api.checkLibraryDirectories());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function addDirectory() {
+    if (!pathInput.trim()) return;
+    setError("");
+    try {
+      await api.addLibraryDirectory(pathInput.trim(), noteInput.trim());
+      setPathInput("");
+      setNoteInput("");
+      await refreshDirectories();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function deleteDirectory(id: string) {
+    setError("");
+    try {
+      await api.deleteLibraryDirectory(id);
+      await refreshDirectories();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function updateDirectoryWatch(id: string, watchEnabled: boolean) {
+    setError("");
+    try {
+      await api.updateLibraryDirectory(id, { watch_enabled: watchEnabled });
+      await refreshDirectories();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  return (
+    <div className={compact ? "library-dir-card library-dir-card-compact" : "library-dir-card settings-wide-row"}>
+      <div className="library-dir-head">
+        <div>
+          <strong>{t("libraryDirectories")}</strong>
+          <span>{t("libraryDirectoriesHint")}</span>
+        </div>
+        <div className="library-dir-head-actions">
+          <span>{directories.length} {t("folders")}</span>
+          <button type="button" onClick={() => void checkDirectories()} disabled={checking}>
+            {checking ? t("loading") : t("checkStatus")}
+          </button>
+        </div>
+      </div>
+      {compact ? (
+        <div className="mobile-library-manage-actions">
+          <button type="button" onClick={onScan} disabled={scanRunning}>
+            <MagnifyingGlass /> {scanRunning ? t("scanning") : t("scan")}
+          </button>
+          {onUpload ? (
+            <label className="upload">
+              <UploadSimple /> {t("upload")}
+              <input
+                type="file"
+                accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.cue"
+                onChange={(event) => onUpload(event)}
+              />
+            </label>
+          ) : null}
+        </div>
+      ) : null}
+      {scanStatus && compact && onCancelScan && onDismissScan ? (
+        <ScanProgress status={scanStatus} t={t} onCancel={onCancelScan} onClose={onDismissScan} />
+      ) : null}
+      <div className="library-dir-list">
+        {directories.map((dir) => (
+          <div key={dir.id} className={dir.builtin ? "library-dir-row builtin" : "library-dir-row"}>
+            <div>
+              <strong>{dir.builtin ? t("envLibraryDirectory") : (dir.note || t("customLibraryDirectory"))}</strong>
+              <span>{dir.path}</span>
+              <small className={dir.status === "online" ? "dir-status online" : "dir-status"}>
+                {libraryDirectoryStatusLabel(dir.status || "online", language)}
+                {dir.builtin ? <b>{t("readOnly")}</b> : null}
+                {dir.last_error ? ` · ${dir.last_error}` : ""}
+              </small>
+            </div>
+            <div className="library-dir-actions">
+              <label className="dir-watch-toggle" title={t("directoryWatchHint")}>
+                <span>{t("directoryWatch")}</span>
+                <input
+                  type="checkbox"
+                  checked={dir.watch_enabled}
+                  disabled={dir.builtin && userRole !== "admin"}
+                  onChange={(event) => void updateDirectoryWatch(dir.id, event.target.checked)}
+                />
+              </label>
+              {dir.watch_enabled ? (
+                <em>{dir.watch_active ? t("enabled") : t("disabled")}</em>
+              ) : dir.builtin ? null : (
+                <button type="button" className="danger" onClick={() => void deleteDirectory(dir.id)}>{t("remove")}</button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="library-dir-form">
+        <label>
+          {t("customLibraryPath")}
+          <input value={pathInput} placeholder="/mnt/music" onChange={(event) => setPathInput(event.target.value)} />
+        </label>
+        <label>
+          {t("libraryDirectoryNote")}
+          <input value={noteInput} placeholder={t("libraryDirectoryNotePlaceholder")} onChange={(event) => setNoteInput(event.target.value)} />
+        </label>
+        <button type="button" onClick={() => void addDirectory()} disabled={!pathInput.trim()}>
+          <Plus /> {t("addLibraryDirectory")}
+        </button>
+      </div>
+      {error ? <div className="settings-empty error">{error}</div> : null}
+    </div>
   );
 }
 
@@ -7535,7 +7732,7 @@ function EmptyLibrary({
               <UploadSimple /> {t("upload")}
               <input
                 type="file"
-                accept="audio/*,.flac,.dsf,.dff,.dst,.ape"
+                accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.cue"
                 onChange={(event) => onUpload(event)}
               />
             </label>
