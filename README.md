@@ -4,20 +4,7 @@
 
 Lark is a self-hosted web music player for personal high-resolution music libraries. The backend is Go + Echo v5 + Ent ORM with SQLite by default, and the frontend is React/Vite with an embedded production build served by the Go binary.
 
----
-
-## What's new in 0.7.18
-
-- **20 themes, picked visually.** Theme selection is now a 20-swatch color grid in Settings → Site. Each swatch is a live preview, shows a small dot for dark vs. light variants, and gets an accent ring on the active theme. The 20 themes are 5 original dark (Deep Space Noir, Amber Film, Neon Coral, Arctic Aurora, Carbon Volt), 5 original light (Milk Porcelain, Oat Latte, Mint Soda, Sakura Washi, Dusk Amber), and 10 tributes to Apple Music, Spotify, NetEase, Winamp, and Foobar2000 in both dark and light variants.
-- **Light theme contrast pass.** The 5 original light themes were re-balanced so body text now meets 4.5:1 contrast (was around 3.4:1 on porcelain). Tribute light themes were tuned to match.
-- **Lyrics mismatch guard.** When an online lyrics source loads for a song it doesn't really match, a "Match may be off" badge appears in the full lyrics header so users know to pick another source.
-- **Full lyrics layout.** Long song titles no longer overlap the action buttons.
-- **Song row quality column.** The `2024 · MP3 · 44.1kHz` cell no longer truncates; quality info also shows on hover via `title`.
-- **Empty states are unified.** A new shared `EmptyState` component is used by Favorites and other library surfaces.
-- **Album / artist page titles.** A breadcrumb-style title (`专辑 / Driftwood`-style) sits at the top of every detail view.
-- **Polish.** Library top spacing is tighter, the main content area now leaves room for the bottom player, settings tab has a theme-accent dot + glow on the active tab, theme switches have a 0.32s smooth fade, and a few placeholder strings were rewritten to feel less generic.
-
-See `git log` between `v0.7.17` and `v0.7.18` for the full diff.
+For release notes and changelog, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
