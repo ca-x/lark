@@ -5,6 +5,52 @@
 
 ---
 
+## 0.7.19 — 移动端收尾 + 设置分组
+
+发布日期 / Released: 2026-06-01
+
+### 新功能
+
+- **移动曲库行操作折叠。** 移动端（≤720px）把 4 个次要操作（下一首播放、缓存离线、加入歌单、分享）合并到右侧的「更多」按钮（DotsThree），点击展开 fixed 定位的浮层菜单。心形按钮仍然常驻（最高频操作）。桌面端布局不变。
+- **设置分组折叠（SettingsSection）。** 新增 `SettingsSection` 组件，把「历史播放位置」「主页播放样式」「移动端主页播放样式」「艺人/专辑显示样式」4 个卡片改为可点击头部 + 可折叠 body。每个分组默认展开，用户可单独收起。
+
+### 改进
+
+- 移动底部导航激活态：active tab 顶部出现 18×3 px 的强调色胶囊（带 0.28s 缩放淡入动画），叠加在原有填充背景之上。
+- 移动顶栏：gap 10→8、内边距 12→8、用户菜单按钮 44→38 px，整体更紧凑。
+- HI-FI ORBIT 卡片：标签前加 5 px 强调色圆点（2.2s 呼吸动画），加 135° 渐变光泽和内阴影，层次更立体。
+
+### i18n
+
+- 新增 `more`（zh: 更多 / en: More），用于「更多」按钮的可访问性标签。
+
+完整 diff：`git log v0.7.18..v0.7.19`
+
+---
+
+## v0.7.19 — Mobile follow-ups + settings accordion
+
+Released: 2026-06-01
+
+### New
+
+- **Mobile song row action collapse.** On screens ≤720px, the 4 secondary actions (play next, cache offline, add to playlist, share) are folded into a single "..." (DotsThree) button on the right. Tapping it opens a `position: fixed` popover anchored to the button. The heart button stays visible (most common action). Desktop layout unchanged.
+- **Settings accordion.** New `SettingsSection` component: clickable header (title + description + caret) with collapsible body. 4 cards now use it: playback resume, home player style, mobile home player style, artist/album display style. Each section can be independently collapsed/expanded.
+
+### Improvements
+
+- Mobile bottom nav active tab: an 18×3 px accent pill animates in above the active icon (0.28s scale + fade), layered on top of the existing filled background.
+- Mobile top bar: gap 10→8, padding-bottom 12→8, user-menu trigger 44→38 px — overall tighter.
+- HI-FI ORBIT card: 5 px accent dot before the label pulses (2.2s breath), subtle 135° gradient sheen, inset shadow for depth.
+
+### i18n
+
+- `more` key added (zh: 更多 / en: More) for the new collapse button's aria-label.
+
+Full diff: `git log v0.7.18..v0.7.19`
+
+---
+
 ## 0.7.18 — UI/UX 集中打磨
 
 发布日期 / Released: 2026-06-01
