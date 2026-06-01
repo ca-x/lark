@@ -2168,18 +2168,26 @@
   .topbar {
     grid-template-columns:minmax(0,1fr) auto;
     align-items:center;
-    gap:10px;
-    top:-12px;
-    padding-bottom:12px;
+    gap:8px;
+    top:-10px;
+    padding-bottom:8px;
+  }
+  .topbar .song-search-options > button { min-height:42px; padding:6px 10px; }
+  .topbar .song-search-options > button > span { font-size:11px; }
+  .topbar .user-menu-trigger {
+    width:38px !important;
+    min-width:38px;
+    height:38px;
+    max-width:38px;
   }
   .topbar .song-search-combobox { grid-column:1; }
   .topbar .user-menu { grid-column:2; display:block; }
   .topbar .user-menu-trigger {
-    width:44px;
-    min-width:44px;
-    height:44px;
-    max-width:44px;
-    padding:5px !important;
+    width:38px !important;
+    min-width:38px;
+    height:38px;
+    max-width:38px;
+    padding:4px !important;
   }
   .topbar .user-menu-trigger > span,
   .topbar .user-menu-trigger > svg { display:none; }
@@ -2234,8 +2242,24 @@
     border-color:color-mix(in srgb, var(--accent) 42%, transparent);
     box-shadow:0 10px 22px color-mix(in srgb, var(--accent) 20%, transparent);
   }
+  .mobile-bottom-nav button.active::before {
+    content:'';
+    position:absolute;
+    top:4px;
+    left:50%;
+    width:18px;
+    height:3px;
+    border-radius:999px;
+    background:color-mix(in srgb, var(--bg) 70%, transparent);
+    transform:translateX(-50%);
+    animation:bottom-nav-pill-in .28s var(--ease);
+  }
   .mobile-bottom-nav button:active {
     transform:scale(.96);
+  }
+  @keyframes bottom-nav-pill-in {
+    from { transform:translateX(-50%) scaleX(.4); opacity:0; }
+    to { transform:translateX(-50%) scaleX(1); opacity:1; }
   }
   .home-view > .hero,
   .home-view > .home-dashboard,
@@ -4653,5 +4677,20 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+/* --- mobile song row: collapse secondary actions into a "more" menu --- */
+@media (max-width:720px) {
+  .song-row { grid-template-columns:auto auto minmax(0, 1fr) auto; }
+  .song-row > .song-quality,
+  .song-row > .song-duration,
+  .song-row > .song-album { display:none; }
+  .song-row-actions { gap:2px; padding-right:2px; }
+  .song-row-actions-primary { display:none; }
+  .song-row-actions-more { display:inline-flex; }
+  .song-row-actions button { min-width:36px; min-height:36px; flex:0 0 36px; }
+  .song-row-actions svg { width:18px; height:18px; }
+  .song-row-more-menu { min-width:200px; }
+  .song-row > div:has(> strong) { min-width:0; }
 }
 

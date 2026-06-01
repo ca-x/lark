@@ -2,6 +2,7 @@ import type { ChangeEvent, ReactNode, UIEvent } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Disc,
+  DotsThree,
   GearSix,
   Info,
   ArrowLeft,
@@ -140,6 +141,7 @@ import { EqualizerPanel } from "./components/EqualizerPanel";
 import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
 import { SkeletonSongList } from "./components/Skeleton";
 import { EmptyState } from "./components/EmptyState";
+import { SettingsSection } from "./components/SettingsSection";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { useScrollRestore } from "./hooks/useScrollRestore";
 import { useKeyboardAware } from "./hooks/useKeyboardAware";
@@ -8444,11 +8446,11 @@ function SettingsPanel({
             </label>
             <button onClick={() => onUpdateProfile(nickname, avatarDataURL)}>{t("save")}</button>
           </div>
-          <div className="resume-settings-card settings-wide-row">
-            <div>
-              <strong>{t("playbackResumeSetting")}</strong>
-              <span>{t("playbackResumeHint")}</span>
-            </div>
+          <SettingsSection
+            wideRow
+            title={t("playbackResumeSetting")}
+            description={t("playbackResumeHint")}
+          >
             <div className="segmented-control" role="group" aria-label={t("playbackResumeSetting")}>
               <button
                 type="button"
@@ -8465,13 +8467,13 @@ function SettingsPanel({
                 {t("restartFromBeginning")}
               </button>
             </div>
-          </div>
+          </SettingsSection>
           {!mobileViewport ? (
-          <div className="resume-settings-card settings-wide-row">
-            <div>
-              <strong>{t("homePlayerStyle")}</strong>
-              <span>{t("homePlayerStyleHint")}</span>
-            </div>
+          <SettingsSection
+            wideRow
+            title={t("homePlayerStyle")}
+            description={t("homePlayerStyleHint")}
+          >
             <div className="segmented-control segmented-control-fluid" role="group" aria-label={t("homePlayerStyle")}>
               <button
                 type="button"
@@ -8509,14 +8511,14 @@ function SettingsPanel({
                 {t("homePlayerAlbumSlide")}
               </button>
             </div>
-          </div>
+          </SettingsSection>
           ) : null}
           {mobileViewport ? (
-          <div className="resume-settings-card settings-wide-row">
-            <div>
-              <strong>{t("mobileHomePlayerStyle")}</strong>
-              <span>{t("mobileHomePlayerStyleHint")}</span>
-            </div>
+          <SettingsSection
+            wideRow
+            title={t("mobileHomePlayerStyle")}
+            description={t("mobileHomePlayerStyleHint")}
+          >
             <div className="segmented-control segmented-control-fluid mobile-theme-picker" role="group" aria-label={t("mobileHomePlayerStyle")}>
               <button
                 type="button"
@@ -8561,13 +8563,13 @@ function SettingsPanel({
                 {t("mobileHomePlayerBlueHalo")}
               </button>
             </div>
-          </div>
+          </SettingsSection>
           ) : null}
-          <div className="resume-settings-card settings-wide-row">
-            <div>
-              <strong>{t("artistAlbumDisplayStyle")}</strong>
-              <span>{t("artistAlbumDisplayStyleHint")}</span>
-            </div>
+          <SettingsSection
+            wideRow
+            title={t("artistAlbumDisplayStyle")}
+            description={t("artistAlbumDisplayStyleHint")}
+          >
             <div className="segmented-control" role="group" aria-label={t("artistAlbumDisplayStyle")}>
               <button
                 type="button"
@@ -8584,7 +8586,7 @@ function SettingsPanel({
                 {t("artistAlbumDisplayShowcase")}
               </button>
             </div>
-          </div>
+          </SettingsSection>
           <label className="switch-row settings-wide-row">
             <span>
               <span>{t("persistentQueue")}</span>
@@ -9393,6 +9395,9 @@ function SongTable({
   const pendingScrollTopRef = useRef(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(520);
+  const [moreMenuSongId, setMoreMenuSongId] = useState<number | null>(null);
+  const moreButtonRefs = useRef(new Map<number, HTMLButtonElement | null>());
+  const [moreMenuPos, setMoreMenuPos] = useState<{ right: number; top: number } | null>(null);
   const virtual = songs.length > VIRTUAL_TABLE_THRESHOLD;
   useLayoutEffect(() => {
     if (!virtual || !scrollerRef.current) return;
@@ -9409,6 +9414,32 @@ function SongTable({
         window.cancelAnimationFrame(scrollFrameRef.current);
     };
   }, []);
+  useEffect(() => {
+    if (moreMenuSongId == null) return;
+    const updatePos = () => {
+      const btn = moreButtonRefs.current.get(moreMenuSongId);
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      setMoreMenuPos({ right: window.innerWidth - r.right, top: r.bottom + 6 });
+    };
+    const close = () => setMoreMenuSongId(null);
+    const onPointer = (event: Event) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".song-row-more-menu, .song-row-actions-more")) return;
+      close();
+    };
+    updatePos();
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", updatePos);
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("touchstart", onPointer, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", updatePos);
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("touchstart", onPointer);
+    };
+  }, [moreMenuSongId]);
   const handleVirtualScroll = (event: UIEvent<HTMLDivElement>) => {
     pendingScrollTopRef.current = event.currentTarget.scrollTop;
     if (scrollFrameRef.current != null) return;
@@ -9475,7 +9506,7 @@ function SongTable({
           <small>{song.artist}</small>
         )}
       </div>
-      <div>
+      <div className="song-album">
         {onOpenAlbum && song.album_id ? (
           <button className="artist-link" onClick={() => onOpenAlbum(song)}>
             {song.album}
@@ -9485,43 +9516,89 @@ function SongTable({
         )}
       </div>
       <div className={QUALITY_CLASS} title={formatQuality(song)}>{formatQuality(song)}</div>
-      <div>{formatDuration(song.duration_seconds)}</div>
+      <div className="song-duration">{formatDuration(song.duration_seconds)}</div>
       <div className="song-row-actions" aria-label={t("selected")}>
         <button onClick={() => onFavorite(song)} title={t("favorites")} aria-label={t("favorites")}>
           <Heart weight={song.favorite ? "fill" : "regular"} />
         </button>
-        {onInsertNext ? (
+        <span className="song-row-actions-primary">
+          {onInsertNext ? (
+            <button
+              onClick={() => onInsertNext(song)}
+              title={t("playNext")}
+              aria-label={t("playNext")}
+            >
+              <SkipForward />
+            </button>
+          ) : null}
+          {offlineCache ? (
+            <OfflineCacheButton
+              state={offlineButtonState(song)}
+              labels={{
+                cache: t("offlineCacheSong"),
+                caching: t("offlineCachePreparingShort"),
+                cached: t("offlineCacheReadyShort"),
+              }}
+              onClick={() => offlineCache.onCacheSong(song)}
+            />
+          ) : null}
+          <button onClick={() => onAdd(song)} title={t("addToPlaylist")} aria-label={t("addToPlaylist")}>
+            <PlaylistIcon />
+          </button>
+          {onShare ? (
+            <button onClick={() => onShare(song)} title={t("share")} aria-label={t("share")}>
+              <ShareNetwork />
+            </button>
+          ) : null}
+        </span>
+        <span className="song-row-actions-more">
           <button
-            onClick={() => onInsertNext(song)}
-            title={t("playNext")}
-            aria-label={t("playNext")}
+            ref={(node) => { moreButtonRefs.current.set(song.id, node); }}
+            onClick={() => setMoreMenuSongId(moreMenuSongId === song.id ? null : song.id)}
+            title={t("more")}
+            aria-label={t("more")}
+            aria-expanded={moreMenuSongId === song.id}
+            className={moreMenuSongId === song.id ? "active" : ""}
           >
-            <SkipForward />
+            <DotsThree weight="bold" />
           </button>
-        ) : null}
-        {offlineCache ? (
-          <OfflineCacheButton
-            state={offlineButtonState(song)}
-            labels={{
-              cache: t("offlineCacheSong"),
-              caching: t("offlineCachePreparingShort"),
-              cached: t("offlineCacheReadyShort"),
-            }}
-            onClick={() => offlineCache.onCacheSong(song)}
-          />
-        ) : null}
-        <button onClick={() => onAdd(song)} title={t("addToPlaylist")} aria-label={t("addToPlaylist")}>
-          <PlaylistIcon />
-        </button>
-        {onShare ? (
-          <button onClick={() => onShare(song)} title={t("share")} aria-label={t("share")}>
-            <ShareNetwork />
-          </button>
-        ) : null}
+        </span>
       </div>
     </div>
   );
   if (!songs.length) return <div className="empty">{t("noSongs")}</div>;
+  const moreMenuSong = moreMenuSongId != null ? songs.find((s) => s.id === moreMenuSongId) : null;
+  const moreMenu = moreMenuSong && moreMenuPos ? (
+    <div
+      className="song-row-more-menu"
+      role="menu"
+      style={{ right: moreMenuPos.right, top: moreMenuPos.top }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {onInsertNext ? (
+        <button role="menuitem" onClick={() => { onInsertNext(moreMenuSong); setMoreMenuSongId(null); }}>
+          <SkipForward />
+          <span>{t("playNext")}</span>
+        </button>
+      ) : null}
+      {offlineCache ? (
+        <button role="menuitem" onClick={() => { offlineCache.onCacheSong(moreMenuSong); setMoreMenuSongId(null); }}>
+          <DownloadSimple />
+          <span>{offlineButtonState(moreMenuSong) === "cached" ? t("offlineCacheReadyShort") : t("offlineCacheSong")}</span>
+        </button>
+      ) : null}
+      <button role="menuitem" onClick={() => { onAdd(moreMenuSong); setMoreMenuSongId(null); }}>
+        <PlaylistIcon />
+        <span>{t("addToPlaylist")}</span>
+      </button>
+      {onShare ? (
+        <button role="menuitem" onClick={() => { onShare(moreMenuSong); setMoreMenuSongId(null); }}>
+          <ShareNetwork />
+          <span>{t("share")}</span>
+        </button>
+      ) : null}
+    </div>
+  ) : null;
   if (virtual) {
     return (
       <section
@@ -9537,12 +9614,14 @@ function SongTable({
             renderRow(song, windowed.start + offset),
           )}
         </div>
+        {moreMenu}
       </section>
     );
   }
   return (
     <section className="song-table">
       {songs.map((song, index) => renderRow(song, index))}
+      {moreMenu}
     </section>
   );
 }
