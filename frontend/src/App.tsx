@@ -38,6 +38,7 @@ import {
   UploadSimple,
   UserCircle,
   SignOut,
+  WarningCircle,
   X,
 } from "@phosphor-icons/react";
 import WavesurferPlayer from "@wavesurfer/react";
@@ -138,6 +139,7 @@ import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
 import { EqualizerPanel } from "./components/EqualizerPanel";
 import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
 import { SkeletonSongList } from "./components/Skeleton";
+import { EmptyState } from "./components/EmptyState";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { useScrollRestore } from "./hooks/useScrollRestore";
 import { useKeyboardAware } from "./hooks/useKeyboardAware";
@@ -769,6 +771,27 @@ function hasOnlineLyricsSource(source: string) {
   return value !== "" && !value.startsWith("embedded");
 }
 
+function lyricsMatchConfidence(song: Song | null | undefined, lyrics: Lyrics | null | undefined, lines: LyricLine[]) {
+  if (!song || !lyrics || !lines.length) return "high" as const;
+  if (!hasOnlineLyricsSource(lyrics.source)) return "high" as const;
+  const title = song.title.toLowerCase().replace(/\s+/g, "");
+  const artist = song.artist.toLowerCase().replace(/\s+/g, "");
+  if (!title) return "low" as const;
+  const combined = lines
+    .slice(0, 6)
+    .map((line) => line.text.toLowerCase().replace(/\s+/g, ""))
+    .join("|");
+  if (!combined) return "low" as const;
+  const titleHit = title.length >= 2 && combined.includes(title);
+  const titleChars = new Set(title);
+  let hits = 0;
+  for (const ch of titleChars) if (combined.includes(ch)) hits += 1;
+  const titleOverlap = titleChars.size ? hits / titleChars.size : 0;
+  if (titleHit || titleOverlap >= 0.6) return "high" as const;
+  if (titleOverlap >= 0.4 || (artist && combined.includes(artist))) return "medium" as const;
+  return "low" as const;
+}
+
 function formatBytes(bytes: number) {
   if (!bytes) return "—";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -915,6 +938,8 @@ function formatQuality(song: Song) {
     song.mime
   );
 }
+
+const QUALITY_CLASS = "song-quality";
 
 type LyricLine = {
   at: number;
@@ -4114,6 +4139,7 @@ export default function App() {
             lines={lyricLines}
             activeLyric={activeLyric}
             lyricsSource={lyrics?.source || current?.lyrics_source || ""}
+            lyrics={lyrics}
             loading={lyricsLoading}
             t={t}
             scrollRef={lyricsScrollRef}
@@ -6097,7 +6123,12 @@ function FavoritesView({
         </button>
       </div>
       {!hasAny ? (
-        <div className="empty">{t("emptyFavorites")}</div>
+        <EmptyState
+          variant="rich"
+          icon={<Heart weight="regular" />}
+          title={t("emptyFavorites")}
+          description={t("emptyFavoritesHint")}
+        />
       ) : tab === "songs" ? (
         <SongTable
           songs={pageItems(songs)}
@@ -6448,6 +6479,11 @@ function CollectionView({
 
   return (
     <section className="collection-view">
+      <div className="collection-page-title">
+        <span className="label">{label}</span>
+        <span className="divider">/</span>
+        <span className="current">{collection.title}</span>
+      </div>
       <button
         className="back-button"
         onClick={onBack}
@@ -7445,6 +7481,7 @@ function FullLyrics({
   lines,
   activeLyric,
   lyricsSource,
+  lyrics,
   loading,
   t,
   scrollRef,
@@ -7465,6 +7502,7 @@ function FullLyrics({
   lines: ReturnType<typeof parseLyricLines>;
   activeLyric: string;
   lyricsSource: string;
+  lyrics: Lyrics | null;
   loading: boolean;
   t: ReturnType<typeof createT>;
   scrollRef: React.RefObject<HTMLDivElement | null>;
@@ -7486,6 +7524,8 @@ function FullLyrics({
   const seekTimer = useRef<number | null>(null);
   const lyricsTitle = song?.title ?? `${t("brand")} Music`;
   const onlineLyrics = hasOnlineLyricsSource(lyricsSource) && lines.length > 0;
+  const matchConfidence = lyricsMatchConfidence(song, lyrics, lines);
+  const showMatchWarning = onlineLyrics && matchConfidence === "low";
   const backgroundStyle = coverUrl(song)
     ? ({ "--cover-url": `url(${coverUrl(song)})` } as React.CSSProperties)
     : undefined;
@@ -7557,6 +7597,12 @@ function FullLyrics({
         </div>
         {song ? (
           <div className="lyrics-actions">
+            {showMatchWarning ? (
+              <span className="lyrics-match-warn" title={t("lyricsMatchWarn")}>
+                <WarningCircle weight="fill" />
+                <span>{t("lyricsMatchWarn")}</span>
+              </span>
+            ) : null}
             <button
               className={song.favorite ? "lyrics-pick lyrics-favorite active" : "lyrics-pick lyrics-favorite"}
               onClick={() => onFavoriteSong(song)}
@@ -8849,30 +8895,31 @@ function SettingsPanel({
               <option value="en-US">English</option>
             </select>
           </label>
-          <label>
-            {t("theme")}
-            <select
-              value={settings.theme}
-              onChange={(e) =>
-                setSettings({ ...settings, theme: normalizeTheme(e.target.value) })
-              }
-            >
-              <optgroup label={t("darkThemes")}>
-                {darkThemes.map((theme) => (
-                  <option key={theme.id} value={theme.id}>
+          <div className="settings-wide-row theme-swatch-grid-wrap">
+            <div className="theme-swatch-grid-head">
+              <strong>{t("theme")}</strong>
+              <span>{t("themeHint")}</span>
+            </div>
+            <div className="theme-swatch-grid">
+              {[...darkThemes, ...lightThemes].map((theme) => (
+                <button
+                  key={theme.id}
+                  type="button"
+                  className={settings.theme === theme.id ? "theme-swatch active" : "theme-swatch"}
+                  onClick={() => setSettings({ ...settings, theme: theme.id })}
+                  aria-pressed={settings.theme === theme.id}
+                  data-theme-id={theme.id}
+                  title={t(theme.label)}
+                >
+                  <span className="theme-swatch-preview" />
+                  <span className="theme-swatch-label">
+                    <span className="theme-swatch-dot" data-mode={theme.mode} />
                     {t(theme.label)}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label={t("lightThemes")}>
-                {lightThemes.map((theme) => (
-                  <option key={theme.id} value={theme.id}>
-                    {t(theme.label)}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </label>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
           {user.role === "admin" ? (
             <label className="switch-row settings-wide-row">
               <span>
@@ -9437,7 +9484,7 @@ function SongTable({
           song.album
         )}
       </div>
-      <div>{formatQuality(song)}</div>
+      <div className={QUALITY_CLASS} title={formatQuality(song)}>{formatQuality(song)}</div>
       <div>{formatDuration(song.duration_seconds)}</div>
       <div className="song-row-actions" aria-label={t("selected")}>
         <button onClick={() => onFavorite(song)} title={t("favorites")} aria-label={t("favorites")}>
