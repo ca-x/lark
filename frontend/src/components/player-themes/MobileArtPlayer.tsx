@@ -105,8 +105,10 @@ export function MobileArtPlayer({
   const volumePct = Math.min(1, Math.max(0, volume));
   const canSeek = Boolean(duration && onSeek);
   const coverImage = cover ? `url("${cover.replace(/"/g, "%22")}")` : undefined;
+  const smartisanNeedleAngle = mobileSmartisanNeedleAngle(pct, duration, playing);
   const style = {
     "--mobile-art-progress-pct": `${(pct * 100).toFixed(2)}%`,
+    "--mobile-smartisan-needle": `${smartisanNeedleAngle.toFixed(2)}deg`,
     ...(coverImage ? { "--mobile-art-cover-image": coverImage } : {}),
   } as CSSProperties;
   const [swipeY, setSwipeY] = useState(0);
@@ -386,4 +388,9 @@ function formatThemeTime(value: number) {
   const minutes = Math.floor(total / 60);
   const seconds = total % 60;
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function mobileSmartisanNeedleAngle(progressPct: number, duration: number, playing: boolean) {
+  if (!playing || duration <= 0) return -22;
+  return -8 + progressPct * 22.3;
 }

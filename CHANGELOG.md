@@ -5,6 +5,42 @@
 
 ---
 
+## 0.7.22 — 锤子唱针动画与歌词背景修复
+
+发布日期 / Released: 2026-06-02
+
+### 改进
+
+- **锤子唱机唱针跟随播放进度。** PC「锤子唱机」和移动端「锤子经典」播放器的唱针现在会在播放时进入唱片并随播放进度扫动；停止或无有效时长时，唱针回到唱片外侧。
+
+### 修复
+
+- **修复深色站点主题 + 锤子唱机的可读性。** 当站点使用 Spotify 等深色主题、首页播放器使用「锤子唱机」时，hero 文字、歌手/专辑链接和播放按钮改为锤子浅色唱机适配的黑/红配色，不再落在浅色唱机背景上发白。
+- **修复 PC 和移动端小封面显示。** 底部播放栏、移动端收起播放器和移动首页卡片的小封面改为真实图片层渲染，避免被主题背景层覆盖成黑块或兜底纹理。
+- **移除歌词页背景里的装饰播放器。** 全屏歌词页不再渲染模糊的装饰唱机，但仍保留当前唱片封面作为歌词背景。
+
+完整 diff：`git log v0.7.21..v0.7.22`
+
+---
+
+## v0.7.22 — Smartisan needle motion + lyrics backdrop fixes
+
+Released: 2026-06-02
+
+### Improvements
+
+- **Smartisan needle follows playback progress.** The desktop Smartisan deck and mobile Smartisan classic player now move the stylus onto the record while playing and sweep it with playback progress. When stopped or without a valid duration, the stylus parks outside the record.
+
+### Fixes
+
+- **Dark site theme + Smartisan deck readability.** When a dark site theme such as Spotify is paired with the Smartisan deck home player, hero text, artist/album links, and the play button now use readable Smartisan black/red treatment on the light deck background.
+- **PC and mobile mini cover rendering.** Bottom player, mobile mini player, and mobile home cards now render cover art as an image layer so theme background rules cannot cover it with a black square or fallback texture.
+- **Lyrics backdrop cleanup.** Fullscreen lyrics no longer renders the blurred decorative player, while keeping the current album cover as the lyrics backdrop.
+
+Full diff: `git log v0.7.21..v0.7.22`
+
+---
+
 ## 0.7.21 — 锤子唱机与移动端宽度修复
 
 发布日期 / Released: 2026-06-02

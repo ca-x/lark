@@ -275,6 +275,8 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .cover-button:hover .mini-art { transform:scale(1.04); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent); }
 .mini-art { width:60px; height:60px; border-radius:16px; display:grid; place-items:center; position:relative; overflow:hidden; background:var(--cover-url), var(--cover); background-size:cover; background-position:center; color:var(--bg); transition:transform .18s var(--ease), box-shadow .18s var(--ease); }
 .mini-art::after { content:''; position:absolute; inset:0; border-radius:inherit; background:radial-gradient(circle, transparent 0 30%, rgba(0,0,0,.55) 31% 34%, transparent 35%), repeating-radial-gradient(circle, rgba(0,0,0,.18) 0 2px, transparent 3px 6px); opacity:0; }
+.mini-art img { position:absolute; inset:0; z-index:0; width:100%; height:100%; display:block; object-fit:cover; border-radius:inherit; pointer-events:none; }
+.mini-art svg { position:relative; z-index:2; }
 .mini-art[data-has-cover='true'] svg { display:none; }
 .now-pulse { width:18px; height:24px; display:flex; align-items:end; gap:3px; opacity:.85; }
 .now-pulse i { width:4px; height:35%; border-radius:999px; background:var(--accent); animation:vu 900ms var(--ease) infinite alternate; }
@@ -4186,6 +4188,39 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   letter-spacing:0;
   color:rgba(0,0,0,.62);
   text-shadow:0 1px 0 rgba(255,255,255,.86);
+}
+
+.hero.smartisan-turntable-hero p,
+.hero.smartisan-turntable-hero h2,
+.hero.smartisan-turntable-hero .home-hero-meta span {
+  color:rgba(0,0,0,.42);
+  text-shadow:0 1px 0 rgba(255,255,255,.78);
+}
+
+.hero.smartisan-turntable-hero .hero-meta-link {
+  color:rgba(0,0,0,.56) !important;
+  text-decoration-color:rgba(230,92,83,.38);
+  text-shadow:0 1px 0 rgba(255,255,255,.78);
+}
+
+.hero.smartisan-turntable-hero .hero-meta-link:hover {
+  color:#d84b43 !important;
+  background:rgba(230,92,83,.09);
+}
+
+.hero.smartisan-turntable-hero .primary {
+  color:#d84b43;
+  background:linear-gradient(180deg,#fff8f8,#fbe6e5);
+  border-color:#e8c3c0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 10px 24px rgba(217,74,67,.12);
+  text-shadow:0 1px 0 rgba(255,255,255,.78);
+}
+
+.hero.smartisan-turntable-hero .primary:disabled {
+  color:rgba(0,0,0,.36);
+  background:linear-gradient(180deg,#fff,#ececec);
+  border-color:rgba(0,0,0,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95);
 }
 
 .smartisan-turntable-player {

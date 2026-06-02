@@ -45,7 +45,7 @@ export function MobileMiniPlayer({
   return (
     <div className="mobile-mini-player" data-mobile-theme={theme} data-playing={playing ? "true" : "false"} style={style}>
       <button type="button" className="mobile-mini-art" aria-label={labels.expand} onClick={onExpand}>
-        {cover ? null : <Record weight="fill" />}
+        {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
       </button>
       <div className="mobile-mini-info">
         <div className="mobile-mini-meta">

@@ -2316,13 +2316,10 @@
   height:206px;
   background:url('/smartisan/playing-stylus-lp.png') center / contain no-repeat;
   transform-origin:74px 34px;
-  transform:rotate(-22deg);
+  transform:rotate(var(--mobile-smartisan-needle, -22deg));
   filter:drop-shadow(0 5px 8px rgba(0,0,0,.24));
   transition:transform .28s var(--ease);
   pointer-events:none;
-}
-.mobile-art-player[data-playing='true'] .mobile-smartisan-arm {
-  transform:rotate(-8deg);
 }
 .mobile-smartisan-arm i {
   display:none;
@@ -2599,6 +2596,7 @@
     touch-action:manipulation;
   }
   .mobile-collection-cover {
+    position:relative;
     width:48px;
     min-width:48px;
     height:48px;
@@ -2611,6 +2609,25 @@
     background-size:cover;
     background-position:center;
     overflow:hidden;
+  }
+  .mobile-collection-cover img,
+  .mobile-mini-art img,
+  .mobile-home-surface .mini-art img {
+    position:absolute;
+    inset:0;
+    z-index:0;
+    width:100%;
+    height:100%;
+    display:block;
+    object-fit:cover;
+    border-radius:inherit;
+    pointer-events:none;
+  }
+  .mobile-collection-cover svg,
+  .mobile-mini-art svg,
+  .mobile-home-surface .mini-art svg {
+    position:relative;
+    z-index:1;
   }
   .mobile-collection-cover[data-has-cover='true'] svg {
     opacity:0;
@@ -3073,6 +3090,7 @@
     z-index:1;
   }
   .mobile-mini-art {
+    position:relative;
     width:48px;
     min-width:48px;
     height:48px;

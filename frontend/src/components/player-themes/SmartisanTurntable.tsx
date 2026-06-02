@@ -35,9 +35,10 @@ export function SmartisanTurntable({
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
   const coverImage = cover ? `url("${cover.replace(/"/g, "%22")}")` : undefined;
+  const needleAngle = smartisanNeedleAngle(pct, duration, playing);
   const playerStyle = {
     "--smartisan-turntable-progress": `${(pct * 100).toFixed(2)}%`,
-    "--smartisan-turntable-needle": `${(12 + pct * 22.3).toFixed(2)}deg`,
+    "--smartisan-turntable-needle": `${needleAngle.toFixed(2)}deg`,
     ...(coverImage ? { "--smartisan-turntable-cover": coverImage } : {}),
   } as CSSProperties;
   const playModeIcon =
@@ -109,4 +110,9 @@ function formatTime(seconds: number) {
   const mins = Math.floor(total / 60);
   const secs = total % 60;
   return `${mins}:${String(secs).padStart(2, "0")}`;
+}
+
+function smartisanNeedleAngle(progressPct: number, duration: number, playing: boolean) {
+  if (!playing || duration <= 0) return 0;
+  return 12 + progressPct * 22.3;
 }

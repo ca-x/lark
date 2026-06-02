@@ -21,7 +21,7 @@ function MobileSongCover({ song, playing }: { song?: Song | null; playing: boole
   const style = url ? ({ "--cover-url": `url(${url})` } as CSSProperties) : undefined;
   return (
     <div className="mini-art" data-playing={playing ? "true" : "false"} data-has-cover={url ? "true" : "false"} style={style}>
-      {!url ? <Record weight="fill" /> : null}
+      {url ? <img src={url} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
     </div>
   );
 }
@@ -36,6 +36,7 @@ function MobileCollectionCover({
   const style = src ? ({ "--cover-url": `url(${src})` } as CSSProperties) : undefined;
   return (
     <span className="mobile-collection-cover" data-has-cover={src ? "true" : "false"} data-kind={fallback} style={style}>
+      {src ? <img src={src} alt="" loading="lazy" decoding="async" /> : null}
       {fallback === "artist" ? <MicrophoneStage weight="fill" /> : fallback === "playlist" ? <PlaylistIcon weight="fill" /> : <Disc weight="fill" />}
     </span>
   );

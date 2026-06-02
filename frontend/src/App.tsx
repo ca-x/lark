@@ -4743,7 +4743,7 @@ export default function App() {
                 data-has-cover={currentNetworkTrack.cover_url ? "true" : "false"}
                 style={currentNetworkTrack.cover_url ? ({ "--cover-url": `url(${currentNetworkTrack.cover_url})` } as React.CSSProperties) : undefined}
               >
-                {!currentNetworkTrack.cover_url ? <Record weight="fill" /> : null}
+                {currentNetworkTrack.cover_url ? <img src={currentNetworkTrack.cover_url} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
               </div>
             ) : (
               <MiniCover song={current} playing={playing} />
@@ -6021,7 +6021,7 @@ function MiniCover({
       data-has-cover={url ? "true" : "false"}
       style={style}
     >
-      {!url ? <Record weight="fill" /> : null}
+      {url ? <img src={url} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
     </div>
   );
 }
@@ -7592,7 +7592,6 @@ function FullLyrics({
   };
   return (
     <section className="full-lyrics" style={backgroundStyle}>
-      <VinylTurntable cover={coverUrl(song)} playing={false} title={song?.title} artist={song?.artist} decorative />
       <div className="full-lyrics-head">
         <button
           className="full-lyrics-cover-button"
