@@ -166,6 +166,8 @@ export function MobileArtPlayer({
           <SoftVinylVisual cover={cover} />
         ) : variant === "stage-glass" ? (
           <StageGlassVisual cover={cover} playing={playing} />
+        ) : variant === "smartisan-classic" ? (
+          <SmartisanClassicVisual cover={cover} playing={playing} />
         ) : (
           <BlueHaloVisual cover={cover} />
         )}
@@ -355,6 +357,26 @@ function BlueHaloVisual({ cover }: { cover?: string }) {
       <span className="mobile-blue-signal" aria-hidden="true">
         <Waveform weight="bold" />
       </span>
+    </div>
+  );
+}
+
+function SmartisanClassicVisual({ cover, playing }: { cover?: string; playing: boolean }) {
+  return (
+    <div className="mobile-smartisan-stage">
+      <div className="mobile-smartisan-titlebar" aria-hidden="true">
+        <span />
+        <i />
+        <span />
+      </div>
+      <div className="mobile-smartisan-deck">
+        <div className="mobile-smartisan-record" data-has-cover={cover ? "true" : "false"}>
+          {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
+          <span />
+        </div>
+        <div className="mobile-smartisan-arm" aria-hidden="true"><i /></div>
+        <span className={playing ? "mobile-smartisan-led on" : "mobile-smartisan-led"} aria-hidden="true" />
+      </div>
     </div>
   );
 }

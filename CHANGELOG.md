@@ -5,6 +5,40 @@
 
 ---
 
+## 0.7.20 — 锤子音乐经典主题
+
+发布日期 / Released: 2026-06-02
+
+### 新功能
+
+- **新增锤子音乐经典主题。** 设置色板新增「锤子经典」，PC 端还原 Smartisan Music 的白灰标题栏、分组列表、底部播放栏、红色主操作、蓝色辅助色和旧式按钮凹凸层次。
+- **新增移动端锤子播放样式。** 手机端「移动端播放样式」新增「锤子经典」，展开播放器使用 Smartisan Music 经典黑胶 LP、唱针、标题条和红色状态灯资源。
+
+### 资源与致谢
+
+- 主题参考并致谢 [DE105/SmartisanMusic-Revived](https://github.com/DE105/SmartisanMusic-Revived)。引用的 Smartisan Music 视觉资产归各自权利人所有，仅用于学习、研究与保存目的。
+
+完整 diff：`git log v0.7.19..v0.7.20`
+
+---
+
+## v0.7.20 — Smartisan Music classic theme
+
+Released: 2026-06-02
+
+### New
+
+- **Smartisan Music classic theme.** Settings now includes a "Smartisan Classic" swatch. Desktop styling restores the white/gray Smartisan title bar, grouped list surfaces, bottom playback bar, red primary actions, blue secondary accent, and old-style pressed button depth.
+- **Smartisan mobile player style.** The mobile player style selector now includes "Smartisan classic"; the expanded mobile player uses classic Smartisan Music LP, stylus, title bar, and red status-light assets.
+
+### Credits
+
+- Theme reference and credit: [DE105/SmartisanMusic-Revived](https://github.com/DE105/SmartisanMusic-Revived). Referenced Smartisan Music visual assets belong to their respective rights holders and are included only for learning, research, and preservation.
+
+Full diff: `git log v0.7.19..v0.7.20`
+
+---
+
 ## 0.7.19 — 移动端收尾 + 设置分组
 
 发布日期 / Released: 2026-06-01

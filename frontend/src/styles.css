@@ -40,6 +40,7 @@ html, body, .app-shell, .song-row, .library-summary-stat, .album-card, .artist-c
 :root[data-theme='netease-dark'] { --bg:#1A1A1A; --panel:#252525; --panel2:#2E2E2E; --text:#FFFFFF; --muted:#AAAAAA; --accent:#C20C0C; --accent2:#A00A0A; --line:#333333; --track:#404040; --progress:#C20C0C; --highlight:#E01515; --hero:radial-gradient(circle at 20% 18%,rgba(252,60,68,.38),transparent 35%),linear-gradient(135deg,#1C1C1E,#000000 70%); --cover:linear-gradient(135deg,#2E2E2E,#444444); --shadow:0 4px 20px rgba(0,0,0,.65); --vu-low:#00C853; --vu-mid:#FFB300; --vu-high:#C20C0C; --hover-bg:rgba(255,255,255,.06); --active-bg:rgba(255,255,255,.10); --selected-bg:rgba(194,12,12,.20); --focus-ring:rgba(194,12,12,.50); --muted-strong:#FFFFFF; }
 :root[data-theme='winamp-dark'] { --bg:#1B1B2A; --panel:#232336; --panel2:#2A2A40; --text:#00FF00; --muted:#00CC00; --accent:#00FF00; --accent2:#00CC00; --line:#004400; --track:#003300; --progress:#00FF00; --highlight:#33FF33; --hero:radial-gradient(circle at 20% 20%,rgba(0,255,0,.18),transparent 34%),linear-gradient(135deg,#232336,#1B1B2A 70%); --cover:linear-gradient(135deg,#232336,#003300); --shadow:0 4px 20px rgba(0,0,0,.7); --vu-low:#00FF00; --vu-mid:#FFFF00; --vu-high:#FF4400; --hover-bg:rgba(0,255,0,.07); --active-bg:rgba(0,255,0,.14); --selected-bg:rgba(0,255,0,.18); --focus-ring:rgba(0,255,0,.50); --muted-strong:#33FF33; }
 :root[data-theme='foobar-dark'] { --bg:#1E1E1E; --panel:#252526; --panel2:#2D2D30; --text:#D4D4D4; --muted:#858585; --accent:#007ACC; --accent2:#005FA3; --line:#3C3C3C; --track:#3C3C3C; --progress:#007ACC; --highlight:#0098FF; --hero:radial-gradient(circle at 20% 18%,rgba(0,122,204,.30),transparent 34%),linear-gradient(135deg,#252526,#1E1E1E 70%); --cover:linear-gradient(135deg,#2D2D30,#3C3C3C); --shadow:0 2px 8px rgba(0,0,0,.5); --vu-low:#4EC994; --vu-mid:#CCA700; --vu-high:#F44747; --hover-bg:rgba(255,255,255,.05); --active-bg:rgba(255,255,255,.10); --selected-bg:rgba(0,122,204,.20); --focus-ring:rgba(0,122,204,.50); --muted-strong:#C8C8C8; }
+:root[data-theme='smartisan-classic'] { color-scheme:light; --bg:#ececec; --panel:#fbfbfb; --panel2:#f4f4f4; --text:#242426; --muted:#5f6268; --accent:#d94a43; --accent2:#5e88e8; --line:#d2d2d2; --track:#dfdfdf; --progress:#d94a43; --highlight:#e64040; --hero:linear-gradient(180deg,#ffffff 0%,#f5f5f5 54%,#ececec 100%); --cover:radial-gradient(circle at 50% 50%,#f8f8f8 0 10%,#202124 10.5% 16%,transparent 16.5%),repeating-radial-gradient(circle,rgba(255,255,255,.08) 0 1px,transparent 1px 7px),radial-gradient(circle,#2f3033 0%,#111214 68%,#050505 100%); --shadow:0 1px 0 rgba(255,255,255,.86) inset,0 1px 2px rgba(0,0,0,.12),0 18px 46px rgba(0,0,0,.08); --vu-low:#6da66a; --vu-mid:#d2a85c; --vu-high:#d94a43; --hover-bg:rgba(0,0,0,.035); --active-bg:rgba(0,0,0,.075); --selected-bg:rgba(217,74,67,.12); --focus-ring:rgba(217,74,67,.38); --muted-strong:#353539; --radius:18px; }
 :root[data-theme='apple-light'] { color-scheme:light; --bg:#F2F2F7; --panel:#FFFFFF; --panel2:#F2F2F7; --text:#000000; --muted:#3C3C4399; --accent:#FC3C44; --accent2:#C12D33; --line:#C6C6C8; --track:#E5E5EA; --progress:#FC3C44; --highlight:#E0343B; --hero:radial-gradient(circle at 20% 20%,rgba(252,60,68,.16),transparent 34%),#FFFFFF; --cover:linear-gradient(135deg,#E5E5EA,#C7C7CC); --shadow:0 2px 12px rgba(0,0,0,.10); --vu-low:#34C759; --vu-mid:#FF9500; --vu-high:#FF3B30; --hover-bg:rgba(0,0,0,.04); --active-bg:rgba(0,0,0,.08); --selected-bg:rgba(252,60,68,.10); --focus-ring:rgba(252,60,68,.40); --muted-strong:#000000; }
 :root[data-theme='spotify-light'] { color-scheme:light; --bg:#FFFFFF; --panel:#F6F6F6; --panel2:#EFEFEF; --text:#000000; --muted:#6A6A6A; --accent:#1DB954; --accent2:#117A36; --line:#E0E0E0; --track:#CDCDCD; --progress:#1DB954; --highlight:#169C45; --hero:radial-gradient(circle at 22% 20%,rgba(29,185,84,.15),transparent 34%),#FFFFFF; --cover:linear-gradient(135deg,#EFEFEF,#CDCDCD); --shadow:0 2px 10px rgba(0,0,0,.08); --vu-low:#1DB954; --vu-mid:#F59B23; --vu-high:#E91429; --hover-bg:rgba(0,0,0,.04); --active-bg:rgba(0,0,0,.08); --selected-bg:rgba(29,185,84,.12); --focus-ring:rgba(29,185,84,.40); --muted-strong:#1A1A1A; }
 :root[data-theme='netease-light'] { color-scheme:light; --bg:#F5F5F5; --panel:#FFFFFF; --panel2:#F0F0F0; --text:#1A1A1A; --muted:#666666; --accent:#C20C0C; --accent2:#800808; --line:#E0E0E0; --track:#E0E0E0; --progress:#C20C0C; --highlight:#A00A0A; --hero:radial-gradient(circle at 18% 20%,rgba(194,12,12,.14),transparent 34%),#FFFFFF; --cover:linear-gradient(135deg,#EEEEEE,#CCCCCC); --shadow:0 2px 12px rgba(0,0,0,.08); --vu-low:#00C853; --vu-mid:#FFB300; --vu-high:#C20C0C; --hover-bg:rgba(0,0,0,.04); --active-bg:rgba(0,0,0,.08); --selected-bg:rgba(194,12,12,.10); --focus-ring:rgba(194,12,12,.35); --muted-strong:#1A1A1A; }
@@ -397,6 +398,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .theme-swatch[data-theme-id="netease-dark"] .theme-swatch-preview { background:linear-gradient(135deg,#C20C0C 0%,#1A1A1A 100%); }
 .theme-swatch[data-theme-id="winamp-dark"] .theme-swatch-preview { background:linear-gradient(135deg,#00FF00 0%,#1B1B2A 100%); }
 .theme-swatch[data-theme-id="foobar-dark"] .theme-swatch-preview { background:linear-gradient(135deg,#007ACC 0%,#1E1E1E 100%); }
+.theme-swatch[data-theme-id="smartisan-classic"] .theme-swatch-preview { background:linear-gradient(180deg,#ffffff 0%,#f0f0f0 48%,#d94a43 49%,#fbe6e5 100%); }
 .theme-swatch[data-theme-id="milk-porcelain"] .theme-swatch-preview { background:linear-gradient(135deg,#ffffff 0%,#1a1916 100%); }
 .theme-swatch[data-theme-id="oat-latte"] .theme-swatch-preview { background:linear-gradient(135deg,#fffcf6 0%,#3d2b1f 100%); }
 .theme-swatch[data-theme-id="mint-soda"] .theme-swatch-preview { background:linear-gradient(135deg,#e4f2ec 0%,#1f8c5e 100%); }
@@ -3708,4 +3710,446 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   /* The :and(-apple-system: 1) is intentionally invalid; it keeps this block dead unless we
      re-enable it. Leaving the scaffolding so a follow-up can light it up if/when the host
      declares it owns the backdrop. */
+}
+
+/* Smartisan Music classic skin, mapped from SmartisanMusic-Revived legacy resources:
+   titlebar_bg, tabbar_bg, group_list_* selectors, and port_8_1_0 color tokens. */
+:root[data-theme='smartisan-classic'] {
+  --smartisan-title-text:rgba(0,0,0,.60);
+  --smartisan-body-text:rgba(0,0,0,.60);
+  --smartisan-sub-text:rgba(0,0,0,.40);
+  --smartisan-faint-text:rgba(0,0,0,.30);
+  --smartisan-red:#e65c53;
+  --smartisan-red-pressed:#e03d34;
+  --smartisan-blue:#5c89f2;
+  --smartisan-blue-pressed:#3d70ef;
+  --smartisan-divider:#ebebeb;
+  --smartisan-bottom-line:#e2e2e2;
+  --smartisan-titlebar:url('/smartisan/titlebar-bg.png'),linear-gradient(180deg,#ffffff 0%,#fbfbfb 42%,#f2f2f2 100%);
+  --smartisan-titlebar-pressed:linear-gradient(180deg,#ededed 0%,#f8f8f8 100%);
+  --smartisan-list:linear-gradient(180deg,#ffffff 0%,#fcfcfc 100%);
+  --smartisan-list-pressed:linear-gradient(180deg,#f4f4f4 0%,#ffffff 100%);
+  --smartisan-tabbar:url('/smartisan/titlebar-bg.png'),linear-gradient(180deg,#fdfdfd 0%,#f2f2f2 62%,#e6e6e6 100%);
+  --smartisan-control:linear-gradient(180deg,#ffffff 0%,#f8f8f8 48%,#eeeeee 100%);
+  --smartisan-control-pressed:linear-gradient(180deg,#e8e8e8 0%,#f7f7f7 100%);
+}
+
+:root[data-theme='smartisan-classic'] body {
+  background:
+    url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+    repeating-linear-gradient(45deg, rgba(0,0,0,.012) 0 1px, transparent 1px 7px),
+    #ececec;
+}
+
+:root[data-theme='smartisan-classic'] .app-shell {
+  gap:0;
+  padding:0;
+  background:
+    url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+    linear-gradient(180deg,#f5f5f5 0%,#ececec 100%);
+}
+
+:root[data-theme='smartisan-classic'] .sidebar,
+:root[data-theme='smartisan-classic'] .main,
+:root[data-theme='smartisan-classic'] .player {
+  border-radius:0;
+  border-color:var(--smartisan-divider);
+  box-shadow:none;
+}
+
+:root[data-theme='smartisan-classic'] .sidebar {
+  padding:0;
+  gap:0;
+  background:var(--smartisan-list);
+  border-right:1px solid #d8d8d8;
+  border-top:0;
+  border-left:0;
+  border-bottom:0;
+}
+
+:root[data-theme='smartisan-classic'] .brand {
+  min-height:74px;
+  justify-content:center;
+  gap:10px;
+  padding:12px 16px;
+  color:var(--smartisan-title-text);
+  background:var(--smartisan-titlebar);
+  background-size:100% 100%, auto;
+  border-bottom:1px solid rgba(169,169,169,.44);
+  box-shadow:inset 0 -1px 0 rgba(255,255,255,.75),0 8px 0 -7px rgba(0,0,0,.18);
+  font-size:24px;
+  font-weight:850;
+  letter-spacing:0;
+  text-shadow:0 1px 0 rgba(255,255,255,.82);
+}
+
+:root[data-theme='smartisan-classic'] .brand img {
+  width:48px;
+  height:48px;
+}
+
+:root[data-theme='smartisan-classic'] .sidebar nav {
+  gap:0;
+  padding:10px 0;
+}
+
+:root[data-theme='smartisan-classic'] nav button {
+  min-height:52px;
+  padding:0 22px;
+  border-radius:0;
+  color:var(--smartisan-sub-text);
+  border-top:1px solid transparent;
+  border-bottom:1px solid transparent;
+  background:transparent;
+  font-weight:760;
+  text-shadow:0 1px 0 rgba(255,255,255,.8);
+  transform:none !important;
+}
+
+:root[data-theme='smartisan-classic'] nav button.active,
+:root[data-theme='smartisan-classic'] nav button:hover {
+  color:var(--smartisan-body-text);
+  background:linear-gradient(180deg,#f7f7f7 0%,#eeeeee 100%);
+  border-top-color:#e8e8e8;
+  border-bottom-color:#dfdfdf;
+  box-shadow:inset 4px 0 0 var(--smartisan-red);
+}
+
+:root[data-theme='smartisan-classic'] nav button svg,
+:root[data-theme='smartisan-classic'] .topbar svg,
+:root[data-theme='smartisan-classic'] .section-head svg {
+  color:#868a90;
+}
+
+:root[data-theme='smartisan-classic'] .main {
+  padding:0;
+  background:#f5f5f5;
+  border:0;
+}
+
+:root[data-theme='smartisan-classic'] .topbar {
+  top:0;
+  grid-template-columns:minmax(190px, auto) minmax(260px, 480px);
+  gap:18px;
+  min-height:74px;
+  padding:10px max(16px, var(--lzc-safe-right)) 10px 24px;
+  background:var(--smartisan-titlebar);
+  background-size:100% 100%, auto;
+  border-bottom:1px solid rgba(169,169,169,.44);
+  box-shadow:0 1px 0 rgba(255,255,255,.72);
+}
+
+:root[data-theme='smartisan-classic'] .top-title span {
+  color:var(--smartisan-faint-text);
+  font-size:11px;
+  font-weight:850;
+  letter-spacing:.08em;
+}
+
+:root[data-theme='smartisan-classic'] .top-title h1 {
+  color:var(--smartisan-title-text);
+  font-size:30px;
+  letter-spacing:0;
+  text-shadow:0 1px 0 rgba(255,255,255,.86);
+}
+
+:root[data-theme='smartisan-classic'] .search,
+:root[data-theme='smartisan-classic'] .filter-pill,
+:root[data-theme='smartisan-classic'] .artist-filter-combobox label > div,
+:root[data-theme='smartisan-classic'] .recent-tabs,
+:root[data-theme='smartisan-classic'] .segmented-control,
+:root[data-theme='smartisan-classic'] .collection-tabs,
+:root[data-theme='smartisan-classic'] .settings-tabs {
+  border-radius:6px;
+  color:var(--smartisan-body-text);
+  background:linear-gradient(180deg,#fefefe,#f1f1f1);
+  border:1px solid #cfcfcf;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 1px rgba(0,0,0,.05);
+}
+
+:root[data-theme='smartisan-classic'] .search input,
+:root[data-theme='smartisan-classic'] input,
+:root[data-theme='smartisan-classic'] select,
+:root[data-theme='smartisan-classic'] textarea {
+  color:var(--smartisan-body-text);
+  text-shadow:0 1px 0 rgba(255,255,255,.65);
+}
+
+:root[data-theme='smartisan-classic'] .hero,
+:root[data-theme='smartisan-classic'] .collection-hero,
+:root[data-theme='smartisan-classic'] .summary-panel,
+:root[data-theme='smartisan-classic'] .quick-panel,
+:root[data-theme='smartisan-classic'] .settings-page,
+:root[data-theme='smartisan-classic'] .about-hero,
+:root[data-theme='smartisan-classic'] .public-share-hero {
+  margin:18px 24px 0;
+  border-radius:8px;
+  color:var(--smartisan-body-text);
+  background:var(--smartisan-list);
+  border:1px solid rgba(0,0,0,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.88),0 1px 2px rgba(0,0,0,.08);
+}
+
+:root[data-theme='smartisan-classic'] .hero {
+  min-height:328px;
+  padding:28px;
+}
+
+:root[data-theme='smartisan-classic'] .hero::after {
+  display:none;
+}
+
+:root[data-theme='smartisan-classic'] .hero h1,
+:root[data-theme='smartisan-classic'] .collection-hero h1,
+:root[data-theme='smartisan-classic'] .section-head h2 {
+  color:var(--smartisan-title-text);
+  letter-spacing:0;
+  text-shadow:0 1px 0 rgba(255,255,255,.88);
+}
+
+:root[data-theme='smartisan-classic'] .hero h1 {
+  font-size:clamp(38px, 4.8vw, 64px);
+  line-height:1.02;
+}
+
+:root[data-theme='smartisan-classic'] .hero h2,
+:root[data-theme='smartisan-classic'] .hero p,
+:root[data-theme='smartisan-classic'] .card-meta small,
+:root[data-theme='smartisan-classic'] .song-row small {
+  color:var(--smartisan-sub-text);
+}
+
+:root[data-theme='smartisan-classic'] .section-head {
+  min-height:52px;
+  margin:0;
+  padding:10px 24px;
+  background:var(--smartisan-titlebar);
+  border-top:1px solid rgba(255,255,255,.75);
+  border-bottom:1px solid var(--smartisan-divider);
+}
+
+:root[data-theme='smartisan-classic'] .card-grid-section,
+:root[data-theme='smartisan-classic'] .home-dashboard,
+:root[data-theme='smartisan-classic'] .daily-discovery,
+:root[data-theme='smartisan-classic'] .quick-shelves {
+  margin-top:18px;
+}
+
+:root[data-theme='smartisan-classic'] .cards,
+:root[data-theme='smartisan-classic'] .song-table,
+:root[data-theme='smartisan-classic'] .settings-grid,
+:root[data-theme='smartisan-classic'] .about-grid {
+  padding:16px 24px;
+}
+
+:root[data-theme='smartisan-classic'] .media-card,
+:root[data-theme='smartisan-classic'] .artist-album-card,
+:root[data-theme='smartisan-classic'] .version-card,
+:root[data-theme='smartisan-classic'] .settings-card,
+:root[data-theme='smartisan-classic'] .offline-settings-card,
+:root[data-theme='smartisan-classic'] .user-list,
+:root[data-theme='smartisan-classic'] .library-summary-stat,
+:root[data-theme='smartisan-classic'] .mini-card,
+:root[data-theme='smartisan-classic'] .about-row {
+  border-radius:7px;
+  color:var(--smartisan-body-text);
+  background:var(--smartisan-list);
+  border:1px solid rgba(0,0,0,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.88),0 1px 1px rgba(0,0,0,.05);
+}
+
+:root[data-theme='smartisan-classic'] .media-card:hover,
+:root[data-theme='smartisan-classic'] .media-card:focus-within,
+:root[data-theme='smartisan-classic'] .song-row:hover,
+:root[data-theme='smartisan-classic'] .song-row.active,
+:root[data-theme='smartisan-classic'] .quick-song-list > button:hover,
+:root[data-theme='smartisan-classic'] .mini-card:hover {
+  color:var(--smartisan-body-text);
+  background:var(--smartisan-list-pressed);
+  border-color:rgba(0,0,0,.12);
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.04),0 1px 0 rgba(255,255,255,.86);
+}
+
+:root[data-theme='smartisan-classic'] .cover,
+:root[data-theme='smartisan-classic'] .plain-cover,
+:root[data-theme='smartisan-classic'] .mini-art,
+:root[data-theme='smartisan-classic'] .public-share-cover {
+  border-radius:4px;
+  background:var(--cover-url), linear-gradient(180deg,#f8f8f8,#dcdcdc);
+  border:1px solid rgba(0,0,0,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.66),0 1px 2px rgba(0,0,0,.12);
+}
+
+:root[data-theme='smartisan-classic'] .card-play,
+:root[data-theme='smartisan-classic'] .card-favorite,
+:root[data-theme='smartisan-classic'] .song-row button,
+:root[data-theme='smartisan-classic'] .icon-button,
+:root[data-theme='smartisan-classic'] .topbar button,
+:root[data-theme='smartisan-classic'] .section-head button,
+:root[data-theme='smartisan-classic'] .library-actions button,
+:root[data-theme='smartisan-classic'] .library-actions .upload,
+:root[data-theme='smartisan-classic'] .primary,
+:root[data-theme='smartisan-classic'] .upload,
+:root[data-theme='smartisan-classic'] .pagination-controls button {
+  border-radius:6px;
+  color:var(--smartisan-body-text);
+  background:var(--smartisan-control);
+  border:1px solid #c7c7c7;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.96),0 1px 1px rgba(0,0,0,.05);
+  text-shadow:0 1px 0 rgba(255,255,255,.78);
+}
+
+:root[data-theme='smartisan-classic'] .card-play:hover,
+:root[data-theme='smartisan-classic'] .card-favorite:hover,
+:root[data-theme='smartisan-classic'] .song-row button:hover,
+:root[data-theme='smartisan-classic'] .icon-button:hover,
+:root[data-theme='smartisan-classic'] .topbar button:hover,
+:root[data-theme='smartisan-classic'] .section-head button:hover,
+:root[data-theme='smartisan-classic'] .library-actions button:hover,
+:root[data-theme='smartisan-classic'] .upload:hover,
+:root[data-theme='smartisan-classic'] .pagination-controls button:hover {
+  background:var(--smartisan-control-pressed);
+}
+
+:root[data-theme='smartisan-classic'] .primary,
+:root[data-theme='smartisan-classic'] .collection-actions .primary,
+:root[data-theme='smartisan-classic'] .public-share-list button.active,
+:root[data-theme='smartisan-classic'] .recent-tabs button.active,
+:root[data-theme='smartisan-classic'] .collection-tabs button.active,
+:root[data-theme='smartisan-classic'] .settings-tabs button.active,
+:root[data-theme='smartisan-classic'] .segmented-control button.active {
+  color:var(--smartisan-red);
+  background:linear-gradient(180deg,#fff8f8 0%,#fbe6e5 100%);
+  border-color:#e8c3c0;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 1px 1px rgba(217,74,67,.08);
+}
+
+:root[data-theme='smartisan-classic'] .primary:active,
+:root[data-theme='smartisan-classic'] .collection-actions .primary:active {
+  color:var(--smartisan-red-pressed);
+  background:linear-gradient(180deg,#fae3e1 0%,#fff8f8 100%);
+}
+
+:root[data-theme='smartisan-classic'] .song-table.virtual,
+:root[data-theme='smartisan-classic'] .song-table {
+  gap:0;
+  background:#fff;
+}
+
+:root[data-theme='smartisan-classic'] .song-row {
+  min-height:54px;
+  padding:7px 12px;
+  border-radius:0;
+  color:var(--smartisan-sub-text);
+  border-bottom:1px solid var(--smartisan-divider);
+  background:#fff;
+}
+
+:root[data-theme='smartisan-classic'] .song-row strong,
+:root[data-theme='smartisan-classic'] .media-card-title,
+:root[data-theme='smartisan-classic'] .artist-album-title {
+  color:var(--smartisan-body-text);
+  font-weight:760;
+}
+
+:root[data-theme='smartisan-classic'] .artist-link,
+:root[data-theme='smartisan-classic'] .card-meta em,
+:root[data-theme='smartisan-classic'] .card-meta-button {
+  color:var(--smartisan-sub-text) !important;
+}
+
+:root[data-theme='smartisan-classic'] .artist-link:hover,
+:root[data-theme='smartisan-classic'] .card-meta em:hover,
+:root[data-theme='smartisan-classic'] .card-meta-button:hover,
+:root[data-theme='smartisan-classic'] .media-card-title:hover {
+  color:var(--smartisan-red) !important;
+}
+
+:root[data-theme='smartisan-classic'] .player {
+  grid-template-columns:124px minmax(220px, 1fr) minmax(340px, 1.7fr) minmax(280px, 320px);
+  gap:16px;
+  padding:10px 18px;
+  background:#fff;
+  border-top:1px solid #cfcfcf;
+  box-shadow:0 -6px 0 rgba(0,0,0,.035),0 -17px 0 -16px rgba(0,0,0,.18);
+}
+
+:root[data-theme='smartisan-classic'] .player::before {
+  display:none;
+}
+
+:root[data-theme='smartisan-classic'] .player-mood {
+  height:72px;
+  border-radius:6px;
+  background:linear-gradient(180deg,#fefefe,#eeeeee);
+  border:1px solid #cfcfcf;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 1px rgba(0,0,0,.05);
+}
+
+:root[data-theme='smartisan-classic'] .player-mood::before {
+  background:linear-gradient(180deg,rgba(255,255,255,.6),transparent 56%);
+}
+
+:root[data-theme='smartisan-classic'] .player-mood span,
+:root[data-theme='smartisan-classic'] .player-mood em {
+  color:var(--smartisan-sub-text);
+}
+
+:root[data-theme='smartisan-classic'] .wave-fallback i,
+:root[data-theme='smartisan-classic'] .player-mood i {
+  background:var(--smartisan-red);
+  box-shadow:none;
+}
+
+:root[data-theme='smartisan-classic'] .now,
+:root[data-theme='smartisan-classic'] .transport,
+:root[data-theme='smartisan-classic'] .volume {
+  color:var(--smartisan-body-text);
+}
+
+:root[data-theme='smartisan-classic'] .play,
+:root[data-theme='smartisan-classic'] .mobile-mini-play {
+  color:#fff;
+  background:linear-gradient(180deg,#e86a61,#d84b43);
+  border-color:#c84840;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 1px 2px rgba(0,0,0,.16);
+  text-shadow:0 -1px 0 rgba(0,0,0,.22);
+}
+
+:root[data-theme='smartisan-classic'] input[type='range'] {
+  accent-color:var(--smartisan-red);
+}
+
+:root[data-theme='smartisan-classic'] .queue-panel,
+:root[data-theme='smartisan-classic'] .song-search-options,
+:root[data-theme='smartisan-classic'] .artist-filter-options,
+:root[data-theme='smartisan-classic'] .song-row-more-menu,
+:root[data-theme='smartisan-classic'] .modal-card,
+:root[data-theme='smartisan-classic'] .mcp-help-dialog,
+:root[data-theme='smartisan-classic'] .user-menu-popover {
+  border-radius:8px;
+  background:#fff;
+  border:1px solid rgba(0,0,0,.12);
+  box-shadow:0 8px 28px rgba(0,0,0,.16);
+}
+
+:root[data-theme='smartisan-classic'] .pagination-controls {
+  border-radius:8px;
+  color:var(--smartisan-sub-text);
+  background:rgba(255,255,255,.96);
+  border:1px solid rgba(0,0,0,.12);
+  box-shadow:0 6px 22px rgba(0,0,0,.12);
+}
+
+:root[data-theme='smartisan-classic'] .empty,
+:root[data-theme='smartisan-classic'] .empty-state,
+:root[data-theme='smartisan-classic'] .empty-library {
+  border-radius:8px;
+  color:var(--smartisan-sub-text);
+  background:#fff;
+  border:1px dashed #d8d8d8;
+}
+
+:root[data-theme='smartisan-classic'] .theme-swatch.active {
+  border-color:var(--smartisan-red);
 }

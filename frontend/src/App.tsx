@@ -270,6 +270,7 @@ type ThemeLabel =
   | "neteaseDark"
   | "winampDark"
   | "foobarDark"
+  | "smartisanClassic"
   | "milkPorcelain"
   | "oatLatte"
   | "mintSoda"
@@ -320,6 +321,7 @@ const themes: { id: Theme; label: ThemeLabel; mode: ThemeMode }[] = [
   { id: "netease-dark", label: "neteaseDark", mode: "dark" },
   { id: "winamp-dark", label: "winampDark", mode: "dark" },
   { id: "foobar-dark", label: "foobarDark", mode: "dark" },
+  { id: "smartisan-classic", label: "smartisanClassic", mode: "light" },
   { id: "milk-porcelain", label: "milkPorcelain", mode: "light" },
   { id: "oat-latte", label: "oatLatte", mode: "light" },
   { id: "mint-soda", label: "mintSoda", mode: "light" },
@@ -340,6 +342,9 @@ const themeAliases: Record<string, Theme> = {
   winamp: "winamp-dark",
   foobar: "foobar-dark",
   midnight: "deep-space",
+  smartisan: "smartisan-classic",
+  hammer: "smartisan-classic",
+  tnt: "smartisan-classic",
   paper: "amber-film",
   porcelain: "milk-porcelain",
   latte: "oat-latte",
@@ -412,7 +417,7 @@ function rememberHomePlayerStyle(style: HomePlayerStyle) {
 }
 
 function normalizeMobileHomePlayerStyle(value?: string | null): MobileHomePlayerStyle {
-  return value === "indiewave" || value === "editorial-pulse" || value === "soft-vinyl" || value === "stage-glass" || value === "blue-halo" ? value : "neon-console";
+  return value === "indiewave" || value === "editorial-pulse" || value === "soft-vinyl" || value === "stage-glass" || value === "blue-halo" || value === "smartisan-classic" ? value : "neon-console";
 }
 
 function storedMobileHomePlayerStyle(): MobileHomePlayerStyle {
@@ -6260,6 +6265,7 @@ function PlayerMood({
     "netease-dark": "CLOUD",
     "winamp-dark": "CLASSIC",
     "foobar-dark": "BITRATE",
+    "smartisan-classic": "SMARTISAN",
     "milk-porcelain": "MINIMAL",
     "oat-latte": "WAVEFORM",
     "mint-soda": "FRESH",
@@ -6374,6 +6380,7 @@ function waveThemeColors(theme: Theme) {
     "netease-dark": { wave: "rgba(194,12,12,.34)", progress: "#C20C0C", cursor: "#FFFFFF" },
     "winamp-dark": { wave: "rgba(0,255,0,.32)", progress: "#00FF00", cursor: "#FFFF00" },
     "foobar-dark": { wave: "rgba(0,122,204,.34)", progress: "#007ACC", cursor: "#D4D4D4" },
+    "smartisan-classic": { wave: "rgba(154,0,0,.22)", progress: "#d94a43", cursor: "#5e88e8" },
     "milk-porcelain": { wave: "rgba(154,149,142,.35)", progress: "#2c2a27", cursor: "#7a7670" },
     "oat-latte": { wave: "rgba(158,125,94,.35)", progress: "#3d2b1f", cursor: "#c4894a" },
     "mint-soda": { wave: "rgba(106,158,131,.35)", progress: "#1f8c5e", cursor: "#5aad84" },
@@ -8561,6 +8568,13 @@ function SettingsPanel({
                 onClick={() => onMobileHomePlayerStyleChange("blue-halo")}
               >
                 {t("mobileHomePlayerBlueHalo")}
+              </button>
+              <button
+                type="button"
+                className={mobileHomePlayerStyle === "smartisan-classic" ? "active" : ""}
+                onClick={() => onMobileHomePlayerStyleChange("smartisan-classic")}
+              >
+                {t("mobileHomePlayerSmartisanClassic")}
               </button>
             </div>
           </SettingsSection>

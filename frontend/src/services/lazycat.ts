@@ -99,6 +99,7 @@ export function syncLazycatChrome(theme: Theme) {
     "mint-soda",
     "sakura-washi",
     "dusk-amber",
+    "smartisan-classic",
   ].includes(theme);
   const fallbackLight = isLight ? "#ffffff" : "#111111";
   const fallbackDark = isLight ? "#111111" : "#000000";

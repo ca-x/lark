@@ -1350,7 +1350,8 @@
 .mobile-neon-visual,
 .mobile-soft-stage,
 .mobile-stage-visual,
-.mobile-blue-visual {
+.mobile-blue-visual,
+.mobile-smartisan-stage {
   position:relative;
   min-height:0;
   display:grid;
@@ -1383,11 +1384,13 @@
 .mobile-art-player[data-playing='true'] .mobile-neon-record,
 .mobile-art-player[data-playing='true'] .mobile-soft-record,
 .mobile-art-player[data-playing='true'] .mobile-stage-disc,
-.mobile-art-player[data-playing='true'] .mobile-blue-art { animation-play-state:running; }
+.mobile-art-player[data-playing='true'] .mobile-blue-art,
+.mobile-art-player[data-playing='true'] .mobile-smartisan-record { animation-play-state:running; }
 .mobile-neon-record img,
 .mobile-soft-record img,
 .mobile-stage-disc img,
-.mobile-blue-art img {
+.mobile-blue-art img,
+.mobile-smartisan-record img {
   width:100%;
   height:100%;
   object-fit:cover;
@@ -2142,6 +2145,203 @@
   background:rgba(255,255,255,.18);
 }
 
+.mobile-art-smartisan-classic {
+  --mobile-art-phone-bg:#f1f1f1;
+  --mobile-art-phone-bg-2:#e7e7e7;
+  --mobile-art-panel:rgba(255,255,255,.82);
+  --mobile-art-panel-strong:#ffffff;
+  --mobile-art-text:rgba(0,0,0,.60);
+  --mobile-art-muted:rgba(0,0,0,.40);
+  --mobile-art-accent:#e65c53;
+  --mobile-art-glow:rgba(230,92,83,.22);
+}
+.mobile-art-smartisan-classic .mobile-art-phone {
+  color:rgba(0,0,0,.60);
+  background:
+    url('/smartisan/album-crosstexture-bg.png') center top / cover no-repeat,
+    linear-gradient(180deg,#f5f5f5,#e8e8e8);
+  border-color:rgba(0,0,0,.12);
+  box-shadow:0 24px 58px rgba(0,0,0,.24);
+}
+.mobile-art-smartisan-classic .mobile-art-bg {
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.62),rgba(255,255,255,.06) 38%,rgba(0,0,0,.05)),
+    transparent;
+}
+.mobile-art-smartisan-classic .mobile-art-topbar {
+  min-height:44px;
+  margin:-20px -18px 0;
+  padding:0 14px;
+  color:rgba(0,0,0,.60);
+  background:url('/smartisan/titlebar-bg.png') center / 100% 100%, linear-gradient(180deg,#fff,#f1f1f1);
+  border-bottom:1px solid rgba(169,169,169,.44);
+  text-shadow:0 1px 0 rgba(255,255,255,.86);
+}
+.mobile-art-smartisan-classic .mobile-art-topbar-icon {
+  color:rgba(0,0,0,.48);
+  background:linear-gradient(180deg,#fff,#ededed);
+  border:1px solid rgba(0,0,0,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95);
+}
+.mobile-art-smartisan-classic .mobile-art-meta {
+  text-align:center;
+  text-shadow:0 1px 0 rgba(255,255,255,.78);
+}
+.mobile-art-smartisan-classic .mobile-art-meta strong {
+  color:rgba(0,0,0,.60);
+  letter-spacing:0;
+}
+.mobile-art-smartisan-classic .mobile-art-meta span,
+.mobile-art-smartisan-classic .mobile-art-meta em,
+.mobile-art-smartisan-classic .mobile-art-time {
+  color:rgba(0,0,0,.40);
+}
+.mobile-art-smartisan-classic .mobile-art-actions button,
+.mobile-art-smartisan-classic .mobile-art-controls button,
+.mobile-art-smartisan-classic .mobile-art-volume-icon {
+  color:rgba(0,0,0,.52);
+  background:linear-gradient(180deg,#fff,#eeeeee);
+  border:1px solid rgba(0,0,0,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 1px 1px rgba(0,0,0,.06);
+  text-shadow:0 1px 0 rgba(255,255,255,.78);
+}
+.mobile-art-smartisan-classic .mobile-art-actions button.active,
+.mobile-art-smartisan-classic .mobile-art-controls button.active {
+  color:#e65c53;
+  background:linear-gradient(180deg,#fff8f8,#fbe6e5);
+  border-color:#e8c3c0;
+}
+.mobile-art-smartisan-classic .mobile-art-controls .mobile-art-play {
+  color:#fff;
+  background:linear-gradient(180deg,#e86a61,#d84b43);
+  border-color:#c84840;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 2px 5px rgba(0,0,0,.18);
+  text-shadow:0 -1px 0 rgba(0,0,0,.24);
+}
+.mobile-art-smartisan-classic .mobile-art-progress-rail > span,
+.mobile-art-smartisan-classic .mobile-art-volume-bars i {
+  background:rgba(0,0,0,.14);
+}
+.mobile-art-smartisan-classic .mobile-art-progress-rail i,
+.mobile-art-smartisan-classic .mobile-art-volume-bars i.active {
+  background:#e65c53;
+  box-shadow:none;
+}
+.mobile-smartisan-stage {
+  align-self:stretch;
+  min-height:260px;
+  align-content:center;
+  gap:12px;
+  padding:0 0 4px;
+}
+.mobile-smartisan-titlebar {
+  width:min(280px, 86vw);
+  height:28px;
+  display:grid;
+  grid-template-columns:52px 1fr 52px;
+  align-items:center;
+  gap:8px;
+  border-radius:4px;
+  background:url('/smartisan/titlebar-bg.png') center / 100% 100%, linear-gradient(180deg,#fff,#f0f0f0);
+  border:1px solid rgba(0,0,0,.1);
+  box-shadow:0 1px 0 rgba(255,255,255,.82);
+}
+.mobile-smartisan-titlebar span {
+  height:12px;
+  margin:0 8px;
+  border-radius:3px;
+  background:linear-gradient(180deg,#fff,#ececec);
+  border:1px solid rgba(0,0,0,.12);
+}
+.mobile-smartisan-titlebar i {
+  height:4px;
+  border-radius:999px;
+  background:rgba(0,0,0,.18);
+  box-shadow:0 1px 0 rgba(255,255,255,.78);
+}
+.mobile-smartisan-deck {
+  position:relative;
+  width:min(300px, 84vw);
+  height:min(300px, 84vw);
+  display:grid;
+  place-items:center;
+}
+.mobile-smartisan-record {
+  position:relative;
+  width:min(244px, 68vw);
+  aspect-ratio:1;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border-radius:50%;
+  background:
+    var(--mobile-art-cover-image),
+    url('/smartisan/playing-lp.png') center / cover no-repeat;
+  border:0;
+  box-shadow:0 22px 46px rgba(0,0,0,.28);
+  animation:mobile-art-spin 9s linear infinite;
+  animation-play-state:paused;
+}
+.mobile-smartisan-record::before {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:url('/smartisan/playing-lp.png') center / cover no-repeat;
+  opacity:1;
+  mix-blend-mode:multiply;
+  pointer-events:none;
+}
+.mobile-smartisan-record img {
+  width:46%;
+  height:46%;
+  border-radius:50%;
+  position:relative;
+  z-index:1;
+  border:4px solid rgba(20,20,20,.88);
+}
+.mobile-smartisan-record span {
+  position:absolute;
+  z-index:2;
+  width:18%;
+  aspect-ratio:1;
+  border-radius:50%;
+  background:#f8f8f8;
+  box-shadow:inset 0 0 0 9px #151515,0 1px 2px rgba(0,0,0,.28);
+}
+.mobile-smartisan-arm {
+  position:absolute;
+  right:8px;
+  top:-18px;
+  width:92px;
+  height:206px;
+  background:url('/smartisan/playing-stylus-lp.png') center / contain no-repeat;
+  transform-origin:74px 34px;
+  transform:rotate(-22deg);
+  filter:drop-shadow(0 5px 8px rgba(0,0,0,.24));
+  transition:transform .28s var(--ease);
+  pointer-events:none;
+}
+.mobile-art-player[data-playing='true'] .mobile-smartisan-arm {
+  transform:rotate(-8deg);
+}
+.mobile-smartisan-arm i {
+  display:none;
+}
+.mobile-smartisan-led {
+  position:absolute;
+  left:34px;
+  bottom:38px;
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:#b8b8b8;
+  box-shadow:0 0 0 5px rgba(255,255,255,.42),inset 0 1px 1px rgba(0,0,0,.18);
+}
+.mobile-smartisan-led.on {
+  background:#e65c53;
+  box-shadow:0 0 0 5px rgba(230,92,83,.12),0 0 14px rgba(230,92,83,.62);
+}
+
 @keyframes mobile-art-spin { to { transform:rotate(360deg); } }
 
 @media (min-width:721px) {
@@ -2296,6 +2496,15 @@
     padding:10px 10px 16px;
     border-radius:24px;
     background:linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04));
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] {
+    margin:-12px;
+    padding:0 0 16px;
+    border-radius:0;
+    color:rgba(0,0,0,.60);
+    background:
+      url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+      #ececec;
   }
   .mobile-home-highlight {
     display:grid;
@@ -2535,6 +2744,76 @@
     border-color:rgba(255,255,255,.86);
     box-shadow:0 12px 28px rgba(9,45,100,.16);
   }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs {
+    margin:0;
+    padding:5px 8px;
+    border-radius:0;
+    color:rgba(0,0,0,.40);
+    background:url('/smartisan/titlebar-bg.png') center / 100% 100%, linear-gradient(180deg,#fff,#efefef);
+    border-bottom:1px solid rgba(169,169,169,.44);
+    box-shadow:0 8px 0 -7px rgba(0,0,0,.18);
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs button {
+    border-radius:5px;
+    color:rgba(0,0,0,.46);
+    background:transparent;
+    text-shadow:0 1px 0 rgba(255,255,255,.82);
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs button.active {
+    color:#e65c53;
+    background:linear-gradient(180deg,#fff8f8,#fbe6e5);
+    border:1px solid #e8c3c0;
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-now,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-highlight,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-library-hub button,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-featured button,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-song-strip button,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-list button {
+    margin-left:12px;
+    margin-right:12px;
+    color:rgba(0,0,0,.60);
+    background:linear-gradient(180deg,#fff,#fcfcfc);
+    border:1px solid rgba(0,0,0,.08);
+    border-radius:7px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.88),0 1px 1px rgba(0,0,0,.05);
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-section-head {
+    min-height:44px;
+    padding:8px 12px;
+    background:url('/smartisan/titlebar-bg.png') center / 100% 100%, linear-gradient(180deg,#fff,#f0f0f0);
+    border-top:1px solid rgba(255,255,255,.75);
+    border-bottom:1px solid #ebebeb;
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-section-head h2,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-song-strip strong,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-list strong {
+    color:rgba(0,0,0,.60);
+    text-shadow:0 1px 0 rgba(255,255,255,.82);
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-section-head button,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-highlight > button > svg,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-now > button > svg {
+    color:#fff;
+    background:linear-gradient(180deg,#e86a61,#d84b43);
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-highlight > div > span,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-featured small {
+    color:#e65c53;
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-song-strip small,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-list small,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-library-hub small,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-featured em {
+    color:rgba(0,0,0,.40);
+  }
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-collection-cover,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mini-art {
+    border-radius:4px;
+    color:#868a90;
+    background:var(--cover-url), linear-gradient(180deg,#f8f8f8,#dcdcdc);
+    border:1px solid rgba(0,0,0,.14);
+  }
   .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-highlight,
   .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-library-hub button,
   .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-featured button {
@@ -2726,6 +3005,7 @@
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-stage,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-visual,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-blue-visual,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-smartisan-stage,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-visual,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-editorial-visual {
     min-height:0;
@@ -2906,6 +3186,29 @@
   .mobile-mini-player[data-mobile-theme='indiewave'] .mobile-mini-progress::before {
     color:#fff;
     background:#e36f63;
+  }
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] {
+    color:rgba(0,0,0,.60);
+  }
+  .mobile-mini-player[data-mobile-theme='smartisan-classic']::before {
+    background:#fff;
+    opacity:1;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.12);
+  }
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-meta,
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-info,
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] > button:not(.mobile-mini-play) {
+    color:rgba(0,0,0,.60);
+    text-shadow:0 1px 0 rgba(255,255,255,.76);
+  }
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-play {
+    color:#fff;
+    background:linear-gradient(180deg,#e86a61,#d84b43);
+    border-color:#c84840;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.16);
+  }
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-progress::before {
+    background:#e65c53;
   }
 }
 
@@ -3549,7 +3852,10 @@
   .mobile-stage-dots,
   .mobile-blue-orbit,
   .mobile-blue-signal,
-  .mobile-stage-puck.live {
+  .mobile-stage-puck.live,
+  .mobile-smartisan-record,
+  .mobile-smartisan-arm,
+  .mobile-smartisan-led {
     animation:none !important;
     transition:none !important;
   }
@@ -3653,6 +3959,22 @@
     --highlight:#214f72;
     --hero:radial-gradient(circle at 80% 12%, rgba(63,111,148,.14), transparent 34%), linear-gradient(145deg, #f8fbfd 0%, #d4dde5 100%);
     --mobile-active-text:#ffffff;
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] {
+    color-scheme:light;
+    --bg:#ececec;
+    --panel:#fbfbfb;
+    --panel2:#f4f4f4;
+    --text:rgba(0,0,0,.60);
+    --muted:rgba(0,0,0,.40);
+    --accent:#e65c53;
+    --accent2:#5c89f2;
+    --line:#ebebeb;
+    --highlight:#e03d34;
+    --hero:url('/smartisan/album-crosstexture-bg.png') center top / cover no-repeat, linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%);
+    --mobile-active-text:#ffffff;
+    --mobile-shell-x:0px;
   }
 
   .app-shell[data-mobile-theme='soft-vinyl'] .mobile-art-soft-vinyl {
@@ -3837,6 +4159,51 @@
     color:var(--mobile-active-text);
   }
 
+  .app-shell[data-mobile-theme='smartisan-classic'] {
+    background:
+      url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+      #ececec;
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .main {
+    border-radius:0;
+    background:#f5f5f5;
+    border:0;
+    box-shadow:none;
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player {
+    border-radius:0;
+    background:#fff;
+    border-color:#d2d2d2;
+    box-shadow:0 -8px 0 -7px rgba(0,0,0,.16);
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .mobile-bottom-nav {
+    border-radius:0;
+    color:rgba(0,0,0,.40);
+    background:url('/smartisan/titlebar-bg.png') center / 100% 100%, linear-gradient(180deg,#fff,#e8e8e8);
+    border-top:1px solid rgba(169,169,169,.44);
+    box-shadow:0 -17px 0 -16px rgba(0,0,0,.18);
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button {
+    border-radius:5px;
+    color:rgba(0,0,0,.46);
+    text-shadow:0 1px 0 rgba(255,255,255,.82);
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button.active {
+    color:#e65c53;
+    background:linear-gradient(180deg,#fff8f8,#fbe6e5);
+    border-color:#e8c3c0;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.95);
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button.active::before {
+    background:#e65c53;
+  }
+
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) {
     --player-h:100dvh;
     grid-template-columns:1fr;
@@ -3905,6 +4272,25 @@
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-soft-vinyl .mobile-soft-record {
     width:min(244px, 66vw);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-phone {
+    grid-template-rows:minmax(44px, auto) minmax(288px, 38dvh) auto 44px 34px 54px max(76px, calc(66px + var(--safe-bottom)));
+    gap:8px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-stage {
+    min-height:0;
+    padding:0;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-deck {
+    width:min(292px, 88vw);
+    height:min(292px, 100%);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-record {
+    width:min(238px, 68vw);
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-soft-vinyl .mobile-soft-arm {
@@ -4075,6 +4461,20 @@
     --mobile-lyrics-overlay:
       radial-gradient(circle at 80% 12%, rgba(63,111,148,.14), transparent 34%),
       linear-gradient(180deg, rgba(248,251,253,.88), rgba(227,233,238,.68) 44%, #e3e9ee 100%);
+  }
+
+  .app-shell.lyrics-mode[data-mobile-theme='smartisan-classic'] {
+    --mobile-lyrics-rest:rgba(0,0,0,.54);
+    --mobile-lyrics-muted:rgba(0,0,0,.42);
+    --mobile-lyrics-live:rgba(0,0,0,.72);
+    --mobile-lyrics-accent:#e65c53;
+    --mobile-lyrics-live-bg:rgba(230,92,83,.10);
+    --mobile-lyrics-chip-bg:rgba(255,255,255,.84);
+    --mobile-lyrics-border:rgba(0,0,0,.12);
+    --mobile-lyrics-shadow:rgba(0,0,0,.12);
+    --mobile-lyrics-overlay:
+      url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+      linear-gradient(180deg, rgba(255,255,255,.92), rgba(244,244,244,.74) 42%, #ececec 100%);
   }
 
   .app-shell.lyrics-mode .full-lyrics {
@@ -4693,4 +5093,3 @@
   .song-row-more-menu { min-width:200px; }
   .song-row > div:has(> strong) { min-width:0; }
 }
-

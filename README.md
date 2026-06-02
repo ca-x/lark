@@ -42,10 +42,16 @@ For release notes and changelog, see [CHANGELOG.md](CHANGELOG.md).
 ### Personalize the interface
 
 - Language: Simplified Chinese and English. The app name is shown as **百灵** in Chinese and **Lark** in English.
-- Themes follow the supplied player schemes: twenty themes in total — five original dark (Deep Space Noir, Amber Film, Neon Coral, Arctic Aurora, Carbon Volt), five original light (Milk Porcelain, Oat Latte, Mint Soda, Sakura Washi, Dusk Amber), and ten tributes (Apple Music, Spotify, NetEase, Winamp, Foobar2000 × dark + light).
-- Theme selection lives in Settings as a 20-swatch color grid with live preview to keep the main player clean.
+- Themes follow the supplied player schemes: twenty-one themes in total — five original dark (Deep Space Noir, Amber Film, Neon Coral, Arctic Aurora, Carbon Volt), five original light (Milk Porcelain, Oat Latte, Mint Soda, Sakura Washi, Dusk Amber), ten tributes (Apple Music, Spotify, NetEase, Winamp, Foobar2000 × dark + light), and a Smartisan Music classic theme.
+- Theme selection lives in Settings as a swatch color grid with live preview to keep the main player clean.
 - Each theme remaps the player colors, cover treatment, progress/volume styling, and motion language to match its scheme.
 - Adaptive layout supports desktop, tablet, and mobile use, with a desktop sidebar, tablet icon rail, and mobile bottom navigation.
+
+---
+
+## Credits and notices
+
+- The Smartisan Music classic theme is credited to [DE105/SmartisanMusic-Revived](https://github.com/DE105/SmartisanMusic-Revived). The referenced Smartisan Music visual assets, trademarks, product names, and UI designs belong to their respective rights holders and are included here only for learning, research, and preservation.
 
 ---
 

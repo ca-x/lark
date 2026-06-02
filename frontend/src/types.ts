@@ -9,6 +9,7 @@ export type Theme =
   | "netease-dark"
   | "winamp-dark"
   | "foobar-dark"
+  | "smartisan-classic"
   | "milk-porcelain"
   | "oat-latte"
   | "mint-soda"
@@ -204,7 +205,7 @@ export interface PlaybackHistorySettings {
   separate_by_device: boolean;
 }
 export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide";
-export type MobileHomePlayerStyle = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "stage-glass" | "blue-halo";
+export type MobileHomePlayerStyle = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "stage-glass" | "blue-halo" | "smartisan-classic";
 export type ArtistAlbumDisplayStyle = "classic" | "showcase";
 export interface UserPreferences {
   home_player_style: HomePlayerStyle;
