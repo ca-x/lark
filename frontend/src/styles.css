@@ -4153,3 +4153,504 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 :root[data-theme='smartisan-classic'] .theme-swatch.active {
   border-color:var(--smartisan-red);
 }
+
+/* Smartisan playback deck: desktop counterpart to the mobile classic player. */
+.hero.smartisan-turntable-hero {
+  grid-template-columns:minmax(320px, 590px) minmax(0, 1fr);
+  justify-items:stretch;
+  gap:28px;
+  min-height:520px;
+  padding:24px;
+  border-radius:8px;
+  color:rgba(0,0,0,.62);
+  background:
+    url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+    linear-gradient(180deg,#ffffff 0%,#f5f5f5 52%,#ececec 100%);
+  border:1px solid rgba(0,0,0,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(0,0,0,.08);
+}
+
+.hero.smartisan-turntable-hero::after {
+  display:none;
+}
+
+.hero.smartisan-turntable-hero > div:not(.smartisan-turntable-player) {
+  min-width:0;
+  position:relative;
+  z-index:1;
+}
+
+.hero.smartisan-turntable-hero h1 {
+  font-size:56px;
+  line-height:1.04;
+  letter-spacing:0;
+  color:rgba(0,0,0,.62);
+  text-shadow:0 1px 0 rgba(255,255,255,.86);
+}
+
+.smartisan-turntable-player {
+  --smartisan-turntable-red:#e65c53;
+  --smartisan-turntable-red-dark:#cf4740;
+  --smartisan-turntable-text:rgba(0,0,0,.58);
+  --smartisan-turntable-muted:rgba(0,0,0,.38);
+  --smartisan-turntable-disc:min(390px, calc(100vw - 88px));
+  width:min(560px, 100%);
+  min-width:0;
+  display:grid;
+  justify-items:center;
+  gap:12px;
+  padding:0 0 18px;
+  border-radius:8px;
+  color:var(--smartisan-turntable-text);
+  background:
+    url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+    linear-gradient(180deg,#fafafa 0%,#f1f1f1 100%);
+  border:1px solid rgba(0,0,0,.1);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 18px 42px rgba(0,0,0,.12);
+  overflow:visible;
+  isolation:isolate;
+}
+
+.smartisan-turntable-titlebar {
+  width:100%;
+  min-width:0;
+  height:54px;
+  display:grid;
+  grid-template-columns:76px minmax(0, 1fr) 76px;
+  align-items:center;
+  gap:12px;
+  padding:0 14px;
+  border-radius:7px 7px 0 0;
+  background:url('/smartisan/titlebar-playing-bg.png') center / 100% 100%, linear-gradient(180deg,#fff,#efefef);
+  border-bottom:1px solid rgba(169,169,169,.44);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 8px 0 -7px rgba(0,0,0,.18);
+}
+
+.smartisan-turntable-titlebar span {
+  height:20px;
+  border-radius:4px;
+  background:linear-gradient(180deg,#fff,#ececec);
+  border:1px solid rgba(0,0,0,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.smartisan-turntable-titlebar i {
+  min-width:0;
+  height:5px;
+  border-radius:999px;
+  background:rgba(0,0,0,.17);
+  box-shadow:0 1px 0 rgba(255,255,255,.86);
+}
+
+.smartisan-turntable-stage {
+  position:relative;
+  width:min(430px, 100%);
+  min-width:0;
+  height:calc(var(--smartisan-turntable-disc) * 1.06);
+  display:grid;
+  place-items:center;
+  margin-top:2px;
+}
+
+.smartisan-turntable-record {
+  position:relative;
+  z-index:1;
+  width:var(--smartisan-turntable-disc);
+  max-width:100%;
+  aspect-ratio:1080 / 1070;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  color:rgba(255,255,255,.5);
+  background:
+    url('/smartisan/playing-cover-lp.png') center / contain no-repeat,
+    url('/smartisan/playing-lp.png') center / contain no-repeat;
+  box-shadow:0 22px 46px rgba(0,0,0,.22);
+  cursor:pointer;
+  animation:smartisan-turntable-spin 15.5s linear infinite paused;
+  transform-origin:50% 50%;
+  will-change:transform;
+}
+
+.smartisan-turntable-player[data-playing='true'] .smartisan-turntable-record {
+  animation-play-state:running;
+}
+
+.smartisan-turntable-record:disabled {
+  opacity:1;
+  cursor:not-allowed;
+}
+
+.smartisan-turntable-record img {
+  position:relative;
+  z-index:2;
+  width:37.5%;
+  height:37.8%;
+  display:block;
+  object-fit:cover;
+  border-radius:50%;
+  box-shadow:0 0 0 4px rgba(0,0,0,.82),0 1px 5px rgba(0,0,0,.28);
+}
+
+.smartisan-turntable-record > svg {
+  position:relative;
+  z-index:2;
+  width:88px;
+  height:88px;
+  color:rgba(255,255,255,.42);
+}
+
+.smartisan-turntable-record span {
+  position:absolute;
+  left:50%;
+  top:50%;
+  z-index:3;
+  width:6%;
+  aspect-ratio:1;
+  transform:translate(-50%, -50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#ececec 0 18%,#777 42%,#1a1a1a 100%);
+  box-shadow:0 0 0 4px rgba(0,0,0,.68),0 1px 3px rgba(0,0,0,.34);
+}
+
+.smartisan-turntable-arm {
+  position:absolute;
+  right:2px;
+  top:calc(var(--smartisan-turntable-disc) * .07);
+  z-index:4;
+  width:calc(var(--smartisan-turntable-disc) * .204);
+  height:calc(var(--smartisan-turntable-disc) * .861);
+  background:url('/smartisan/playing-stylus-lp.png') center top / contain no-repeat;
+  transform-origin:65% 9%;
+  transform:rotate(var(--smartisan-turntable-needle, 0deg));
+  filter:drop-shadow(0 5px 8px rgba(0,0,0,.24));
+  transition:transform 220ms ease;
+  pointer-events:none;
+}
+
+.smartisan-turntable-led {
+  position:absolute;
+  left:34px;
+  bottom:46px;
+  z-index:5;
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:#b8b8b8;
+  box-shadow:0 0 0 5px rgba(255,255,255,.48),inset 0 1px 1px rgba(0,0,0,.18);
+}
+
+.smartisan-turntable-led.on {
+  background:var(--smartisan-turntable-red);
+  box-shadow:0 0 0 5px rgba(230,92,83,.14),0 0 14px rgba(230,92,83,.62);
+}
+
+.smartisan-turntable-readout {
+  width:calc(100% - 44px);
+  min-width:0;
+  display:grid;
+  justify-items:center;
+  gap:2px;
+  padding-top:2px;
+  text-align:center;
+}
+
+.smartisan-turntable-readout span,
+.smartisan-turntable-readout strong {
+  max-width:100%;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  letter-spacing:0;
+}
+
+.smartisan-turntable-readout span {
+  color:var(--smartisan-turntable-muted);
+  font-size:12px;
+  font-weight:650;
+}
+
+.smartisan-turntable-readout strong {
+  color:var(--smartisan-turntable-text);
+  font-size:17px;
+  font-weight:760;
+  text-shadow:0 1px 0 rgba(255,255,255,.82);
+}
+
+.smartisan-turntable-timeline {
+  width:calc(100% - 32px);
+  min-width:0;
+  min-height:48px;
+  display:grid;
+  grid-template-columns:48px minmax(0, 1fr) 48px;
+  align-items:center;
+  gap:10px;
+  padding:0 2px;
+  border-top:1px solid rgba(255,255,255,.78);
+  border-bottom:1px solid rgba(0,0,0,.06);
+}
+
+.smartisan-turntable-timeline time {
+  color:var(--smartisan-turntable-muted);
+  font-size:12px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  text-align:center;
+  white-space:nowrap;
+}
+
+.smartisan-turntable-progress {
+  position:relative;
+  min-width:0;
+  height:42px;
+  display:flex;
+  align-items:center;
+}
+
+.smartisan-turntable-progress-track {
+  position:absolute;
+  left:0;
+  right:0;
+  height:8px;
+  border-radius:999px;
+  background:rgba(0,0,0,.12);
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.16),0 1px 0 rgba(255,255,255,.88);
+  overflow:hidden;
+  pointer-events:none;
+}
+
+.smartisan-turntable-progress-track span {
+  display:block;
+  width:var(--smartisan-turntable-progress, 0%);
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(180deg,#e9726a,#d84b43);
+}
+
+.smartisan-turntable-progress::after {
+  content:'';
+  position:absolute;
+  left:var(--smartisan-turntable-progress, 0%);
+  top:50%;
+  width:22px;
+  height:40px;
+  transform:translate(-50%, -50%);
+  background:url('/smartisan/playing-control-time.png') center / contain no-repeat;
+  pointer-events:none;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.22));
+}
+
+.smartisan-turntable-progress input {
+  position:relative;
+  z-index:1;
+  width:100%;
+  height:42px;
+  min-height:42px;
+  margin:0;
+  opacity:0;
+  cursor:pointer;
+}
+
+.smartisan-turntable-progress input:disabled {
+  cursor:not-allowed;
+}
+
+.smartisan-turntable-progress:has(input:focus-visible) .smartisan-turntable-progress-track {
+  outline:2px solid rgba(230,92,83,.34);
+  outline-offset:4px;
+}
+
+.smartisan-turntable-controls {
+  width:calc(100% - 24px);
+  min-width:0;
+  min-height:100px;
+  display:grid;
+  grid-template-columns:76px 94px 76px 52px;
+  justify-content:center;
+  align-items:center;
+  gap:4px;
+  padding-top:4px;
+}
+
+.smartisan-turntable-controls button {
+  position:relative;
+  min-width:44px;
+  min-height:44px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-radius:0;
+  color:var(--smartisan-turntable-muted);
+  background:transparent center / contain no-repeat;
+  box-shadow:none;
+  cursor:pointer;
+}
+
+.smartisan-turntable-controls button[data-control='previous'],
+.smartisan-turntable-controls button[data-control='next'] {
+  width:76px;
+  height:94px;
+}
+
+.smartisan-turntable-controls button[data-control='play'],
+.smartisan-turntable-controls button[data-control='pause'] {
+  width:94px;
+  height:96px;
+}
+
+.smartisan-turntable-controls button[data-control='previous'] {
+  background-image:url('/smartisan/btn-playing-prev.png');
+}
+
+.smartisan-turntable-controls button[data-control='previous']:not(:disabled):active {
+  background-image:url('/smartisan/btn-playing-prev-down.png');
+}
+
+.smartisan-turntable-controls button[data-control='play'] {
+  background-image:url('/smartisan/btn-playing-play.png');
+}
+
+.smartisan-turntable-controls button[data-control='play']:not(:disabled):active {
+  background-image:url('/smartisan/btn-playing-play-down.png');
+}
+
+.smartisan-turntable-controls button[data-control='pause'] {
+  background-image:url('/smartisan/btn-playing-pause.png');
+}
+
+.smartisan-turntable-controls button[data-control='pause']:not(:disabled):active {
+  background-image:url('/smartisan/btn-playing-pause-down.png');
+}
+
+.smartisan-turntable-controls button[data-control='next'] {
+  background-image:url('/smartisan/btn-playing-next.png');
+}
+
+.smartisan-turntable-controls button[data-control='next']:not(:disabled):active {
+  background-image:url('/smartisan/btn-playing-next-down.png');
+}
+
+.smartisan-turntable-controls button[data-control='previous'] svg,
+.smartisan-turntable-controls button[data-control='play'] svg,
+.smartisan-turntable-controls button[data-control='pause'] svg,
+.smartisan-turntable-controls button[data-control='next'] svg {
+  display:none;
+}
+
+.smartisan-turntable-controls button[data-control='mode'] {
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  color:rgba(0,0,0,.42);
+  background:linear-gradient(180deg,#fff,#ececec);
+  border:1px solid rgba(0,0,0,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.94),0 1px 2px rgba(0,0,0,.08);
+}
+
+.smartisan-turntable-controls button[data-control='mode'].active {
+  color:var(--smartisan-turntable-red);
+  background:linear-gradient(180deg,#fff8f8,#fbe6e5);
+  border-color:#e8c3c0;
+}
+
+.smartisan-turntable-controls button[data-control='mode'] svg {
+  width:22px;
+  height:22px;
+}
+
+.smartisan-turntable-controls button:disabled {
+  opacity:.42;
+  cursor:not-allowed;
+}
+
+.smartisan-turntable-controls button:focus-visible {
+  outline:2px solid rgba(230,92,83,.34);
+  outline-offset:2px;
+}
+
+@keyframes smartisan-turntable-spin {
+  to { transform:rotate(360deg); }
+}
+
+@media (max-width:980px) {
+  .hero.smartisan-turntable-hero {
+    grid-template-columns:1fr;
+    justify-items:center;
+    text-align:center;
+    min-height:0;
+  }
+
+  .hero.smartisan-turntable-hero > div:not(.smartisan-turntable-player) {
+    max-width:100%;
+  }
+
+  .hero.smartisan-turntable-hero h1 {
+    font-size:44px;
+  }
+
+  .smartisan-turntable-player {
+    --smartisan-turntable-disc:min(340px, calc(100vw - 84px));
+    width:min(460px, 100%);
+  }
+}
+
+@media (max-width:520px) {
+  .hero.smartisan-turntable-hero {
+    padding:16px;
+  }
+
+  .smartisan-turntable-player {
+    --smartisan-turntable-disc:min(300px, calc(100vw - 72px));
+  }
+
+  .smartisan-turntable-titlebar {
+    height:48px;
+    grid-template-columns:56px minmax(0, 1fr) 56px;
+    gap:8px;
+    padding-inline:10px;
+  }
+
+  .smartisan-turntable-stage {
+    height:calc(var(--smartisan-turntable-disc) * 1.08);
+  }
+
+  .smartisan-turntable-timeline {
+    grid-template-columns:42px minmax(0, 1fr) 42px;
+    gap:6px;
+  }
+
+  .smartisan-turntable-controls {
+    grid-template-columns:62px 76px 62px 48px;
+    min-height:84px;
+    gap:2px;
+  }
+
+  .smartisan-turntable-controls button[data-control='previous'],
+  .smartisan-turntable-controls button[data-control='next'] {
+    width:62px;
+    height:78px;
+  }
+
+  .smartisan-turntable-controls button[data-control='play'],
+  .smartisan-turntable-controls button[data-control='pause'] {
+    width:76px;
+    height:80px;
+  }
+
+  .smartisan-turntable-controls button[data-control='mode'] {
+    width:48px;
+    height:48px;
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .smartisan-turntable-record,
+  .smartisan-turntable-arm {
+    animation:none !important;
+    transition:none !important;
+  }
+}

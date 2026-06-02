@@ -5,6 +5,40 @@
 
 ---
 
+## 0.7.21 — 锤子唱机与移动端宽度修复
+
+发布日期 / Released: 2026-06-02
+
+### 新功能
+
+- **新增 PC 端锤子唱机播放样式。** 「首页播放器样式」新增「锤子唱机」，使用 Smartisan Music 参考项目的 LP、唱片中心叠层、唱针、播放按钮和进度滑块资源，独立于移动端播放样式设置。
+
+### 修复
+
+- **修复移动端锤子主题首页宽度。** 锤子移动端首页 tab 现在固定为原版 titlebar 分栏，不再被通用移动端滚动胶囊样式覆盖，并补齐内容区左右内边距，避免横向溢出。
+- **兼容旧锤子播放器配置。** 历史存储的 `smartisan` / `smartisan-classic` PC 播放器值会映射到新的「锤子唱机」样式。
+
+完整 diff：`git log v0.7.20..v0.7.21`
+
+---
+
+## v0.7.21 — Smartisan deck + mobile width fix
+
+Released: 2026-06-02
+
+### New
+
+- **Desktop Smartisan deck player style.** The desktop home player selector now includes "Smartisan deck", using LP, center-label overlay, stylus, playback button, and seek-thumb assets from the Smartisan Music reference project. This remains separate from the mobile player style setting.
+
+### Fixes
+
+- **Smartisan mobile home width.** Smartisan mobile tabs now stay as a fixed titlebar-style grid instead of being overridden by generic scroll-pill tab rules, with corrected content padding to avoid horizontal overflow.
+- **Legacy Smartisan player value compatibility.** Stored desktop player values `smartisan` and `smartisan-classic` now resolve to the new Smartisan deck style.
+
+Full diff: `git log v0.7.20..v0.7.21`
+
+---
+
 ## 0.7.20 — 锤子音乐经典主题
 
 发布日期 / Released: 2026-06-02

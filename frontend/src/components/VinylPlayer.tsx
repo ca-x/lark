@@ -1,1 +1,1 @@
-export { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, MiniCoverArt, VinylTurntable } from "./player-themes";
+export { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, MiniCoverArt, SmartisanTurntable, VinylTurntable } from "./player-themes";
