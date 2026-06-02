@@ -1162,6 +1162,16 @@
   padding:0;
   cursor:pointer;
 }
+.mobile-art-topbar-spacer {
+  width:44px;
+  min-width:44px;
+  height:44px;
+  min-height:44px;
+  display:block;
+  flex:0 0 44px;
+  visibility:hidden;
+  pointer-events:none;
+}
 .mobile-art-topbar-icon.active,
 .mobile-art-topbar-icon:not(:disabled):active {
   color:var(--mobile-art-accent);

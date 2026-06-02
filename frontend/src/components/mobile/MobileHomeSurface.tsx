@@ -100,23 +100,26 @@ export function MobileHomeSurface({
   const featuredAlbum = albums[0];
   const featuredArtist = artists[0];
   const featuredPlaylist = playlists[0];
+  const showSurfaceTabs = theme !== "smartisan-classic";
 
   return (
     <section className="mobile-home-surface" data-mobile-theme={theme}>
-      <nav className="mobile-home-tabs" aria-label={t("home")}>
-        <button type="button" className="active">
-          {t("mobileForYou")}
-        </button>
-        <button type="button" onClick={onOpenLibrary}>
-          {t("library")}
-        </button>
-        <button type="button" onClick={onOpenFavorites}>
-          {t("favorites")}
-        </button>
-        <button type="button" onClick={onOpenPlaylists}>
-          {t("playlists")}
-        </button>
-      </nav>
+      {showSurfaceTabs ? (
+        <nav className="mobile-home-tabs" aria-label={t("home")}>
+          <button type="button" className="active">
+            {t("mobileForYou")}
+          </button>
+          <button type="button" onClick={onOpenLibrary}>
+            {t("library")}
+          </button>
+          <button type="button" onClick={onOpenFavorites}>
+            {t("favorites")}
+          </button>
+          <button type="button" onClick={onOpenPlaylists}>
+            {t("playlists")}
+          </button>
+        </nav>
+      ) : null}
 
       <section className="mobile-home-now">
         <div>

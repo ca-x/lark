@@ -4279,7 +4279,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 .smartisan-turntable-stage {
   position:relative;
-  width:min(430px, 100%);
+  width:100%;
   min-width:0;
   height:calc(var(--smartisan-turntable-disc) * 1.06);
   display:grid;
@@ -4352,7 +4352,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 .smartisan-turntable-arm {
   position:absolute;
-  right:2px;
+  right:calc(var(--smartisan-turntable-disc) * .062);
   top:calc(var(--smartisan-turntable-disc) * .07);
   z-index:4;
   width:calc(var(--smartisan-turntable-disc) * .204);
@@ -4605,6 +4605,273 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 .smartisan-turntable-controls button:focus-visible {
   outline:2px solid rgba(230,92,83,.34);
   outline-offset:2px;
+}
+
+:root[data-theme='deep-space'] .hero.smartisan-turntable-hero,
+:root[data-theme='amber-film'] .hero.smartisan-turntable-hero,
+:root[data-theme='neon-coral'] .hero.smartisan-turntable-hero,
+:root[data-theme='arctic-aurora'] .hero.smartisan-turntable-hero,
+:root[data-theme='carbon-volt'] .hero.smartisan-turntable-hero,
+:root[data-theme='apple-dark'] .hero.smartisan-turntable-hero,
+:root[data-theme='spotify-dark'] .hero.smartisan-turntable-hero,
+:root[data-theme='netease-dark'] .hero.smartisan-turntable-hero,
+:root[data-theme='winamp-dark'] .hero.smartisan-turntable-hero,
+:root[data-theme='foobar-dark'] .hero.smartisan-turntable-hero {
+  color:rgba(246,247,250,.78);
+  background:
+    linear-gradient(180deg,rgba(12,13,15,.72),rgba(12,13,15,.86)),
+    url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+    linear-gradient(180deg,#2a2b2f 0%,#1b1c20 54%,#111215 100%);
+  border-color:rgba(255,255,255,.10);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 22px 70px rgba(0,0,0,.42);
+}
+
+:root[data-theme='deep-space'] .hero.smartisan-turntable-hero h1,
+:root[data-theme='amber-film'] .hero.smartisan-turntable-hero h1,
+:root[data-theme='neon-coral'] .hero.smartisan-turntable-hero h1,
+:root[data-theme='arctic-aurora'] .hero.smartisan-turntable-hero h1,
+:root[data-theme='carbon-volt'] .hero.smartisan-turntable-hero h1,
+:root[data-theme='apple-dark'] .hero.smartisan-turntable-hero h1,
+:root[data-theme='spotify-dark'] .hero.smartisan-turntable-hero h1,
+:root[data-theme='netease-dark'] .hero.smartisan-turntable-hero h1,
+:root[data-theme='winamp-dark'] .hero.smartisan-turntable-hero h1,
+:root[data-theme='foobar-dark'] .hero.smartisan-turntable-hero h1 {
+  color:rgba(246,247,250,.78);
+  text-shadow:0 1px 0 rgba(0,0,0,.58);
+}
+
+:root[data-theme='deep-space'] .hero.smartisan-turntable-hero p,
+:root[data-theme='deep-space'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='deep-space'] .hero.smartisan-turntable-hero .home-hero-meta span,
+:root[data-theme='amber-film'] .hero.smartisan-turntable-hero p,
+:root[data-theme='amber-film'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='amber-film'] .hero.smartisan-turntable-hero .home-hero-meta span,
+:root[data-theme='neon-coral'] .hero.smartisan-turntable-hero p,
+:root[data-theme='neon-coral'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='neon-coral'] .hero.smartisan-turntable-hero .home-hero-meta span,
+:root[data-theme='arctic-aurora'] .hero.smartisan-turntable-hero p,
+:root[data-theme='arctic-aurora'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='arctic-aurora'] .hero.smartisan-turntable-hero .home-hero-meta span,
+:root[data-theme='carbon-volt'] .hero.smartisan-turntable-hero p,
+:root[data-theme='carbon-volt'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='carbon-volt'] .hero.smartisan-turntable-hero .home-hero-meta span,
+:root[data-theme='apple-dark'] .hero.smartisan-turntable-hero p,
+:root[data-theme='apple-dark'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='apple-dark'] .hero.smartisan-turntable-hero .home-hero-meta span,
+:root[data-theme='spotify-dark'] .hero.smartisan-turntable-hero p,
+:root[data-theme='spotify-dark'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='spotify-dark'] .hero.smartisan-turntable-hero .home-hero-meta span,
+:root[data-theme='netease-dark'] .hero.smartisan-turntable-hero p,
+:root[data-theme='netease-dark'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='netease-dark'] .hero.smartisan-turntable-hero .home-hero-meta span,
+:root[data-theme='winamp-dark'] .hero.smartisan-turntable-hero p,
+:root[data-theme='winamp-dark'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='winamp-dark'] .hero.smartisan-turntable-hero .home-hero-meta span,
+:root[data-theme='foobar-dark'] .hero.smartisan-turntable-hero p,
+:root[data-theme='foobar-dark'] .hero.smartisan-turntable-hero h2,
+:root[data-theme='foobar-dark'] .hero.smartisan-turntable-hero .home-hero-meta span {
+  color:rgba(246,247,250,.54);
+  text-shadow:0 1px 0 rgba(0,0,0,.48);
+}
+
+:root[data-theme='deep-space'] .hero.smartisan-turntable-hero .hero-meta-link,
+:root[data-theme='amber-film'] .hero.smartisan-turntable-hero .hero-meta-link,
+:root[data-theme='neon-coral'] .hero.smartisan-turntable-hero .hero-meta-link,
+:root[data-theme='arctic-aurora'] .hero.smartisan-turntable-hero .hero-meta-link,
+:root[data-theme='carbon-volt'] .hero.smartisan-turntable-hero .hero-meta-link,
+:root[data-theme='apple-dark'] .hero.smartisan-turntable-hero .hero-meta-link,
+:root[data-theme='spotify-dark'] .hero.smartisan-turntable-hero .hero-meta-link,
+:root[data-theme='netease-dark'] .hero.smartisan-turntable-hero .hero-meta-link,
+:root[data-theme='winamp-dark'] .hero.smartisan-turntable-hero .hero-meta-link,
+:root[data-theme='foobar-dark'] .hero.smartisan-turntable-hero .hero-meta-link {
+  color:rgba(246,247,250,.66) !important;
+  text-decoration-color:rgba(230,92,83,.54);
+  text-shadow:0 1px 0 rgba(0,0,0,.48);
+}
+
+:root[data-theme='deep-space'] .hero.smartisan-turntable-hero .primary,
+:root[data-theme='amber-film'] .hero.smartisan-turntable-hero .primary,
+:root[data-theme='neon-coral'] .hero.smartisan-turntable-hero .primary,
+:root[data-theme='arctic-aurora'] .hero.smartisan-turntable-hero .primary,
+:root[data-theme='carbon-volt'] .hero.smartisan-turntable-hero .primary,
+:root[data-theme='apple-dark'] .hero.smartisan-turntable-hero .primary,
+:root[data-theme='spotify-dark'] .hero.smartisan-turntable-hero .primary,
+:root[data-theme='netease-dark'] .hero.smartisan-turntable-hero .primary,
+:root[data-theme='winamp-dark'] .hero.smartisan-turntable-hero .primary,
+:root[data-theme='foobar-dark'] .hero.smartisan-turntable-hero .primary {
+  color:#ffd8d5;
+  background:linear-gradient(180deg,#3a2928,#261a19);
+  border-color:rgba(230,92,83,.34);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 14px 26px rgba(0,0,0,.22);
+  text-shadow:0 1px 0 rgba(0,0,0,.52);
+}
+
+:root[data-theme='deep-space'] .hero.smartisan-turntable-hero .primary:disabled,
+:root[data-theme='amber-film'] .hero.smartisan-turntable-hero .primary:disabled,
+:root[data-theme='neon-coral'] .hero.smartisan-turntable-hero .primary:disabled,
+:root[data-theme='arctic-aurora'] .hero.smartisan-turntable-hero .primary:disabled,
+:root[data-theme='carbon-volt'] .hero.smartisan-turntable-hero .primary:disabled,
+:root[data-theme='apple-dark'] .hero.smartisan-turntable-hero .primary:disabled,
+:root[data-theme='spotify-dark'] .hero.smartisan-turntable-hero .primary:disabled,
+:root[data-theme='netease-dark'] .hero.smartisan-turntable-hero .primary:disabled,
+:root[data-theme='winamp-dark'] .hero.smartisan-turntable-hero .primary:disabled,
+:root[data-theme='foobar-dark'] .hero.smartisan-turntable-hero .primary:disabled {
+  color:rgba(246,247,250,.38);
+  background:linear-gradient(180deg,#2d2e32,#1d1e21);
+  border-color:rgba(255,255,255,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-player,
+:root[data-theme='amber-film'] .smartisan-turntable-player,
+:root[data-theme='neon-coral'] .smartisan-turntable-player,
+:root[data-theme='arctic-aurora'] .smartisan-turntable-player,
+:root[data-theme='carbon-volt'] .smartisan-turntable-player,
+:root[data-theme='apple-dark'] .smartisan-turntable-player,
+:root[data-theme='spotify-dark'] .smartisan-turntable-player,
+:root[data-theme='netease-dark'] .smartisan-turntable-player,
+:root[data-theme='winamp-dark'] .smartisan-turntable-player,
+:root[data-theme='foobar-dark'] .smartisan-turntable-player {
+  --smartisan-turntable-text:rgba(246,247,250,.72);
+  --smartisan-turntable-muted:rgba(246,247,250,.46);
+  background:
+    linear-gradient(180deg,rgba(22,23,26,.74),rgba(16,17,19,.86)),
+    url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+    linear-gradient(180deg,#242529 0%,#18191c 100%);
+  border-color:rgba(255,255,255,.11);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 22px 52px rgba(0,0,0,.38);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-titlebar,
+:root[data-theme='amber-film'] .smartisan-turntable-titlebar,
+:root[data-theme='neon-coral'] .smartisan-turntable-titlebar,
+:root[data-theme='arctic-aurora'] .smartisan-turntable-titlebar,
+:root[data-theme='carbon-volt'] .smartisan-turntable-titlebar,
+:root[data-theme='apple-dark'] .smartisan-turntable-titlebar,
+:root[data-theme='spotify-dark'] .smartisan-turntable-titlebar,
+:root[data-theme='netease-dark'] .smartisan-turntable-titlebar,
+:root[data-theme='winamp-dark'] .smartisan-turntable-titlebar,
+:root[data-theme='foobar-dark'] .smartisan-turntable-titlebar {
+  background:
+    linear-gradient(180deg,rgba(37,38,42,.74),rgba(15,16,18,.82)),
+    url('/smartisan/titlebar-playing-bg.png') center / 100% 100%,
+    linear-gradient(180deg,#323338,#17181b);
+  border-bottom-color:rgba(255,255,255,.11);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 8px 0 -7px rgba(0,0,0,.7);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-titlebar span,
+:root[data-theme='amber-film'] .smartisan-turntable-titlebar span,
+:root[data-theme='neon-coral'] .smartisan-turntable-titlebar span,
+:root[data-theme='arctic-aurora'] .smartisan-turntable-titlebar span,
+:root[data-theme='carbon-volt'] .smartisan-turntable-titlebar span,
+:root[data-theme='apple-dark'] .smartisan-turntable-titlebar span,
+:root[data-theme='spotify-dark'] .smartisan-turntable-titlebar span,
+:root[data-theme='netease-dark'] .smartisan-turntable-titlebar span,
+:root[data-theme='winamp-dark'] .smartisan-turntable-titlebar span,
+:root[data-theme='foobar-dark'] .smartisan-turntable-titlebar span {
+  background:linear-gradient(180deg,#34363b,#202125);
+  border-color:rgba(255,255,255,.13);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 1px 0 rgba(0,0,0,.58);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-titlebar i,
+:root[data-theme='amber-film'] .smartisan-turntable-titlebar i,
+:root[data-theme='neon-coral'] .smartisan-turntable-titlebar i,
+:root[data-theme='arctic-aurora'] .smartisan-turntable-titlebar i,
+:root[data-theme='carbon-volt'] .smartisan-turntable-titlebar i,
+:root[data-theme='apple-dark'] .smartisan-turntable-titlebar i,
+:root[data-theme='spotify-dark'] .smartisan-turntable-titlebar i,
+:root[data-theme='netease-dark'] .smartisan-turntable-titlebar i,
+:root[data-theme='winamp-dark'] .smartisan-turntable-titlebar i,
+:root[data-theme='foobar-dark'] .smartisan-turntable-titlebar i {
+  background:rgba(255,255,255,.18);
+  box-shadow:0 1px 0 rgba(0,0,0,.6);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-record,
+:root[data-theme='amber-film'] .smartisan-turntable-record,
+:root[data-theme='neon-coral'] .smartisan-turntable-record,
+:root[data-theme='arctic-aurora'] .smartisan-turntable-record,
+:root[data-theme='carbon-volt'] .smartisan-turntable-record,
+:root[data-theme='apple-dark'] .smartisan-turntable-record,
+:root[data-theme='spotify-dark'] .smartisan-turntable-record,
+:root[data-theme='netease-dark'] .smartisan-turntable-record,
+:root[data-theme='winamp-dark'] .smartisan-turntable-record,
+:root[data-theme='foobar-dark'] .smartisan-turntable-record {
+  box-shadow:0 24px 48px rgba(0,0,0,.42);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-readout strong,
+:root[data-theme='amber-film'] .smartisan-turntable-readout strong,
+:root[data-theme='neon-coral'] .smartisan-turntable-readout strong,
+:root[data-theme='arctic-aurora'] .smartisan-turntable-readout strong,
+:root[data-theme='carbon-volt'] .smartisan-turntable-readout strong,
+:root[data-theme='apple-dark'] .smartisan-turntable-readout strong,
+:root[data-theme='spotify-dark'] .smartisan-turntable-readout strong,
+:root[data-theme='netease-dark'] .smartisan-turntable-readout strong,
+:root[data-theme='winamp-dark'] .smartisan-turntable-readout strong,
+:root[data-theme='foobar-dark'] .smartisan-turntable-readout strong {
+  text-shadow:0 1px 0 rgba(0,0,0,.58);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-timeline,
+:root[data-theme='amber-film'] .smartisan-turntable-timeline,
+:root[data-theme='neon-coral'] .smartisan-turntable-timeline,
+:root[data-theme='arctic-aurora'] .smartisan-turntable-timeline,
+:root[data-theme='carbon-volt'] .smartisan-turntable-timeline,
+:root[data-theme='apple-dark'] .smartisan-turntable-timeline,
+:root[data-theme='spotify-dark'] .smartisan-turntable-timeline,
+:root[data-theme='netease-dark'] .smartisan-turntable-timeline,
+:root[data-theme='winamp-dark'] .smartisan-turntable-timeline,
+:root[data-theme='foobar-dark'] .smartisan-turntable-timeline {
+  border-top-color:rgba(255,255,255,.08);
+  border-bottom-color:rgba(0,0,0,.52);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-progress-track,
+:root[data-theme='amber-film'] .smartisan-turntable-progress-track,
+:root[data-theme='neon-coral'] .smartisan-turntable-progress-track,
+:root[data-theme='arctic-aurora'] .smartisan-turntable-progress-track,
+:root[data-theme='carbon-volt'] .smartisan-turntable-progress-track,
+:root[data-theme='apple-dark'] .smartisan-turntable-progress-track,
+:root[data-theme='spotify-dark'] .smartisan-turntable-progress-track,
+:root[data-theme='netease-dark'] .smartisan-turntable-progress-track,
+:root[data-theme='winamp-dark'] .smartisan-turntable-progress-track,
+:root[data-theme='foobar-dark'] .smartisan-turntable-progress-track {
+  background:rgba(255,255,255,.14);
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.06);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-controls button[data-control='mode'],
+:root[data-theme='amber-film'] .smartisan-turntable-controls button[data-control='mode'],
+:root[data-theme='neon-coral'] .smartisan-turntable-controls button[data-control='mode'],
+:root[data-theme='arctic-aurora'] .smartisan-turntable-controls button[data-control='mode'],
+:root[data-theme='carbon-volt'] .smartisan-turntable-controls button[data-control='mode'],
+:root[data-theme='apple-dark'] .smartisan-turntable-controls button[data-control='mode'],
+:root[data-theme='spotify-dark'] .smartisan-turntable-controls button[data-control='mode'],
+:root[data-theme='netease-dark'] .smartisan-turntable-controls button[data-control='mode'],
+:root[data-theme='winamp-dark'] .smartisan-turntable-controls button[data-control='mode'],
+:root[data-theme='foobar-dark'] .smartisan-turntable-controls button[data-control='mode'] {
+  color:rgba(246,247,250,.52);
+  background:linear-gradient(180deg,#34363b,#202125);
+  border-color:rgba(255,255,255,.13);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 1px 2px rgba(0,0,0,.4);
+}
+
+:root[data-theme='deep-space'] .smartisan-turntable-controls button[data-control='mode'].active,
+:root[data-theme='amber-film'] .smartisan-turntable-controls button[data-control='mode'].active,
+:root[data-theme='neon-coral'] .smartisan-turntable-controls button[data-control='mode'].active,
+:root[data-theme='arctic-aurora'] .smartisan-turntable-controls button[data-control='mode'].active,
+:root[data-theme='carbon-volt'] .smartisan-turntable-controls button[data-control='mode'].active,
+:root[data-theme='apple-dark'] .smartisan-turntable-controls button[data-control='mode'].active,
+:root[data-theme='spotify-dark'] .smartisan-turntable-controls button[data-control='mode'].active,
+:root[data-theme='netease-dark'] .smartisan-turntable-controls button[data-control='mode'].active,
+:root[data-theme='winamp-dark'] .smartisan-turntable-controls button[data-control='mode'].active,
+:root[data-theme='foobar-dark'] .smartisan-turntable-controls button[data-control='mode'].active {
+  color:#ff8d85;
+  background:linear-gradient(180deg,#3a2928,#261a19);
+  border-color:rgba(230,92,83,.34);
 }
 
 @keyframes smartisan-turntable-spin {

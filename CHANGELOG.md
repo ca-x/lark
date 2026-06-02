@@ -5,6 +5,42 @@
 
 ---
 
+## 0.7.23 — 锤子移动端导航与深色唱机修复
+
+发布日期 / Released: 2026-06-02
+
+### 改进
+
+- **优化 PC 锤子唱机唱针对齐。** 桌面端「锤子唱机」的唱针轴心现在按参考项目原始比例对齐右侧标题栏按钮中心，播放进度扫动时不再显得偏离右侧控制位。
+- **适配深色主题下的锤子唱机。** 当站点使用深色主题、首页播放器选择「锤子唱机」时，唱机面板、标题栏、文字、进度条和模式按钮会切换到暗色 Smartisan 风格，不再出现突兀的全白播放器。
+
+### 修复
+
+- **移除移动端锤子首页重复导航。** 移动端「锤子经典」首页不再渲染顶部「为你推荐 / 曲库 / 收藏 / 歌单」内部 tabs，避免与底部主导航重复；其它移动端播放器主题保持原有首页 tabs。
+- **修复移动端播放器右上空按钮。** 展开播放器标题栏右侧的布局占位不再复用按钮样式，保持居中布局但不可见、不可点击。
+
+完整 diff：`git log v0.7.22..v0.7.23`
+
+---
+
+## v0.7.23 — Smartisan mobile nav + dark deck fixes
+
+Released: 2026-06-02
+
+### Improvements
+
+- **Improved desktop Smartisan stylus alignment.** The Smartisan deck stylus pivot now follows the reference geometry and aligns with the right titlebar button center, so progress-driven movement no longer feels offset from the right-side control anchor.
+- **Dark theme support for the Smartisan deck.** When a dark site theme is paired with the Smartisan deck home player, the deck panel, titlebar, text, progress rail, and mode button switch to a dark Smartisan treatment instead of a stark white surface.
+
+### Fixes
+
+- **Removed duplicate Smartisan mobile home navigation.** The mobile Smartisan classic home surface no longer renders the top "For You / Library / Favorites / Playlists" tabs, avoiding duplication with the bottom primary nav. Other mobile player themes keep their home tabs.
+- **Fixed the empty top-right mobile player button.** The expanded player titlebar spacer no longer reuses button styling; it remains invisible and non-interactive while preserving centered title layout.
+
+Full diff: `git log v0.7.22..v0.7.23`
+
+---
+
 ## 0.7.22 — 锤子唱针动画与歌词背景修复
 
 发布日期 / Released: 2026-06-02

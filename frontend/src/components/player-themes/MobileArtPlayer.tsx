@@ -154,7 +154,7 @@ export function MobileArtPlayer({
               <CaretLeft weight="bold" />
             </button>
             <span>{text.nowPlaying}</span>
-            <span className="mobile-art-topbar-icon" aria-hidden="true" />
+            <span className="mobile-art-topbar-spacer" aria-hidden="true" />
           </div>
         ) : null}
 
