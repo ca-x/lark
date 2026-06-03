@@ -788,6 +788,10 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 			defer cancel()
 			var inner models.SongPage
 			if ok, e := s.cacheGetJSON(bgCtx, key, &inner); e == nil && ok {
+				inner.Items, e = s.applySongUserStateWithDevice(bgCtx, userID, inner.Items, deviceScope)
+				if e != nil {
+					return models.SongPage{}, e
+				}
 				return inner, nil
 			}
 			page, e := s.loadSongsPage(bgCtx, userID, term, favorites, deviceScope, limit, offset)

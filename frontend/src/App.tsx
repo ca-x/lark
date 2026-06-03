@@ -2476,7 +2476,7 @@ export default function App() {
     const gen = ++refreshGenerationRef.current;
     const isStale = () => refreshGenerationRef.current !== gen;
 
-    // Layer 1: critical data needed for first render — block on these.
+    // Layer 1: critical data needed for first render - block on these.
     const [songPageItem, dailyItems, libraryStatsItem, playbackQueueItem] = await Promise.all([
       api.songsPage(query, libraryPage, libraryPageSize),
       api.dailyMix(24).catch(() => []),
@@ -2485,13 +2485,14 @@ export default function App() {
         ? api.playbackQueue().catch(() => null)
         : Promise.resolve(null),
     ]);
+    if (isStale()) return;
     const songItems = songPageItem.items;
     setSongs(songItems);
     setLibrarySongPage(songPageItem);
     setDailyMix(dailyItems);
     setLibraryStats(libraryStatsItem);
 
-    // Layer 2: browse data — stagger by 80ms to reduce SQLite contention on startup.
+    // Layer 2: browse data - stagger by 80ms to reduce SQLite contention on startup.
     await new Promise((r) => setTimeout(r, 80));
     if (isStale()) return;
     const [recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems] = await Promise.all([
@@ -2502,6 +2503,7 @@ export default function App() {
       api.playlistsPage(playlistPage, gridPageSize),
       api.smartPlaylists().catch(() => []),
     ]);
+    if (isStale()) return;
     setRecentPlayedSongs(recentPlayedItems);
     setRecentAddedSongs(recentAddedItems);
     setAlbumPageData(albumPageItem);
@@ -2512,7 +2514,7 @@ export default function App() {
     setPlaylists(playlistPageItem.items);
     setSmartPlaylists(smartPlaylistItems);
 
-    // Layer 3: deferred data — favorites, settings, network, radio. Stagger by 300ms.
+    // Layer 3: deferred data - favorites, settings, network, radio. Stagger by 300ms.
     await new Promise((r) => setTimeout(r, 300));
     if (isStale()) return;
     const [folderItems, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem] = await Promise.all([
@@ -2535,6 +2537,7 @@ export default function App() {
       api.uiSoundSettings().catch(() => ({ enabled: false, volume: 0.85 })),
       api.playbackHistorySettings().catch(() => ({ separate_by_device: false })),
     ]);
+    if (isStale()) return;
     setFolders(folderItems);
     setLibraryDirectories(libraryDirectoryItems);
     setFavoriteSongs(favoriteSongPageItem.items);
@@ -2574,6 +2577,7 @@ export default function App() {
         restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
       }
     }
+    if (isStale()) return;
     setQueue((old) => {
       if (!options.initializeQueue && old.length > 0) return old;
       if (restoredQueue.length) return restoredQueue;

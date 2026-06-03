@@ -64,7 +64,7 @@ func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Son
 		return nil, err
 	}
 	if len(out) <= limit {
-		_ = s.cacheSetJSON(ctx, key, out)
+		_ = s.cacheSetJSON(ctx, key, stripSongUserState(out))
 		return out, nil
 	}
 	today := time.Now().Format("2006-01-02")
