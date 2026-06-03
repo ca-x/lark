@@ -27,6 +27,7 @@ import {
   CheckCircle,
   CircleNotch,
   DownloadSimple,
+  Minus,
   Queue,
   Record,
   Repeat,
@@ -166,6 +167,12 @@ import {
 import { normalizeTheme, randomQueueIndex, uniqueSongs, queueWithCurrent, coverUrl, withTimeout, loadWithTimeout, isAbortError, friendlyLoadError, readableErrorMessage, wait } from "./utils/app";
 
 const ARTIST_INITIALS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
+const SLEEP_DURATION_PRESETS = [15, 30, 60, 90] as const;
+const SLEEP_SONG_PRESETS = [1, 3, 5] as const;
+const LYRIC_OFFSET_STEP_MS = [-500, -100, 100, 500] as const;
+const MAX_LYRIC_OFFSET_MS = 10_000;
+
+type SleepTimerMode = "off" | "time" | "songs" | "album";
 
 type MetadataEditorTarget =
   | { type: "song"; song: Song }
@@ -740,6 +747,11 @@ function parseTimestamp(value: string) {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
+function adjustedLyricTime(line: LyricLine, offsetSeconds: number) {
+  if (line.at < 0) return line.at;
+  return Math.max(0, line.at + offsetSeconds);
+}
+
 function parseLyricLines(lyrics?: string): LyricLine[] {
   if (!lyrics) return [];
   let offsetSeconds = 0;
@@ -1193,6 +1205,7 @@ export default function App() {
   const [lyricCandidates, setLyricCandidates] = useState<LyricCandidate[]>([]);
   const [lyricCandidatesOpen, setLyricCandidatesOpen] = useState(false);
   const [lyricCandidatesLoading, setLyricCandidatesLoading] = useState(false);
+  const [lyricOffsetMs, setLyricOffsetMs] = useState(0);
   const [lyricsFullScreen, setLyricsFullScreen] = useState(false);
   const [metadataEditorTarget, setMetadataEditorTarget] = useState<MetadataEditorTarget | null>(null);
   const [queueOpen, setQueueOpen] = useState(false);
@@ -1221,8 +1234,13 @@ export default function App() {
   const [playlistPendingSong, setPlaylistPendingSong] = useState<Song | null>(null);
   const [shareDialogTarget, setShareDialogTarget] = useState<ShareTarget | null>(null);
   const [scanStatus, setScanStatus] = useState<ScanStatus | null>(null);
+  const [sleepTimerOpen, setSleepTimerOpen] = useState(false);
+  const [sleepTimerMode, setSleepTimerMode] = useState<SleepTimerMode>("off");
   const [sleepTimerMins, setSleepTimerMins] = useState(0);
   const [sleepLeft, setSleepLeft] = useState(0);
+  const [sleepSongsLeft, setSleepSongsLeft] = useState(0);
+  const [sleepAlbumId, setSleepAlbumId] = useState(0);
+  const [sleepAlbumTitle, setSleepAlbumTitle] = useState("");
   const [resumeMode, setResumeMode] = useState<ResumeMode>("resume");
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
   const [mobileHomePlayerStyle, setMobileHomePlayerStyle] = useState<MobileHomePlayerStyle>(storedMobileHomePlayerStyle);
@@ -1299,6 +1317,9 @@ export default function App() {
   const queueRef = useRef<Song[]>([]);
   const playModeRef = useRef<PlayMode>("sequence");
   const playingRef = useRef(false);
+  const sleepTimerModeRef = useRef<SleepTimerMode>("off");
+  const sleepSongsLeftRef = useRef(0);
+  const sleepAlbumIdRef = useRef(0);
   const streamModeRef = useRef<StreamMode>(streamMode);
   const streamOffsetRef = useRef(0);
   const resumeModeRef = useRef<ResumeMode>(resumeMode);
@@ -1317,6 +1338,9 @@ export default function App() {
   queueRef.current = queue;
   playModeRef.current = playMode;
   playingRef.current = playing;
+  sleepTimerModeRef.current = sleepTimerMode;
+  sleepSongsLeftRef.current = sleepSongsLeft;
+  sleepAlbumIdRef.current = sleepAlbumId;
   streamModeRef.current = streamMode;
   streamOffsetRef.current = streamOffset;
   resumeModeRef.current = resumeMode;
@@ -1329,12 +1353,14 @@ export default function App() {
   const libraryPageSize = pageSizing.songs;
   const gridPageSize = pageSizing.cards;
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
+  const lyricOffsetSeconds = lyricOffsetMs / 1000;
   const activeLyric = useMemo(() => {
     let activeIndex = -1;
     for (let i = 0; i < lyricLines.length; i += 1) {
-      if (lyricLines[i].at >= 0 && lyricLines[i].at <= progress + 0.08)
+      const adjustedAt = adjustedLyricTime(lyricLines[i], lyricOffsetSeconds);
+      if (adjustedAt >= 0 && adjustedAt <= progress + 0.08)
         activeIndex = i;
-      if (lyricLines[i].at > progress + 0.08) break;
+      if (adjustedAt > progress + 0.08) break;
     }
     if (activeIndex < 0) return "";
     const activeGroup = lyricLines[activeIndex].groupKey;
@@ -1344,7 +1370,7 @@ export default function App() {
     )
       activeIndex -= 1;
     return lyricLines[activeIndex].key;
-  }, [lyricLines, progress]);
+  }, [lyricLines, lyricOffsetSeconds, progress]);
   const activeLyricText = useMemo(() => {
     if (!current) return t("nowPlaying");
     if (!lyricLines.length) return lyricsLoading ? t("matchingLyrics") : t("noLyrics");
@@ -1688,6 +1714,7 @@ export default function App() {
     setLyrics(null);
     setLyricCandidates([]);
     setLyricCandidatesOpen(false);
+    setLyricOffsetMs(0);
     setLyricsLoading(true);
     void api
       .lyrics(current.id)
@@ -1885,7 +1912,7 @@ export default function App() {
       });
   }, [playing, current?.id, currentRadio?.id]);
   useEffect(() => {
-    if (!sleepTimerMins) {
+    if (sleepTimerMode !== "time" || !sleepTimerMins) {
       setSleepLeft(0);
       return;
     }
@@ -1895,12 +1922,13 @@ export default function App() {
       const left = Math.max(0, Math.ceil((end - Date.now()) / 1000));
       setSleepLeft(left);
       if (left === 0) {
+        pendingAutoplayRef.current = false;
         setPlaying(false);
-        setSleepTimerMins(0);
+        clearSleepTimer();
       }
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [sleepTimerMins]);
+  }, [sleepTimerMode, sleepTimerMins]);
 
   useEffect(() => {
     setLazycatImmersive(lyricsFullScreen);
@@ -2918,6 +2946,7 @@ export default function App() {
 
   function playRadio(station: RadioStation, list?: RadioStation[]) {
     if (!station?.url) return;
+    if (sleepTimerModeRef.current !== "time") clearSleepTimer();
     queuePlaybackSourceMutation(api.clearPlaybackSource);
     if (current) syncPlaybackProgress(false);
     const audio = audioRef.current;
@@ -2965,6 +2994,7 @@ export default function App() {
 
   function playNetworkTrack(track: NetworkTrack) {
     if (!track?.stream_url) return;
+    if (sleepTimerModeRef.current !== "time") clearSleepTimer();
     queuePlaybackSourceMutation(api.clearPlaybackSource);
     if (current) syncPlaybackProgress(false);
     const audio = audioRef.current;
@@ -3017,6 +3047,82 @@ export default function App() {
     showMessage(t("done"));
   }
 
+  function clearSleepTimer() {
+    setSleepTimerMode("off");
+    setSleepTimerMins(0);
+    setSleepLeft(0);
+    setSleepSongsLeft(0);
+    setSleepAlbumId(0);
+    setSleepAlbumTitle("");
+  }
+
+  function setSleepTimerByMinutes(minutes: number) {
+    const nextMinutes = Math.max(1, Math.min(24 * 60, Math.trunc(minutes)));
+    setSleepTimerMode("time");
+    setSleepTimerMins(nextMinutes);
+    setSleepSongsLeft(0);
+    setSleepAlbumId(0);
+    setSleepAlbumTitle("");
+    setSleepTimerOpen(false);
+  }
+
+  function setSleepTimerBySongs(count: number) {
+    const nextCount = Math.max(1, Math.min(99, Math.trunc(count)));
+    setSleepTimerMode("songs");
+    setSleepTimerMins(0);
+    setSleepLeft(0);
+    setSleepSongsLeft(nextCount);
+    setSleepAlbumId(0);
+    setSleepAlbumTitle("");
+    setSleepTimerOpen(false);
+  }
+
+  function setSleepTimerByAlbum() {
+    if (!current?.album_id) return;
+    setSleepTimerMode("album");
+    setSleepTimerMins(0);
+    setSleepLeft(0);
+    setSleepSongsLeft(0);
+    setSleepAlbumId(current.album_id);
+    setSleepAlbumTitle(current.album || t("album"));
+    setSleepTimerOpen(false);
+  }
+
+  function stopAtSleepTimerBoundary(active?: Song | null) {
+    pendingAutoplayRef.current = false;
+    setPlaying(false);
+    if (active) setProgress(durationRef.current || active.duration_seconds || progressRef.current);
+  }
+
+  function shouldStopForSleepTimerAfterSong(active: Song, activeQueue: Song[]) {
+    const mode = sleepTimerModeRef.current;
+    if (mode === "songs") {
+      const nextLeft = Math.max(0, sleepSongsLeftRef.current - 1);
+      if (nextLeft <= 0) {
+        clearSleepTimer();
+        return true;
+      }
+      setSleepSongsLeft(nextLeft);
+      return false;
+    }
+    if (mode !== "album") return false;
+
+    const targetAlbumId = sleepAlbumIdRef.current || active.album_id;
+    if (!targetAlbumId || active.album_id !== targetAlbumId) {
+      clearSleepTimer();
+      return true;
+    }
+    const currentIndex = activeQueue.findIndex((song) => song.id === active.id);
+    const hasMoreInAlbum =
+      currentIndex >= 0 &&
+      activeQueue.slice(currentIndex + 1).some((song) => song.album_id === targetAlbumId);
+    if (!hasMoreInAlbum) {
+      clearSleepTimer();
+      return true;
+    }
+    return false;
+  }
+
   function next(delta: 1 | -1, ended = false) {
     if (currentRadioRef.current) {
       if (ended) {
@@ -3062,6 +3168,10 @@ export default function App() {
     const mode = playModeRef.current;
     if (!active || activeQueue.length === 0) return;
     if (ended) syncPlaybackProgress(true);
+    if (ended && shouldStopForSleepTimerAfterSong(active, activeQueue)) {
+      stopAtSleepTimerBoundary(active);
+      return;
+    }
     if (ended && mode === "repeat-one") {
       const audio = audioRef.current;
       if (audio) {
@@ -3085,6 +3195,7 @@ export default function App() {
       pendingAutoplayRef.current = false;
       setPlaying(false);
       setProgress(duration || active.duration_seconds || progress);
+      if (sleepTimerModeRef.current === "songs" || sleepTimerModeRef.current === "album") clearSleepTimer();
       return;
     }
     const idx = activeQueue.findIndex((song) => song.id === active.id);
@@ -3098,6 +3209,7 @@ export default function App() {
       pendingAutoplayRef.current = false;
       setPlaying(false);
       setProgress(duration || active.duration_seconds || progress);
+      if (sleepTimerModeRef.current === "songs" || sleepTimerModeRef.current === "album") clearSleepTimer();
       return;
     }
     if (target.id === active.id && audioRef.current) {
@@ -3178,6 +3290,12 @@ export default function App() {
     if (current && !playing) setPlaying(true);
   }
 
+  function adjustLyricOffset(deltaMs: number) {
+    setLyricOffsetMs((value) =>
+      Math.max(-MAX_LYRIC_OFFSET_MS, Math.min(MAX_LYRIC_OFFSET_MS, value + deltaMs)),
+    );
+  }
+
   async function openLyricCandidates() {
     if (!current) return;
     setLyricCandidatesOpen(true);
@@ -3198,6 +3316,7 @@ export default function App() {
         candidate.source,
         candidate.id,
       );
+      setLyricOffsetMs(0);
       setLyrics(selected);
       setLyricCandidatesOpen(false);
       setProgress(0);
@@ -4103,6 +4222,9 @@ export default function App() {
             lyricsSource={lyrics?.source || current?.lyrics_source || ""}
             lyrics={lyrics}
             loading={lyricsLoading}
+            lyricOffsetMs={lyricOffsetMs}
+            onAdjustLyricOffset={adjustLyricOffset}
+            onResetLyricOffset={() => setLyricOffsetMs(0)}
             t={t}
             scrollRef={lyricsScrollRef}
             onToggleView={() => {
@@ -4877,9 +4999,11 @@ export default function App() {
             <SlidersHorizontal />
           </button>
           <SleepTimerControl
-            value={sleepTimerMins}
+            mode={sleepTimerMode}
+            minutes={sleepTimerMins}
             left={sleepLeft}
-            onChange={setSleepTimerMins}
+            songsLeft={sleepSongsLeft}
+            onOpen={() => setSleepTimerOpen(true)}
             t={t}
           />
           <SpeakerSimpleHigh />
@@ -5055,6 +5179,26 @@ export default function App() {
           )}
         </div>
       )}
+      {sleepTimerOpen ? (
+        <SleepTimerDialog
+          mode={sleepTimerMode}
+          minutes={sleepTimerMins}
+          left={sleepLeft}
+          songsLeft={sleepSongsLeft}
+          albumTitle={sleepAlbumTitle || current?.album || ""}
+          canUseSongTimer={Boolean(current)}
+          canUseAlbumTimer={Boolean(current?.album_id)}
+          t={t}
+          onClose={() => setSleepTimerOpen(false)}
+          onClear={() => {
+            clearSleepTimer();
+            setSleepTimerOpen(false);
+          }}
+          onSetTime={setSleepTimerByMinutes}
+          onSetSongs={setSleepTimerBySongs}
+          onSetAlbum={setSleepTimerByAlbum}
+        />
+      ) : null}
       {eqPanelOpen ? (
         <div className="eq-layer">
           <button className="eq-scrim" type="button" aria-label={t("close")} onClick={() => setEqPanelOpen(false)} />
@@ -7850,6 +7994,9 @@ function FullLyrics({
   lyricsSource,
   lyrics,
   loading,
+  lyricOffsetMs,
+  onAdjustLyricOffset,
+  onResetLyricOffset,
   t,
   scrollRef,
   onToggleView,
@@ -7872,6 +8019,9 @@ function FullLyrics({
   lyricsSource: string;
   lyrics: Lyrics | null;
   loading: boolean;
+  lyricOffsetMs: number;
+  onAdjustLyricOffset: (deltaMs: number) => void;
+  onResetLyricOffset: () => void;
   t: ReturnType<typeof createT>;
   scrollRef: React.RefObject<HTMLDivElement | null>;
   onToggleView: () => void;
@@ -7895,6 +8045,7 @@ function FullLyrics({
   const onlineLyrics = hasOnlineLyricsSource(lyricsSource) && lines.length > 0;
   const matchConfidence = lyricsMatchConfidence(song, lyrics, lines);
   const showMatchWarning = onlineLyrics && matchConfidence === "low";
+  const lyricOffsetSeconds = lyricOffsetMs / 1000;
   const backgroundStyle = coverUrl(song)
     ? ({ "--cover-url": `url(${coverUrl(song)})` } as React.CSSProperties)
     : undefined;
@@ -7962,6 +8113,34 @@ function FullLyrics({
           ) : (
             <span>—</span>
           )}
+          <div className="lyrics-offset-panel" aria-label={t("lyricsOffset")}>
+            <div>
+              <span>{t("lyricsOffset")}</span>
+              <strong>{formatLyricOffset(lyricOffsetMs)}</strong>
+            </div>
+            <div className="lyrics-offset-actions">
+              {LYRIC_OFFSET_STEP_MS.map((step) => (
+                <button
+                  key={step}
+                  type="button"
+                  onClick={() => onAdjustLyricOffset(step)}
+                  aria-label={`${step > 0 ? "+" : ""}${step} ms`}
+                >
+                  {step < 0 ? <Minus /> : <Plus />}
+                  <span>{step > 0 ? `+${step}` : step}ms</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                className="lyrics-offset-reset"
+                onClick={onResetLyricOffset}
+                disabled={lyricOffsetMs === 0}
+              >
+                <ArrowClockwise />
+                <span>{t("lyricsOffsetReset")}</span>
+              </button>
+            </div>
+          </div>
         </div>
         {song ? (
           <div className="lyrics-actions">
@@ -8043,7 +8222,7 @@ function FullLyrics({
             <p
               key={line.key}
               data-lyric-key={line.key}
-              data-lyric-at={line.at}
+              data-lyric-at={adjustedLyricTime(line, lyricOffsetSeconds)}
               aria-current={line.key === activeLyric ? "true" : undefined}
               className={[
                 line.key === activeLyric ? "live" : "",
@@ -8051,7 +8230,7 @@ function FullLyrics({
               ]
                 .filter(Boolean)
                 .join(" ")}
-              onClick={() => line.at >= 0 && onSeek(line.at)}
+              onClick={() => line.at >= 0 && onSeek(adjustedLyricTime(line, lyricOffsetSeconds))}
             >
               {line.text}
             </p>
@@ -8258,39 +8437,246 @@ function QueuePanel({
 }
 
 function SleepTimerControl({
-  value,
+  mode,
+  minutes,
   left,
-  onChange,
+  songsLeft,
+  onOpen,
   t,
 }: {
-  value: number;
+  mode: SleepTimerMode;
+  minutes: number;
   left: number;
-  onChange: (value: number) => void;
+  songsLeft: number;
+  onOpen: () => void;
   t: ReturnType<typeof createT>;
 }) {
-  const label = value
-    ? `${Math.ceil(left / 60)} ${t("minutes")}`
-    : t("sleepTimer");
+  const active = mode !== "off";
+  const minutesLeft = Math.max(1, Math.ceil(left / 60) || minutes);
+  const badge =
+    mode === "time"
+      ? String(minutesLeft)
+      : mode === "songs"
+        ? String(Math.max(1, songsLeft))
+        : mode === "album"
+          ? t("sleepAlbumBadge")
+          : "";
+  const label =
+    mode === "time"
+      ? `${t("sleepTimer")}: ${formatSleepMinutesLabel(minutesLeft, t)}`
+      : mode === "songs"
+        ? `${t("sleepTimer")}: ${formatSleepSongsLabel(Math.max(1, songsLeft), t)}`
+        : mode === "album"
+          ? `${t("sleepTimer")}: ${t("sleepAfterCurrentAlbum")}`
+          : t("sleepTimer");
   return (
-    <label
-      className={value ? "sleep-control active" : "sleep-control"}
+    <button
+      type="button"
+      className={active ? "sleep-control active" : "sleep-control"}
       title={label}
       aria-label={label}
+      aria-haspopup="dialog"
+      onClick={onOpen}
     >
       <Timer />
-      {value ? <span className="sleep-countdown">{Math.ceil(left / 60)}</span> : null}
-      <select
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      >
-        <option value="0">{t("off")}</option>
-        <option value="15">15 {t("minutes")}</option>
-        <option value="30">30 {t("minutes")}</option>
-        <option value="60">60 {t("minutes")}</option>
-        <option value="90">90 {t("minutes")}</option>
-      </select>
-    </label>
+      {active ? <span className="sleep-countdown">{badge}</span> : null}
+    </button>
   );
+}
+
+function SleepTimerDialog({
+  mode,
+  minutes,
+  left,
+  songsLeft,
+  albumTitle,
+  canUseSongTimer,
+  canUseAlbumTimer,
+  t,
+  onClose,
+  onClear,
+  onSetTime,
+  onSetSongs,
+  onSetAlbum,
+}: {
+  mode: SleepTimerMode;
+  minutes: number;
+  left: number;
+  songsLeft: number;
+  albumTitle: string;
+  canUseSongTimer: boolean;
+  canUseAlbumTimer: boolean;
+  t: ReturnType<typeof createT>;
+  onClose: () => void;
+  onClear: () => void;
+  onSetTime: (minutes: number) => void;
+  onSetSongs: (count: number) => void;
+  onSetAlbum: () => void;
+}) {
+  const [customMinutes, setCustomMinutes] = useState(minutes && !SLEEP_DURATION_PRESETS.includes(minutes as typeof SLEEP_DURATION_PRESETS[number]) ? String(minutes) : "45");
+  const [customSongs, setCustomSongs] = useState(songsLeft && !SLEEP_SONG_PRESETS.includes(songsLeft as typeof SLEEP_SONG_PRESETS[number]) ? String(songsLeft) : "2");
+  const dialogRef = useDialogLifecycle<HTMLDivElement>(onClose);
+  const statusDetail =
+    mode === "time"
+      ? formatSleepMinutesLabel(Math.max(1, Math.ceil(left / 60) || minutes), t)
+      : mode === "songs"
+        ? formatSleepSongsLabel(Math.max(1, songsLeft), t)
+        : mode === "album"
+          ? albumTitle || t("album")
+          : t("sleepNoTimer");
+  const customMinutesValue = Number(customMinutes);
+  const customSongsValue = Number(customSongs);
+  const canApplyMinutes = Number.isFinite(customMinutesValue) && customMinutesValue >= 1;
+  const canApplySongs = Number.isFinite(customSongsValue) && customSongsValue >= 1;
+
+  return (
+    <div className="modal-layer sleep-timer-layer" role="presentation">
+      <button className="modal-scrim" type="button" aria-label={t("close")} onClick={onClose} />
+      <div
+        ref={dialogRef}
+        className="modal-card sleep-timer-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sleep-timer-title"
+      >
+        <div className="modal-card-head">
+          <div>
+            <p>{t("nowPlaying")}</p>
+            <h2 id="sleep-timer-title">{t("sleepTimer")}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label={t("close")}>
+            <X />
+            <span>{t("close")}</span>
+          </button>
+        </div>
+
+        <div className="sleep-timer-status" data-active={mode !== "off"}>
+          <Timer />
+          <div>
+            <strong>{mode === "off" ? t("sleepNoTimer") : t("sleepTimerEnabled")}</strong>
+            <span>{statusDetail}</span>
+          </div>
+          <button type="button" onClick={onClear} disabled={mode === "off"}>
+            {t("off")}
+          </button>
+        </div>
+
+        <section className="sleep-timer-section">
+          <div>
+            <strong>{t("sleepByDuration")}</strong>
+            <span>{t("sleepByDurationHint")}</span>
+          </div>
+          <div className="sleep-option-grid" role="group" aria-label={t("sleepByDuration")}>
+            {SLEEP_DURATION_PRESETS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={mode === "time" && minutes === value ? "sleep-option selected" : "sleep-option"}
+                aria-pressed={mode === "time" && minutes === value}
+                onClick={() => onSetTime(value)}
+              >
+                {mode === "time" && minutes === value ? <CheckCircle weight="fill" /> : <Timer />}
+                <span>{formatSleepMinutesLabel(value, t)}</span>
+              </button>
+            ))}
+          </div>
+          <form
+            className="sleep-custom-row"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canApplyMinutes) onSetTime(customMinutesValue);
+            }}
+          >
+            <label htmlFor="sleep-custom-minutes">{t("sleepCustomMinutes")}</label>
+            <input
+              id="sleep-custom-minutes"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max="1440"
+              value={customMinutes}
+              onChange={(event) => setCustomMinutes(event.target.value)}
+            />
+            <button type="submit" disabled={!canApplyMinutes}>{t("apply")}</button>
+          </form>
+        </section>
+
+        <section className="sleep-timer-section">
+          <div>
+            <strong>{t("sleepBySongs")}</strong>
+            <span>{canUseSongTimer ? t("sleepBySongsHint") : t("sleepSongsUnavailable")}</span>
+          </div>
+          <div className="sleep-option-grid" role="group" aria-label={t("sleepBySongs")}>
+            {SLEEP_SONG_PRESETS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={mode === "songs" && songsLeft === value ? "sleep-option selected" : "sleep-option"}
+                aria-pressed={mode === "songs" && songsLeft === value}
+                disabled={!canUseSongTimer}
+                onClick={() => onSetSongs(value)}
+              >
+                {mode === "songs" && songsLeft === value ? <CheckCircle weight="fill" /> : <MusicNotes />}
+                <span>{formatSleepSongsLabel(value, t)}</span>
+              </button>
+            ))}
+          </div>
+          <form
+            className="sleep-custom-row"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canUseSongTimer && canApplySongs) onSetSongs(customSongsValue);
+            }}
+          >
+            <label htmlFor="sleep-custom-songs">{t("sleepCustomSongs")}</label>
+            <input
+              id="sleep-custom-songs"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max="99"
+              value={customSongs}
+              disabled={!canUseSongTimer}
+              onChange={(event) => setCustomSongs(event.target.value)}
+            />
+            <button type="submit" disabled={!canUseSongTimer || !canApplySongs}>{t("apply")}</button>
+          </form>
+        </section>
+
+        <section className="sleep-timer-section">
+          <div>
+            <strong>{t("sleepByAlbum")}</strong>
+            <span>{canUseAlbumTimer ? t("sleepByAlbumHint") : t("sleepAlbumUnavailable")}</span>
+          </div>
+          <button
+            type="button"
+            className={mode === "album" ? "sleep-option sleep-album-option selected" : "sleep-option sleep-album-option"}
+            aria-pressed={mode === "album"}
+            disabled={!canUseAlbumTimer}
+            onClick={onSetAlbum}
+          >
+            {mode === "album" ? <CheckCircle weight="fill" /> : <Disc />}
+            <span>{t("sleepAfterCurrentAlbum")}</span>
+            <small>{albumTitle || t("album")}</small>
+          </button>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function formatSleepMinutesLabel(minutes: number, t: ReturnType<typeof createT>) {
+  return minutes % 60 === 0
+    ? `${minutes / 60} ${t("hours")}`
+    : `${minutes} ${t("minutes")}`;
+}
+
+function formatSleepSongsLabel(count: number, t: ReturnType<typeof createT>) {
+  return `${count} ${count === 1 ? t("sleepSongSingular") : t("sleepSongPlural")}`;
+}
+
+function formatLyricOffset(valueMs: number) {
+  return `${valueMs > 0 ? "+" : ""}${valueMs} ms`;
 }
 
 function UserAvatar({ user }: { user: User }) {
