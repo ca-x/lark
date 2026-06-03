@@ -19,18 +19,26 @@ import (
 )
 
 func (s *Service) ensureArtist(ctx context.Context, name string) (*ent.Artist, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		name = "Unknown Artist"
+	candidates := artistNameCandidates(name)
+	if len(candidates) == 0 {
+		candidates = []string{unknownArtistName}
 	}
-	item, err := s.client.Artist.Query().Where(artist.Name(name)).Only(ctx)
+	for _, candidate := range candidates {
+		item, err := s.client.Artist.Query().Where(artist.Name(candidate)).Only(ctx)
+		if err == nil {
+			s.refreshArtistInitial(ctx, item)
+			return item, nil
+		}
+		if !ent.IsNotFound(err) {
+			return nil, err
+		}
+	}
+	name = candidates[0]
+	item, err := s.client.Artist.Create().SetName(name).Save(ctx)
 	if err == nil {
-		return item, nil
+		s.refreshArtistInitial(ctx, item)
 	}
-	if !ent.IsNotFound(err) {
-		return nil, err
-	}
-	return s.client.Artist.Create().SetName(name).Save(ctx)
+	return item, err
 }
 func (s *Service) ensureAlbum(ctx context.Context, title, albumArtist string, ar *ent.Artist, year int) (*ent.Album, error) {
 	title = strings.TrimSpace(title)
@@ -40,6 +48,8 @@ func (s *Service) ensureAlbum(ctx context.Context, title, albumArtist string, ar
 	albumArtist = strings.TrimSpace(albumArtist)
 	if albumArtist == "" && ar != nil {
 		albumArtist = strings.TrimSpace(ar.Name)
+	} else if albumArtist != "" {
+		albumArtist = normalizeArtistName(albumArtist)
 	}
 	item, err := s.client.Album.Query().Where(album.Title(title), album.AlbumArtist(albumArtist)).Only(ctx)
 	if err == nil {

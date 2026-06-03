@@ -160,6 +160,8 @@ import {
 } from "./constants";
 import { normalizeTheme, randomQueueIndex, uniqueSongs, queueWithCurrent, coverUrl, withTimeout, loadWithTimeout, isAbortError, friendlyLoadError, readableErrorMessage, wait } from "./utils/app";
 
+const ARTIST_INITIALS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
+
 const defaultSettings: Settings = {
   language: "zh-CN",
   theme: "deep-space",
@@ -1174,6 +1176,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [albumArtistFilter, setAlbumArtistFilter] = useState(0);
   const [albumArtistQuery, setAlbumArtistQuery] = useState("");
+  const [artistInitialFilter, setArtistInitialFilter] = useState("");
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [lyricCandidates, setLyricCandidates] = useState<LyricCandidate[]>([]);
@@ -2499,7 +2502,7 @@ export default function App() {
       api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
       api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => []),
       api.albumsPage(albumPage, gridPageSize, albumArtistFilter),
-      api.artistsPage(artistPage, gridPageSize),
+      api.artistsPage(artistPage, gridPageSize, artistInitialFilter),
       api.playlistsPage(playlistPage, gridPageSize),
       api.smartPlaylists().catch(() => []),
     ]);
@@ -2686,23 +2689,29 @@ export default function App() {
     if (hadFilter) void loadAlbumPage(1, 0);
   }
 
-  async function loadArtistPage(page: number) {
+  async function loadArtistPage(page: number, initial = artistInitialFilter) {
     const nextPage = Math.max(1, page);
     if (offlineModeRef.current) {
       setArtistPage(nextPage);
-      setArtistPageData({ items: [], total: 0, limit: gridPageSize, offset: 0, page: nextPage });
+      setArtistPageData({ items: [], total: 0, limit: gridPageSize, offset: 0, page: nextPage, initials: [] });
       setArtists([]);
       return;
     }
     setArtistPageLoading(true);
     try {
-      const pageItem = await api.artistsPage(nextPage, gridPageSize);
+      const pageItem = await api.artistsPage(nextPage, gridPageSize, initial);
       setArtistPage(pageItem.page);
       setArtistPageData(pageItem);
       setArtists(pageItem.items);
     } finally {
       setArtistPageLoading(false);
     }
+  }
+
+  function selectArtistInitialFilter(initial: string) {
+    const nextInitial = initial === artistInitialFilter ? "" : initial;
+    setArtistInitialFilter(nextInitial);
+    void loadArtistPage(1, nextInitial);
   }
 
   async function loadPlaylistPage(page: number) {
@@ -2745,7 +2754,7 @@ export default function App() {
       loadArtistPage(nextArtistPage),
       loadPlaylistPage(nextPlaylistPage),
     ]);
-  }, [libraryPageSize, gridPageSize]);
+  }, [libraryPageSize, gridPageSize, artistInitialFilter]);
 
   async function refreshRecentPlayed() {
     setRecentPlayedSongs(await api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => recentPlayedSongs));
@@ -4396,6 +4405,16 @@ export default function App() {
                   t={t}
                   title={t("artists")}
                   variant="artist"
+                  action={
+                    <ArtistInitialFilter
+                      active={artistInitialFilter}
+                      available={artistPageData?.initials ?? []}
+                      loading={artistPageLoading}
+                      t={t}
+                      onSelect={selectArtistInitialFilter}
+                    />
+                  }
+                  actionKey={`${artistInitialFilter}:${artistPageData?.initials?.join("") ?? ""}:${artistPageLoading ? "loading" : "ready"}`}
                   items={artists.map((a) => ({
                     id: a.id,
                     title: a.name,
@@ -4595,14 +4614,7 @@ export default function App() {
             {currentRadio ? (
               <RadioMiniLogo station={currentRadio} playing={playing} />
             ) : currentNetworkTrack ? (
-              <div
-                className="mini-art"
-                data-playing={playing ? "true" : "false"}
-                data-has-cover={currentNetworkTrack.cover_url ? "true" : "false"}
-                style={currentNetworkTrack.cover_url ? ({ "--cover-url": `url(${currentNetworkTrack.cover_url})` } as React.CSSProperties) : undefined}
-              >
-                {currentNetworkTrack.cover_url ? <img src={currentNetworkTrack.cover_url} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
-              </div>
+              <MiniArtwork url={currentNetworkTrack.cover_url} playing={playing} />
             ) : (
               <MiniCover song={current} playing={playing} />
             )}
@@ -5861,6 +5873,48 @@ function HomeView({
   );
 }
 
+function MiniArtwork({
+  url,
+  playing,
+  className = "mini-art",
+  children,
+}: {
+  url?: string;
+  playing: boolean;
+  className?: string;
+  children?: ReactNode;
+}) {
+  const [failedUrl, setFailedUrl] = useState("");
+  useEffect(() => {
+    if (url !== failedUrl) setFailedUrl("");
+  }, [failedUrl, url]);
+  const displayUrl = url && url !== failedUrl ? url : "";
+  const style = displayUrl
+    ? ({ "--cover-url": `url(${displayUrl})` } as React.CSSProperties)
+    : undefined;
+  return (
+    <div
+      className={className}
+      data-playing={playing ? "true" : "false"}
+      data-has-cover={displayUrl ? "true" : "false"}
+      style={style}
+    >
+      {displayUrl ? (
+        <img
+          src={displayUrl}
+          alt=""
+          loading="eager"
+          decoding="async"
+          onError={() => setFailedUrl(displayUrl)}
+        />
+      ) : (
+        <Record weight="fill" />
+      )}
+      {children}
+    </div>
+  );
+}
+
 function MiniCover({
   song,
   playing,
@@ -5868,29 +5922,14 @@ function MiniCover({
   song?: Song | null;
   playing: boolean;
 }) {
-  const url = coverUrl(song);
-  const style = url
-    ? ({ "--cover-url": `url(${url})` } as React.CSSProperties)
-    : undefined;
-  return (
-    <div
-      className="mini-art"
-      data-playing={playing ? "true" : "false"}
-      data-has-cover={url ? "true" : "false"}
-      style={style}
-    >
-      {url ? <img src={url} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
-    </div>
-  );
+  return <MiniArtwork url={coverUrl(song)} playing={playing} />;
 }
 
 function RadioMiniLogo({ station, playing }: { station: RadioStation; playing: boolean }) {
-  const style = station.favicon ? ({ "--cover-url": `url(${station.favicon})` } as React.CSSProperties) : undefined;
   return (
-    <div className="mini-art radio-mini-art" data-playing={playing ? "true" : "false"} data-has-cover={station.favicon ? "true" : "false"} style={style}>
-      {!station.favicon ? <Record weight="fill" /> : null}
+    <MiniArtwork url={station.favicon} playing={playing} className="mini-art radio-mini-art">
       <span aria-hidden="true" />
-    </div>
+    </MiniArtwork>
   );
 }
 
@@ -9846,6 +9885,50 @@ function PaginationControls({
       </div>
       <div className="pagination-spacer" aria-hidden="true" />
     </>
+  );
+}
+
+function ArtistInitialFilter({
+  active,
+  available,
+  loading,
+  t,
+  onSelect,
+}: {
+  active: string;
+  available: string[];
+  loading: boolean;
+  t: ReturnType<typeof createT>;
+  onSelect: (initial: string) => void;
+}) {
+  const availableSet = new Set(available);
+  return (
+    <div className="artist-initial-filter" aria-label={t("artistInitials")}>
+      <button
+        type="button"
+        className={active ? "" : "active"}
+        disabled={loading}
+        aria-pressed={!active}
+        onClick={() => active && onSelect(active)}
+      >
+        {t("allInitials")}
+      </button>
+      {ARTIST_INITIALS.map((initial) => {
+        const enabled = availableSet.has(initial);
+        return (
+          <button
+            type="button"
+            key={initial}
+            className={active === initial ? "active" : ""}
+            disabled={loading || !enabled}
+            aria-pressed={active === initial}
+            onClick={() => onSelect(initial)}
+          >
+            {initial}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

@@ -18,6 +18,7 @@ import {
 } from "@phosphor-icons/react";
 
 import type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode } from "./types";
+import { useCoverFallback } from "./useCoverFallback";
 
 const DEFAULT_LABELS = {
   nowPlaying: "Now playing",
@@ -37,6 +38,11 @@ const DEFAULT_LABELS = {
   soundEffects: "Sound effects",
   queue: "Queue",
   lyrics: "Lyrics",
+};
+
+type CoverVisualProps = {
+  cover?: string;
+  onCoverError?: () => void;
 };
 
 function isSwipeIgnoredTarget(target: EventTarget | null) {
@@ -104,12 +110,12 @@ export function MobileArtPlayer({
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const volumePct = Math.min(1, Math.max(0, volume));
   const canSeek = Boolean(duration && onSeek);
-  const coverImage = cover ? `url("${cover.replace(/"/g, "%22")}")` : undefined;
+  const coverState = useCoverFallback(cover);
   const smartisanNeedleAngle = mobileSmartisanNeedleAngle(pct, duration, playing);
   const style = {
     "--mobile-art-progress-pct": `${(pct * 100).toFixed(2)}%`,
     "--mobile-smartisan-needle": `${smartisanNeedleAngle.toFixed(2)}deg`,
-    ...(coverImage ? { "--mobile-art-cover-image": coverImage } : {}),
+    ...(coverState.coverImage ? { "--mobile-art-cover-image": coverState.coverImage } : {}),
   } as CSSProperties;
   const [swipeY, setSwipeY] = useState(0);
   const swipeStart = useRef({ x: 0, y: 0, tracking: false });
@@ -159,19 +165,19 @@ export function MobileArtPlayer({
         ) : null}
 
         {variant === "neon-console" ? (
-          <NeonConsoleVisual cover={cover} playing={playing} />
+          <NeonConsoleVisual cover={coverState.displayUrl} playing={playing} onCoverError={coverState.onCoverError} />
         ) : variant === "indiewave" ? (
-          <IndiewaveVisual cover={cover} />
+          <IndiewaveVisual cover={coverState.displayUrl} onCoverError={coverState.onCoverError} />
         ) : variant === "editorial-pulse" ? (
-          <EditorialPulseVisual cover={cover} />
+          <EditorialPulseVisual cover={coverState.displayUrl} onCoverError={coverState.onCoverError} />
         ) : variant === "soft-vinyl" ? (
-          <SoftVinylVisual cover={cover} />
+          <SoftVinylVisual cover={coverState.displayUrl} onCoverError={coverState.onCoverError} />
         ) : variant === "stage-glass" ? (
-          <StageGlassVisual cover={cover} playing={playing} />
+          <StageGlassVisual cover={coverState.displayUrl} playing={playing} onCoverError={coverState.onCoverError} />
         ) : variant === "smartisan-classic" ? (
-          <SmartisanClassicVisual cover={cover} playing={playing} />
+          <SmartisanClassicVisual cover={coverState.displayUrl} playing={playing} onCoverError={coverState.onCoverError} />
         ) : (
-          <BlueHaloVisual cover={cover} />
+          <BlueHaloVisual cover={coverState.displayUrl} onCoverError={coverState.onCoverError} />
         )}
 
         <div className="mobile-art-meta">
@@ -273,12 +279,12 @@ function VolumeTicks({
   );
 }
 
-function SoftVinylVisual({ cover }: { cover?: string }) {
+function SoftVinylVisual({ cover, onCoverError }: CoverVisualProps) {
   return (
     <div className="mobile-soft-stage">
       <div className="mobile-soft-deck">
         <div className="mobile-soft-record" data-has-cover={cover ? "true" : "false"}>
-          {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
+          {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
           <span />
         </div>
         <div className="mobile-soft-arm" aria-hidden="true"><i /></div>
@@ -289,11 +295,11 @@ function SoftVinylVisual({ cover }: { cover?: string }) {
   );
 }
 
-function NeonConsoleVisual({ cover, playing }: { cover?: string; playing: boolean }) {
+function NeonConsoleVisual({ cover, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
   return (
     <div className="mobile-neon-visual">
       <div className="mobile-neon-record" data-has-cover={cover ? "true" : "false"}>
-        {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
+        {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
         <span />
       </div>
       <span className={playing ? "mobile-neon-led on" : "mobile-neon-led"} />
@@ -301,22 +307,22 @@ function NeonConsoleVisual({ cover, playing }: { cover?: string; playing: boolea
   );
 }
 
-function IndiewaveVisual({ cover }: { cover?: string }) {
+function IndiewaveVisual({ cover, onCoverError }: CoverVisualProps) {
   return (
     <div className="mobile-indie-visual">
       <div className="mobile-indie-cover" data-has-cover={cover ? "true" : "false"}>
-        {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
+        {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
         <span aria-hidden="true" />
       </div>
     </div>
   );
 }
 
-function EditorialPulseVisual({ cover }: { cover?: string }) {
+function EditorialPulseVisual({ cover, onCoverError }: CoverVisualProps) {
   return (
     <div className="mobile-editorial-visual">
       <div className="mobile-editorial-cover" data-has-cover={cover ? "true" : "false"}>
-        {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
+        {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
         <span aria-hidden="true" />
       </div>
       <div className="mobile-editorial-record" aria-hidden="true">
@@ -331,12 +337,12 @@ function EditorialPulseVisual({ cover }: { cover?: string }) {
   );
 }
 
-function StageGlassVisual({ cover, playing }: { cover?: string; playing: boolean }) {
+function StageGlassVisual({ cover, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
   return (
     <div className="mobile-stage-visual">
       <span className="mobile-stage-speaker left"><SpeakerSimpleX weight="bold" /></span>
       <div className="mobile-stage-disc" data-has-cover={cover ? "true" : "false"}>
-        {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
+        {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
         <i />
       </div>
       <span className="mobile-stage-speaker right"><SpeakerSimpleHigh weight="bold" /></span>
@@ -348,11 +354,11 @@ function StageGlassVisual({ cover, playing }: { cover?: string; playing: boolean
   );
 }
 
-function BlueHaloVisual({ cover }: { cover?: string }) {
+function BlueHaloVisual({ cover, onCoverError }: CoverVisualProps) {
   return (
     <div className="mobile-blue-visual">
       <div className="mobile-blue-art" data-has-cover={cover ? "true" : "false"}>
-        {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
+        {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
         <span className="mobile-blue-statue" aria-hidden="true" />
       </div>
       <div className="mobile-blue-orbit" aria-hidden="true" />
@@ -363,7 +369,7 @@ function BlueHaloVisual({ cover }: { cover?: string }) {
   );
 }
 
-function SmartisanClassicVisual({ cover, playing }: { cover?: string; playing: boolean }) {
+function SmartisanClassicVisual({ cover, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
   return (
     <div className="mobile-smartisan-stage">
       <div className="mobile-smartisan-titlebar" aria-hidden="true">
@@ -373,7 +379,7 @@ function SmartisanClassicVisual({ cover, playing }: { cover?: string; playing: b
       </div>
       <div className="mobile-smartisan-deck">
         <div className="mobile-smartisan-record" data-has-cover={cover ? "true" : "false"}>
-          {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : null}
+          {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
           <span />
         </div>
         <div className="mobile-smartisan-arm" aria-hidden="true"><i /></div>

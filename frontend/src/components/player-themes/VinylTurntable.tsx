@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pause, Play, Power, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { useCoverFallback } from "./useCoverFallback";
 
 export function VinylTurntable({
   cover,
@@ -59,6 +60,7 @@ export function VinylTurntable({
   const secondsLeft = duration > 0 ? Math.max(0, duration - progress) : Number.POSITIVE_INFINITY;
   const endingPct = Number.isFinite(secondsLeft) ? Math.max(0, Math.min(1, (endWindowSeconds - secondsLeft) / endWindowSeconds)) : 0;
   const isAtEnd = duration > 0 && progress >= duration - 0.2;
+  const coverState = useCoverFallback(cover);
   const spinDuration = `${(baseSpinSeconds * (1 + endingPct * 2.6)).toFixed(2)}s`;
   const recordSpinning = playing && !isAtEnd;
   const tonearmPct = duration > 0 ? pct : 0;
@@ -76,7 +78,7 @@ export function VinylTurntable({
               <div className="vinyl-record">
                 <div className="vinyl-record-sheen" />
                 <div className="vinyl-label">
-                  {cover ? <img src={cover} alt="" /> : null}
+                  {coverState.displayUrl ? <img src={coverState.displayUrl} alt="" onError={coverState.onCoverError} /> : null}
                   <span>Sonora</span>
                   <strong>{title}</strong>
                   <em>{rpmLabel} RPM</em>

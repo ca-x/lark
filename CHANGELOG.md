@@ -5,6 +5,42 @@
 
 ---
 
+## 0.7.25 — 歌手首字母检索与封面兜底
+
+发布日期 / Released: 2026-06-03
+
+### 新功能
+
+- **新增歌手名称归一与首字母检索。** 扫描与启动时会归并 `2.周杰伦`、`12.周杰伦`、`蔡依林_周杰伦` 等异常歌手名，并为歌手记录保存拼音/字母首字母。
+- **新增歌手列表首字母筛选。** 歌手页现在支持 A-Z/# 检索；可点击字母来自全曲库歌手 initials，不受当前分页影响。
+
+### 修复
+
+- **修复缺封面导致播放器黑图。** 歌曲、专辑、歌手和公开分享封面缺失时，Web API 返回静态唱片兜底图，不再让播放控制栏收到 404。
+- **补齐播放器主题封面失败兜底。** PC 和移动端播放器主题在封面图片加载失败时会回退到唱片/主题占位，避免锤子唱机、移动播放器和控制栏出现空图。
+
+完整 diff：`git log v0.7.24..v0.7.25`
+
+---
+
+## v0.7.25 — Artist initials search + cover fallback
+
+Released: 2026-06-03
+
+### Features
+
+- **Added artist-name normalization and initials indexing.** Startup and scans merge abnormal artist names such as `2.周杰伦`, `12.周杰伦`, and `蔡依林_周杰伦`, and persist pinyin/letter initials on artist records.
+- **Added artist initials filtering.** The artist page now supports A-Z/# filtering; enabled initials are computed from the full library independently from the current page.
+
+### Fixes
+
+- **Fixed missing covers leaving player artwork blank.** Song, album, artist, and public-share cover APIs now return a static record fallback when no real cover exists instead of returning 404 to the web player.
+- **Completed player-theme image fallbacks.** Desktop and mobile player themes now fall back to record/theme placeholders when artwork image loading fails, covering Smartisan decks, mobile players, and control-bar artwork.
+
+Full diff: `git log v0.7.24..v0.7.25`
+
+---
+
 ## 0.7.24 — 曲库缓存与模块拆分优化
 
 发布日期 / Released: 2026-06-03

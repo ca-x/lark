@@ -404,6 +404,48 @@ func TestEnsureAlbumSeparatesSameTitleByAlbumArtist(t *testing.T) {
 	}
 }
 
+func TestNormalizeArtistNameRemovesTrackPrefixesAndSeparators(t *testing.T) {
+	cases := map[string]string{
+		"2.周杰伦":   "周杰伦",
+		"12. 周杰伦": "周杰伦",
+		"- 周杰伦 /": "周杰伦",
+		"蔡依林_周杰伦": "蔡依林",
+	}
+	for input, want := range cases {
+		if got := normalizeArtistName(input); got != want {
+			t.Fatalf("normalizeArtistName(%q)=%q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestArtistNameCandidatesSplitsCollaborators(t *testing.T) {
+	got := artistNameCandidates("蔡依林_周杰伦")
+	want := []string{"蔡依林", "周杰伦"}
+	if len(got) != len(want) {
+		t.Fatalf("expected candidates %v, got %v", want, got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("expected candidates %v, got %v", want, got)
+		}
+	}
+}
+
+func TestArtistInitialUsesPinyinForChineseNames(t *testing.T) {
+	cases := map[string]string{
+		"周杰伦":         "Z",
+		"蔡依林":         "C",
+		"2.周杰伦":       "Z",
+		"Beyoncé":     "B",
+		"2 Unlimited": "#",
+	}
+	for input, want := range cases {
+		if got := artistInitial(input); got != want {
+			t.Fatalf("artistInitial(%q)=%q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestPreferredEmbeddedLyricsKeepsTaggedLyricsAheadOfOnlineCache(t *testing.T) {
 	item := &ent.Song{
 		LyricsEmbedded: "[00:00.00]online cache",

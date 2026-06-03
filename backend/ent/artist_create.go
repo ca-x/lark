@@ -29,6 +29,20 @@ func (_c *ArtistCreate) SetName(v string) *ArtistCreate {
 	return _c
 }
 
+// SetInitial sets the "initial" field.
+func (_c *ArtistCreate) SetInitial(v string) *ArtistCreate {
+	_c.mutation.SetInitial(v)
+	return _c
+}
+
+// SetNillableInitial sets the "initial" field if the given value is not nil.
+func (_c *ArtistCreate) SetNillableInitial(v *string) *ArtistCreate {
+	if v != nil {
+		_c.SetInitial(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *ArtistCreate) SetCreatedAt(v time.Time) *ArtistCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -137,6 +151,10 @@ func (_c *ArtistCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *ArtistCreate) defaults() {
+	if _, ok := _c.mutation.Initial(); !ok {
+		v := artist.DefaultInitial
+		_c.mutation.SetInitial(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := artist.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
@@ -155,6 +173,14 @@ func (_c *ArtistCreate) check() error {
 	if v, ok := _c.mutation.Name(); ok {
 		if err := artist.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Artist.name": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Initial(); !ok {
+		return &ValidationError{Name: "initial", err: errors.New(`ent: missing required field "Artist.initial"`)}
+	}
+	if v, ok := _c.mutation.Initial(); ok {
+		if err := artist.InitialValidator(v); err != nil {
+			return &ValidationError{Name: "initial", err: fmt.Errorf(`ent: validator failed for field "Artist.initial": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
@@ -192,6 +218,10 @@ func (_c *ArtistCreate) createSpec() (*Artist, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(artist.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.Initial(); ok {
+		_spec.SetField(artist.FieldInitial, field.TypeString, value)
+		_node.Initial = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(artist.FieldCreatedAt, field.TypeTime, value)

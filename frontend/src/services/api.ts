@@ -106,7 +106,11 @@ export const api = {
   albumSongs: (id: number, limit = 0, signal?: AbortSignal) => request<Song[]>(`/api/albums/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`, { signal }),
   artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
   favoriteArtists: (limit = 500) => request<Artist[]>(`/api/artists/favorites?limit=${limit}`),
-  artistsPage: (page = 1, limit = 100) => request<ArtistPage>(`/api/artists/page?page=${page}&limit=${limit}`),
+  artistsPage: (page = 1, limit = 100, initial = '') => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (initial) params.set('initial', initial)
+    return request<ArtistPage>(`/api/artists/page?${params.toString()}`)
+  },
   searchArtists: (q = '', limit = 20) => request<Artist[]>(`/api/artists/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   artistSongs: (id: number, limit = 0, signal?: AbortSignal) => request<Song[]>(`/api/artists/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`, { signal }),
   favoriteArtist: (id: number) => request<Artist>(`/api/artists/${id}/favorite`, { method: 'POST' }),

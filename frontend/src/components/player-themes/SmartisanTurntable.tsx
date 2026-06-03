@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { useCoverFallback } from "./useCoverFallback";
 
 export function SmartisanTurntable({
   cover,
@@ -34,12 +35,12 @@ export function SmartisanTurntable({
 }) {
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
-  const coverImage = cover ? `url("${cover.replace(/"/g, "%22")}")` : undefined;
+  const coverState = useCoverFallback(cover);
   const needleAngle = smartisanNeedleAngle(pct, duration, playing);
   const playerStyle = {
     "--smartisan-turntable-progress": `${(pct * 100).toFixed(2)}%`,
     "--smartisan-turntable-needle": `${needleAngle.toFixed(2)}deg`,
-    ...(coverImage ? { "--smartisan-turntable-cover": coverImage } : {}),
+    ...(coverState.coverImage ? { "--smartisan-turntable-cover": coverState.coverImage } : {}),
   } as CSSProperties;
   const playModeIcon =
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
@@ -56,12 +57,16 @@ export function SmartisanTurntable({
         <button
           type="button"
           className="smartisan-turntable-record"
-          data-has-cover={cover ? "true" : "false"}
+          data-has-cover={coverState.hasCover ? "true" : "false"}
           aria-label={playing ? "Pause" : "Play"}
           disabled={!onToggle}
           onClick={onToggle}
         >
-          {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
+          {coverState.displayUrl ? (
+            <img src={coverState.displayUrl} alt="" loading="eager" decoding="async" onError={coverState.onCoverError} />
+          ) : (
+            <Record weight="fill" />
+          )}
           <span />
         </button>
         <span className="smartisan-turntable-arm" aria-hidden="true" />

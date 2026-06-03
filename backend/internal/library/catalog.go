@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -456,9 +457,10 @@ func (s *Service) SearchArtists(ctx context.Context, userID int, term string, li
 	}
 	return s.applyArtistUserState(ctx, userID, out)
 }
-func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (models.ArtistPage, error) {
+func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int, initial string) (models.ArtistPage, error) {
 	limit, offset = normalizePage(limit, offset)
-	key := cacheKey("artists-page", userID, s.userCacheVersion(ctx, userID), limit, offset)
+	initial = normalizeArtistInitial(initial)
+	key := cacheKey("artists-page", userID, s.userCacheVersion(ctx, userID), limit, offset, initial)
 	var cached models.ArtistPage
 	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 		return models.ArtistPage{}, err
@@ -472,11 +474,19 @@ func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (m
 		if ok, e := s.cacheGetJSON(bgCtx, key, &inner); e == nil && ok {
 			return inner, nil
 		}
-		total, e := s.client.Artist.Query().Count(bgCtx)
+		predicates := []predicate.Artist{}
+		if initial != "" {
+			predicates = append(predicates, artist.InitialEQ(initial))
+		}
+		initials, e := s.artistInitials(bgCtx)
 		if e != nil {
 			return models.ArtistPage{}, e
 		}
-		query := s.client.Artist.Query().Order(ent.Asc(artist.FieldName)).Limit(limit)
+		total, e := s.client.Artist.Query().Where(predicates...).Count(bgCtx)
+		if e != nil {
+			return models.ArtistPage{}, e
+		}
+		query := s.client.Artist.Query().Where(predicates...).Order(ent.Asc(artist.FieldInitial), ent.Asc(artist.FieldName)).Limit(limit)
 		if offset > 0 {
 			query = query.Offset(offset)
 		}
@@ -500,7 +510,7 @@ func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (m
 		if e != nil {
 			return models.ArtistPage{}, e
 		}
-		page := models.ArtistPage{Items: out, Total: total, Limit: limit, Offset: offset, Page: offset/limit + 1}
+		page := models.ArtistPage{Items: out, Total: total, Limit: limit, Offset: offset, Page: offset/limit + 1, Initials: initials}
 		_ = s.cacheSetJSON(bgCtx, key, page)
 		return page, nil
 	})
@@ -508,6 +518,32 @@ func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (m
 		return models.ArtistPage{}, err
 	}
 	return v.(models.ArtistPage), nil
+}
+
+func (s *Service) artistInitials(ctx context.Context) ([]string, error) {
+	items, err := s.client.Artist.Query().
+		Select(artist.FieldName, artist.FieldInitial).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	set := map[string]bool{}
+	for _, item := range items {
+		initial := normalizeArtistInitial(item.Initial)
+		computedInitial := artistInitial(item.Name)
+		if initial == "" || (initial == "#" && computedInitial != "#") {
+			initial = computedInitial
+		}
+		if initial != "" {
+			set[initial] = true
+		}
+	}
+	out := make([]string, 0, len(set))
+	for initial := range set {
+		out = append(out, initial)
+	}
+	sort.Strings(out)
+	return out, nil
 }
 func (s *Service) ArtistSongs(ctx context.Context, userID, id int, limit int) ([]models.Song, error) {
 	return s.cachedSongCollection(ctx, "artist-songs", userID, id, limit, func(ctx context.Context) ([]models.Song, error) {
@@ -617,7 +653,12 @@ func mapArtist(item *ent.Artist) models.Artist {
 	return mapArtistWithCounts(item, len(item.Edges.Songs), len(item.Edges.Albums))
 }
 func mapArtistWithCounts(item *ent.Artist, songCount, albumCount int) models.Artist {
-	return models.Artist{ID: item.ID, Name: item.Name, SongCount: songCount, AlbumCount: albumCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	initial := normalizeArtistInitial(item.Initial)
+	computedInitial := artistInitial(item.Name)
+	if initial == "" || (initial == "#" && computedInitial != "#") {
+		initial = computedInitial
+	}
+	return models.Artist{ID: item.ID, Name: item.Name, Initial: initial, SongCount: songCount, AlbumCount: albumCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }
 func mapPlaylist(item *ent.Playlist) models.Playlist {
 	count := 0

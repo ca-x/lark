@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { useCoverFallback } from "./useCoverFallback";
 
 export function AlbumSlidePlayer({
   cover,
@@ -38,10 +39,10 @@ export function AlbumSlidePlayer({
 }) {
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
-  const coverImage = cover ? `url("${cover.replace(/"/g, "%22")}")` : undefined;
+  const coverState = useCoverFallback(cover);
   const playerStyle = {
     "--album-slide-progress-pct": `${(pct * 100).toFixed(2)}%`,
-    ...(coverImage ? { "--album-slide-cover-image": coverImage } : {}),
+    ...(coverState.coverImage ? { "--album-slide-cover-image": coverState.coverImage } : {}),
   } as CSSProperties;
   const playModeIcon =
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
@@ -104,8 +105,12 @@ export function AlbumSlidePlayer({
             <span />
           </div>
         </div>
-        <div className="album-slide-cover" data-has-cover={cover ? "true" : "false"}>
-          {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
+        <div className="album-slide-cover" data-has-cover={coverState.hasCover ? "true" : "false"}>
+          {coverState.displayUrl ? (
+            <img src={coverState.displayUrl} alt="" loading="eager" decoding="async" onError={coverState.onCoverError} />
+          ) : (
+            <Record weight="fill" />
+          )}
         </div>
       </div>
     </div>

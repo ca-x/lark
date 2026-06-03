@@ -16,6 +16,8 @@ const (
 	FieldID = "id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldInitial holds the string denoting the initial field in the database.
+	FieldInitial = "initial"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -55,6 +57,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldName,
+	FieldInitial,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -72,6 +75,10 @@ func ValidColumn(column string) bool {
 var (
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultInitial holds the default value on creation for the "initial" field.
+	DefaultInitial string
+	// InitialValidator is a validator for the "initial" field. It is called by the builders before save.
+	InitialValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -91,6 +98,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByInitial orders the results by the initial field.
+func ByInitial(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInitial, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

@@ -60,6 +60,11 @@ func Name(v string) predicate.Artist {
 	return predicate.Artist(sql.FieldEQ(FieldName, v))
 }
 
+// Initial applies equality check predicate on the "initial" field. It's identical to InitialEQ.
+func Initial(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldEQ(FieldInitial, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.Artist {
 	return predicate.Artist(sql.FieldEQ(FieldCreatedAt, v))
@@ -133,6 +138,71 @@ func NameEqualFold(v string) predicate.Artist {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.Artist {
 	return predicate.Artist(sql.FieldContainsFold(FieldName, v))
+}
+
+// InitialEQ applies the EQ predicate on the "initial" field.
+func InitialEQ(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldEQ(FieldInitial, v))
+}
+
+// InitialNEQ applies the NEQ predicate on the "initial" field.
+func InitialNEQ(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldNEQ(FieldInitial, v))
+}
+
+// InitialIn applies the In predicate on the "initial" field.
+func InitialIn(vs ...string) predicate.Artist {
+	return predicate.Artist(sql.FieldIn(FieldInitial, vs...))
+}
+
+// InitialNotIn applies the NotIn predicate on the "initial" field.
+func InitialNotIn(vs ...string) predicate.Artist {
+	return predicate.Artist(sql.FieldNotIn(FieldInitial, vs...))
+}
+
+// InitialGT applies the GT predicate on the "initial" field.
+func InitialGT(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldGT(FieldInitial, v))
+}
+
+// InitialGTE applies the GTE predicate on the "initial" field.
+func InitialGTE(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldGTE(FieldInitial, v))
+}
+
+// InitialLT applies the LT predicate on the "initial" field.
+func InitialLT(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldLT(FieldInitial, v))
+}
+
+// InitialLTE applies the LTE predicate on the "initial" field.
+func InitialLTE(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldLTE(FieldInitial, v))
+}
+
+// InitialContains applies the Contains predicate on the "initial" field.
+func InitialContains(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldContains(FieldInitial, v))
+}
+
+// InitialHasPrefix applies the HasPrefix predicate on the "initial" field.
+func InitialHasPrefix(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldHasPrefix(FieldInitial, v))
+}
+
+// InitialHasSuffix applies the HasSuffix predicate on the "initial" field.
+func InitialHasSuffix(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldHasSuffix(FieldInitial, v))
+}
+
+// InitialEqualFold applies the EqualFold predicate on the "initial" field.
+func InitialEqualFold(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldEqualFold(FieldInitial, v))
+}
+
+// InitialContainsFold applies the ContainsFold predicate on the "initial" field.
+func InitialContainsFold(v string) predicate.Artist {
+	return predicate.Artist(sql.FieldContainsFold(FieldInitial, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

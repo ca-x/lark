@@ -890,8 +890,7 @@ func (s *Server) handlePublicShareCover(c *echo.Context) error {
 		return mapError(err)
 	}
 	if len(data) == 0 {
-		c.Response().Header().Set("Cache-Control", "public, max-age=21600")
-		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
+		return serveFallbackCover(c)
 	}
 	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
 	return c.Blob(http.StatusOK, mimeType, data)
@@ -1256,8 +1255,7 @@ func (s *Server) handleCover(c *echo.Context) error {
 		return mapError(err)
 	}
 	if len(data) == 0 {
-		c.Response().Header().Set("Cache-Control", "public, max-age=21600")
-		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
+		return serveFallbackCover(c)
 	}
 	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
 	return c.Blob(http.StatusOK, mimeType, data)
@@ -1273,8 +1271,7 @@ func (s *Server) handleAlbumCover(c *echo.Context) error {
 		return mapError(err)
 	}
 	if len(data) == 0 {
-		c.Response().Header().Set("Cache-Control", "public, max-age=21600")
-		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
+		return serveFallbackCover(c)
 	}
 	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
 	return c.Blob(http.StatusOK, mimeType, data)
@@ -1290,11 +1287,17 @@ func (s *Server) handleArtistCover(c *echo.Context) error {
 		return mapError(err)
 	}
 	if len(data) == 0 {
-		c.Response().Header().Set("Cache-Control", "public, max-age=21600")
-		return echo.NewHTTPError(http.StatusNotFound, "cover not found")
+		return serveFallbackCover(c)
 	}
 	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
 	return c.Blob(http.StatusOK, mimeType, data)
+}
+
+var fallbackCoverSVG = []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="No cover"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d3336"/><stop offset=".55" stop-color="#15191c"/><stop offset="1" stop-color="#050607"/></linearGradient><radialGradient id="d" cx=".5" cy=".5" r=".52"><stop offset="0" stop-color="#f1f2ef"/><stop offset=".12" stop-color="#c9cbc6"/><stop offset=".13" stop-color="#121416"/><stop offset=".62" stop-color="#25292b"/><stop offset=".74" stop-color="#111315"/><stop offset="1" stop-color="#050607"/></radialGradient></defs><rect width="512" height="512" rx="72" fill="url(#g)"/><circle cx="256" cy="256" r="168" fill="url(#d)"/><circle cx="256" cy="256" r="28" fill="#e8e8e2"/><circle cx="256" cy="256" r="9" fill="#17191a"/><g fill="none" stroke="#fff" stroke-opacity=".09" stroke-width="2"><circle cx="256" cy="256" r="74"/><circle cx="256" cy="256" r="112"/><circle cx="256" cy="256" r="144"/></g></svg>`)
+
+func serveFallbackCover(c *echo.Context) error {
+	c.Response().Header().Set("Cache-Control", "public, max-age=86400")
+	return c.Blob(http.StatusOK, "image/svg+xml; charset=utf-8", fallbackCoverSVG)
 }
 
 func (s *Server) transcodeAudio(c *echo.Context, source library.AudioSegment) error {
@@ -1788,7 +1791,7 @@ func (s *Server) handleFavoriteArtists(c *echo.Context) error {
 }
 
 func (s *Server) handleArtistsPage(c *echo.Context) error {
-	items, err := s.lib.ArtistsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c))
+	items, err := s.lib.ArtistsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c), c.QueryParam("initial"))
 	if err != nil {
 		return mapError(err)
 	}

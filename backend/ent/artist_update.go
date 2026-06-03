@@ -45,6 +45,20 @@ func (_u *ArtistUpdate) SetNillableName(v *string) *ArtistUpdate {
 	return _u
 }
 
+// SetInitial sets the "initial" field.
+func (_u *ArtistUpdate) SetInitial(v string) *ArtistUpdate {
+	_u.mutation.SetInitial(v)
+	return _u
+}
+
+// SetNillableInitial sets the "initial" field if the given value is not nil.
+func (_u *ArtistUpdate) SetNillableInitial(v *string) *ArtistUpdate {
+	if v != nil {
+		_u.SetInitial(*v)
+	}
+	return _u
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_u *ArtistUpdate) SetCreatedAt(v time.Time) *ArtistUpdate {
 	_u.mutation.SetCreatedAt(v)
@@ -221,6 +235,11 @@ func (_u *ArtistUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Artist.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Initial(); ok {
+		if err := artist.InitialValidator(v); err != nil {
+			return &ValidationError{Name: "initial", err: fmt.Errorf(`ent: validator failed for field "Artist.initial": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -238,6 +257,9 @@ func (_u *ArtistUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(artist.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Initial(); ok {
+		_spec.SetField(artist.FieldInitial, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(artist.FieldCreatedAt, field.TypeTime, value)
@@ -410,6 +432,20 @@ func (_u *ArtistUpdateOne) SetName(v string) *ArtistUpdateOne {
 func (_u *ArtistUpdateOne) SetNillableName(v *string) *ArtistUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetInitial sets the "initial" field.
+func (_u *ArtistUpdateOne) SetInitial(v string) *ArtistUpdateOne {
+	_u.mutation.SetInitial(v)
+	return _u
+}
+
+// SetNillableInitial sets the "initial" field if the given value is not nil.
+func (_u *ArtistUpdateOne) SetNillableInitial(v *string) *ArtistUpdateOne {
+	if v != nil {
+		_u.SetInitial(*v)
 	}
 	return _u
 }
@@ -603,6 +639,11 @@ func (_u *ArtistUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Artist.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Initial(); ok {
+		if err := artist.InitialValidator(v); err != nil {
+			return &ValidationError{Name: "initial", err: fmt.Errorf(`ent: validator failed for field "Artist.initial": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -637,6 +678,9 @@ func (_u *ArtistUpdateOne) sqlSave(ctx context.Context) (_node *Artist, err erro
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(artist.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Initial(); ok {
+		_spec.SetField(artist.FieldInitial, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedAt(); ok {
 		_spec.SetField(artist.FieldCreatedAt, field.TypeTime, value)

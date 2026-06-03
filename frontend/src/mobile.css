@@ -61,6 +61,10 @@
   .artist-filter-combobox label > div { min-height:48px; border-radius:16px; }
   .artist-filter-options { left:0; right:0; width:auto; max-height:45dvh; border-radius:18px; }
   .artist-filter-options > button { min-height:54px; }
+  .card-grid-artist .section-head { display:grid; grid-template-columns:1fr; }
+  .artist-initial-filter { width:100%; max-width:100%; min-height:52px; gap:6px; padding:4px; border-radius:18px; scroll-padding-inline:6px; -webkit-overflow-scrolling:touch; }
+  .artist-initial-filter button { min-width:44px; min-height:44px; padding:10px 12px; }
+  .artist-initial-filter button:first-child { min-width:62px; }
   .collection-tabs { width:100%; border-radius:18px; }
   .collection-tabs button { flex:1 0 auto; }
   .artist-album-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }

@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { useCoverFallback } from "./useCoverFallback";
 
 export function CassetteDeck({
   cover,
@@ -42,15 +43,18 @@ export function CassetteDeck({
     if (!canSeek) return;
     onSeek?.(Math.max(0, Math.min(duration, progress + delta)));
   };
-  const coverImage = cover ? `url("${cover.replace(/"/g, "%22")}")` : undefined;
+  const coverState = useCoverFallback(cover);
   const deckStyle = {
     "--cassette-progress-pct": `${(pct * 100).toFixed(2)}%`,
     "--cassette-left-reel": leftReel.toFixed(2),
     "--cassette-right-reel": rightReel.toFixed(2),
-    ...(coverImage ? { "--cassette-cover-image": coverImage } : {}),
+    ...(coverState.coverImage ? { "--cassette-cover-image": coverState.coverImage } : {}),
   } as CSSProperties;
   return (
     <div className={decorative ? "cassette-component decorative" : "cassette-component"} data-playing={playing ? "true" : "false"} style={deckStyle}>
+      {coverState.displayUrl ? (
+        <img className="cassette-cover-probe" src={coverState.displayUrl} alt="" loading="eager" decoding="async" onError={coverState.onCoverError} />
+      ) : null}
       <div className="cassette-deck">
         <div className="cassette-brand-bar">
           <div className="cassette-brand">SŌNIX</div>

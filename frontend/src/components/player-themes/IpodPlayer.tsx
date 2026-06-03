@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { useCoverFallback } from "./useCoverFallback";
 
 export function IpodPlayer({
   cover,
@@ -36,10 +37,9 @@ export function IpodPlayer({
 }) {
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
-  const coverImage = cover ? `url("${cover.replace(/"/g, "%22")}")` : undefined;
+  const coverState = useCoverFallback(cover);
   const playerStyle = {
     "--ipod-progress-pct": `${(pct * 100).toFixed(2)}%`,
-    ...(coverImage ? { "--ipod-cover-image": coverImage } : {}),
   } as CSSProperties;
   const playModeIcon =
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
@@ -62,7 +62,8 @@ export function IpodPlayer({
             </div>
             <div className="ipod-screen-content">
               <div className="ipod-now-row">
-                <div className="ipod-mini-art" data-has-cover={cover ? "true" : "false"} aria-hidden="true">
+                <div className="ipod-mini-art" data-has-cover={coverState.hasCover ? "true" : "false"} aria-hidden="true">
+                  {coverState.displayUrl ? <img src={coverState.displayUrl} alt="" loading="eager" decoding="async" onError={coverState.onCoverError} /> : null}
                   <span><i /></span>
                 </div>
                 <div className="ipod-mini-text">

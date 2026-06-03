@@ -82,12 +82,18 @@ func init() {
 	artistDescName := artistFields[0].Descriptor()
 	// artist.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	artist.NameValidator = artistDescName.Validators[0].(func(string) error)
+	// artistDescInitial is the schema descriptor for initial field.
+	artistDescInitial := artistFields[1].Descriptor()
+	// artist.DefaultInitial holds the default value on creation for the initial field.
+	artist.DefaultInitial = artistDescInitial.Default.(string)
+	// artist.InitialValidator is a validator for the "initial" field. It is called by the builders before save.
+	artist.InitialValidator = artistDescInitial.Validators[0].(func(string) error)
 	// artistDescCreatedAt is the schema descriptor for created_at field.
-	artistDescCreatedAt := artistFields[1].Descriptor()
+	artistDescCreatedAt := artistFields[2].Descriptor()
 	// artist.DefaultCreatedAt holds the default value on creation for the created_at field.
 	artist.DefaultCreatedAt = artistDescCreatedAt.Default.(func() time.Time)
 	// artistDescUpdatedAt is the schema descriptor for updated_at field.
-	artistDescUpdatedAt := artistFields[2].Descriptor()
+	artistDescUpdatedAt := artistFields[3].Descriptor()
 	// artist.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	artist.DefaultUpdatedAt = artistDescUpdatedAt.Default.(func() time.Time)
 	// artist.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

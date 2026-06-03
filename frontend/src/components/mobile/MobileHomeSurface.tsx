@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { Disc, MicrophoneStage, Pause, Play, Playlist as PlaylistIcon, Record } from "@phosphor-icons/react";
 
 import type { createT } from "../../i18n";
@@ -18,10 +19,19 @@ function artistCoverUrl(artist?: Artist | null) {
 
 function MobileSongCover({ song, playing }: { song?: Song | null; playing: boolean }) {
   const url = coverUrl(song);
-  const style = url ? ({ "--cover-url": `url(${url})` } as CSSProperties) : undefined;
+  const [failedUrl, setFailedUrl] = useState("");
+  useEffect(() => {
+    if (url !== failedUrl) setFailedUrl("");
+  }, [failedUrl, url]);
+  const displayUrl = url && url !== failedUrl ? url : "";
+  const style = displayUrl ? ({ "--cover-url": `url(${displayUrl})` } as CSSProperties) : undefined;
   return (
-    <div className="mini-art" data-playing={playing ? "true" : "false"} data-has-cover={url ? "true" : "false"} style={style}>
-      {url ? <img src={url} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
+    <div className="mini-art" data-playing={playing ? "true" : "false"} data-has-cover={displayUrl ? "true" : "false"} style={style}>
+      {displayUrl ? (
+        <img src={displayUrl} alt="" loading="eager" decoding="async" onError={() => setFailedUrl(displayUrl)} />
+      ) : (
+        <Record weight="fill" />
+      )}
     </div>
   );
 }
@@ -33,10 +43,15 @@ function MobileCollectionCover({
   src?: string;
   fallback: "album" | "artist" | "playlist";
 }) {
-  const style = src ? ({ "--cover-url": `url(${src})` } as CSSProperties) : undefined;
+  const [failedSrc, setFailedSrc] = useState("");
+  useEffect(() => {
+    if (src !== failedSrc) setFailedSrc("");
+  }, [failedSrc, src]);
+  const displaySrc = src && src !== failedSrc ? src : "";
+  const style = displaySrc ? ({ "--cover-url": `url(${displaySrc})` } as CSSProperties) : undefined;
   return (
-    <span className="mobile-collection-cover" data-has-cover={src ? "true" : "false"} data-kind={fallback} style={style}>
-      {src ? <img src={src} alt="" loading="lazy" decoding="async" /> : null}
+    <span className="mobile-collection-cover" data-has-cover={displaySrc ? "true" : "false"} data-kind={fallback} style={style}>
+      {displaySrc ? <img src={displaySrc} alt="" loading="lazy" decoding="async" onError={() => setFailedSrc(displaySrc)} /> : null}
       {fallback === "artist" ? <MicrophoneStage weight="fill" /> : fallback === "playlist" ? <PlaylistIcon weight="fill" /> : <Disc weight="fill" />}
     </span>
   );

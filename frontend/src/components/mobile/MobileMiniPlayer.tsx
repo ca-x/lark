@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { Pause, Play, Record, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { MobileHomePlayerStyle } from "../../types";
@@ -36,16 +37,25 @@ export function MobileMiniPlayer({
   onPrevious?: () => void;
   onNext?: () => void;
 }) {
+  const [failedCover, setFailedCover] = useState("");
+  useEffect(() => {
+    if (cover !== failedCover) setFailedCover("");
+  }, [cover, failedCover]);
+  const displayCover = cover && cover !== failedCover ? cover : "";
   const pct = duration > 0 ? Math.min(100, Math.max(0, (progress / duration) * 100)) : 0;
   const style = {
     "--mobile-mini-progress": `${pct.toFixed(2)}%`,
-    ...(cover ? { "--mobile-mini-cover": `url("${cover.replace(/"/g, "%22")}")` } : {}),
+    ...(displayCover ? { "--mobile-mini-cover": `url("${displayCover.replace(/"/g, "%22")}")` } : {}),
   } as CSSProperties;
 
   return (
     <div className="mobile-mini-player" data-mobile-theme={theme} data-playing={playing ? "true" : "false"} style={style}>
       <button type="button" className="mobile-mini-art" aria-label={labels.expand} onClick={onExpand}>
-        {cover ? <img src={cover} alt="" loading="eager" decoding="async" /> : <Record weight="fill" />}
+        {displayCover ? (
+          <img src={displayCover} alt="" loading="eager" decoding="async" onError={() => setFailedCover(displayCover)} />
+        ) : (
+          <Record weight="fill" />
+        )}
       </button>
       <div className="mobile-mini-info">
         <div className="mobile-mini-meta">

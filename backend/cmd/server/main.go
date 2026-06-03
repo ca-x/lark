@@ -49,7 +49,7 @@ func main() {
 	if cfg.DatabaseDSN == "" {
 		log.Fatalf("database DSN is required for LARK_DB_TYPE=%s", cfg.DatabaseType)
 	}
-	client, err := openEntClient(cfg)
+	client, db, err := openEntClient(cfg)
 	if err != nil {
 		log.Fatalf("open %s database: %v", cfg.DatabaseType, err)
 	}
@@ -68,7 +68,10 @@ func main() {
 	if err := cleanupLegacyCache(context.Background(), cacheStore); err != nil {
 		log.Printf("cache cleanup skipped: %v", err)
 	}
-	lib := library.New(client, cfg.DataDir, cfg.LibraryDir, cfg.FFprobeBin, cfg.FFmpegBin, netease.New(), qqmusic.New(), library.WithCache(cacheStore, time.Duration(cfg.CacheTTL)*time.Second))
+	lib := library.New(client, cfg.DataDir, cfg.LibraryDir, cfg.FFprobeBin, cfg.FFmpegBin, netease.New(), qqmusic.New(), library.WithCache(cacheStore, time.Duration(cfg.CacheTTL)*time.Second), library.WithSQLDB(db, cfg.DatabaseType))
+	if err := lib.NormalizeArtists(context.Background()); err != nil {
+		log.Printf("artist normalization skipped: %v", err)
+	}
 	if err := ensureInitialAdminFromEnv(context.Background(), lib, cfg); err != nil {
 		log.Fatal(err)
 	}
@@ -109,10 +112,10 @@ func main() {
 	}
 }
 
-func openEntClient(cfg config.Config) (*ent.Client, error) {
+func openEntClient(cfg config.Config) (*ent.Client, *sql.DB, error) {
 	db, err := sql.Open(cfg.DatabaseDriver, cfg.DatabaseDSN)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if cfg.DatabaseType == "sqlite" {
 		db.SetMaxOpenConns(cfg.SQLiteMaxOpenConns)
@@ -121,7 +124,7 @@ func openEntClient(cfg config.Config) (*ent.Client, error) {
 		db.SetConnMaxLifetime(sqliteConnMaxLifetime)
 	}
 	drv := entsql.OpenDB(cfg.DatabaseDriver, db)
-	return ent.NewClient(ent.Driver(drv)), nil
+	return ent.NewClient(ent.Driver(drv)), db, nil
 }
 
 // backfillHasLyrics is a one-shot, idempotent bulk UPDATE that sets has_lyrics=true

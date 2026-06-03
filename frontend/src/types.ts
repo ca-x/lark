@@ -74,6 +74,7 @@ export interface AlbumPage {
 export interface Artist {
   id: number;
   name: string;
+  initial: string;
   favorite: boolean;
   song_count: number;
   album_count: number;
@@ -84,6 +85,7 @@ export interface ArtistPage {
   limit: number;
   offset: number;
   page: number;
+  initials: string[];
 }
 export interface Playlist {
   id: number;

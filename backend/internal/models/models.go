@@ -46,6 +46,7 @@ type Album struct {
 type Artist struct {
 	ID         int       `json:"id"`
 	Name       string    `json:"name"`
+	Initial    string    `json:"initial"`
 	Favorite   bool      `json:"favorite"`
 	SongCount  int       `json:"song_count"`
 	AlbumCount int       `json:"album_count"`
@@ -144,11 +145,12 @@ type AlbumPage struct {
 }
 
 type ArtistPage struct {
-	Items  []Artist `json:"items"`
-	Total  int      `json:"total"`
-	Limit  int      `json:"limit"`
-	Offset int      `json:"offset"`
-	Page   int      `json:"page"`
+	Items    []Artist `json:"items"`
+	Total    int      `json:"total"`
+	Limit    int      `json:"limit"`
+	Offset   int      `json:"offset"`
+	Page     int      `json:"page"`
+	Initials []string `json:"initials"`
 }
 
 type PlaylistPage struct {

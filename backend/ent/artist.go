@@ -19,6 +19,8 @@ type Artist struct {
 	ID int `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// Initial holds the value of the "initial" field.
+	Initial string `json:"initial,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -76,7 +78,7 @@ func (*Artist) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case artist.FieldID:
 			values[i] = new(sql.NullInt64)
-		case artist.FieldName:
+		case artist.FieldName, artist.FieldInitial:
 			values[i] = new(sql.NullString)
 		case artist.FieldCreatedAt, artist.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -106,6 +108,12 @@ func (_m *Artist) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case artist.FieldInitial:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field initial", values[i])
+			} else if value.Valid {
+				_m.Initial = value.String
 			}
 		case artist.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -172,6 +180,9 @@ func (_m *Artist) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("initial=")
+	builder.WriteString(_m.Initial)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

@@ -69,6 +69,7 @@ var (
 	ArtistsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString, Unique: true},
+		{Name: "initial", Type: field.TypeString, Size: 1, Default: "#"},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -77,6 +78,13 @@ var (
 		Name:       "artists",
 		Columns:    ArtistsColumns,
 		PrimaryKey: []*schema.Column{ArtistsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "artist_initial",
+				Unique:  false,
+				Columns: []*schema.Column{ArtistsColumns[2]},
+			},
+		},
 	}
 	// LibraryDirectoriesColumns holds the columns for the "library_directories" table.
 	LibraryDirectoriesColumns = []*schema.Column{

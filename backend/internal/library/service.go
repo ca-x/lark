@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -68,6 +69,8 @@ var coverHTTPClient = &http.Client{Timeout: 6 * time.Second}
 
 type Service struct {
 	client     *ent.Client
+	db         *sql.DB
+	dbDialect  string
 	dataDir    string
 	libraryDir string
 	ffprobe    string
@@ -185,6 +188,13 @@ func WithCache(store kv.Store, ttl time.Duration) Option {
 		if ttl > 0 {
 			s.cacheTTL = ttl
 		}
+	}
+}
+
+func WithSQLDB(db *sql.DB, dialect string) Option {
+	return func(s *Service) {
+		s.db = db
+		s.dbDialect = strings.ToLower(strings.TrimSpace(dialect))
 	}
 }
 
@@ -1777,7 +1787,7 @@ func (s *Service) Album(ctx context.Context, userID, id int) (models.Album, erro
 // identical concurrent requests (the artist/album-open thundering herd) into a
 // single DB load + single cache write.
 func (s *Service) Artists(ctx context.Context, userID, limit int) ([]models.Artist, error) {
-	page, err := s.ArtistsPage(ctx, userID, limit, 0)
+	page, err := s.ArtistsPage(ctx, userID, limit, 0, "")
 	if err != nil {
 		return nil, err
 	}

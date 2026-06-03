@@ -153,6 +153,9 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 	if err := s.cleanupMissingLibraryEntries(ctx, rootPaths); err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("cleanup missing library entries: %v", err))
 	}
+	if err := s.NormalizeArtists(ctx); err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("normalize artists: %v", err))
+	}
 	s.invalidateLibraryCache(ctx)
 	s.invalidateSearchCatalogs(ctx)
 	debug.FreeOSMemory()
