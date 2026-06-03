@@ -1265,6 +1265,7 @@ export default function App() {
   const lyricsScrollRef = useRef<HTMLDivElement | null>(null);
   const lyricFollowPausedUntil = useRef(0);
   const messageTimerRef = useRef<number | null>(null);
+  const refreshGenerationRef = useRef(0);
   const resumeSeekRef = useRef(0);
   const progressRef = useRef(0);
   const lastProgressPaintRef = useRef(0);
@@ -2472,6 +2473,9 @@ export default function App() {
       return;
     }
 
+    const gen = ++refreshGenerationRef.current;
+    const isStale = () => refreshGenerationRef.current !== gen;
+
     // Layer 1: critical data needed for first render — block on these.
     const [songPageItem, dailyItems, libraryStatsItem, playbackQueueItem] = await Promise.all([
       api.songsPage(query, libraryPage, libraryPageSize),
@@ -2489,6 +2493,7 @@ export default function App() {
 
     // Layer 2: browse data — stagger by 80ms to reduce SQLite contention on startup.
     await new Promise((r) => setTimeout(r, 80));
+    if (isStale()) return;
     const [recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems] = await Promise.all([
       api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
       api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => []),
@@ -2509,6 +2514,7 @@ export default function App() {
 
     // Layer 3: deferred data — favorites, settings, network, radio. Stagger by 300ms.
     await new Promise((r) => setTimeout(r, 300));
+    if (isStale()) return;
     const [folderItems, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem] = await Promise.all([
       api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
       api.libraryDirectories().catch(() => []),

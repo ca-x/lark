@@ -93,11 +93,11 @@ type Service struct {
 	// Each entry is guarded by a mutex + timestamp so callers can read the cached map
 	// without touching the database.  The TTL defaults to 5 minutes, which is more than
 	// enough for browse/page loads between library scans.
-	countCacheMu        sync.RWMutex
-	albumSongCountsAll  cachedCounts // full album→song_count map
-	artistSongCountsAll cachedCounts // full artist→song_count map
+	countCacheMu         sync.RWMutex
+	albumSongCountsAll   cachedCounts // full album→song_count map
+	artistSongCountsAll  cachedCounts // full artist→song_count map
 	artistAlbumCountsAll cachedCounts // full artist→album_count map
-	countCacheTTL       time.Duration
+	countCacheTTL        time.Duration
 }
 
 // cachedCounts stores a materialized count map with its fetch timestamp.
@@ -770,21 +770,32 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 		if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 			return models.SongPage{}, err
 		} else if ok {
+			// Cache hit: re-apply fresh user state (play counts, last played, resume).
+			cached.Items, err = s.applySongUserStateWithDevice(ctx, userID, cached.Items, deviceScope)
+			if err != nil {
+				return models.SongPage{}, err
+			}
 			return cached, nil
 		}
 	}
 	// Singleflight for cacheable queries to collapse concurrent identical requests.
 	if cacheable {
 		v, err, _ := s.loadSF.Do(key, func() (any, error) {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
 			var inner models.SongPage
-			if ok, e := s.cacheGetJSON(ctx, key, &inner); e == nil && ok {
+			if ok, e := s.cacheGetJSON(bgCtx, key, &inner); e == nil && ok {
 				return inner, nil
 			}
-			page, e := s.loadSongsPage(ctx, userID, term, favorites, deviceScope, limit, offset)
+			page, e := s.loadSongsPage(bgCtx, userID, term, favorites, deviceScope, limit, offset)
 			if e != nil {
 				return models.SongPage{}, e
 			}
-			_ = s.cacheSetJSON(ctx, key, page)
+			// Cache a copy with volatile user state stripped; the caller gets
+			// the original with fresh user state already applied by loadSongsPage.
+			cached := page
+			cached.Items = stripSongUserState(page.Items)
+			_ = s.cacheSetJSON(bgCtx, key, cached)
 			return page, nil
 		})
 		if err != nil {

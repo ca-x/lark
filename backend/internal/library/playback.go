@@ -27,7 +27,8 @@ func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Son
 	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 		return nil, err
 	} else if ok {
-		return cached, nil
+		// Cache hit: re-apply fresh user state (play counts, favorites, resume).
+		return s.applySongUserState(ctx, userID, cached)
 	}
 	total, err := s.client.Song.Query().Count(ctx)
 	if err != nil {
@@ -91,7 +92,8 @@ func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Son
 		selected = append(selected, scored[pick].song)
 		scored = append(scored[:pick], scored[pick+1:]...)
 	}
-	_ = s.cacheSetJSON(ctx, key, selected)
+	// Strip volatile user state before caching; re-applied on every read.
+	_ = s.cacheSetJSON(ctx, key, stripSongUserState(selected))
 	return selected, nil
 }
 func (s *Service) SmartPlaylistSongs(ctx context.Context, userID int, id string, limit int) ([]models.Song, error) {
@@ -139,7 +141,7 @@ func (s *Service) SmartPlaylistSongs(ctx context.Context, userID int, id string,
 		items, err := s.client.Song.Query().
 			WithArtist().
 			WithAlbum().
-			Where(song.LyricsEmbedded("")).
+			Where(song.HasLyrics(false)).
 			Order(ent.Desc(song.FieldUpdatedAt), ent.Desc(song.FieldID)).
 			Limit(limit).
 			All(ctx)

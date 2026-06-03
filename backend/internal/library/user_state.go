@@ -138,9 +138,9 @@ func (s *Service) applySongUserStateWithDevice(ctx context.Context, userID int, 
 
 	// Run all three queries concurrently — SQLite WAL supports concurrent readers.
 	var (
-		favoriteIDs    map[int]bool
-		playCounts     map[int]int
-		lastPlayed     map[int]time.Time
+		favoriteIDs     map[int]bool
+		playCounts      map[int]int
+		lastPlayed      map[int]time.Time
 		resumePositions map[int]float64
 	)
 	g, gctx := errgroup.WithContext(ctx)

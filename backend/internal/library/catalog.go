@@ -238,16 +238,18 @@ func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset, artistI
 	// Singleflight: collapse concurrent identical page requests (e.g. refreshAll
 	// thundering herd) into a single DB load + cache write.
 	v, err, _ := s.loadSF.Do(key, func() (any, error) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 		// Re-check cache inside the flight.
 		var inner models.AlbumPage
-		if ok, e := s.cacheGetJSON(ctx, key, &inner); e == nil && ok {
+		if ok, e := s.cacheGetJSON(bgCtx, key, &inner); e == nil && ok {
 			return inner, nil
 		}
 		predicates := []predicate.Album{album.HasSongs()}
 		if artistID > 0 {
 			predicates = append(predicates, album.HasArtistWith(artist.ID(artistID)))
 		}
-		total, e := s.client.Album.Query().Where(predicates...).Count(ctx)
+		total, e := s.client.Album.Query().Where(predicates...).Count(bgCtx)
 		if e != nil {
 			return models.AlbumPage{}, e
 		}
@@ -255,11 +257,11 @@ func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset, artistI
 		if offset > 0 {
 			query = query.Offset(offset)
 		}
-		items, e := query.All(ctx)
+		items, e := query.All(bgCtx)
 		if e != nil {
 			return models.AlbumPage{}, e
 		}
-		counts, e := s.albumSongCountsForIDs(ctx, collectAlbumIDs(items))
+		counts, e := s.albumSongCountsForIDs(bgCtx, collectAlbumIDs(items))
 		if e != nil {
 			return models.AlbumPage{}, e
 		}
@@ -267,12 +269,12 @@ func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset, artistI
 		for _, a := range items {
 			out = append(out, mapAlbumWithCount(a, counts[a.ID]))
 		}
-		out, e = s.applyAlbumUserState(ctx, userID, out)
+		out, e = s.applyAlbumUserState(bgCtx, userID, out)
 		if e != nil {
 			return models.AlbumPage{}, e
 		}
 		page := models.AlbumPage{Items: out, Total: total, Limit: limit, Offset: offset, Page: offset/limit + 1}
-		_ = s.cacheSetJSON(ctx, key, page)
+		_ = s.cacheSetJSON(bgCtx, key, page)
 		return page, nil
 	})
 	if err != nil {
@@ -286,26 +288,53 @@ func (s *Service) cachedSongCollection(ctx context.Context, kind string, userID,
 	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 		return nil, err
 	} else if ok {
-		return cached, nil
+		// Cache hit: re-apply fresh user state (play counts, last played, resume
+		// positions) from DB. These fields change on every play and are NOT cached
+		// — only the song structure is cached.
+		return s.applySongUserState(ctx, userID, cached)
 	}
 	v, err, _ := s.loadSF.Do(key, func() (any, error) {
-		// Re-check the cache inside the flight: a prior concurrent caller may have
-		// just populated it while we were queued behind the singleflight lock.
+		// Use an internal bounded context so the producer isn't cancelled when the
+		// first caller's request is aborted. Without this, a client disconnect on
+		// the first waiter would abort the DB load and cascade the error to all
+		// other waiters sharing this flight.
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		// Re-check the cache inside the flight.
 		var inner []models.Song
-		if ok, e := s.cacheGetJSON(ctx, key, &inner); e == nil && ok {
-			return inner, nil
+		if ok, e := s.cacheGetJSON(bgCtx, key, &inner); e == nil && ok {
+			return s.applySongUserState(bgCtx, userID, inner)
 		}
-		out, e := load(ctx)
+		out, e := load(bgCtx)
 		if e != nil {
 			return nil, e
 		}
-		_ = s.cacheSetJSON(ctx, key, out)
+		// Strip volatile user state before caching so the cached entry represents
+		// the song structure only. PlayCount/LastPlayedAt/ResumePosition will be
+		// overlaid fresh from DB on every read.
+		stripped := stripSongUserState(out)
+		_ = s.cacheSetJSON(bgCtx, key, stripped)
 		return out, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return v.([]models.Song), nil
+}
+
+// stripSongUserState returns a copy of songs with volatile user state zeroed out.
+// The cached representation only stores stable song data; user state is fetched
+// fresh on every read to avoid stale play counts / resume positions.
+func stripSongUserState(items []models.Song) []models.Song {
+	out := make([]models.Song, len(items))
+	copy(out, items)
+	for i := range out {
+		out[i].PlayCount = 0
+		out[i].LastPlayedAt = nil
+		out[i].ResumePosition = 0
+		out[i].Favorite = false
+	}
+	return out
 }
 func (s *Service) AlbumSongs(ctx context.Context, userID, id int, limit int) ([]models.Song, error) {
 	return s.cachedSongCollection(ctx, "album-songs", userID, id, limit, func(ctx context.Context) ([]models.Song, error) {
@@ -437,11 +466,13 @@ func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (m
 		return cached, nil
 	}
 	v, err, _ := s.loadSF.Do(key, func() (any, error) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
 		var inner models.ArtistPage
-		if ok, e := s.cacheGetJSON(ctx, key, &inner); e == nil && ok {
+		if ok, e := s.cacheGetJSON(bgCtx, key, &inner); e == nil && ok {
 			return inner, nil
 		}
-		total, e := s.client.Artist.Query().Count(ctx)
+		total, e := s.client.Artist.Query().Count(bgCtx)
 		if e != nil {
 			return models.ArtistPage{}, e
 		}
@@ -449,15 +480,15 @@ func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (m
 		if offset > 0 {
 			query = query.Offset(offset)
 		}
-		items, e := query.All(ctx)
+		items, e := query.All(bgCtx)
 		if e != nil {
 			return models.ArtistPage{}, e
 		}
-		songCounts, e := s.artistSongCountsForIDs(ctx, collectArtistIDs(items))
+		songCounts, e := s.artistSongCountsForIDs(bgCtx, collectArtistIDs(items))
 		if e != nil {
 			return models.ArtistPage{}, e
 		}
-		albumCounts, e := s.artistAlbumCountsForIDs(ctx, collectArtistIDs(items))
+		albumCounts, e := s.artistAlbumCountsForIDs(bgCtx, collectArtistIDs(items))
 		if e != nil {
 			return models.ArtistPage{}, e
 		}
@@ -465,12 +496,12 @@ func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (m
 		for _, a := range items {
 			out = append(out, mapArtistWithCounts(a, songCounts[a.ID], albumCounts[a.ID]))
 		}
-		out, e = s.applyArtistUserState(ctx, userID, out)
+		out, e = s.applyArtistUserState(bgCtx, userID, out)
 		if e != nil {
 			return models.ArtistPage{}, e
 		}
 		page := models.ArtistPage{Items: out, Total: total, Limit: limit, Offset: offset, Page: offset/limit + 1}
-		_ = s.cacheSetJSON(ctx, key, page)
+		_ = s.cacheSetJSON(bgCtx, key, page)
 		return page, nil
 	})
 	if err != nil {

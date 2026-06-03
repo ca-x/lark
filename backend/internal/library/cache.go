@@ -20,6 +20,7 @@ const artistCatalogCacheKey = libraryCachePrefix + "catalog:v2:artists"
 const songCatalogCacheKey = libraryCachePrefix + "catalog:v2:songs"
 const searchCatalogBatchSize = 500
 const maxCatalogPredicateIDs = 5000
+
 type songSearchCatalogEntry struct {
 	ID   int    `json:"id"`
 	Text string `json:"text"`
@@ -29,6 +30,7 @@ type artistSearchCatalogEntry struct {
 	Name string `json:"name"`
 	Text string `json:"text"`
 }
+
 func cacheKey(parts ...any) string {
 	var b strings.Builder
 	b.WriteString(libraryCachePrefix)
@@ -99,11 +101,13 @@ func (s *Service) invalidateLibraryCache(ctx context.Context) {
 	}
 	_ = s.cache.DeletePrefix(ctx, libraryCachePrefix)
 }
+
 const userVersionPrefix = libraryCachePrefix + "uver:v1:"
 const scrobblingPrefix = "user:v1:scrobbling:"
 const uiSoundSettingsPrefix = "user:v1:ui-sounds:"
 const playbackHistorySettingsPrefix = "user:v1:playback-history:"
 const userPreferencesPrefix = "user:v1:preferences:"
+
 func (s *Service) userCacheVersion(ctx context.Context, userID int) int {
 	if userID <= 0 || s.cache == nil {
 		return 0
