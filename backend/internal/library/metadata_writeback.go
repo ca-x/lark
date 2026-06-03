@@ -1,0 +1,754 @@
+package library
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"mime"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"lark/backend/ent"
+	"lark/backend/ent/album"
+	"lark/backend/ent/song"
+	"lark/backend/internal/models"
+
+	taglib "go.senan.xyz/taglib"
+)
+
+const metadataCoverMaxBytes = 8 << 20
+
+type MetadataWritebackInput struct {
+	Title            string
+	Artist           string
+	Album            string
+	AlbumArtist      string
+	Year             int
+	CoverURL         string
+	CoverData        []byte
+	CoverMime        string
+	ConfirmWriteback bool
+}
+
+var errMetadataWritebackConfirmationRequired = errors.New("metadata writeback confirmation is required")
+
+func (s *Service) SongMetadataCandidates(ctx context.Context, id int) ([]models.MetadataCandidate, error) {
+	item, err := s.client.Song.Query().
+		Where(song.ID(id)).
+		WithArtist().
+		WithAlbum().
+		Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	title := strings.TrimSpace(item.Title)
+	artistName := ""
+	if item.Edges.Artist != nil {
+		artistName = strings.TrimSpace(item.Edges.Artist.Name)
+	}
+	if title == "" {
+		return nil, nil
+	}
+	searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+
+	type providerResult struct {
+		items []models.MetadataCandidate
+	}
+	resultCh := make(chan providerResult, len(s.online))
+	var wg sync.WaitGroup
+	for _, provider := range s.online {
+		provider := provider
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			found, err := provider.SearchSongs(searchCtx, title, artistName)
+			if err != nil {
+				return
+			}
+			items := make([]models.MetadataCandidate, 0, len(found))
+			for _, candidate := range found {
+				if strings.TrimSpace(candidate.ID) == "" || strings.TrimSpace(candidate.Title) == "" {
+					continue
+				}
+				items = append(items, models.MetadataCandidate{
+					Source: provider.Name(),
+					ID:     candidate.ID,
+					Title:  strings.TrimSpace(candidate.Title),
+					Artist: strings.TrimSpace(candidate.Artist),
+					Album:  strings.TrimSpace(candidate.Album),
+					Cover:  strings.TrimSpace(candidate.Cover),
+				})
+			}
+			select {
+			case resultCh <- providerResult{items: items}:
+			case <-searchCtx.Done():
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	out := []models.MetadataCandidate{}
+	seen := map[string]bool{}
+	for result := range resultCh {
+		for _, candidate := range result.items {
+			key := candidate.Source + ":" + candidate.ID
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, candidate)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return metadataCandidateScore(out[i], title, artistName) > metadataCandidateScore(out[j], title, artistName)
+	})
+	if len(out) > 12 {
+		out = out[:12]
+	}
+	return out, nil
+}
+
+func (s *Service) AlbumMetadataCandidates(ctx context.Context, id int) ([]models.MetadataCandidate, error) {
+	item, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	remote := s.searchRemoteAlbums(ctx, item.Title, albumSearchArtistName(item))
+	out := make([]models.MetadataCandidate, 0, len(remote))
+	for _, candidate := range remote {
+		out = append(out, models.MetadataCandidate{
+			Source:      candidate.Source,
+			ID:          candidate.ID,
+			Title:       strings.TrimSpace(candidate.Title),
+			Artist:      strings.TrimSpace(candidate.Artist),
+			Year:        candidate.Year,
+			Cover:       strings.TrimSpace(candidate.Cover),
+			ReleaseDate: strings.TrimSpace(candidate.ReleaseDate),
+			Link:        strings.TrimSpace(candidate.Link),
+		})
+	}
+	return out, nil
+}
+
+func (s *Service) UpdateSongMetadata(ctx context.Context, userID, id int, input MetadataWritebackInput) (models.MetadataWritebackResult, error) {
+	if !input.ConfirmWriteback {
+		return models.MetadataWritebackResult{}, errMetadataWritebackConfirmationRequired
+	}
+	input = normalizeMetadataWritebackInput(input)
+	if input.Year < 0 || input.Year > 9999 {
+		return models.MetadataWritebackResult{}, fmt.Errorf("year must be between 0 and 9999")
+	}
+	item, err := s.client.Song.Query().
+		Where(song.ID(id)).
+		WithArtist().
+		WithAlbum().
+		Only(ctx)
+	if err != nil {
+		return models.MetadataWritebackResult{}, err
+	}
+	result := models.MetadataWritebackResult{}
+	source := ResolveAudioSegment(item.Path)
+	if source.IsCUETrack {
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			SongID:  item.ID,
+			Title:   item.Title,
+			Path:    item.Path,
+			Status:  "failed",
+			Message: "CUE virtual tracks share one audio file; edit the album metadata instead",
+		})
+		return result, nil
+	}
+	audioPath, err := filepath.Abs(source.Path)
+	if err != nil {
+		return models.MetadataWritebackResult{}, err
+	}
+	if !metadataWritebackHasChanges(input) {
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			SongID:  item.ID,
+			Title:   item.Title,
+			Path:    audioPath,
+			Status:  "skipped",
+			Message: "no metadata fields were provided",
+		})
+		return result, nil
+	}
+	coverData, coverMime, err := s.metadataCoverData(ctx, input)
+	if err != nil {
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			SongID:  item.ID,
+			Title:   item.Title,
+			Path:    audioPath,
+			Status:  "failed",
+			Message: err.Error(),
+		})
+		return result, nil
+	}
+	tags := taglibTagsForSong(input)
+	wavMeta := wavPatchForSong(input)
+	written, err := writeAudioMetadata(audioPath, tags, wavMeta, coverData, coverMime)
+	if err != nil {
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			SongID:  item.ID,
+			Title:   item.Title,
+			Path:    audioPath,
+			Status:  "failed",
+			Message: err.Error(),
+		})
+		return result, nil
+	}
+	if !written {
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			SongID:  item.ID,
+			Title:   item.Title,
+			Path:    audioPath,
+			Status:  "skipped",
+			Message: "file metadata did not change",
+		})
+		return result, nil
+	}
+
+	updatedSong, err := s.updateSongRowAfterWriteback(ctx, item, input, audioPath)
+	if err != nil {
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			SongID:  item.ID,
+			Title:   item.Title,
+			Path:    audioPath,
+			Status:  "failed",
+			Message: err.Error(),
+		})
+		return result, nil
+	}
+	coverVersion := time.Now().UnixNano()
+	if len(coverData) > 0 {
+		if updatedSong.Edges.Album != nil {
+			_ = s.writeCollectionCoverCache("albums", strconv.Itoa(updatedSong.Edges.Album.ID), coverMime, coverData)
+		}
+	}
+	modelItems, err := s.applySongUserState(ctx, userID, []models.Song{mapSong(updatedSong)})
+	if err != nil {
+		return result, err
+	}
+	modelItems[0].CoverVersion = coverVersion
+	result.Song = &modelItems[0]
+	addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+		SongID: item.ID,
+		Title:  modelItems[0].Title,
+		Path:   audioPath,
+		Status: "updated",
+	})
+	s.invalidateLibraryCache(ctx)
+	s.invalidateSearchCatalogs(ctx)
+	return result, nil
+}
+
+func (s *Service) UpdateAlbumMetadata(ctx context.Context, userID, id int, input MetadataWritebackInput) (models.MetadataWritebackResult, error) {
+	if !input.ConfirmWriteback {
+		return models.MetadataWritebackResult{}, errMetadataWritebackConfirmationRequired
+	}
+	input = normalizeMetadataWritebackInput(input)
+	if input.Year < 0 || input.Year > 9999 {
+		return models.MetadataWritebackResult{}, fmt.Errorf("year must be between 0 and 9999")
+	}
+	item, err := s.client.Album.Query().
+		Where(album.ID(id)).
+		WithArtist().
+		WithSongs(func(q *ent.SongQuery) {
+			q.WithArtist().WithAlbum().Order(ent.Asc(song.FieldID))
+		}).
+		Only(ctx)
+	if err != nil {
+		return models.MetadataWritebackResult{}, err
+	}
+	result := models.MetadataWritebackResult{}
+	if len(item.Edges.Songs) == 0 {
+		return result, nil
+	}
+	if !metadataWritebackHasChanges(input) {
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			Path:    item.Title,
+			Status:  "skipped",
+			Message: "no metadata fields were provided",
+		})
+		return result, nil
+	}
+	coverData, coverMime, err := s.metadataCoverData(ctx, input)
+	if err != nil {
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			Path:    item.Title,
+			Status:  "failed",
+			Message: err.Error(),
+		})
+		return result, nil
+	}
+
+	targetTitle := firstString(input.Title, item.Title)
+	targetAlbumArtist := firstString(input.AlbumArtist, item.AlbumArtist, albumSearchArtistName(item))
+	targetYear := input.Year
+	if targetYear <= 0 {
+		targetYear = item.Year
+	}
+	targetArtist := item.Edges.Artist
+	if targetAlbumArtist != "" {
+		targetArtist, err = s.ensureArtist(ctx, targetAlbumArtist)
+		if err != nil {
+			return models.MetadataWritebackResult{}, err
+		}
+	}
+	targetAlbum, err := s.ensureAlbum(ctx, targetTitle, targetAlbumArtist, targetArtist, targetYear)
+	if err != nil {
+		return models.MetadataWritebackResult{}, err
+	}
+
+	groups := metadataWritebackFileGroups(item.Edges.Songs)
+	coverVersion := time.Now().UnixNano()
+	updatedSongIDs := []int{}
+	for _, group := range groups {
+		tags := taglibTagsForAlbum(input)
+		wavMeta := wavPatchForAlbum(input)
+		written, writeErr := writeAudioMetadata(group.Path, tags, wavMeta, coverData, coverMime)
+		if writeErr != nil {
+			addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+				Path:    group.Path,
+				Status:  "failed",
+				Message: writeErr.Error(),
+			})
+			continue
+		}
+		if !written {
+			addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+				Path:    group.Path,
+				Status:  "skipped",
+				Message: "file metadata did not change",
+			})
+			continue
+		}
+		for _, songItem := range group.Songs {
+			if err := s.updateAlbumSongRowAfterWriteback(ctx, songItem, targetAlbum, targetYear, group.Path); err != nil {
+				addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+					SongID:  songItem.ID,
+					Title:   songItem.Title,
+					Path:    group.Path,
+					Status:  "failed",
+					Message: err.Error(),
+				})
+				continue
+			}
+			updatedSongIDs = append(updatedSongIDs, songItem.ID)
+		}
+		message := ""
+		if group.CUETrackCount > 0 {
+			message = fmt.Sprintf("%d CUE virtual tracks share this audio file; wrote once", group.CUETrackCount)
+		}
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			Path:    group.Path,
+			Status:  "updated",
+			Message: message,
+		})
+	}
+	if result.Updated == 0 {
+		return result, nil
+	}
+	if len(coverData) > 0 {
+		_ = s.writeCollectionCoverCache("albums", strconv.Itoa(targetAlbum.ID), coverMime, coverData)
+		if targetAlbum.ID != item.ID {
+			_ = s.writeCollectionCoverCache("albums", strconv.Itoa(item.ID), coverMime, coverData)
+		}
+	}
+	s.invalidateLibraryCache(ctx)
+	s.invalidateSearchCatalogs(ctx)
+
+	albumModel, err := s.albumModelForUser(ctx, userID, targetAlbum.ID, coverVersion)
+	if err != nil {
+		return result, err
+	}
+	result.Album = &albumModel
+	if len(updatedSongIDs) > 0 {
+		songModels, err := s.songsForUserByIDs(ctx, userID, updatedSongIDs, coverVersion)
+		if err != nil {
+			return result, err
+		}
+		result.Songs = songModels
+	}
+	return result, nil
+}
+
+func metadataCandidateScore(candidate models.MetadataCandidate, title, artistName string) int {
+	score := 0
+	if strings.EqualFold(strings.TrimSpace(candidate.Title), strings.TrimSpace(title)) {
+		score += 8
+	} else if strings.Contains(strings.ToLower(candidate.Title), strings.ToLower(title)) {
+		score += 3
+	}
+	if artistName != "" {
+		if strings.EqualFold(strings.TrimSpace(candidate.Artist), strings.TrimSpace(artistName)) {
+			score += 6
+		} else if strings.Contains(strings.ToLower(candidate.Artist), strings.ToLower(artistName)) {
+			score += 2
+		}
+	}
+	if strings.TrimSpace(candidate.Cover) != "" {
+		score++
+	}
+	return score
+}
+
+func normalizeMetadataWritebackInput(input MetadataWritebackInput) MetadataWritebackInput {
+	input.Title = strings.TrimSpace(input.Title)
+	input.Artist = strings.TrimSpace(input.Artist)
+	input.Album = strings.TrimSpace(input.Album)
+	input.AlbumArtist = strings.TrimSpace(input.AlbumArtist)
+	input.CoverURL = strings.TrimSpace(input.CoverURL)
+	input.CoverMime = strings.TrimSpace(input.CoverMime)
+	return input
+}
+
+func metadataWritebackHasChanges(input MetadataWritebackInput) bool {
+	return input.Title != "" || input.Artist != "" || input.Album != "" || input.AlbumArtist != "" || input.Year > 0 || input.CoverURL != "" || len(input.CoverData) > 0
+}
+
+func taglibTagsForSong(input MetadataWritebackInput) map[string][]string {
+	tags := map[string][]string{}
+	if input.Title != "" {
+		tags[taglib.Title] = []string{input.Title}
+	}
+	if input.Artist != "" {
+		tags[taglib.Artist] = []string{input.Artist}
+	}
+	if input.Album != "" {
+		tags[taglib.Album] = []string{input.Album}
+	}
+	if input.Year > 0 {
+		tags[taglib.Date] = []string{strconv.Itoa(input.Year)}
+	}
+	return tags
+}
+
+func taglibTagsForAlbum(input MetadataWritebackInput) map[string][]string {
+	tags := map[string][]string{}
+	if input.Title != "" {
+		tags[taglib.Album] = []string{input.Title}
+	}
+	if input.AlbumArtist != "" {
+		tags[taglib.AlbumArtist] = []string{input.AlbumArtist}
+	}
+	if input.Year > 0 {
+		tags[taglib.Date] = []string{strconv.Itoa(input.Year)}
+	}
+	return tags
+}
+
+func wavPatchForSong(input MetadataWritebackInput) fileMetadata {
+	return fileMetadata{Title: input.Title, Artist: input.Artist, Album: input.Album, Year: input.Year}
+}
+
+func wavPatchForAlbum(input MetadataWritebackInput) fileMetadata {
+	return fileMetadata{Artist: input.AlbumArtist, Album: input.Title, Year: input.Year}
+}
+
+func writeAudioMetadata(path string, tags map[string][]string, wavPatch fileMetadata, coverData []byte, coverMime string) (bool, error) {
+	written := false
+	if len(tags) > 0 {
+		if isWAVMetadataPath(path) {
+			ok, err := writeMergedWAVInfoMetadata(path, wavPatch)
+			if err != nil {
+				return false, err
+			}
+			written = written || ok
+		} else {
+			if err := taglib.WriteTags(path, tags, 0); err != nil {
+				return false, err
+			}
+			written = true
+		}
+	}
+	if len(coverData) > 0 {
+		if err := taglib.WriteImageOptions(path, coverData, 0, "Front Cover", "Updated by Lark", coverMime); err != nil {
+			return false, err
+		}
+		written = true
+	}
+	return written, nil
+}
+
+func isWAVMetadataPath(path string) bool {
+	return strings.EqualFold(strings.TrimPrefix(filepath.Ext(path), "."), "wav")
+}
+
+func writeMergedWAVInfoMetadata(path string, patch fileMetadata) (bool, error) {
+	meta := probeWAVMetadata(path)
+	if patch.Title != "" {
+		meta.Title = patch.Title
+	}
+	if patch.Artist != "" {
+		meta.Artist = patch.Artist
+	}
+	if patch.Album != "" {
+		meta.Album = patch.Album
+	}
+	if patch.Year > 0 {
+		meta.Year = patch.Year
+	}
+	return writeWAVInfoMetadata(path, meta)
+}
+
+func (s *Service) metadataCoverData(ctx context.Context, input MetadataWritebackInput) ([]byte, string, error) {
+	if len(input.CoverData) > 0 {
+		if len(input.CoverData) > metadataCoverMaxBytes {
+			return nil, "", fmt.Errorf("cover image exceeds %d MB", metadataCoverMaxBytes>>20)
+		}
+		mimeType, ok := detectWritebackCoverMime(input.CoverData, input.CoverMime)
+		if !ok {
+			return nil, "", fmt.Errorf("cover image must be JPEG, PNG, WebP, GIF or BMP")
+		}
+		return input.CoverData, mimeType, nil
+	}
+	if input.CoverURL == "" {
+		return nil, "", nil
+	}
+	return downloadMetadataCover(ctx, input.CoverURL)
+}
+
+func downloadMetadataCover(ctx context.Context, rawURL string) ([]byte, string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed == nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return nil, "", fmt.Errorf("cover url must be http or https")
+	}
+	downloadCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(downloadCtx, http.MethodGet, parsed.String(), nil)
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 Lark Music Player")
+	res, err := coverHTTPClient.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return nil, "", fmt.Errorf("cover url returned status %d", res.StatusCode)
+	}
+	if res.ContentLength > metadataCoverMaxBytes {
+		return nil, "", fmt.Errorf("cover image exceeds %d MB", metadataCoverMaxBytes>>20)
+	}
+	data, err := io.ReadAll(io.LimitReader(res.Body, metadataCoverMaxBytes+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if len(data) > metadataCoverMaxBytes {
+		return nil, "", fmt.Errorf("cover image exceeds %d MB", metadataCoverMaxBytes>>20)
+	}
+	if len(data) == 0 {
+		return nil, "", fmt.Errorf("cover image is empty")
+	}
+	mimeType, ok := detectWritebackCoverMime(data, res.Header.Get("Content-Type"))
+	if !ok {
+		return nil, "", fmt.Errorf("cover image must be JPEG, PNG, WebP, GIF or BMP")
+	}
+	return data, mimeType, nil
+}
+
+func detectWritebackCoverMime(data []byte, hinted string) (string, bool) {
+	mimeType := strings.ToLower(strings.TrimSpace(strings.Split(hinted, ";")[0]))
+	if mimeType == "" || !isSupportedWritebackCoverMime(mimeType) {
+		mimeType = detectWritebackCoverMimeByMagic(data)
+	}
+	if mimeType == "" {
+		mimeType = strings.ToLower(http.DetectContentType(data))
+	}
+	if mimeType == "image/jpg" {
+		mimeType = "image/jpeg"
+	}
+	if isSupportedWritebackCoverMime(mimeType) {
+		return mimeType, true
+	}
+	if ext := strings.ToLower(mime.TypeByExtension(filepath.Ext(hinted))); isSupportedWritebackCoverMime(ext) {
+		return ext, true
+	}
+	return "", false
+}
+
+func detectWritebackCoverMimeByMagic(data []byte) string {
+	switch {
+	case len(data) >= 3 && data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff:
+		return "image/jpeg"
+	case len(data) >= 8 && string(data[:8]) == "\x89PNG\r\n\x1a\n":
+		return "image/png"
+	case len(data) >= 12 && string(data[:4]) == "RIFF" && string(data[8:12]) == "WEBP":
+		return "image/webp"
+	case len(data) >= 6 && (string(data[:6]) == "GIF87a" || string(data[:6]) == "GIF89a"):
+		return "image/gif"
+	case len(data) >= 2 && string(data[:2]) == "BM":
+		return "image/bmp"
+	default:
+		return ""
+	}
+}
+
+func isSupportedWritebackCoverMime(mimeType string) bool {
+	switch strings.ToLower(strings.TrimSpace(mimeType)) {
+	case "image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *Service) updateSongRowAfterWriteback(ctx context.Context, item *ent.Song, input MetadataWritebackInput, audioPath string) (*ent.Song, error) {
+	title := firstString(input.Title, item.Title)
+	artistName := input.Artist
+	if artistName == "" && item.Edges.Artist != nil {
+		artistName = item.Edges.Artist.Name
+	}
+	albumTitle := input.Album
+	if albumTitle == "" && item.Edges.Album != nil {
+		albumTitle = item.Edges.Album.Title
+	}
+	year := input.Year
+	if year <= 0 {
+		year = item.Year
+	}
+	artistItem, err := s.ensureArtist(ctx, artistName)
+	if err != nil {
+		return nil, err
+	}
+	albumArtist := ""
+	if item.Edges.Album != nil {
+		albumArtist = item.Edges.Album.AlbumArtist
+	}
+	albumItem, err := s.ensureAlbum(ctx, albumTitle, albumArtist, artistItem, year)
+	if err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(audioPath)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := item.Update().
+		SetTitle(title).
+		SetYear(year).
+		SetSizeBytes(info.Size()).
+		SetModTimeUnixNano(info.ModTime().UnixNano()).
+		SetArtist(artistItem).
+		SetAlbum(albumItem).
+		Save(ctx); err != nil {
+		return nil, err
+	}
+	return s.client.Song.Query().Where(song.ID(item.ID)).WithArtist().WithAlbum().Only(ctx)
+}
+
+func (s *Service) updateAlbumSongRowAfterWriteback(ctx context.Context, item *ent.Song, targetAlbum *ent.Album, year int, audioPath string) error {
+	info, err := os.Stat(audioPath)
+	if err != nil {
+		return err
+	}
+	update := item.Update().
+		SetSizeBytes(info.Size()).
+		SetModTimeUnixNano(info.ModTime().UnixNano()).
+		SetAlbum(targetAlbum)
+	if year > 0 {
+		update.SetYear(year)
+	}
+	_, err = update.Save(ctx)
+	return err
+}
+
+func (s *Service) albumModelForUser(ctx context.Context, userID, id int, coverVersion int64) (models.Album, error) {
+	item, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs().Only(ctx)
+	if err != nil {
+		return models.Album{}, err
+	}
+	counts, err := s.albumSongCountsForIDs(ctx, []int{id})
+	if err != nil {
+		return models.Album{}, err
+	}
+	items, err := s.applyAlbumUserState(ctx, userID, []models.Album{mapAlbumWithCount(item, counts[id])})
+	if err != nil {
+		return models.Album{}, err
+	}
+	items[0].CoverVersion = coverVersion
+	return items[0], nil
+}
+
+func (s *Service) songsForUserByIDs(ctx context.Context, userID int, ids []int, coverVersion int64) ([]models.Song, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	items, err := s.client.Song.Query().
+		Where(song.IDIn(ids...)).
+		WithArtist().
+		WithAlbum().
+		Order(ent.Asc(song.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out, err := s.applySongUserState(ctx, userID, mapSongs(items))
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		out[i].CoverVersion = coverVersion
+	}
+	return out, nil
+}
+
+type metadataWritebackFileGroup struct {
+	Path          string
+	Songs         []*ent.Song
+	CUETrackCount int
+}
+
+func metadataWritebackFileGroups(items []*ent.Song) []metadataWritebackFileGroup {
+	byPath := map[string]*metadataWritebackFileGroup{}
+	order := []string{}
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		segment := ResolveAudioSegment(item.Path)
+		path, err := filepath.Abs(segment.Path)
+		if err != nil {
+			path = segment.Path
+		}
+		group := byPath[path]
+		if group == nil {
+			group = &metadataWritebackFileGroup{Path: path}
+			byPath[path] = group
+			order = append(order, path)
+		}
+		group.Songs = append(group.Songs, item)
+		if segment.IsCUETrack {
+			group.CUETrackCount++
+		}
+	}
+	out := make([]metadataWritebackFileGroup, 0, len(order))
+	for _, path := range order {
+		out = append(out, *byPath[path])
+	}
+	return out
+}
+
+func addMetadataWritebackItem(result *models.MetadataWritebackResult, item models.MetadataWritebackItem) {
+	result.Items = append(result.Items, item)
+	switch item.Status {
+	case "updated":
+		result.Updated++
+	case "skipped":
+		result.Skipped++
+	case "failed":
+		result.Failed++
+	}
+}

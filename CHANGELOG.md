@@ -5,6 +5,46 @@
 
 ---
 
+## 0.7.27 — 源文件元信息回写编辑器
+
+发布日期 / Released: 2026-06-03
+
+### 新功能
+
+- **新增单曲/专辑元信息编辑器。** 歌词页可编辑单曲标题、歌手、专辑、年份和封面；专辑页可批量编辑专辑名、专辑艺人、年份和封面。
+- **支持直接回写源音频文件。** 新增基于 `go.senan.xyz/taglib` 的 MP3/FLAC/M4A/OGG/WAV 等 Tag/封面回写；WAV 文本字段继续沿用内置 RIFF INFO 写入逻辑。
+- **支持在线候选和手动输入。** 单曲使用在线歌曲候选，专辑使用在线专辑候选；用户也可以完全手动输入字段和封面 URL/上传封面。
+
+### 体验与安全
+
+- **增加二次确认。** 写入前必须勾选“确认修改源文件”，点击保存后还会再次弹出最终确认。
+- **写入结果逐文件反馈。** 保存后展示已写入、跳过、失败的文件明细；CUE 虚拟曲目按真实音频文件去重写入。
+- **封面缓存即时刷新。** 写入封面后返回 cover version，前端自动绕过旧封面缓存。
+
+完整 diff：`git log v0.7.26..v0.7.27`
+
+---
+
+## v0.7.27 — Source metadata writeback editor
+
+Released: 2026-06-03
+
+### Features
+
+- **Added song and album metadata editors.** The lyrics view can edit song title, artist, album, year, and cover; the album page can batch-edit album title, album artist, year, and cover.
+- **Writes directly to source audio files.** Added `go.senan.xyz/taglib`-based tag/artwork writeback for MP3, FLAC, M4A, OGG, WAV, and related formats; WAV text fields keep using Lark's built-in RIFF INFO writer.
+- **Supports candidates and manual entry.** Songs use online song candidates, albums use online album candidates, and users can still enter fields, cover URLs, or uploaded covers manually.
+
+### UX and safety
+
+- **Added two-step confirmation.** Users must explicitly confirm source-file modification, then accept a final confirmation before writing.
+- **Shows per-file results.** The result list reports updated, skipped, and failed files; CUE virtual tracks are deduplicated by their real audio file.
+- **Refreshes cover cache immediately.** Cover writeback returns a cover version so the frontend bypasses stale cached artwork.
+
+Full diff: `git log v0.7.26..v0.7.27`
+
+---
+
 ## 0.7.26 — CUE 异常格式兼容修复
 
 发布日期 / Released: 2026-06-03

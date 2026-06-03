@@ -891,6 +891,12 @@ body, button, input, select { font-family: var(--app-font); }
 @media (max-width:560px) {
   .switch-row { align-items:flex-start; flex-direction:column; }
   .settings-inline-actions { width:100%; min-width:0; justify-content:flex-start; }
+  .metadata-editor { gap:14px; }
+  .metadata-editor-cover { grid-template-columns:74px minmax(0,1fr); }
+  .metadata-cover-preview { width:74px; border-radius:12px; }
+  .metadata-editor-grid { grid-template-columns:1fr; }
+  .metadata-candidate-list { grid-template-columns:1fr; max-height:24dvh; }
+  .metadata-result-list div { grid-template-columns:64px minmax(0,1fr); }
 }
 .lyrics-actions .lyrics-pick.icon-only { width:42px; min-width:42px; padding:0; justify-content:center; }
 .lyrics-actions .lyrics-pick.icon-only.has-source { width:72px; min-width:72px; gap:8px; }
@@ -902,6 +908,44 @@ body, button, input, select { font-family: var(--app-font); }
 .playlist-picker-list button.active, .playlist-picker-list button:hover { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
 .playlist-picker-list strong, .playlist-picker-list span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .playlist-picker-list span { color:var(--muted); font-size:13px; }
+.metadata-editor { width:min(760px, 100%); gap:18px; }
+.metadata-editor-cover { display:grid; grid-template-columns:96px minmax(0,1fr); gap:14px; align-items:center; padding:12px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); }
+.metadata-cover-preview { width:96px; aspect-ratio:1; display:grid; place-items:center; overflow:hidden; border-radius:14px; color:var(--muted); background:color-mix(in srgb, var(--panel) 86%, #000); border:1px solid color-mix(in srgb, var(--text) 12%, transparent); }
+.metadata-cover-preview img { width:100%; height:100%; object-fit:cover; display:block; }
+.metadata-cover-preview svg { width:42px; height:42px; opacity:.55; }
+.metadata-editor-cover strong, .metadata-editor-cover span { display:block; min-width:0; }
+.metadata-editor-cover span { margin-top:4px; color:var(--muted); line-height:1.5; }
+.metadata-editor-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; }
+.metadata-editor-grid label { min-width:0; }
+.metadata-cover-url { grid-column:1 / -1; }
+.metadata-cover-upload { min-height:48px; align-self:end; position:relative; display:flex !important; align-items:center; justify-content:center; padding:11px 14px; border-radius:14px; border:1px dashed color-mix(in srgb, var(--accent) 34%, var(--line)); background:color-mix(in srgb, var(--accent) 8%, var(--panel2)); cursor:pointer; }
+.metadata-cover-upload span { display:inline-flex; align-items:center; justify-content:center; gap:8px; color:var(--text); font-weight:850; }
+.metadata-cover-upload input { position:absolute; inset:0; width:100% !important; height:100%; opacity:0; cursor:pointer; padding:0 !important; }
+.metadata-candidates, .metadata-result { display:grid; gap:10px; min-width:0; }
+.metadata-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; }
+.metadata-section-head strong { color:var(--text); }
+.metadata-section-head span { color:var(--muted); font-size:12px; font-weight:850; white-space:nowrap; }
+.metadata-candidate-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px,1fr)); gap:8px; max-height:min(28dvh, 230px); overflow:auto; padding-right:2px; }
+.metadata-candidate-list button { min-width:0; display:grid; grid-template-columns:44px minmax(0,1fr); gap:10px; align-items:center; min-height:62px; padding:8px; border-radius:14px; border:1px solid var(--line); color:var(--text); background:var(--panel2); text-align:left; }
+.metadata-candidate-list button:hover, .metadata-candidate-list button:focus-visible { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
+.metadata-candidate-list img, .metadata-candidate-list > button > svg { width:44px; height:44px; border-radius:10px; object-fit:cover; color:var(--muted); background:var(--panel); }
+.metadata-candidate-list span, .metadata-candidate-list strong, .metadata-candidate-list em { min-width:0; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.metadata-candidate-list strong { font-size:13px; }
+.metadata-candidate-list em { margin-top:3px; color:var(--muted); font-size:12px; font-style:normal; }
+.metadata-empty { min-height:44px; display:flex; align-items:center; padding:10px 12px; border-radius:14px; color:var(--muted); background:var(--panel2); border:1px solid var(--line); }
+.metadata-confirm { display:grid !important; grid-template-columns:auto minmax(0,1fr); align-items:flex-start; gap:10px !important; padding:12px; border-radius:16px; border:1px solid color-mix(in srgb, #d29321 42%, var(--line)); background:color-mix(in srgb, #d29321 12%, var(--panel2)); color:var(--text) !important; }
+.metadata-confirm input { width:20px !important; height:20px; margin:2px 0 0; accent-color:var(--accent); }
+.metadata-confirm strong { display:flex; align-items:center; gap:8px; color:var(--text); }
+.metadata-confirm em { display:block; margin-top:4px; color:var(--muted); font-size:13px; line-height:1.45; font-style:normal; }
+.metadata-error { padding:10px 12px; border-radius:14px; color:#f1d5d5; background:color-mix(in srgb, #b42318 30%, var(--panel2)); border:1px solid color-mix(in srgb, #f04438 38%, var(--line)); }
+.metadata-result-list { display:grid; gap:8px; max-height:min(24dvh, 210px); overflow:auto; padding-right:2px; }
+.metadata-result-list div { min-width:0; display:grid; grid-template-columns:72px minmax(0,1fr); gap:8px 10px; align-items:center; padding:10px 12px; border-radius:14px; border:1px solid var(--line); background:var(--panel2); }
+.metadata-result-list div[data-status='updated'] strong { color:#31a66a; }
+.metadata-result-list div[data-status='skipped'] strong { color:#b8872d; }
+.metadata-result-list div[data-status='failed'] strong { color:#e05d52; }
+.metadata-result-list span, .metadata-result-list em { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.metadata-result-list span { color:var(--text); }
+.metadata-result-list em { grid-column:2; color:var(--muted); font-size:12px; font-style:normal; }
 
 /* v0.2.1 smooth management grids and compact timer control */
 .sleep-control svg { transition:opacity .18s var(--ease), transform .18s var(--ease); }

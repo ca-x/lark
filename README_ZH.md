@@ -52,6 +52,7 @@
 ## 致谢与声明
 
 - 锤子音乐经典主题参考并致谢 [DE105/SmartisanMusic-Revived](https://github.com/DE105/SmartisanMusic-Revived)。其中引用的 Smartisan Music 视觉资产、商标、产品名和界面设计归各自权利人所有，本项目仅用于学习、研究与保存目的。
+- 歌词匹配与本地元信息处理思路参考 [guohuiyuan/go-music-dl](https://github.com/guohuiyuan/go-music-dl)。百灵的源文件元信息回写流程为独立实现。
 
 ---
 
@@ -62,7 +63,7 @@
 - 后端：Go、Echo v5、Ent ORM
 - 数据库：默认 SQLite（通过 `github.com/lib-x/entsqlite`），也可通过环境变量选择 PostgreSQL / MySQL
 - 前端：React、TypeScript、Vite
-- 音频元数据：`github.com/dhowden/tag`
+- 音频元数据：`github.com/dhowden/tag` 读取，`go.senan.xyz/taglib` 回写 Tag/封面，内置 WAV INFO 写入器处理 WAV 文本字段
 - 可选媒体工具：`ffprobe` 读取增强元数据，`ffmpeg` 处理兜底转码
 - 前端部署：构建产物通过 `go:embed` 嵌入 Go 服务
 - 自动化：GitHub Actions 覆盖 CI、Release 二进制和 Docker 镜像发布

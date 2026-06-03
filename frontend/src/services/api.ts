@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
 
 function currentDeviceType() {
   if (typeof navigator === 'undefined') return 'pc'
@@ -77,6 +77,8 @@ export const api = {
   lyrics: (id: number, sourceId?: string) => request<Lyrics>(`/api/songs/${id}/lyrics${sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ''}`),
   lyricCandidates: (id: number) => request<LyricCandidate[]>(`/api/songs/${id}/lyrics/candidates`),
   selectLyrics: (id: number, source: string, candidateId: string) => request<Lyrics>(`/api/songs/${id}/lyrics/select`, { method: 'POST', body: JSON.stringify({ source, id: candidateId }) }),
+  songMetadataCandidates: (id: number) => request<MetadataCandidate[]>(`/api/songs/${id}/metadata-candidates`),
+  updateSongMetadata: (id: number, body: FormData) => request<MetadataWritebackResult>(`/api/songs/${id}/metadata`, { method: 'POST', body }),
   scan: () => request<ScanResult>('/api/library/scan', { method: 'POST' }),
   cancelScan: () => request<{ canceled: boolean }>('/api/library/scan/cancel', { method: 'POST' }),
   scanStatus: () => request<ScanStatus>('/api/library/scan/status'),
@@ -104,6 +106,8 @@ export const api = {
   },
   album: (id: number, signal?: AbortSignal) => request<Album>(`/api/albums/${id}`, { signal }),
   albumSongs: (id: number, limit = 0, signal?: AbortSignal) => request<Song[]>(`/api/albums/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`, { signal }),
+  albumMetadataCandidates: (id: number) => request<MetadataCandidate[]>(`/api/albums/${id}/metadata-candidates`),
+  updateAlbumMetadata: (id: number, body: FormData) => request<MetadataWritebackResult>(`/api/albums/${id}/metadata`, { method: 'POST', body }),
   artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
   favoriteArtists: (limit = 500) => request<Artist[]>(`/api/artists/favorites?limit=${limit}`),
   artistsPage: (page = 1, limit = 100, initial = '') => {

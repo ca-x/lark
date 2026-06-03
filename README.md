@@ -52,6 +52,7 @@ For release notes and changelog, see [CHANGELOG.md](CHANGELOG.md).
 ## Credits and notices
 
 - The Smartisan Music classic theme is credited to [DE105/SmartisanMusic-Revived](https://github.com/DE105/SmartisanMusic-Revived). The referenced Smartisan Music visual assets, trademarks, product names, and UI designs belong to their respective rights holders and are included here only for learning, research, and preservation.
+- Lyrics matching and local metadata handling ideas reference [guohuiyuan/go-music-dl](https://github.com/guohuiyuan/go-music-dl). Lark implements the source-file writeback flow independently.
 
 ---
 
@@ -62,7 +63,7 @@ For release notes and changelog, see [CHANGELOG.md](CHANGELOG.md).
 - Backend: Go, Echo v5, Ent ORM
 - Database: SQLite by default via `github.com/lib-x/entsqlite`; PostgreSQL and MySQL can be selected by environment variables
 - Frontend: React, TypeScript, Vite
-- Audio metadata: `github.com/dhowden/tag`
+- Audio metadata: `github.com/dhowden/tag` for reading, `go.senan.xyz/taglib` for tag/artwork writeback, and the built-in WAV INFO writer for WAV text fields
 - Optional media tools: `ffprobe` for metadata and `ffmpeg` for fallback stream transcoding
 - Frontend serving: built assets embedded into the Go server with `go:embed`
 - Automation: GitHub Actions for CI, release binaries, and Docker image publishing

@@ -29,6 +29,7 @@ export interface Song {
   artist: string;
   album_id: number;
   album: string;
+  path: string;
   file_name: string;
   format: string;
   mime: string;
@@ -44,6 +45,7 @@ export interface Song {
   resume_position_seconds: number;
   has_lyrics: boolean;
   lyrics_source: string;
+  cover_version?: number;
 }
 export interface SongPage {
   items: Song[];
@@ -62,6 +64,7 @@ export interface Album {
   year: number;
   favorite: boolean;
   song_count: number;
+  cover_version?: number;
 }
 export interface AlbumPage {
   items: Album[];
@@ -160,6 +163,33 @@ export interface LyricCandidate {
   source: string;
   title: string;
   artist: string;
+}
+export interface MetadataCandidate {
+  id: string;
+  source: string;
+  title: string;
+  artist: string;
+  album?: string;
+  year?: number;
+  cover?: string;
+  release_date?: string;
+  link?: string;
+}
+export interface MetadataWritebackItem {
+  song_id?: number;
+  title?: string;
+  path: string;
+  status: "updated" | "skipped" | "failed" | string;
+  message?: string;
+}
+export interface MetadataWritebackResult {
+  updated: number;
+  skipped: number;
+  failed: number;
+  items: MetadataWritebackItem[];
+  song?: Song;
+  album?: Album;
+  songs?: Song[];
 }
 export interface User {
   id: number;

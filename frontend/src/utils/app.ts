@@ -34,7 +34,9 @@ export function queueWithCurrent(base: Song[], current?: Song | null, limit = MA
 }
 
 export function coverUrl(song?: Song | null) {
-  return song ? `/api/songs/${song.id}/cover` : undefined;
+  if (!song) return undefined;
+  const version = song.cover_version ? `?v=${encodeURIComponent(String(song.cover_version))}` : "";
+  return `/api/songs/${song.id}/cover${version}`;
 }
 
 export function withTimeout<T>(promise: Promise<T>, timeoutMs = COLLECTION_LOAD_TIMEOUT_MS): Promise<T> {

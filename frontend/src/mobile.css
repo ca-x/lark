@@ -131,6 +131,12 @@
 @media (max-width:720px) {
   .modal-layer { padding:10px; align-items:end; }
   .modal-card { width:100%; max-height:88dvh; border-radius:22px; padding:18px; }
+  .metadata-editor { width:100%; max-height:90dvh; overflow:auto; }
+  .metadata-editor-cover { grid-template-columns:72px minmax(0,1fr); }
+  .metadata-cover-preview { width:72px; }
+  .metadata-editor-grid, .metadata-candidate-list { grid-template-columns:1fr; }
+  .metadata-candidate-list { max-height:22dvh; }
+  .metadata-result-list { max-height:20dvh; }
   body[data-mcp-help-open='true'] .player,
   body[data-mcp-help-open='true'] .sidebar,
   body[data-mcp-help-open='true'] .pagination-controls { display:none; }

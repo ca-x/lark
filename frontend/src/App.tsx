@@ -1,4 +1,4 @@
-import type { ChangeEvent, ReactNode, UIEvent } from "react";
+import type { ChangeEvent, FormEvent, ReactNode, UIEvent } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowClockwise,
@@ -19,6 +19,7 @@ import {
   MagnifyingGlass,
   MusicNotes,
   Pause,
+  PencilSimple,
   Play,
   Playlist as PlaylistIcon,
   Plus,
@@ -31,6 +32,7 @@ import {
   Repeat,
   RepeatOnce,
   ShareNetwork,
+  ShieldCheck,
   Shuffle,
   SlidersHorizontal,
   SkipBack,
@@ -42,6 +44,7 @@ import {
   SignOut,
   WarningCircle,
   X,
+  ImageSquare,
 } from "@phosphor-icons/react";
 import WavesurferPlayer from "@wavesurfer/react";
 import { api } from "./services/api";
@@ -99,6 +102,8 @@ import type {
   LyricCandidate,
   Lyrics,
   MCPTokenStatus,
+  MetadataCandidate,
+  MetadataWritebackResult,
   MobileHomePlayerStyle,
   Playlist,
   PlaylistPage,
@@ -161,6 +166,10 @@ import {
 import { normalizeTheme, randomQueueIndex, uniqueSongs, queueWithCurrent, coverUrl, withTimeout, loadWithTimeout, isAbortError, friendlyLoadError, readableErrorMessage, wait } from "./utils/app";
 
 const ARTIST_INITIALS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
+
+type MetadataEditorTarget =
+  | { type: "song"; song: Song }
+  | { type: "album"; album: Album; songs: Song[] };
 
 const defaultSettings: Settings = {
   language: "zh-CN",
@@ -506,7 +515,9 @@ function radioSourceLabel(station: RadioStation, fallback: string) {
 }
 
 function albumCoverUrl(album?: Album | null) {
-  return album ? `/api/albums/${album.id}/cover` : undefined;
+  if (!album) return undefined;
+  const version = album.cover_version ? `?v=${encodeURIComponent(String(album.cover_version))}` : "";
+  return `/api/albums/${album.id}/cover${version}`;
 }
 function artistCoverUrl(artist?: Artist | null) {
   return artist ? `/api/artists/${artist.id}/cover` : undefined;
@@ -1183,6 +1194,7 @@ export default function App() {
   const [lyricCandidatesOpen, setLyricCandidatesOpen] = useState(false);
   const [lyricCandidatesLoading, setLyricCandidatesLoading] = useState(false);
   const [lyricsFullScreen, setLyricsFullScreen] = useState(false);
+  const [metadataEditorTarget, setMetadataEditorTarget] = useState<MetadataEditorTarget | null>(null);
   const [queueOpen, setQueueOpen] = useState(false);
   const [mobilePlayerExpanded, setMobilePlayerExpanded] = useState(false);
   const mainRef = useRef<HTMLElement | null>(null);
@@ -3327,6 +3339,82 @@ export default function App() {
     if (current?.id === updated.id) setCurrent(updated);
   }
 
+  function applyUpdatedSongs(updatedSongs: Song[]) {
+    if (!updatedSongs.length) return;
+    const byID = new Map(updatedSongs.map((item) => [item.id, item]));
+    const replace = (items: Song[]) => items.map((item) => byID.get(item.id) || item);
+    setSongs(replace);
+    setRecentPlayedSongs(replace);
+    setRecentAddedSongs(replace);
+    setDailyMix(replace);
+    setQueue(replace);
+    setFavoriteSongs((old) => replace(old).filter((item) => item.favorite));
+    setCurrent((old) => (old ? byID.get(old.id) || old : old));
+    setCollection((old) => (old ? { ...old, songs: replace(old.songs) } : old));
+  }
+
+  function applyMetadataWritebackResult(result: MetadataWritebackResult, target: MetadataEditorTarget) {
+    if (result.song) {
+      updateSongState(result.song);
+    }
+    if (result.songs?.length) {
+      applyUpdatedSongs(result.songs);
+    }
+    if (result.album) {
+      const updatedAlbum = result.album;
+      setAlbums((old) => {
+        const filtered = old.filter((item) => item.id !== updatedAlbum.id && !(target.type === "album" && item.id === target.album.id));
+        return [updatedAlbum, ...filtered];
+      });
+      setFavoriteAlbums((old) => {
+        const filtered = old.filter((item) => item.id !== updatedAlbum.id && !(target.type === "album" && item.id === target.album.id));
+        return updatedAlbum.favorite ? [updatedAlbum, ...filtered] : filtered;
+      });
+      setCollection((old) => {
+        if (!old || old.type !== "album") return old;
+        const editingCurrentAlbum = target.type === "album" && (old.id === target.album.id || old.id === updatedAlbum.id);
+        if (!editingCurrentAlbum) return old;
+        const nextSongs = result.songs?.length ? result.songs : old.songs;
+        return {
+          ...old,
+          id: updatedAlbum.id,
+          title: updatedAlbum.title,
+          subtitle: [
+            updatedAlbum.artist,
+            updatedAlbum.year ? String(updatedAlbum.year) : "",
+            `${updatedAlbum.song_count || nextSongs.length} ${t("count")}`,
+          ].filter(Boolean).join(" · "),
+          favorite: updatedAlbum.favorite,
+          songs: nextSongs,
+          coverUrl: albumCoverUrl(updatedAlbum),
+          artistId: updatedAlbum.artist_id,
+          artistName: updatedAlbum.artist,
+        };
+      });
+    }
+  }
+
+  function openSongMetadataEditor(song: Song) {
+    setMetadataEditorTarget({ type: "song", song });
+  }
+
+  function openAlbumMetadataEditorFromCollection(item: Collection) {
+    if (item.type !== "album" || !item.id) return;
+    const cached = albums.find((album) => album.id === item.id);
+    const fallback: Album = {
+      id: item.id,
+      title: item.title,
+      artist_id: item.artistId || 0,
+      artist: item.artistName || "",
+      album_artist: cached?.album_artist || item.artistName || "",
+      year: cached?.year || Number(item.subtitle.match(/\b\d{4}\b/)?.[0] || 0),
+      favorite: Boolean(item.favorite),
+      song_count: item.songs.length || cached?.song_count || 0,
+      cover_version: cached?.cover_version,
+    };
+    setMetadataEditorTarget({ type: "album", album: cached || fallback, songs: item.songs });
+  }
+
   async function toggleFavorite(song: Song) {
     const updated = await api.favoriteSong(song.id);
     updateSongState(updated);
@@ -4040,6 +4128,7 @@ export default function App() {
               void openSongAlbum(song);
             }}
             onFavoriteSong={(song) => void toggleFavorite(song)}
+            onEditMetadata={(song) => openSongMetadataEditor(song)}
           />
         ) : (
           <>
@@ -4290,6 +4379,11 @@ export default function App() {
                     ? () => openShareDialog(collection.type, collection.id!, collection.title)
                     : undefined
                 }
+                onEditMetadata={
+                  collection.type === "album" && collection.id
+                    ? () => openAlbumMetadataEditorFromCollection(collection)
+                    : undefined
+                }
                 onFavoriteCollection={
                   collection.type === "album"
                     ? collection.id
@@ -4519,6 +4613,17 @@ export default function App() {
             setShareDialogTarget(null);
             showMessage(t("shareLinkCopied"));
             playUISound("copy");
+          }}
+        />
+      ) : null}
+      {metadataEditorTarget ? (
+        <MetadataEditorDialog
+          target={metadataEditorTarget}
+          t={t}
+          onClose={() => setMetadataEditorTarget(null)}
+          onSaved={(result) => {
+            applyMetadataWritebackResult(result, metadataEditorTarget);
+            showMessage(t("metadataWritebackDone"));
           }}
         />
       ) : null}
@@ -5267,6 +5372,331 @@ function AddToPlaylistDialog({
       </div>
     </div>
   );
+}
+
+function MetadataEditorDialog({
+  target,
+  t,
+  onClose,
+  onSaved,
+}: {
+  target: MetadataEditorTarget;
+  t: ReturnType<typeof createT>;
+  onClose: () => void;
+  onSaved: (result: MetadataWritebackResult) => void;
+}) {
+  const isAlbum = target.type === "album";
+  const initial = useMemo(
+    () =>
+      isAlbum
+        ? {
+            title: target.album.title,
+            artist: "",
+            album: "",
+            albumArtist: target.album.album_artist || target.album.artist,
+            year: target.album.year ? String(target.album.year) : "",
+          }
+        : {
+            title: target.song.title,
+            artist: target.song.artist,
+            album: target.song.album,
+            albumArtist: "",
+            year: target.song.year ? String(target.song.year) : "",
+          },
+    [isAlbum, target],
+  );
+  const [title, setTitle] = useState(initial.title);
+  const [artist, setArtist] = useState(initial.artist);
+  const [album, setAlbum] = useState(initial.album);
+  const [albumArtist, setAlbumArtist] = useState(initial.albumArtist);
+  const [year, setYear] = useState(initial.year);
+  const [coverURL, setCoverURL] = useState("");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<MetadataWritebackResult | null>(null);
+  const [candidates, setCandidates] = useState<MetadataCandidate[]>([]);
+  const [candidatesLoading, setCandidatesLoading] = useState(false);
+  const dialogRef = useDialogLifecycle<HTMLFormElement>(onClose);
+  const currentCover = isAlbum ? albumCoverUrl(target.album) : coverUrl(target.song);
+  const previewCover = coverPreview || coverURL.trim() || currentCover;
+  const estimatedFiles = metadataTargetFileCount(target);
+  const dirty =
+    title.trim() !== initial.title ||
+    artist.trim() !== initial.artist ||
+    album.trim() !== initial.album ||
+    albumArtist.trim() !== initial.albumArtist ||
+    year.trim() !== initial.year ||
+    coverURL.trim() !== "" ||
+    Boolean(coverFile);
+
+  useEffect(() => {
+    setTitle(initial.title);
+    setArtist(initial.artist);
+    setAlbum(initial.album);
+    setAlbumArtist(initial.albumArtist);
+    setYear(initial.year);
+    setCoverURL("");
+    setCoverFile(null);
+    setConfirmed(false);
+    setError("");
+    setResult(null);
+  }, [initial]);
+
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverPreview("");
+      return;
+    }
+    const objectURL = URL.createObjectURL(coverFile);
+    setCoverPreview(objectURL);
+    return () => URL.revokeObjectURL(objectURL);
+  }, [coverFile]);
+
+  useEffect(() => {
+    let canceled = false;
+    setCandidates([]);
+    setCandidatesLoading(true);
+    const load = isAlbum
+      ? api.albumMetadataCandidates(target.album.id)
+      : api.songMetadataCandidates(target.song.id);
+    load
+      .then((items) => {
+        if (!canceled) setCandidates(items);
+      })
+      .catch(() => {
+        if (!canceled) setCandidates([]);
+      })
+      .finally(() => {
+        if (!canceled) setCandidatesLoading(false);
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [isAlbum, target]);
+
+  const applyCandidate = (candidate: MetadataCandidate) => {
+    if (candidate.title) {
+      if (isAlbum) setTitle(candidate.title);
+      else setTitle(candidate.title);
+    }
+    if (isAlbum) {
+      if (candidate.artist) setAlbumArtist(candidate.artist);
+    } else {
+      if (candidate.artist) setArtist(candidate.artist);
+      if (candidate.album) setAlbum(candidate.album);
+    }
+    if (candidate.year) setYear(String(candidate.year));
+    if (candidate.cover) {
+      setCoverURL(candidate.cover);
+      setCoverFile(null);
+    }
+  };
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    if (!dirty || saving) return;
+    if (!confirmed) {
+      setError(t("metadataConfirmRequired"));
+      return;
+    }
+    const finalMessage = t("metadataFinalConfirm")
+      .replace("{count}", String(estimatedFiles))
+      .replace("{target}", isAlbum ? target.album.title : target.song.title);
+    if (!window.confirm(finalMessage)) return;
+    const body = new FormData();
+    body.set("title", title.trim());
+    if (isAlbum) {
+      body.set("album_artist", albumArtist.trim());
+    } else {
+      body.set("artist", artist.trim());
+      body.set("album", album.trim());
+    }
+    body.set("year", year.trim());
+    body.set("cover_url", coverFile ? "" : coverURL.trim());
+    body.set("confirm_writeback", "true");
+    if (coverFile) body.set("cover", coverFile);
+    setSaving(true);
+    try {
+      const saved = isAlbum
+        ? await api.updateAlbumMetadata(target.album.id, body)
+        : await api.updateSongMetadata(target.song.id, body);
+      setResult(saved);
+      onSaved(saved);
+      setConfirmed(false);
+    } catch (err) {
+      setError(readableErrorMessage(err, t("metadataWritebackFailed")));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="modal-layer" role="presentation">
+      <button className="modal-scrim" type="button" aria-label={t("close")} onClick={onClose} />
+      <form
+        ref={dialogRef}
+        className="modal-card metadata-editor"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="metadata-editor-title"
+        onSubmit={submit}
+      >
+        <div className="modal-card-head">
+          <div>
+            <p>{isAlbum ? t("album") : t("song")}</p>
+            <h2 id="metadata-editor-title">{t("editMetadata")}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label={t("close")}>
+            <X />
+          </button>
+        </div>
+
+        <div className="metadata-editor-cover">
+          <div className="metadata-cover-preview">
+            {previewCover ? <img src={previewCover} alt={t("metadataCoverPreview")} /> : <Record weight="fill" />}
+          </div>
+          <div>
+            <strong>{t("metadataSourceWriteback")}</strong>
+            <span>{isAlbum ? t("metadataAlbumHint") : t("metadataSongHint")}</span>
+          </div>
+        </div>
+
+        <div className="metadata-editor-grid">
+          <label>
+            {isAlbum ? t("metadataAlbumTitle") : t("metadataSongTitle")}
+            <input value={title} maxLength={180} autoFocus onChange={(event) => setTitle(event.target.value)} />
+          </label>
+          {isAlbum ? (
+            <label>
+              {t("metadataAlbumArtist")}
+              <input value={albumArtist} maxLength={180} onChange={(event) => setAlbumArtist(event.target.value)} />
+            </label>
+          ) : (
+            <>
+              <label>
+                {t("metadataArtist")}
+                <input value={artist} maxLength={180} onChange={(event) => setArtist(event.target.value)} />
+              </label>
+              <label>
+                {t("metadataAlbumTitle")}
+                <input value={album} maxLength={180} onChange={(event) => setAlbum(event.target.value)} />
+              </label>
+            </>
+          )}
+          <label>
+            {t("metadataYear")}
+            <input
+              value={year}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
+              onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))}
+            />
+          </label>
+          <label className="metadata-cover-url">
+            {t("metadataCoverURL")}
+            <input value={coverURL} placeholder="https://..." onChange={(event) => setCoverURL(event.target.value)} />
+          </label>
+          <label className="metadata-cover-upload">
+            <span><UploadSimple /> {t("metadataUploadCover")}</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
+              onChange={(event) => {
+                const file = event.target.files?.[0] || null;
+                setCoverFile(file);
+                if (file) setCoverURL("");
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="metadata-candidates">
+          <div className="metadata-section-head">
+            <strong>{t("metadataCandidates")}</strong>
+            <span>{candidatesLoading ? t("loading") : `${candidates.length} ${t("candidate")}`}</span>
+          </div>
+          {candidates.length ? (
+            <div className="metadata-candidate-list">
+              {candidates.map((candidate) => (
+                <button
+                  key={`${candidate.source}-${candidate.id}`}
+                  type="button"
+                  onClick={() => applyCandidate(candidate)}
+                >
+                  {candidate.cover ? <img src={candidate.cover} alt="" loading="lazy" /> : <ImageSquare />}
+                  <span>
+                    <strong>{candidate.title}</strong>
+                    <em>{[candidate.artist, candidate.album, candidate.year || candidate.release_date].filter(Boolean).join(" · ")}</em>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="metadata-empty">{candidatesLoading ? t("loadingContent") : t("metadataNoCandidates")}</span>
+          )}
+        </div>
+
+        <label className="metadata-confirm">
+          <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+          <span>
+            <strong><ShieldCheck /> {t("metadataConfirmTitle")}</strong>
+            <em>{t("metadataConfirmBody")}</em>
+          </span>
+        </label>
+
+        {error ? <div className="metadata-error" role="alert">{error}</div> : null}
+        {result ? (
+          <div className="metadata-result">
+            <div className="metadata-section-head">
+              <strong>{t("metadataWritebackResult")}</strong>
+              <span>{result.updated} / {result.skipped} / {result.failed}</span>
+            </div>
+            <div className="metadata-result-list">
+              {result.items.map((item, index) => (
+                <div key={`${item.path}-${index}`} data-status={item.status}>
+                  <strong>{metadataStatusLabel(item.status, t)}</strong>
+                  <span title={item.path}>{item.title || item.path}</span>
+                  {item.message ? <em>{item.message}</em> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="modal-actions">
+          <button type="button" onClick={onClose} disabled={saving}>
+            {t("close")}
+          </button>
+          <button className="primary" type="submit" disabled={!dirty || !confirmed || saving}>
+            {saving ? <CircleNotch weight="bold" className="offline-cache-spinner" /> : <PencilSimple />}
+            {saving ? t("loading") : t("metadataWriteToFiles")}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function metadataStatusLabel(status: string, t: ReturnType<typeof createT>) {
+  if (status === "updated") return t("metadataStatusUpdated");
+  if (status === "skipped") return t("metadataStatusSkipped");
+  if (status === "failed") return t("metadataStatusFailed");
+  return status;
+}
+
+function metadataTargetFileCount(target: MetadataEditorTarget) {
+  if (target.type === "song") return 1;
+  const paths = new Set(
+    target.songs
+      .map((song) => (song.path || "").split("#lark-cue=")[0].trim())
+      .filter(Boolean),
+  );
+  return Math.max(paths.size || target.album.song_count || target.songs.length, 1);
 }
 
 function compactLibraryCount(value: number) {
@@ -6352,6 +6782,7 @@ function CollectionView({
   onCacheCollection,
   onShareSong,
   onShareCollection,
+  onEditMetadata,
   onFavoriteCollection,
   onOpenAlbum,
   onOpenAlbumCard,
@@ -6376,6 +6807,7 @@ function CollectionView({
   onCacheCollection?: () => void;
   onShareSong?: (song: Song) => void;
   onShareCollection?: () => void;
+  onEditMetadata?: () => void;
   onFavoriteCollection?: () => void;
   onOpenAlbum?: (song: Song) => void;
   onOpenAlbumCard?: (album: Album) => void;
@@ -6479,6 +6911,11 @@ function CollectionView({
             {onShareCollection ? (
               <button onClick={onShareCollection}>
                 <ShareNetwork /> {t("share")}
+              </button>
+            ) : null}
+            {onEditMetadata ? (
+              <button onClick={onEditMetadata}>
+                <PencilSimple /> {t("editMetadata")}
               </button>
             ) : null}
           </div>
@@ -7427,6 +7864,7 @@ function FullLyrics({
   onOpenArtist,
   onOpenAlbum,
   onFavoriteSong,
+  onEditMetadata,
 }: {
   song: Song | null;
   lines: ReturnType<typeof parseLyricLines>;
@@ -7448,6 +7886,7 @@ function FullLyrics({
   onOpenArtist: (song: Song) => void;
   onOpenAlbum: (song: Song) => void;
   onFavoriteSong: (song: Song) => void;
+  onEditMetadata: (song: Song) => void;
 }) {
   const [seekTargetKey, setSeekTargetKey] = useState("");
   const userScrollUntil = useRef(0);
@@ -7554,6 +7993,14 @@ function FullLyrics({
                 />
               ) : null}
               <GearSix weight="bold" />
+            </button>
+            <button
+              className="lyrics-pick icon-only"
+              onClick={() => onEditMetadata(song)}
+              title={t("editMetadata")}
+              aria-label={t("editMetadata")}
+            >
+              <PencilSimple weight="bold" />
             </button>
           </div>
         ) : null}

@@ -26,21 +26,53 @@ type Song struct {
 	ResumePosition  float64    `json:"resume_position_seconds"`
 	HasLyrics       bool       `json:"has_lyrics"`
 	LyricsSource    string     `json:"lyrics_source"`
+	CoverVersion    int64      `json:"cover_version,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type Album struct {
-	ID          int       `json:"id"`
-	Title       string    `json:"title"`
-	ArtistID    int       `json:"artist_id"`
-	Artist      string    `json:"artist"`
-	AlbumArtist string    `json:"album_artist"`
-	Year        int       `json:"year"`
-	Favorite    bool      `json:"favorite"`
-	SongCount   int       `json:"song_count"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID           int       `json:"id"`
+	Title        string    `json:"title"`
+	ArtistID     int       `json:"artist_id"`
+	Artist       string    `json:"artist"`
+	AlbumArtist  string    `json:"album_artist"`
+	Year         int       `json:"year"`
+	Favorite     bool      `json:"favorite"`
+	SongCount    int       `json:"song_count"`
+	CoverVersion int64     `json:"cover_version,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type MetadataCandidate struct {
+	Source      string `json:"source"`
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Artist      string `json:"artist"`
+	Album       string `json:"album,omitempty"`
+	Year        int    `json:"year,omitempty"`
+	Cover       string `json:"cover,omitempty"`
+	ReleaseDate string `json:"release_date,omitempty"`
+	Link        string `json:"link,omitempty"`
+}
+
+type MetadataWritebackItem struct {
+	SongID  int    `json:"song_id,omitempty"`
+	Title   string `json:"title,omitempty"`
+	Path    string `json:"path"`
+	Status  string `json:"status"`
+	Message string `json:"message,omitempty"`
+}
+
+type MetadataWritebackResult struct {
+	Updated int                     `json:"updated"`
+	Skipped int                     `json:"skipped"`
+	Failed  int                     `json:"failed"`
+	Items   []MetadataWritebackItem `json:"items"`
+	Song    *Song                   `json:"song,omitempty"`
+	Album   *Album                  `json:"album,omitempty"`
+	Songs   []Song                  `json:"songs,omitempty"`
 }
 
 type Artist struct {

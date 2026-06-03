@@ -120,6 +120,16 @@ type lyricSelectRequest struct {
 	ID     string `json:"id"`
 }
 
+type metadataWritebackRequest struct {
+	Title            string `json:"title"`
+	Artist           string `json:"artist"`
+	Album            string `json:"album"`
+	AlbumArtist      string `json:"album_artist"`
+	Year             int    `json:"year"`
+	CoverURL         string `json:"cover_url"`
+	ConfirmWriteback bool   `json:"confirm_writeback"`
+}
+
 type radioSourceRequest struct {
 	Name string `json:"name"`
 	URL  string `json:"url"`
@@ -308,6 +318,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/offline/songs/:id/audio", s.handleOfflineSongAudio, auth)
 	e.GET("/api/songs/:id/stream", s.handleStream, auth)
 	e.GET("/api/songs/:id/cover", s.handleCover, auth)
+	e.GET("/api/songs/:id/metadata-candidates", s.handleSongMetadataCandidates, auth)
+	e.POST("/api/songs/:id/metadata", s.handleUpdateSongMetadata, admin)
 	e.GET("/api/songs/:id/lyrics/candidates", s.handleLyricCandidates, auth)
 	e.POST("/api/songs/:id/lyrics/select", s.handleSelectLyrics, auth)
 	e.GET("/api/songs/:id/lyrics", s.handleLyrics, auth)
@@ -350,6 +362,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/albums/favorites", s.handleFavoriteAlbums, auth)
 	e.GET("/api/albums/:id", s.handleAlbum, auth)
 	e.GET("/api/albums/:id/cover", s.handleAlbumCover, auth)
+	e.GET("/api/albums/:id/metadata-candidates", s.handleAlbumMetadataCandidates, auth)
+	e.POST("/api/albums/:id/metadata", s.handleUpdateAlbumMetadata, admin)
 	e.GET("/api/albums/:id/songs", s.handleAlbumSongs, auth)
 	e.GET("/api/artists", s.handleArtists, auth)
 	e.GET("/api/artists/favorites", s.handleFavoriteArtists, auth)
@@ -417,7 +431,7 @@ func (s *Server) handleHealth(c *echo.Context) error {
 		GoVersion:        runtime.Version(),
 		Library:          s.lib.LibraryDir(),
 		AudioBackend:     "pure-go-http-range",
-		MetadataBackend:  "dhowden/tag+ffprobe-optional",
+		MetadataBackend:  "dhowden/tag+taglib-writeback+ffprobe-optional",
 		TranscodeBackend: "ffmpeg-cli-optional",
 	})
 }
@@ -771,6 +785,37 @@ func (s *Server) handleSong(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, item)
+}
+
+func (s *Server) handleSongMetadataCandidates(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	items, err := s.lib.SongMetadataCandidates(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleUpdateSongMetadata(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	input, err := metadataWritebackInputFromRequest(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if !input.ConfirmWriteback {
+		return echo.NewHTTPError(http.StatusBadRequest, "metadata writeback confirmation is required")
+	}
+	result, err := s.lib.UpdateSongMetadata(c.Request().Context(), currentUserID(c), id, input)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, result)
 }
 
 func (s *Server) handleLibraryStats(c *echo.Context) error {
@@ -1751,6 +1796,37 @@ func (s *Server) handleAlbum(c *echo.Context) error {
 	return c.JSON(http.StatusOK, item)
 }
 
+func (s *Server) handleAlbumMetadataCandidates(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	items, err := s.lib.AlbumMetadataCandidates(c.Request().Context(), id)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleUpdateAlbumMetadata(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	input, err := metadataWritebackInputFromRequest(c)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if !input.ConfirmWriteback {
+		return echo.NewHTTPError(http.StatusBadRequest, "metadata writeback confirmation is required")
+	}
+	result, err := s.lib.UpdateAlbumMetadata(c.Request().Context(), currentUserID(c), id, input)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
 func (s *Server) handleAlbumSongs(c *echo.Context) error {
 	id, err := paramInt(c, "id")
 	if err != nil {
@@ -2006,6 +2082,83 @@ func paramInt(c *echo.Context, name string) (int, error) {
 	}
 	return id, nil
 }
+
+const metadataCoverUploadLimit = 8 << 20
+
+func metadataWritebackInputFromRequest(c *echo.Context) (library.MetadataWritebackInput, error) {
+	contentType := strings.ToLower(c.Request().Header.Get("Content-Type"))
+	if strings.HasPrefix(contentType, "multipart/") {
+		return metadataWritebackInputFromMultipart(c)
+	}
+	var req metadataWritebackRequest
+	if err := c.Bind(&req); err != nil {
+		return library.MetadataWritebackInput{}, err
+	}
+	if req.Year < 0 || req.Year > 9999 {
+		return library.MetadataWritebackInput{}, fmt.Errorf("year must be between 0 and 9999")
+	}
+	return library.MetadataWritebackInput{
+		Title:            req.Title,
+		Artist:           req.Artist,
+		Album:            req.Album,
+		AlbumArtist:      req.AlbumArtist,
+		Year:             req.Year,
+		CoverURL:         req.CoverURL,
+		ConfirmWriteback: req.ConfirmWriteback,
+	}, nil
+}
+
+func metadataWritebackInputFromMultipart(c *echo.Context) (library.MetadataWritebackInput, error) {
+	year := 0
+	if raw := strings.TrimSpace(c.FormValue("year")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			return library.MetadataWritebackInput{}, fmt.Errorf("year must be a number")
+		}
+		year = parsed
+	}
+	if year < 0 || year > 9999 {
+		return library.MetadataWritebackInput{}, fmt.Errorf("year must be between 0 and 9999")
+	}
+	input := library.MetadataWritebackInput{
+		Title:            c.FormValue("title"),
+		Artist:           c.FormValue("artist"),
+		Album:            c.FormValue("album"),
+		AlbumArtist:      c.FormValue("album_artist"),
+		Year:             year,
+		CoverURL:         c.FormValue("cover_url"),
+		ConfirmWriteback: metadataWritebackConfirmed(c.FormValue("confirm_writeback")),
+	}
+	file, err := c.FormFile("cover")
+	if err != nil {
+		return input, nil
+	}
+	src, err := file.Open()
+	if err != nil {
+		return library.MetadataWritebackInput{}, err
+	}
+	defer src.Close()
+	data, err := io.ReadAll(io.LimitReader(src, metadataCoverUploadLimit+1))
+	if err != nil {
+		return library.MetadataWritebackInput{}, err
+	}
+	if len(data) > metadataCoverUploadLimit {
+		return library.MetadataWritebackInput{}, fmt.Errorf("cover image exceeds %d MB", metadataCoverUploadLimit>>20)
+	}
+	input.CoverData = data
+	input.CoverMime = file.Header.Get("Content-Type")
+	return input, nil
+}
+
+func metadataWritebackConfirmed(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true", "1", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
 func queryBool(c *echo.Context, name string) bool {
 	switch strings.ToLower(strings.TrimSpace(c.QueryParam(name))) {
 	case "1", "true", "yes", "on":
