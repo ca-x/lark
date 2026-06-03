@@ -172,12 +172,8 @@
   .metadata-editor-cover { grid-template-columns:68px minmax(0,1fr); padding:10px; border-radius:16px; }
   .metadata-cover-preview { width:68px; }
   .metadata-editor-grid, .metadata-candidate-list { grid-template-columns:1fr; }
-  .metadata-candidate-list,
-  .metadata-result-list {
-    max-height:none;
-    overflow:visible;
-    padding-right:0;
-  }
+  .metadata-candidate-list { max-height:clamp(112px, 24dvh, 180px); overflow:auto; padding-right:0; }
+  .metadata-result-list { max-height:clamp(96px, 22dvh, 160px); overflow:auto; padding-right:0; }
   .metadata-editor-actions { display:grid; grid-template-columns:1fr; gap:8px; margin-top:10px; padding-top:10px; }
   .metadata-editor-actions button { width:100%; justify-content:center; min-height:44px; }
   .metadata-write-confirm-layer {
@@ -2350,9 +2346,10 @@
   box-shadow:0 1px 0 rgba(255,255,255,.78);
 }
 .mobile-smartisan-deck {
+  --mobile-smartisan-deck-size:min(300px, 84vw);
   position:relative;
-  width:min(300px, 84vw);
-  height:min(300px, 84vw);
+  width:var(--mobile-smartisan-deck-size);
+  height:var(--mobile-smartisan-deck-size);
   display:grid;
   place-items:center;
 }
@@ -2400,15 +2397,16 @@
 }
 .mobile-smartisan-arm {
   position:absolute;
-  right:8px;
-  top:-18px;
-  width:92px;
-  height:206px;
+  right:calc(var(--mobile-smartisan-deck-size) * .062);
+  top:calc(var(--mobile-smartisan-deck-size) * .07);
+  width:calc(var(--mobile-smartisan-deck-size) * .204);
+  height:calc(var(--mobile-smartisan-deck-size) * .861);
   background:url('/smartisan/playing-stylus-lp.png') center / contain no-repeat;
-  transform-origin:74px 34px;
-  transform:rotate(var(--mobile-smartisan-needle, -22deg));
+  transform-origin:65% 9%;
+  transform:rotate(var(--mobile-smartisan-needle, 0deg));
   filter:drop-shadow(0 5px 8px rgba(0,0,0,.24));
-  transition:transform .28s var(--ease);
+  transition:transform 220ms ease;
+  will-change:transform;
   pointer-events:none;
 }
 .mobile-smartisan-arm i {
@@ -4393,8 +4391,9 @@
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-deck {
-    width:min(292px, 88vw);
-    height:min(292px, 100%);
+    --mobile-smartisan-deck-size:min(292px, 88vw);
+    width:var(--mobile-smartisan-deck-size);
+    height:min(var(--mobile-smartisan-deck-size), 100%);
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-record {

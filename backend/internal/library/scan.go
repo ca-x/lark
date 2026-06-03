@@ -247,6 +247,9 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 	probedMeta := meta
 	applyMetadataFallback(abs, s.libraryDir, &meta)
 	if settings, err := s.GetSettings(ctx); err == nil {
+		if settings.LibraryPathMetadataAssist {
+			applyPathMetadataAssist(abs, s.libraryDir, &meta)
+		}
 		if !settings.MetadataGrouping {
 			meta.AlbumArtist = meta.Artist
 		}
@@ -421,8 +424,13 @@ func (s *Service) importCUEFile(ctx context.Context, cuePath string, invalidate 
 			BitDepth:    baseMeta.BitDepth,
 			Year:        baseMeta.Year,
 		}
-		if settings, err := s.GetSettings(ctx); err == nil && !settings.MetadataGrouping {
-			meta.AlbumArtist = meta.Artist
+		if settings, err := s.GetSettings(ctx); err == nil {
+			if settings.LibraryPathMetadataAssist {
+				applyPathMetadataAssist(track.File, s.libraryDir, &meta)
+			}
+			if !settings.MetadataGrouping {
+				meta.AlbumArtist = meta.Artist
+			}
 		}
 		sizeBytes := info.Size() + cueInfo.Size()
 		modTime := info.ModTime()

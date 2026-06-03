@@ -2037,6 +2037,104 @@ func applyMetadataFallback(path, libraryRoot string, meta *fileMetadata) {
 	}
 }
 
+func applyPathMetadataAssist(path, libraryRoot string, meta *fileMetadata) {
+	pathMeta := metadataFromPath(path, libraryRoot)
+	if shouldUsePathMetadataValue(meta.Title, pathMeta.Title, false) {
+		meta.Title = pathMeta.Title
+	}
+	if shouldUsePathMetadataValue(meta.Artist, pathMeta.Artist, true) {
+		meta.Artist = pathMeta.Artist
+	}
+	if shouldUsePathMetadataValue(meta.Album, pathMeta.Album, true) || shouldPreferPathAlbum(meta, pathMeta) {
+		meta.Album = pathMeta.Album
+	}
+	if shouldUsePathMetadataValue(meta.AlbumArtist, pathMeta.AlbumArtist, true) {
+		meta.AlbumArtist = pathMeta.AlbumArtist
+	}
+	if meta.AlbumArtist == "" {
+		meta.AlbumArtist = firstString(pathMeta.AlbumArtist, meta.Artist)
+	}
+}
+
+func metadataFromPath(path, libraryRoot string) fileMetadata {
+	parsed := parseFilenameMetadata(path, libraryRoot)
+	folderAlbum, folderArtist := metadataPathAlbumAndArtistFromFolder(path, libraryRoot)
+	artistName := firstString(parsed.Artist, folderArtist)
+	albumArtist := firstString(folderArtist, artistName)
+	return fileMetadata{
+		Title:       parsed.Title,
+		Artist:      artistName,
+		Album:       firstString(folderAlbum, parsed.Album),
+		AlbumArtist: albumArtist,
+	}
+}
+
+func shouldUsePathMetadataValue(existing, candidate string, strong bool) bool {
+	candidate = strings.TrimSpace(candidate)
+	if candidate == "" || normalizeCompareText(existing) == normalizeCompareText(candidate) {
+		return false
+	}
+	if metadataNeedsFilenameFallback(existing) || looksLikePromotionalMetadata(existing) {
+		return true
+	}
+	return strong && looksLikeWeakMetadata(existing)
+}
+
+func shouldPreferPathAlbum(meta *fileMetadata, pathMeta fileMetadata) bool {
+	if pathMeta.Album == "" {
+		return false
+	}
+	if normalizeCompareText(meta.Album) == normalizeCompareText(pathMeta.Album) {
+		return false
+	}
+	if normalizeCompareText(meta.Artist) != "" && normalizeCompareText(meta.Artist) == normalizeCompareText(pathMeta.AlbumArtist) {
+		return true
+	}
+	if normalizeCompareText(meta.AlbumArtist) != "" && normalizeCompareText(meta.AlbumArtist) == normalizeCompareText(pathMeta.AlbumArtist) {
+		return true
+	}
+	return false
+}
+
+func looksLikeWeakMetadata(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" || len([]rune(value)) <= 1 {
+		return true
+	}
+	if strings.EqualFold(value, "Unknown Artist") || strings.EqualFold(value, "Unknown Album") {
+		return true
+	}
+	return looksLikeTrackNumber(value)
+}
+
+func looksLikePromotionalMetadata(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if normalized == "" {
+		return false
+	}
+	replacer := strings.NewReplacer(" ", "", "-", "", "_", "", "·", "", "。", ".", "，", ",", "：", ":", "／", "/", "\\", "")
+	compact := replacer.Replace(normalized)
+	score := 0
+	for _, token := range []string{
+		"www.", "http://", "https://", ".com", ".net", ".cn", ".org", ".me", ".top", ".xyz", "moofeel",
+	} {
+		if strings.Contains(normalized, token) {
+			score += 3
+		}
+	}
+	for _, token := range []string{
+		"微信公众号", "公众号", "微信号", "微信", "微博", "qq群", "qq", "群号", "关注", "扫描二维码", "二维码",
+		"论坛", "社区", "博客", "资源", "资源组", "下载", "网盘", "百度网盘", "提取码", "密码",
+		"无损", "高品质", "ape", "flac", "hires", "hi-res", "音乐网", "音乐论坛", "音乐下载", "发烧", "母带",
+		"by", "整理", "制作", "压制", "分享",
+	} {
+		if strings.Contains(normalized, token) || strings.Contains(compact, token) {
+			score++
+		}
+	}
+	return score >= 2
+}
+
 func metadataNeedsFilenameFallback(value string) bool {
 	value = strings.TrimSpace(value)
 	if value == "" || containsReplacement(value) {

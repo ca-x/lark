@@ -406,6 +406,6 @@ function formatThemeTime(value: number) {
 }
 
 function mobileSmartisanNeedleAngle(progressPct: number, duration: number, playing: boolean) {
-  if (!playing || duration <= 0) return -22;
-  return -8 + progressPct * 22.3;
+  if (!playing || duration <= 0) return 0;
+  return 12 + progressPct * 22.3;
 }

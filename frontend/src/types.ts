@@ -174,6 +174,8 @@ export interface MetadataCandidate {
   cover?: string;
   release_date?: string;
   link?: string;
+  path_groups?: number;
+  song_count?: number;
 }
 export interface MetadataWritebackItem {
   song_id?: number;
@@ -189,6 +191,7 @@ export interface MetadataWritebackResult {
   items: MetadataWritebackItem[];
   song?: Song;
   album?: Album;
+  albums?: Album[];
   songs?: Song[];
 }
 export interface User {
@@ -386,6 +389,7 @@ export interface Settings {
   lyrics_font_size: number;
   metadata_grouping: boolean;
   library_tag_writeback: boolean;
+  library_path_metadata_assist: boolean;
   smart_playlists_enabled: boolean;
   sharing_enabled: boolean;
   subsonic_server_enabled: boolean;

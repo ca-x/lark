@@ -80,29 +80,30 @@ func TestSettingsPersistLyricsAndTagWritebackOptions(t *testing.T) {
 	service := &Service{client: client}
 
 	saved, err := service.SaveSettings(ctx, models.Settings{
-		Language:                "zh-CN",
-		Theme:                   "deep-space",
-		NeteaseFallback:         true,
-		LyricsAutoSaveToSongDir: true,
-		LyricsFontFamily:        `"LXGW WenKai"`,
-		LyricsFontURL:           "/api/fonts/LXGW%20WenKai.woff2",
-		LyricsFontSize:          99,
-		LibraryTagWriteback:     true,
-		PlaybackSourceTTLHours:  24,
-		TranscodePolicy:         "auto",
-		TranscodeQualityKbps:    192,
+		Language:                  "zh-CN",
+		Theme:                     "deep-space",
+		NeteaseFallback:           true,
+		LyricsAutoSaveToSongDir:   true,
+		LyricsFontFamily:          `"LXGW WenKai"`,
+		LyricsFontURL:             "/api/fonts/LXGW%20WenKai.woff2",
+		LyricsFontSize:            99,
+		LibraryTagWriteback:       true,
+		LibraryPathMetadataAssist: true,
+		PlaybackSourceTTLHours:    24,
+		TranscodePolicy:           "auto",
+		TranscodeQualityKbps:      192,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !saved.LyricsAutoSaveToSongDir || saved.LyricsFontFamily != "LXGW WenKai" || saved.LyricsFontURL != "/api/fonts/LXGW%20WenKai.woff2" || saved.LyricsFontSize != 72 || !saved.LibraryTagWriteback {
+	if !saved.LyricsAutoSaveToSongDir || saved.LyricsFontFamily != "LXGW WenKai" || saved.LyricsFontURL != "/api/fonts/LXGW%20WenKai.woff2" || saved.LyricsFontSize != 72 || !saved.LibraryTagWriteback || !saved.LibraryPathMetadataAssist {
 		t.Fatalf("unexpected saved lyrics/tag settings: %#v", saved)
 	}
 	loaded, err := service.GetSettings(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !loaded.LyricsAutoSaveToSongDir || loaded.LyricsFontFamily != "LXGW WenKai" || loaded.LyricsFontURL != "/api/fonts/LXGW%20WenKai.woff2" || loaded.LyricsFontSize != 72 || !loaded.LibraryTagWriteback {
+	if !loaded.LyricsAutoSaveToSongDir || loaded.LyricsFontFamily != "LXGW WenKai" || loaded.LyricsFontURL != "/api/fonts/LXGW%20WenKai.woff2" || loaded.LyricsFontSize != 72 || !loaded.LibraryTagWriteback || !loaded.LibraryPathMetadataAssist {
 		t.Fatalf("expected lyrics/tag settings to persist, got %#v", loaded)
 	}
 
@@ -133,7 +134,7 @@ func TestNewFeatureSettingsDefaultDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if settings.MetadataGrouping || settings.LibraryTagWriteback || settings.LyricsAutoSaveToSongDir || settings.LyricsFontFamily != "" || settings.LyricsFontURL != "" || settings.LyricsFontSize != 0 || settings.SmartPlaylistsEnabled || settings.SharingEnabled || settings.SubsonicServerEnabled {
+	if settings.MetadataGrouping || settings.LibraryTagWriteback || settings.LibraryPathMetadataAssist || settings.LyricsAutoSaveToSongDir || settings.LyricsFontFamily != "" || settings.LyricsFontURL != "" || settings.LyricsFontSize != 0 || settings.SmartPlaylistsEnabled || settings.SharingEnabled || settings.SubsonicServerEnabled {
 		t.Fatalf("expected new feature toggles to default disabled, got %#v", settings)
 	}
 }

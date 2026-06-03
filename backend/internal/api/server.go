@@ -127,6 +127,7 @@ type metadataWritebackRequest struct {
 	AlbumArtist      string `json:"album_artist"`
 	Year             int    `json:"year"`
 	CoverURL         string `json:"cover_url"`
+	PathAssist       bool   `json:"path_assist"`
 	ConfirmWriteback bool   `json:"confirm_writeback"`
 }
 
@@ -155,26 +156,27 @@ type networkSourceRequest struct {
 }
 
 type settingsRequest struct {
-	Language                string `json:"language"`
-	Theme                   string `json:"theme"`
-	SleepTimerMins          int    `json:"sleep_timer_mins"`
-	NeteaseFallback         bool   `json:"netease_fallback"`
-	RegistrationEnabled     bool   `json:"registration_enabled"`
-	DiagnosticsEnabled      bool   `json:"diagnostics_enabled"`
-	PlaybackSourceTTLHours  int    `json:"playback_source_ttl_hours"`
-	WebFontFamily           string `json:"web_font_family"`
-	WebFontURL              string `json:"web_font_url"`
-	LyricsAutoSaveToSongDir bool   `json:"lyrics_auto_save_to_song_dir"`
-	LyricsFontFamily        string `json:"lyrics_font_family"`
-	LyricsFontURL           string `json:"lyrics_font_url"`
-	LyricsFontSize          int    `json:"lyrics_font_size"`
-	MetadataGrouping        bool   `json:"metadata_grouping"`
-	LibraryTagWriteback     bool   `json:"library_tag_writeback"`
-	SmartPlaylistsEnabled   bool   `json:"smart_playlists_enabled"`
-	SharingEnabled          bool   `json:"sharing_enabled"`
-	SubsonicServerEnabled   bool   `json:"subsonic_server_enabled"`
-	TranscodePolicy         string `json:"transcode_policy"`
-	TranscodeQualityKbps    int    `json:"transcode_quality_kbps"`
+	Language                  string `json:"language"`
+	Theme                     string `json:"theme"`
+	SleepTimerMins            int    `json:"sleep_timer_mins"`
+	NeteaseFallback           bool   `json:"netease_fallback"`
+	RegistrationEnabled       bool   `json:"registration_enabled"`
+	DiagnosticsEnabled        bool   `json:"diagnostics_enabled"`
+	PlaybackSourceTTLHours    int    `json:"playback_source_ttl_hours"`
+	WebFontFamily             string `json:"web_font_family"`
+	WebFontURL                string `json:"web_font_url"`
+	LyricsAutoSaveToSongDir   bool   `json:"lyrics_auto_save_to_song_dir"`
+	LyricsFontFamily          string `json:"lyrics_font_family"`
+	LyricsFontURL             string `json:"lyrics_font_url"`
+	LyricsFontSize            int    `json:"lyrics_font_size"`
+	MetadataGrouping          bool   `json:"metadata_grouping"`
+	LibraryTagWriteback       bool   `json:"library_tag_writeback"`
+	LibraryPathMetadataAssist bool   `json:"library_path_metadata_assist"`
+	SmartPlaylistsEnabled     bool   `json:"smart_playlists_enabled"`
+	SharingEnabled            bool   `json:"sharing_enabled"`
+	SubsonicServerEnabled     bool   `json:"subsonic_server_enabled"`
+	TranscodePolicy           string `json:"transcode_policy"`
+	TranscodeQualityKbps      int    `json:"transcode_quality_kbps"`
 }
 
 type shareRequest struct {
@@ -2024,27 +2026,28 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{
-		Language:                req.Language,
-		Theme:                   req.Theme,
-		SleepTimerMins:          req.SleepTimerMins,
-		LibraryPath:             s.lib.LibraryDir(),
-		NeteaseFallback:         req.NeteaseFallback,
-		RegistrationEnabled:     req.RegistrationEnabled,
-		DiagnosticsEnabled:      req.DiagnosticsEnabled,
-		PlaybackSourceTTLHours:  req.PlaybackSourceTTLHours,
-		WebFontFamily:           req.WebFontFamily,
-		WebFontURL:              req.WebFontURL,
-		LyricsAutoSaveToSongDir: req.LyricsAutoSaveToSongDir,
-		LyricsFontFamily:        req.LyricsFontFamily,
-		LyricsFontURL:           req.LyricsFontURL,
-		LyricsFontSize:          req.LyricsFontSize,
-		MetadataGrouping:        req.MetadataGrouping,
-		LibraryTagWriteback:     req.LibraryTagWriteback,
-		SmartPlaylistsEnabled:   req.SmartPlaylistsEnabled,
-		SharingEnabled:          req.SharingEnabled,
-		SubsonicServerEnabled:   req.SubsonicServerEnabled,
-		TranscodePolicy:         req.TranscodePolicy,
-		TranscodeQualityKbps:    req.TranscodeQualityKbps,
+		Language:                  req.Language,
+		Theme:                     req.Theme,
+		SleepTimerMins:            req.SleepTimerMins,
+		LibraryPath:               s.lib.LibraryDir(),
+		NeteaseFallback:           req.NeteaseFallback,
+		RegistrationEnabled:       req.RegistrationEnabled,
+		DiagnosticsEnabled:        req.DiagnosticsEnabled,
+		PlaybackSourceTTLHours:    req.PlaybackSourceTTLHours,
+		WebFontFamily:             req.WebFontFamily,
+		WebFontURL:                req.WebFontURL,
+		LyricsAutoSaveToSongDir:   req.LyricsAutoSaveToSongDir,
+		LyricsFontFamily:          req.LyricsFontFamily,
+		LyricsFontURL:             req.LyricsFontURL,
+		LyricsFontSize:            req.LyricsFontSize,
+		MetadataGrouping:          req.MetadataGrouping,
+		LibraryTagWriteback:       req.LibraryTagWriteback,
+		LibraryPathMetadataAssist: req.LibraryPathMetadataAssist,
+		SmartPlaylistsEnabled:     req.SmartPlaylistsEnabled,
+		SharingEnabled:            req.SharingEnabled,
+		SubsonicServerEnabled:     req.SubsonicServerEnabled,
+		TranscodePolicy:           req.TranscodePolicy,
+		TranscodeQualityKbps:      req.TranscodeQualityKbps,
 	})
 	if err != nil {
 		return mapError(err)
@@ -2104,6 +2107,7 @@ func metadataWritebackInputFromRequest(c *echo.Context) (library.MetadataWriteba
 		AlbumArtist:      req.AlbumArtist,
 		Year:             req.Year,
 		CoverURL:         req.CoverURL,
+		PathAssist:       req.PathAssist,
 		ConfirmWriteback: req.ConfirmWriteback,
 	}, nil
 }
@@ -2127,6 +2131,7 @@ func metadataWritebackInputFromMultipart(c *echo.Context) (library.MetadataWrite
 		AlbumArtist:      c.FormValue("album_artist"),
 		Year:             year,
 		CoverURL:         c.FormValue("cover_url"),
+		PathAssist:       metadataWritebackConfirmed(c.FormValue("path_assist")),
 		ConfirmWriteback: metadataWritebackConfirmed(c.FormValue("confirm_writeback")),
 	}
 	file, err := c.FormFile("cover")

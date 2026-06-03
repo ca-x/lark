@@ -705,6 +705,85 @@ func TestImportFileWritesCorrectedWAVTagsWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestImportFileUsesPathMetadataAssistForPromotionalAlbumTag(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	albumDir := filepath.Join(root, "五月天", "第二人生（明日版）")
+	if err := os.MkdirAll(albumDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	audioPath := filepath.Join(albumDir, "01 - 分裂.wav")
+	writeMinimalWAVFile(t, audioPath)
+	if _, err := writeWAVInfoMetadata(audioPath, fileMetadata{
+		Title:  "分裂",
+		Artist: "五月天",
+		Album:  "微信公众号：磨坊高品质音乐论坛-MOOFEEL.COM",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:path-metadata-assist?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: root}
+	if _, err := service.SaveSettings(ctx, models.Settings{
+		Language:                  "zh-CN",
+		Theme:                     "deep-space",
+		NeteaseFallback:           true,
+		LibraryPathMetadataAssist: true,
+		PlaybackSourceTTLHours:    24,
+		TranscodePolicy:           "auto",
+		TranscodeQualityKbps:      192,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	added, err := service.importFile(ctx, audioPath, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !added {
+		t.Fatal("expected assisted import to add song")
+	}
+	item, err := client.Song.Query().WithArtist().WithAlbum().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Title != "分裂" || item.Edges.Artist.Name != "五月天" || item.Edges.Album.Title != "第二人生（明日版）" || item.Edges.Album.AlbumArtist != "五月天" {
+		t.Fatalf("expected path-assisted metadata, got title=%q artist=%q album=%q albumArtist=%q", item.Title, item.Edges.Artist.Name, item.Edges.Album.Title, item.Edges.Album.AlbumArtist)
+	}
+}
+
+func TestImportFileKeepsPromotionalAlbumTagWhenPathMetadataAssistDisabled(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	albumDir := filepath.Join(root, "五月天", "第二人生（明日版）")
+	if err := os.MkdirAll(albumDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	audioPath := filepath.Join(albumDir, "01 - 分裂.wav")
+	writeMinimalWAVFile(t, audioPath)
+	if _, err := writeWAVInfoMetadata(audioPath, fileMetadata{
+		Title:  "分裂",
+		Artist: "五月天",
+		Album:  "微信公众号：磨坊高品质音乐论坛-MOOFEEL.COM",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:path-metadata-assist-disabled?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: root}
+
+	if _, err := service.importFile(ctx, audioPath, false); err != nil {
+		t.Fatal(err)
+	}
+	item, err := client.Song.Query().WithAlbum().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Edges.Album.Title != "微信公众号：磨坊高品质音乐论坛-MOOFEEL.COM" {
+		t.Fatalf("expected disabled path assist to preserve tag album, got %q", item.Edges.Album.Title)
+	}
+}
+
 func TestApplyMetadataFallbackDoesNotOverwriteExistingTags(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "Folder Album", "Other Artist - Other Title.flac")

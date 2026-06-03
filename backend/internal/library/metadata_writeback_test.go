@@ -1,6 +1,7 @@
 package library
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -8,7 +9,10 @@ import (
 	"testing"
 
 	"lark/backend/ent"
+	"lark/backend/ent/album"
+	"lark/backend/ent/enttest"
 
+	_ "github.com/lib-x/entsqlite"
 	taglib "go.senan.xyz/taglib"
 )
 
@@ -92,6 +96,80 @@ func TestWriteAudioMetadataMergesWAVInfoFields(t *testing.T) {
 	}
 	if meta.Album != "New Album" || meta.Year != 2026 {
 		t.Fatalf("album/year = %q/%d, want New Album/2026", meta.Album, meta.Year)
+	}
+}
+
+func TestUpdateAlbumMetadataFromPathSplitsIncorrectAlbumByDirectories(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	firstDir := filepath.Join(root, "五月天", "第二人生（明日版）")
+	secondDir := filepath.Join(root, "五月天", "自传")
+	if err := os.MkdirAll(firstDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(secondDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	firstPath := filepath.Join(firstDir, "01 - 分裂.wav")
+	secondPath := filepath.Join(secondDir, "01 - 如果我们不曾相遇.wav")
+	writeMinimalWAVFile(t, firstPath)
+	writeMinimalWAVFile(t, secondPath)
+	for _, item := range []struct {
+		path  string
+		title string
+	}{
+		{firstPath, "分裂"},
+		{secondPath, "如果我们不曾相遇"},
+	} {
+		if _, err := writeWAVInfoMetadata(item.path, fileMetadata{
+			Title:  item.title,
+			Artist: "五月天",
+			Album:  "微信公众号：磨坊高品质音乐论坛-MOOFEEL.COM",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	client := enttest.Open(t, "sqlite3", "file:album-path-split?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: root}
+	userItem, err := client.User.Create().SetUsername("metadata-owner").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.importFile(ctx, firstPath, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.importFile(ctx, secondPath, false); err != nil {
+		t.Fatal(err)
+	}
+	wrongAlbum, err := client.Album.Query().Where(album.Title("微信公众号：磨坊高品质音乐论坛-MOOFEEL.COM")).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := service.UpdateAlbumMetadata(ctx, userItem.ID, wrongAlbum.ID, MetadataWritebackInput{
+		PathAssist:       true,
+		ConfirmWriteback: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Updated != 2 || len(result.Albums) != 2 {
+		t.Fatalf("expected 2 updated files and 2 albums, got updated=%d albums=%d result=%#v", result.Updated, len(result.Albums), result)
+	}
+	albums, err := client.Album.Query().Where(album.HasSongs()).All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	titles := map[string]string{}
+	for _, item := range albums {
+		titles[item.Title] = item.AlbumArtist
+	}
+	if titles["第二人生（明日版）"] != "五月天" || titles["自传"] != "五月天" {
+		t.Fatalf("expected path split albums, got %#v", titles)
+	}
+	if _, ok := titles["微信公众号：磨坊高品质音乐论坛-MOOFEEL.COM"]; ok {
+		t.Fatalf("expected wrong album to have no songs, got %#v", titles)
 	}
 }
 

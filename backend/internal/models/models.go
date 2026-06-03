@@ -55,6 +55,8 @@ type MetadataCandidate struct {
 	Cover       string `json:"cover,omitempty"`
 	ReleaseDate string `json:"release_date,omitempty"`
 	Link        string `json:"link,omitempty"`
+	PathGroups  int    `json:"path_groups,omitempty"`
+	SongCount   int    `json:"song_count,omitempty"`
 }
 
 type MetadataWritebackItem struct {
@@ -72,6 +74,7 @@ type MetadataWritebackResult struct {
 	Items   []MetadataWritebackItem `json:"items"`
 	Song    *Song                   `json:"song,omitempty"`
 	Album   *Album                  `json:"album,omitempty"`
+	Albums  []Album                 `json:"albums,omitempty"`
 	Songs   []Song                  `json:"songs,omitempty"`
 }
 
@@ -282,27 +285,28 @@ type WebFont struct {
 }
 
 type Settings struct {
-	Language                string `json:"language"`
-	Theme                   string `json:"theme"`
-	SleepTimerMins          int    `json:"sleep_timer_mins"`
-	LibraryPath             string `json:"library_path"`
-	NeteaseFallback         bool   `json:"netease_fallback"`
-	RegistrationEnabled     bool   `json:"registration_enabled"`
-	DiagnosticsEnabled      bool   `json:"diagnostics_enabled"`
-	PlaybackSourceTTLHours  int    `json:"playback_source_ttl_hours"`
-	WebFontFamily           string `json:"web_font_family"`
-	WebFontURL              string `json:"web_font_url"`
-	LyricsAutoSaveToSongDir bool   `json:"lyrics_auto_save_to_song_dir"`
-	LyricsFontFamily        string `json:"lyrics_font_family"`
-	LyricsFontURL           string `json:"lyrics_font_url"`
-	LyricsFontSize          int    `json:"lyrics_font_size"`
-	MetadataGrouping        bool   `json:"metadata_grouping"`
-	LibraryTagWriteback     bool   `json:"library_tag_writeback"`
-	SmartPlaylistsEnabled   bool   `json:"smart_playlists_enabled"`
-	SharingEnabled          bool   `json:"sharing_enabled"`
-	SubsonicServerEnabled   bool   `json:"subsonic_server_enabled"`
-	TranscodePolicy         string `json:"transcode_policy"`
-	TranscodeQualityKbps    int    `json:"transcode_quality_kbps"`
+	Language                  string `json:"language"`
+	Theme                     string `json:"theme"`
+	SleepTimerMins            int    `json:"sleep_timer_mins"`
+	LibraryPath               string `json:"library_path"`
+	NeteaseFallback           bool   `json:"netease_fallback"`
+	RegistrationEnabled       bool   `json:"registration_enabled"`
+	DiagnosticsEnabled        bool   `json:"diagnostics_enabled"`
+	PlaybackSourceTTLHours    int    `json:"playback_source_ttl_hours"`
+	WebFontFamily             string `json:"web_font_family"`
+	WebFontURL                string `json:"web_font_url"`
+	LyricsAutoSaveToSongDir   bool   `json:"lyrics_auto_save_to_song_dir"`
+	LyricsFontFamily          string `json:"lyrics_font_family"`
+	LyricsFontURL             string `json:"lyrics_font_url"`
+	LyricsFontSize            int    `json:"lyrics_font_size"`
+	MetadataGrouping          bool   `json:"metadata_grouping"`
+	LibraryTagWriteback       bool   `json:"library_tag_writeback"`
+	LibraryPathMetadataAssist bool   `json:"library_path_metadata_assist"`
+	SmartPlaylistsEnabled     bool   `json:"smart_playlists_enabled"`
+	SharingEnabled            bool   `json:"sharing_enabled"`
+	SubsonicServerEnabled     bool   `json:"subsonic_server_enabled"`
+	TranscodePolicy           string `json:"transcode_policy"`
+	TranscodeQualityKbps      int    `json:"transcode_quality_kbps"`
 }
 
 type ScrobblingSettings struct {

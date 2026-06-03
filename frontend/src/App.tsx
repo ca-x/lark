@@ -195,6 +195,7 @@ const defaultSettings: Settings = {
   lyrics_font_size: 0,
   metadata_grouping: false,
   library_tag_writeback: false,
+  library_path_metadata_assist: false,
   smart_playlists_enabled: false,
   sharing_enabled: false,
   subsonic_server_enabled: false,
@@ -3479,6 +3480,40 @@ export default function App() {
     if (result.songs?.length) {
       applyUpdatedSongs(result.songs);
     }
+    if (result.albums?.length) {
+      const updatedAlbums = result.albums;
+      const byID = new Map(updatedAlbums.map((item) => [item.id, item]));
+      setAlbums((old) => {
+        const editedID = target.type === "album" ? target.album.id : 0;
+        const filtered = old.filter((item) => item.id !== editedID && !byID.has(item.id));
+        return [...updatedAlbums, ...filtered];
+      });
+      setFavoriteAlbums((old) => {
+        const editedID = target.type === "album" ? target.album.id : 0;
+        const filtered = old.filter((item) => item.id !== editedID && !byID.has(item.id));
+        return [...updatedAlbums.filter((item) => item.favorite), ...filtered];
+      });
+      setCollection((old) => {
+        if (!old || old.type !== "album" || target.type !== "album" || old.id !== target.album.id) return old;
+        const nextAlbum = updatedAlbums[0];
+        const nextSongs = result.songs?.length ? result.songs : old.songs;
+        return {
+          ...old,
+          id: nextAlbum.id,
+          title: nextAlbum.title,
+          subtitle: [
+            nextAlbum.artist,
+            nextAlbum.year ? String(nextAlbum.year) : "",
+            `${nextAlbum.song_count || nextSongs.length} ${t("count")}`,
+          ].filter(Boolean).join(" · "),
+          favorite: nextAlbum.favorite,
+          songs: nextSongs,
+          coverUrl: albumCoverUrl(nextAlbum),
+          artistId: nextAlbum.artist_id,
+          artistName: nextAlbum.artist,
+        };
+      });
+    }
     if (result.album) {
       const updatedAlbum = result.album;
       setAlbums((old) => {
@@ -5560,6 +5595,7 @@ function MetadataEditorDialog({
   const [coverURL, setCoverURL] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState("");
+  const [pathAssist, setPathAssist] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [finalConfirmOpen, setFinalConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -5583,7 +5619,8 @@ function MetadataEditorDialog({
     albumArtist.trim() !== initial.albumArtist ||
     year.trim() !== initial.year ||
     coverURL.trim() !== "" ||
-    Boolean(coverFile);
+    Boolean(coverFile) ||
+    pathAssist;
 
   useEffect(() => {
     setTitle(initial.title);
@@ -5593,6 +5630,7 @@ function MetadataEditorDialog({
     setYear(initial.year);
     setCoverURL("");
     setCoverFile(null);
+    setPathAssist(false);
     setConfirmed(false);
     setFinalConfirmOpen(false);
     setError("");
@@ -5638,6 +5676,8 @@ function MetadataEditorDialog({
   }, [isAlbum, target]);
 
   const applyCandidate = (candidate: MetadataCandidate) => {
+    const usePathAssist = candidate.source === "path" && isAlbum;
+    setPathAssist(usePathAssist);
     if (candidate.title) {
       if (isAlbum) setTitle(candidate.title);
       else setTitle(candidate.title);
@@ -5654,6 +5694,9 @@ function MetadataEditorDialog({
       setCoverFile(null);
     }
   };
+  const markManualMetadataEdit = () => {
+    if (pathAssist) setPathAssist(false);
+  };
 
   const writeMetadata = async () => {
     setError("");
@@ -5669,6 +5712,7 @@ function MetadataEditorDialog({
     }
     body.set("year", year.trim());
     body.set("cover_url", coverFile ? "" : coverURL.trim());
+    body.set("path_assist", pathAssist ? "true" : "false");
     body.set("confirm_writeback", "true");
     if (coverFile) body.set("cover", coverFile);
     setSaving(true);
@@ -5760,7 +5804,10 @@ function MetadataEditorDialog({
                 value={title}
                 maxLength={180}
                 autoComplete="off"
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(event) => {
+                  markManualMetadataEdit();
+                  setTitle(event.target.value);
+                }}
               />
             </label>
             {isAlbum ? (
@@ -5771,7 +5818,10 @@ function MetadataEditorDialog({
                   value={albumArtist}
                   maxLength={180}
                   autoComplete="off"
-                  onChange={(event) => setAlbumArtist(event.target.value)}
+                  onChange={(event) => {
+                    markManualMetadataEdit();
+                    setAlbumArtist(event.target.value);
+                  }}
                 />
               </label>
             ) : (
@@ -5783,7 +5833,10 @@ function MetadataEditorDialog({
                     value={artist}
                     maxLength={180}
                     autoComplete="off"
-                    onChange={(event) => setArtist(event.target.value)}
+                    onChange={(event) => {
+                      markManualMetadataEdit();
+                      setArtist(event.target.value);
+                    }}
                   />
                 </label>
                 <label>
@@ -5793,7 +5846,10 @@ function MetadataEditorDialog({
                     value={album}
                     maxLength={180}
                     autoComplete="off"
-                    onChange={(event) => setAlbum(event.target.value)}
+                    onChange={(event) => {
+                      markManualMetadataEdit();
+                      setAlbum(event.target.value);
+                    }}
                   />
                 </label>
               </>
@@ -5856,7 +5912,7 @@ function MetadataEditorDialog({
                       <strong>{candidate.source === "path" ? t("metadataPathCandidate") : candidate.title}</strong>
                       <em>
                         {candidate.source === "path"
-                          ? [candidate.title, candidate.artist, candidate.album].filter(Boolean).join(" · ") || t("metadataPathCandidateHint")
+                          ? metadataPathCandidateSummary(candidate, isAlbum, t)
                           : [candidate.artist, candidate.album, candidate.year || candidate.release_date].filter(Boolean).join(" · ")}
                       </em>
                     </span>
@@ -5872,7 +5928,7 @@ function MetadataEditorDialog({
             <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
             <span>
               <strong><ShieldCheck /> {t("metadataConfirmTitle")}</strong>
-              <em>{t("metadataConfirmBody")}</em>
+              <em>{pathAssist && isAlbum ? t("metadataPathAssistConfirmBody") : t("metadataConfirmBody")}</em>
             </span>
           </label>
 
@@ -5950,6 +6006,15 @@ function metadataStatusLabel(status: string, t: ReturnType<typeof createT>) {
   if (status === "skipped") return t("metadataStatusSkipped");
   if (status === "failed") return t("metadataStatusFailed");
   return status;
+}
+
+function metadataPathCandidateSummary(candidate: MetadataCandidate, isAlbum: boolean, t: ReturnType<typeof createT>) {
+  if (isAlbum && candidate.path_groups && candidate.path_groups > 1) {
+    return t("metadataPathSplitHint")
+      .replace("{groups}", String(candidate.path_groups))
+      .replace("{count}", String(candidate.song_count || 0));
+  }
+  return [candidate.title, candidate.artist, candidate.album].filter(Boolean).join(" · ") || t("metadataPathCandidateHint");
 }
 
 function metadataTargetFileCount(target: MetadataEditorTarget) {
@@ -9902,6 +9967,17 @@ function SettingsPanel({
                   type="checkbox"
                   checked={settings.library_tag_writeback}
                   onChange={(e) => setSettings({ ...settings, library_tag_writeback: e.target.checked })}
+                />
+              </label>
+              <label className="switch-row">
+                <span>
+                  <span>{t("libraryPathMetadataAssist")}</span>
+                  <small>{t("libraryPathMetadataAssistHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.library_path_metadata_assist}
+                  onChange={(e) => setSettings({ ...settings, library_path_metadata_assist: e.target.checked })}
                 />
               </label>
             </div>

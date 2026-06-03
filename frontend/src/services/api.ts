@@ -29,6 +29,7 @@ function normalizeMetadataWritebackResult(result: MetadataWritebackResult | null
     items: arrayOrEmpty(result?.items),
     ...(result?.song ? { song: result.song } : {}),
     ...(result?.album ? { album: result.album } : {}),
+    ...(Array.isArray(result?.albums) ? { albums: result.albums } : {}),
     ...(Array.isArray(result?.songs) ? { songs: result.songs } : {}),
   }
 }

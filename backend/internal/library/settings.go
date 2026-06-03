@@ -179,21 +179,22 @@ func (s *Service) SaveScrobblingSettings(ctx context.Context, userID int, settin
 }
 func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 	settings := models.Settings{
-		Language:               "zh-CN",
-		Theme:                  "deep-space",
-		SleepTimerMins:         0,
-		LibraryPath:            s.libraryDir,
-		NeteaseFallback:        true,
-		RegistrationEnabled:    false,
-		PlaybackSourceTTLHours: defaultPlaybackSourceTTLHours,
-		LyricsFontSize:         0,
-		MetadataGrouping:       false,
-		LibraryTagWriteback:    false,
-		SmartPlaylistsEnabled:  false,
-		SharingEnabled:         false,
-		SubsonicServerEnabled:  false,
-		TranscodePolicy:        "auto",
-		TranscodeQualityKbps:   192,
+		Language:                  "zh-CN",
+		Theme:                     "deep-space",
+		SleepTimerMins:            0,
+		LibraryPath:               s.libraryDir,
+		NeteaseFallback:           true,
+		RegistrationEnabled:       false,
+		PlaybackSourceTTLHours:    defaultPlaybackSourceTTLHours,
+		LyricsFontSize:            0,
+		MetadataGrouping:          false,
+		LibraryTagWriteback:       false,
+		LibraryPathMetadataAssist: false,
+		SmartPlaylistsEnabled:     false,
+		SharingEnabled:            false,
+		SubsonicServerEnabled:     false,
+		TranscodePolicy:           "auto",
+		TranscodeQualityKbps:      192,
 	}
 	items, err := s.client.AppSetting.Query().All(ctx)
 	if err != nil {
@@ -231,6 +232,8 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.MetadataGrouping = item.Value == "true"
 		case "library_tag_writeback":
 			settings.LibraryTagWriteback = item.Value == "true"
+		case "library_path_metadata_assist":
+			settings.LibraryPathMetadataAssist = item.Value == "true"
 		case "smart_playlists_enabled":
 			settings.SmartPlaylistsEnabled = item.Value == "true"
 		case "sharing_enabled":
@@ -288,6 +291,7 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 		"lyrics_font_size":             strconv.Itoa(settings.LyricsFontSize),
 		"metadata_grouping":            strconv.FormatBool(settings.MetadataGrouping),
 		"library_tag_writeback":        strconv.FormatBool(settings.LibraryTagWriteback),
+		"library_path_metadata_assist": strconv.FormatBool(settings.LibraryPathMetadataAssist),
 		"smart_playlists_enabled":      strconv.FormatBool(settings.SmartPlaylistsEnabled),
 		"sharing_enabled":              strconv.FormatBool(settings.SharingEnabled),
 		"subsonic_server_enabled":      strconv.FormatBool(settings.SubsonicServerEnabled),

@@ -36,6 +36,7 @@ type MetadataWritebackInput struct {
 	CoverURL         string
 	CoverData        []byte
 	CoverMime        string
+	PathAssist       bool
 	ConfirmWriteback bool
 }
 
@@ -292,6 +293,9 @@ func (s *Service) UpdateAlbumMetadata(ctx context.Context, userID, id int, input
 	if len(item.Edges.Songs) == 0 {
 		return result, nil
 	}
+	if input.PathAssist {
+		return s.updateAlbumMetadataFromPath(ctx, userID, item, input)
+	}
 	if !metadataWritebackHasChanges(input) {
 		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
 			Path:    item.Title,
@@ -401,6 +405,136 @@ func (s *Service) UpdateAlbumMetadata(ctx context.Context, userID, id int, input
 	return result, nil
 }
 
+func (s *Service) updateAlbumMetadataFromPath(ctx context.Context, userID int, item *ent.Album, input MetadataWritebackInput) (models.MetadataWritebackResult, error) {
+	result := newMetadataWritebackResult()
+	groups := metadataWritebackFileGroups(item.Edges.Songs)
+	if len(groups) == 0 {
+		return result, nil
+	}
+	coverData, coverMime, err := s.metadataCoverData(ctx, input)
+	if err != nil {
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			Path:    item.Title,
+			Status:  "failed",
+			Message: err.Error(),
+		})
+		return result, nil
+	}
+	coverVersion := time.Now().UnixNano()
+	updatedSongIDs := []int{}
+	updatedAlbumIDs := map[int]bool{}
+	for _, group := range groups {
+		pathMeta := metadataFromPath(group.Path, s.libraryDir)
+		if pathMeta.Title == "" && len(group.Songs) == 1 {
+			pathMeta.Title = group.Songs[0].Title
+		}
+		pathMeta.Album = firstString(pathMeta.Album, songAlbumTitle(firstSong(group.Songs)), item.Title)
+		pathMeta.Artist = firstString(pathMeta.Artist, songArtistName(firstSong(group.Songs)), pathMeta.AlbumArtist, unknownArtistName)
+		pathMeta.AlbumArtist = firstString(pathMeta.AlbumArtist, pathMeta.Artist, albumSearchArtistName(item))
+		targetYear := input.Year
+		if targetYear <= 0 {
+			targetYear = firstSongYear(group.Songs)
+		}
+		pathMeta.Year = targetYear
+
+		tags := taglibTagsForPathMetadata(pathMeta, group.CUETrackCount == 0)
+		wavMeta := wavPatchForPathMetadata(pathMeta, group.CUETrackCount == 0)
+		written, writeErr := writeAudioMetadata(group.Path, tags, wavMeta, coverData, coverMime)
+		if writeErr != nil {
+			addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+				Path:    group.Path,
+				Status:  "failed",
+				Message: writeErr.Error(),
+			})
+			continue
+		}
+		if !written {
+			addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+				Path:    group.Path,
+				Status:  "skipped",
+				Message: "file metadata did not change",
+			})
+			continue
+		}
+
+		artistItem, err := s.ensureArtist(ctx, pathMeta.Artist)
+		if err != nil {
+			addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+				Path:    group.Path,
+				Status:  "failed",
+				Message: err.Error(),
+			})
+			continue
+		}
+		albumItem, err := s.ensureAlbum(ctx, pathMeta.Album, pathMeta.AlbumArtist, artistItem, targetYear)
+		if err != nil {
+			addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+				Path:    group.Path,
+				Status:  "failed",
+				Message: err.Error(),
+			})
+			continue
+		}
+		for _, songItem := range group.Songs {
+			title := songItem.Title
+			if group.CUETrackCount == 0 && pathMeta.Title != "" {
+				title = pathMeta.Title
+			}
+			if err := s.updatePathAssistedSongRow(ctx, songItem, artistItem, albumItem, title, targetYear, group.Path); err != nil {
+				addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+					SongID:  songItem.ID,
+					Title:   songItem.Title,
+					Path:    group.Path,
+					Status:  "failed",
+					Message: err.Error(),
+				})
+				continue
+			}
+			updatedSongIDs = append(updatedSongIDs, songItem.ID)
+		}
+		updatedAlbumIDs[albumItem.ID] = true
+		if len(coverData) > 0 {
+			_ = s.writeCollectionCoverCache("albums", strconv.Itoa(albumItem.ID), coverMime, coverData)
+		}
+		message := fmt.Sprintf("%s · %s", pathMeta.AlbumArtist, pathMeta.Album)
+		if group.CUETrackCount > 0 {
+			message = fmt.Sprintf("%s; %d CUE virtual tracks share this audio file", message, group.CUETrackCount)
+		}
+		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
+			Path:    group.Path,
+			Status:  "updated",
+			Message: message,
+		})
+	}
+	if result.Updated == 0 {
+		return result, nil
+	}
+	s.invalidateLibraryCache(ctx)
+	s.invalidateSearchCatalogs(ctx)
+
+	if len(updatedSongIDs) > 0 {
+		songModels, err := s.songsForUserByIDs(ctx, userID, updatedSongIDs, coverVersion)
+		if err != nil {
+			return result, err
+		}
+		result.Songs = songModels
+	}
+	albumIDs := make([]int, 0, len(updatedAlbumIDs))
+	for id := range updatedAlbumIDs {
+		albumIDs = append(albumIDs, id)
+	}
+	sort.Ints(albumIDs)
+	albumModels, err := s.albumsForUserByIDs(ctx, userID, albumIDs, coverVersion)
+	if err != nil {
+		return result, err
+	}
+	result.Albums = albumModels
+	if len(albumModels) == 1 {
+		result.Album = &albumModels[0]
+	}
+	return result, nil
+}
+
 func metadataCandidateScore(candidate models.MetadataCandidate, title, artistName string) int {
 	score := 0
 	if strings.EqualFold(strings.TrimSpace(candidate.Title), strings.TrimSpace(title)) {
@@ -473,10 +607,12 @@ func metadataPathCandidateFromAlbum(item *ent.Album, libraryRoot string) (models
 		return models.MetadataCandidate{}, false
 	}
 	return models.MetadataCandidate{
-		Source: metadataPathCandidateSource,
-		ID:     fmt.Sprintf("album-%d", item.ID),
-		Title:  title,
-		Artist: artistName,
+		Source:     metadataPathCandidateSource,
+		ID:         fmt.Sprintf("album-%d", item.ID),
+		Title:      title,
+		Artist:     artistName,
+		PathGroups: len(metadataPathAlbumGroupsFromSongs(item.Edges.Songs, libraryRoot)),
+		SongCount:  len(item.Edges.Songs),
 	}, true
 }
 
@@ -556,6 +692,39 @@ func mostCommonMetadataPathValue(values []string) string {
 	return best.value
 }
 
+type metadataPathAlbumGroup struct {
+	Album       string
+	AlbumArtist string
+	Songs       []*ent.Song
+}
+
+func metadataPathAlbumGroupsFromSongs(items []*ent.Song, libraryRoot string) []metadataPathAlbumGroup {
+	groupsByKey := map[string]*metadataPathAlbumGroup{}
+	order := []string{}
+	for _, songItem := range items {
+		if songItem == nil || strings.TrimSpace(songItem.Path) == "" {
+			continue
+		}
+		audioPath := ActualAudioPath(songItem.Path)
+		pathMeta := metadataFromPath(audioPath, libraryRoot)
+		albumTitle := firstString(pathMeta.Album, songAlbumTitle(songItem), "Unknown Album")
+		albumArtist := firstString(pathMeta.AlbumArtist, songAlbumArtist(songItem), songArtistName(songItem), unknownArtistName)
+		key := strings.ToLower(normalizeCompareText(albumArtist) + "\x00" + normalizeCompareText(albumTitle))
+		group := groupsByKey[key]
+		if group == nil {
+			group = &metadataPathAlbumGroup{Album: albumTitle, AlbumArtist: albumArtist}
+			groupsByKey[key] = group
+			order = append(order, key)
+		}
+		group.Songs = append(group.Songs, songItem)
+	}
+	out := make([]metadataPathAlbumGroup, 0, len(order))
+	for _, key := range order {
+		out = append(out, *groupsByKey[key])
+	}
+	return out
+}
+
 func normalizeMetadataWritebackInput(input MetadataWritebackInput) MetadataWritebackInput {
 	input.Title = strings.TrimSpace(input.Title)
 	input.Artist = strings.TrimSpace(input.Artist)
@@ -607,6 +776,34 @@ func wavPatchForSong(input MetadataWritebackInput) fileMetadata {
 
 func wavPatchForAlbum(input MetadataWritebackInput) fileMetadata {
 	return fileMetadata{Artist: input.AlbumArtist, Album: input.Title, Year: input.Year}
+}
+
+func taglibTagsForPathMetadata(meta fileMetadata, includeTitle bool) map[string][]string {
+	tags := map[string][]string{}
+	if includeTitle && meta.Title != "" {
+		tags[taglib.Title] = []string{meta.Title}
+	}
+	if meta.Artist != "" {
+		tags[taglib.Artist] = []string{meta.Artist}
+	}
+	if meta.Album != "" {
+		tags[taglib.Album] = []string{meta.Album}
+	}
+	if meta.AlbumArtist != "" {
+		tags[taglib.AlbumArtist] = []string{meta.AlbumArtist}
+	}
+	if meta.Year > 0 {
+		tags[taglib.Date] = []string{strconv.Itoa(meta.Year)}
+	}
+	return tags
+}
+
+func wavPatchForPathMetadata(meta fileMetadata, includeTitle bool) fileMetadata {
+	patch := fileMetadata{Artist: meta.Artist, Album: meta.Album, Year: meta.Year}
+	if includeTitle {
+		patch.Title = meta.Title
+	}
+	return patch
 }
 
 func writeAudioMetadata(path string, tags map[string][]string, wavPatch fileMetadata, coverData []byte, coverMime string) (bool, error) {
@@ -817,6 +1014,24 @@ func (s *Service) updateAlbumSongRowAfterWriteback(ctx context.Context, item *en
 	return err
 }
 
+func (s *Service) updatePathAssistedSongRow(ctx context.Context, item *ent.Song, artistItem *ent.Artist, albumItem *ent.Album, title string, year int, audioPath string) error {
+	info, err := os.Stat(audioPath)
+	if err != nil {
+		return err
+	}
+	update := item.Update().
+		SetTitle(firstString(title, item.Title)).
+		SetSizeBytes(info.Size()).
+		SetModTimeUnixNano(info.ModTime().UnixNano()).
+		SetArtist(artistItem).
+		SetAlbum(albumItem)
+	if year > 0 {
+		update.SetYear(year)
+	}
+	_, err = update.Save(ctx)
+	return err
+}
+
 func (s *Service) albumModelForUser(ctx context.Context, userID, id int, coverVersion int64) (models.Album, error) {
 	item, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs().Only(ctx)
 	if err != nil {
@@ -832,6 +1047,37 @@ func (s *Service) albumModelForUser(ctx context.Context, userID, id int, coverVe
 	}
 	items[0].CoverVersion = coverVersion
 	return items[0], nil
+}
+
+func (s *Service) albumsForUserByIDs(ctx context.Context, userID int, ids []int, coverVersion int64) ([]models.Album, error) {
+	if len(ids) == 0 {
+		return []models.Album{}, nil
+	}
+	items, err := s.client.Album.Query().
+		Where(album.IDIn(ids...)).
+		WithArtist().
+		WithSongs().
+		Order(ent.Asc(album.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	counts, err := s.albumSongCountsForIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]models.Album, 0, len(items))
+	for _, item := range items {
+		out = append(out, mapAlbumWithCount(item, counts[item.ID]))
+	}
+	out, err = s.applyAlbumUserState(ctx, userID, out)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		out[i].CoverVersion = coverVersion
+	}
+	return out, nil
 }
 
 func (s *Service) songsForUserByIDs(ctx context.Context, userID int, ids []int, coverVersion int64) ([]models.Song, error) {
@@ -855,6 +1101,45 @@ func (s *Service) songsForUserByIDs(ctx context.Context, userID int, ids []int, 
 		out[i].CoverVersion = coverVersion
 	}
 	return out, nil
+}
+
+func firstSong(items []*ent.Song) *ent.Song {
+	for _, item := range items {
+		if item != nil {
+			return item
+		}
+	}
+	return nil
+}
+
+func songArtistName(item *ent.Song) string {
+	if item == nil || item.Edges.Artist == nil {
+		return ""
+	}
+	return strings.TrimSpace(item.Edges.Artist.Name)
+}
+
+func songAlbumTitle(item *ent.Song) string {
+	if item == nil || item.Edges.Album == nil {
+		return ""
+	}
+	return strings.TrimSpace(item.Edges.Album.Title)
+}
+
+func songAlbumArtist(item *ent.Song) string {
+	if item == nil || item.Edges.Album == nil {
+		return ""
+	}
+	return strings.TrimSpace(item.Edges.Album.AlbumArtist)
+}
+
+func firstSongYear(items []*ent.Song) int {
+	for _, item := range items {
+		if item != nil && item.Year > 0 {
+			return item.Year
+		}
+	}
+	return 0
 }
 
 type metadataWritebackFileGroup struct {
