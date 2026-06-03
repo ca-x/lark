@@ -5,6 +5,34 @@
 
 ---
 
+## 0.7.26 — CUE 异常格式兼容修复
+
+发布日期 / Released: 2026-06-03
+
+### 修复
+
+- **修复无音频轨 CUE 导致扫描报黄。** `TRACK ... MODE1/2352` 等非音频 CUE 现在会被静默跳过，不再报告 `cue sheet has no audio tracks`。
+- **避免坏 CUE 拦截真实整轨音频。** 没有 `TRACK ... AUDIO` 的 CUE 不再把 `FILE` 指向的音频标记为已由 CUE 接管，真实的 `CDImage.ape/flac/wav` 会继续按普通音频扫描。
+- **兼容 CUE 中的 Unicode 空白。** CUE 分词现在使用 Unicode 空白识别，能处理全角空格、NBSP 等异常空白字符。
+
+完整 diff：`git log v0.7.25..v0.7.26`
+
+---
+
+## v0.7.26 — CUE malformed format compatibility
+
+Released: 2026-06-03
+
+### Fixes
+
+- **Fixed scan warnings from CUE files without audio tracks.** Non-audio CUE sheets such as `TRACK ... MODE1/2352` are now skipped quietly instead of reporting `cue sheet has no audio tracks`.
+- **Prevented malformed CUE sheets from blocking real image audio.** CUE files without `TRACK ... AUDIO` no longer mark their `FILE` targets as CUE-managed, so real `CDImage.ape/flac/wav` files continue to scan normally.
+- **Accepted Unicode whitespace in CUE sheets.** CUE tokenization now recognizes Unicode whitespace, including full-width spaces and NBSP.
+
+Full diff: `git log v0.7.25..v0.7.26`
+
+---
+
 ## 0.7.25 — 歌手首字母检索与封面兜底
 
 发布日期 / Released: 2026-06-03

@@ -364,6 +364,9 @@ func (s *Service) importCUEFile(ctx context.Context, cuePath string, invalidate 
 	}
 	sheet, err := s.parseCueSheet(ctx, absCue)
 	if err != nil {
+		if errors.Is(err, errCueNoAudioTracks) {
+			return cueImportResult{}, nil
+		}
 		return cueImportResult{}, err
 	}
 	result := cueImportResult{AudioPaths: uniqueCueAudioPaths(sheet)}

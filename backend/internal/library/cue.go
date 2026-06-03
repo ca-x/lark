@@ -4,16 +4,20 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
 const cueVirtualMarker = "#lark-cue="
+
+var errCueNoAudioTracks = errors.New("cue sheet has no audio tracks")
 
 type AudioSegment struct {
 	Path         string
@@ -131,7 +135,7 @@ func (s *Service) parseCueSheet(ctx context.Context, cuePath string) (cueSheet, 
 	}
 	sheet := parseCueText(abs, decodeCueSheetText(data))
 	if len(sheet.Tracks) == 0 {
-		return cueSheet{}, fmt.Errorf("cue sheet has no audio tracks")
+		return cueSheet{}, errCueNoAudioTracks
 	}
 	if err := resolveCueSheetFiles(&sheet); err != nil {
 		return cueSheet{}, err
@@ -150,6 +154,9 @@ func cueSheetAudioPaths(cuePath string) ([]string, error) {
 		return nil, err
 	}
 	sheet := parseCueText(abs, decodeCueSheetText(data))
+	if len(sheet.Tracks) == 0 {
+		return nil, errCueNoAudioTracks
+	}
 	if err := resolveCueSheetFiles(&sheet); err != nil {
 		return nil, err
 	}
@@ -221,7 +228,7 @@ func cueFields(line string) []string {
 	}
 	fields := []string{}
 	for len(line) > 0 {
-		line = strings.TrimLeft(line, " \t")
+		line = strings.TrimLeftFunc(line, unicode.IsSpace)
 		if line == "" {
 			break
 		}
@@ -236,13 +243,13 @@ func cueFields(line string) []string {
 			line = line[end+1:]
 			continue
 		}
-		end := strings.IndexAny(line, " \t")
+		end := strings.IndexFunc(line, unicode.IsSpace)
 		if end < 0 {
 			fields = append(fields, line)
 			break
 		}
 		fields = append(fields, line[:end])
-		line = line[end+1:]
+		line = line[end:]
 	}
 	return fields
 }
