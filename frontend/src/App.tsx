@@ -5717,6 +5717,7 @@ function MetadataEditorDialog({
       first.focus();
     }
   };
+  const resultItems = Array.isArray(result?.items) ? result.items : [];
 
   return (
     <div className="modal-layer" role="presentation">
@@ -5883,7 +5884,7 @@ function MetadataEditorDialog({
                 <span>{result.updated} / {result.skipped} / {result.failed}</span>
               </div>
               <div className="metadata-result-list">
-                {result.items.map((item, index) => (
+                {resultItems.map((item, index) => (
                   <div key={`${item.path}-${index}`} data-status={item.status}>
                     <strong>{metadataStatusLabel(item.status, t)}</strong>
                     <span title={item.path}>{item.title || item.path}</span>

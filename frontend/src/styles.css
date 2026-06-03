@@ -154,10 +154,11 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .artist-filter-options strong, .artist-filter-options small { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .artist-filter-options small, .artist-filter-options > span { color:var(--muted); }
 .artist-filter-options > span { padding:10px; }
-.artist-initial-filter { min-width:0; max-width:min(720px, 62vw); display:flex; align-items:center; gap:5px; padding:4px; border:1px solid var(--line); border-radius:999px; background:color-mix(in srgb, var(--panel2) 92%, transparent); overflow-x:auto; scrollbar-width:none; }
+.card-grid-artist > .section-head { display:grid; grid-template-columns:auto minmax(0, 1fr); align-items:start; gap:12px; }
+.artist-initial-filter { justify-self:end; width:max-content; min-width:0; max-width:100%; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:5px; padding:4px; border:1px solid var(--line); border-radius:18px; background:color-mix(in srgb, var(--panel2) 92%, transparent); overflow:visible; scrollbar-width:none; }
 .artist-initial-filter::-webkit-scrollbar { display:none; }
-.artist-initial-filter button { flex:0 0 auto; min-width:34px; min-height:34px; padding:6px 10px; border-radius:999px; color:var(--muted); font-size:13px; font-weight:800; line-height:1; }
-.artist-initial-filter button:first-child { min-width:54px; }
+.artist-initial-filter button { flex:0 0 auto; min-width:30px; min-height:34px; padding:6px 9px; border-radius:999px; color:var(--muted); font-size:13px; font-weight:800; line-height:1; }
+.artist-initial-filter button:first-child { min-width:52px; }
 .artist-initial-filter button:hover:not(:disabled), .artist-initial-filter button.active { color:var(--text); background:color-mix(in srgb, var(--accent) 15%, var(--panel)); }
 .artist-initial-filter button.active { box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent) inset; }
 .artist-initial-filter button:disabled { opacity:.34; cursor:not-allowed; }

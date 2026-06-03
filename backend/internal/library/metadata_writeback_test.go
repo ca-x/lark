@@ -1,14 +1,29 @@
 package library
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"lark/backend/ent"
 
 	taglib "go.senan.xyz/taglib"
 )
+
+func TestMetadataWritebackResultMarshalsEmptyItemsAsArray(t *testing.T) {
+	data, err := json.Marshal(newMetadataWritebackResult())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"items":[]`) {
+		t.Fatalf("expected empty items array, got %s", data)
+	}
+	if strings.Contains(string(data), `"items":null`) {
+		t.Fatalf("metadata writeback items must not marshal as null: %s", data)
+	}
+}
 
 func TestWriteAudioMetadataUpdatesTagsAndCover(t *testing.T) {
 	audioPath := copyTaglibTestdata(t, "eg.flac")

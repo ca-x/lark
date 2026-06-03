@@ -62,7 +62,7 @@
   .artist-filter-options { left:0; right:0; width:auto; max-height:45dvh; border-radius:18px; }
   .artist-filter-options > button { min-height:54px; }
   .card-grid-artist .section-head { display:grid; grid-template-columns:1fr; }
-  .artist-initial-filter { width:100%; max-width:100%; min-height:52px; gap:6px; padding:4px; border-radius:18px; scroll-padding-inline:6px; -webkit-overflow-scrolling:touch; }
+  .artist-initial-filter { width:100%; max-width:100%; min-height:52px; flex-wrap:nowrap; justify-content:flex-start; gap:6px; padding:4px; border-radius:18px; overflow-x:auto; overflow-y:hidden; scroll-padding-inline:6px; -webkit-overflow-scrolling:touch; }
   .artist-initial-filter button { min-width:44px; min-height:44px; padding:10px 12px; }
   .artist-initial-filter button:first-child { min-width:62px; }
   .collection-tabs { width:100%; border-radius:18px; }

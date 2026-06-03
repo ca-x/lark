@@ -60,7 +60,7 @@ func (s *Service) SongMetadataCandidates(ctx context.Context, id int) ([]models.
 		if hasPathCandidate {
 			return []models.MetadataCandidate{pathCandidate}, nil
 		}
-		return nil, nil
+		return []models.MetadataCandidate{}, nil
 	}
 	searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
@@ -175,7 +175,7 @@ func (s *Service) UpdateSongMetadata(ctx context.Context, userID, id int, input 
 	if err != nil {
 		return models.MetadataWritebackResult{}, err
 	}
-	result := models.MetadataWritebackResult{}
+	result := newMetadataWritebackResult()
 	source := ResolveAudioSegment(item.Path)
 	if source.IsCUETrack {
 		addMetadataWritebackItem(&result, models.MetadataWritebackItem{
@@ -288,7 +288,7 @@ func (s *Service) UpdateAlbumMetadata(ctx context.Context, userID, id int, input
 	if err != nil {
 		return models.MetadataWritebackResult{}, err
 	}
-	result := models.MetadataWritebackResult{}
+	result := newMetadataWritebackResult()
 	if len(item.Edges.Songs) == 0 {
 		return result, nil
 	}
@@ -903,4 +903,8 @@ func addMetadataWritebackItem(result *models.MetadataWritebackResult, item model
 	case "failed":
 		result.Failed++
 	}
+}
+
+func newMetadataWritebackResult() models.MetadataWritebackResult {
+	return models.MetadataWritebackResult{Items: []models.MetadataWritebackItem{}}
 }

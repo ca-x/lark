@@ -17,6 +17,22 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+function arrayOrEmpty<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : []
+}
+
+function normalizeMetadataWritebackResult(result: MetadataWritebackResult | null | undefined): MetadataWritebackResult {
+  return {
+    updated: Number(result?.updated) || 0,
+    skipped: Number(result?.skipped) || 0,
+    failed: Number(result?.failed) || 0,
+    items: arrayOrEmpty(result?.items),
+    ...(result?.song ? { song: result.song } : {}),
+    ...(result?.album ? { album: result.album } : {}),
+    ...(Array.isArray(result?.songs) ? { songs: result.songs } : {}),
+  }
+}
+
 export const api = {
   health: () => request<HealthInfo>('/api/health'),
   authStatus: () => request<AuthStatus>('/api/auth/status'),
@@ -77,8 +93,8 @@ export const api = {
   lyrics: (id: number, sourceId?: string) => request<Lyrics>(`/api/songs/${id}/lyrics${sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ''}`),
   lyricCandidates: (id: number) => request<LyricCandidate[]>(`/api/songs/${id}/lyrics/candidates`),
   selectLyrics: (id: number, source: string, candidateId: string) => request<Lyrics>(`/api/songs/${id}/lyrics/select`, { method: 'POST', body: JSON.stringify({ source, id: candidateId }) }),
-  songMetadataCandidates: (id: number) => request<MetadataCandidate[]>(`/api/songs/${id}/metadata-candidates`),
-  updateSongMetadata: (id: number, body: FormData) => request<MetadataWritebackResult>(`/api/songs/${id}/metadata`, { method: 'POST', body }),
+  songMetadataCandidates: (id: number) => request<MetadataCandidate[] | null>(`/api/songs/${id}/metadata-candidates`).then(arrayOrEmpty),
+  updateSongMetadata: (id: number, body: FormData) => request<MetadataWritebackResult | null>(`/api/songs/${id}/metadata`, { method: 'POST', body }).then(normalizeMetadataWritebackResult),
   scan: () => request<ScanResult>('/api/library/scan', { method: 'POST' }),
   cancelScan: () => request<{ canceled: boolean }>('/api/library/scan/cancel', { method: 'POST' }),
   scanStatus: () => request<ScanStatus>('/api/library/scan/status'),
@@ -106,8 +122,8 @@ export const api = {
   },
   album: (id: number, signal?: AbortSignal) => request<Album>(`/api/albums/${id}`, { signal }),
   albumSongs: (id: number, limit = 0, signal?: AbortSignal) => request<Song[]>(`/api/albums/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`, { signal }),
-  albumMetadataCandidates: (id: number) => request<MetadataCandidate[]>(`/api/albums/${id}/metadata-candidates`),
-  updateAlbumMetadata: (id: number, body: FormData) => request<MetadataWritebackResult>(`/api/albums/${id}/metadata`, { method: 'POST', body }),
+  albumMetadataCandidates: (id: number) => request<MetadataCandidate[] | null>(`/api/albums/${id}/metadata-candidates`).then(arrayOrEmpty),
+  updateAlbumMetadata: (id: number, body: FormData) => request<MetadataWritebackResult | null>(`/api/albums/${id}/metadata`, { method: 'POST', body }).then(normalizeMetadataWritebackResult),
   artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
   favoriteArtists: (limit = 500) => request<Artist[]>(`/api/artists/favorites?limit=${limit}`),
   artistsPage: (page = 1, limit = 100, initial = '') => {
