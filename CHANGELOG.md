@@ -5,6 +5,54 @@
 
 ---
 
+## 0.7.24 — 曲库缓存与模块拆分优化
+
+发布日期 / Released: 2026-06-03
+
+### 新功能
+
+- **新增 DDIA 风格曲库缓存优化。** 歌曲、专辑、歌手、歌单和每日推荐的热路径现在复用结构化缓存、计数缓存和 singleflight 去重，降低 9000+ FLAC 曲库下的歌手专辑/曲目加载超时风险。
+- **拆分后端曲库服务模块。** 原先超大的 `service.go` 拆分为缓存、目录、封面、文件夹、歌词、元数据、播放、扫描、设置和用户状态等模块，保留原有公共 API。
+
+### 改进
+
+- **前端应用类型与工具函数拆分。** `App.tsx` 的视图类型、常量和通用工具提取到独立文件，降低主组件维护成本。
+- **SQLite 与缓存运行参数更稳健。** SQLite 连接池默认收敛为较保守配置，并提供 `LARK_SQLITE_MAX_OPEN_CONNS` / `LARK_SQLITE_MAX_IDLE_CONNS` 给低内存设备调节。
+
+### 修复
+
+- **保持缓存命中后的播放状态新鲜。** 缓存的歌曲列表只保存稳定曲库结构，每次读取重新叠加收藏、播放次数、最近播放和续播位置，避免 `MarkPlayed`/播放进度不触发大范围缓存失效时返回旧用户态。
+- **修复 Needs lyrics 判断。** 智能歌单现在使用 `has_lyrics` 元数据字段判断缺歌词状态，避免把已检测到内嵌歌词但正文延迟加载的歌曲误判为缺歌词。
+- **避免分层刷新旧请求覆盖新状态。** 前端 `refreshAll` 在每层请求返回后检查 generation，减少 80ms/300ms 分层加载带来的 stale UI 写回。
+
+完整 diff：`git log v0.7.23..v0.7.24`
+
+---
+
+## v0.7.24 — Library cache optimization + module split
+
+Released: 2026-06-03
+
+### Features
+
+- **Added DDIA-style library cache optimization.** Hot song, album, artist, playlist, and daily-mix paths now reuse structural caches, count caches, and singleflight deduplication to reduce artist album/song load timeouts on 9000+ FLAC libraries.
+- **Split the backend library service modules.** The formerly large `service.go` is split into cache, catalog, cover, folder, lyrics, metadata, playback, scan, settings, and user-state modules while preserving the public API.
+
+### Improvements
+
+- **Extracted frontend app types and helpers.** `App.tsx` view types, constants, and common utilities now live in focused files to reduce main-component maintenance cost.
+- **Made SQLite and cache runtime tuning safer.** SQLite pool defaults are more conservative and can be tuned with `LARK_SQLITE_MAX_OPEN_CONNS` / `LARK_SQLITE_MAX_IDLE_CONNS` on low-memory devices.
+
+### Fixes
+
+- **Keep playback state fresh after cache hits.** Cached song lists store stable library structure only; every read overlays favorites, play counts, last played, and resume position so playback writes do not need broad cache invalidation.
+- **Fixed Needs lyrics classification.** The smart playlist now uses `has_lyrics` metadata instead of the lazily populated lyrics text column.
+- **Prevent stale layered refresh writes.** Frontend `refreshAll` checks its generation after each layer returns, reducing stale UI writes from the 80ms/300ms staggered load.
+
+Full diff: `git log v0.7.23..v0.7.24`
+
+---
+
 ## 0.7.23 — 锤子移动端导航与深色唱机修复
 
 发布日期 / Released: 2026-06-02
