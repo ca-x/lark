@@ -49,6 +49,8 @@ type Song struct {
 	LyricsEmbedded string `json:"lyrics_embedded,omitempty"`
 	// LyricsSource holds the value of the "lyrics_source" field.
 	LyricsSource string `json:"lyrics_source,omitempty"`
+	// HasLyrics holds the value of the "has_lyrics" field.
+	HasLyrics bool `json:"has_lyrics,omitempty"`
 	// NeteaseID holds the value of the "netease_id" field.
 	NeteaseID string `json:"netease_id,omitempty"`
 	// Favorite holds the value of the "favorite" field.
@@ -140,7 +142,7 @@ func (*Song) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case song.FieldFavorite:
+		case song.FieldHasLyrics, song.FieldFavorite:
 			values[i] = new(sql.NullBool)
 		case song.FieldDurationSeconds:
 			values[i] = new(sql.NullFloat64)
@@ -264,6 +266,12 @@ func (_m *Song) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field lyrics_source", values[i])
 			} else if value.Valid {
 				_m.LyricsSource = value.String
+			}
+		case song.FieldHasLyrics:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field has_lyrics", values[i])
+			} else if value.Valid {
+				_m.HasLyrics = value.Bool
 			}
 		case song.FieldNeteaseID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -421,6 +429,9 @@ func (_m *Song) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("lyrics_source=")
 	builder.WriteString(_m.LyricsSource)
+	builder.WriteString(", ")
+	builder.WriteString("has_lyrics=")
+	builder.WriteString(fmt.Sprintf("%v", _m.HasLyrics))
 	builder.WriteString(", ")
 	builder.WriteString("netease_id=")
 	builder.WriteString(_m.NeteaseID)

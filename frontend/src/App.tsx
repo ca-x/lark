@@ -1,6 +1,7 @@
 import type { ChangeEvent, ReactNode, UIEvent } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowClockwise,
   Disc,
   DotsThree,
   GearSix,
@@ -116,7 +117,6 @@ import type {
   LibraryStats,
   NetworkSource,
   NetworkTrack,
-  PlaybackSourceType,
   RadioSource,
   RadioStation,
   ScrobblingSettings,
@@ -145,6 +145,20 @@ import { SettingsSection } from "./components/SettingsSection";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { useScrollRestore } from "./hooks/useScrollRestore";
 import { useKeyboardAware } from "./hooks/useKeyboardAware";
+import type { View, PlayMode, ResumeMode, PlaybackStartMode, PlaybackSourceInput, PlaySongOptions, StreamMode, RecentHomeTab, DailyDiscoveryView, PageSizing, SettingsTab, LibraryTab, Collection, OfflineCacheControls } from "./types/app";
+import { MOBILE_PLAYBACK_VIEWS } from "./types/app";
+import {
+  themes,
+  ADAPTIVE_STREAM_QUALITY, AUTO_DOWNGRADE_STALL_MS, RADIO_STATION_LIMIT, HOME_RECENT_LIMIT,
+  DEFAULT_LIBRARY_PAGE_SIZE, DEFAULT_GRID_PAGE_SIZE,
+  MAX_GRID_PAGE_SIZE, STARTUP_FOLDER_LIMIT, MAX_PLAYBACK_QUEUE_SIZE, RESUME_SOURCE_QUEUE_LIMIT,
+  FAVORITES_FETCH_LIMIT, COLLECTION_DETAIL_SONG_LIMIT, OFFLINE_STATUS_POLL_MS, OFFLINE_STATUS_MAX_POLLS,
+  SONG_ROW_HEIGHT, VIRTUAL_TABLE_THRESHOLD, VIRTUAL_OVERSCAN, COLLECTION_LOAD_TIMEOUT_MS,
+  LIBRARY_SOURCE_TAB_KEY, HOME_PLAYER_STYLE_KEY, MOBILE_HOME_PLAYER_STYLE_KEY,
+  ARTIST_ALBUM_DISPLAY_STYLE_KEY, PERSISTENT_QUEUE_KEY, AUTO_CACHE_PLAYED_KEY, AUTH_REDIRECT_KEY,
+  defaultLibraryTab, emptyOfflineUsage, measurePageSizing,
+} from "./constants";
+import { normalizeTheme, randomQueueIndex, uniqueSongs, queueWithCurrent, coverUrl, withTimeout, loadWithTimeout, isAbortError, friendlyLoadError, readableErrorMessage, wait } from "./utils/app";
 
 const defaultSettings: Settings = {
   language: "zh-CN",
@@ -178,193 +192,6 @@ const TRANSCODE_QUALITY_PRESETS = [
   { value: 320, labelKey: "bitratePreset320", hintKey: "bitratePreset320Hint" },
 ] as const;
 
-type View =
-  | "home"
-  | "favorites"
-  | "library"
-  | "radio"
-  | "playlists"
-  | "albums"
-  | "artists"
-  | "collection"
-  | "shares"
-  | "settings"
-  | "about";
-const MOBILE_PLAYBACK_VIEWS = new Set<View>(["home", "favorites", "library", "playlists", "albums", "artists", "collection", "settings"]);
-type PlayMode = "sequence" | "shuffle" | "repeat-one";
-type ResumeMode = "resume" | "restart";
-type PlaybackStartMode = "resume" | "restart";
-type PlaybackSourceInput = { type: PlaybackSourceType; source_id: number };
-type PlaySongOptions = {
-  startMode?: PlaybackStartMode;
-  source?: PlaybackSourceInput;
-  keepPlaybackSource?: boolean;
-};
-type StreamMode = "auto" | "adaptive";
-type RecentHomeTab = "played" | "added";
-type DailyDiscoveryView = "songs" | "albums" | "artists";
-const ADAPTIVE_STREAM_QUALITY = 128;
-const AUTO_DOWNGRADE_STALL_MS = 1200;
-const RADIO_STATION_LIMIT = 30;
-const HOME_RECENT_LIMIT = 12;
-const DEFAULT_LIBRARY_PAGE_SIZE = 36;
-const DEFAULT_GRID_PAGE_SIZE = 24;
-const MIN_PAGE_SIZE = 10;
-const MAX_LIBRARY_PAGE_SIZE = 80;
-const MAX_GRID_PAGE_SIZE = 72;
-const STARTUP_FOLDER_LIMIT = 80;
-const MAX_PLAYBACK_QUEUE_SIZE = 500;
-const RESUME_SOURCE_QUEUE_LIMIT = 50;
-const FAVORITES_FETCH_LIMIT = 500;
-const COLLECTION_DETAIL_SONG_LIMIT = MAX_PLAYBACK_QUEUE_SIZE;
-const OFFLINE_STATUS_POLL_MS = 1400;
-const OFFLINE_STATUS_MAX_POLLS = 120;
-type PageSizing = {
-  songs: number;
-  cards: number;
-};
-
-const emptyOfflineUsage: OfflineCacheUsage = {
-  bytes: 0,
-  entries: 0,
-  audio_entries: 0,
-};
-
-function clampPageSize(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function measurePageSizing(container: HTMLElement): PageSizing {
-  const width = container.clientWidth || window.innerWidth;
-  const height = container.clientHeight || window.innerHeight;
-  const narrow = width <= 720;
-  const contentHeight = Math.max(320, height - (narrow ? 156 : 116));
-  const songRows = clampPageSize(
-    Math.floor(contentHeight / SONG_ROW_HEIGHT),
-    MIN_PAGE_SIZE,
-    MAX_LIBRARY_PAGE_SIZE,
-  );
-  const cardMinWidth = narrow ? 150 : 172;
-  const cardGap = narrow ? 10 : 16;
-  const columns = Math.max(1, Math.floor((width + cardGap) / (cardMinWidth + cardGap)));
-  const columnWidth = Math.max(
-    cardMinWidth,
-    (width - cardGap * Math.max(0, columns - 1)) / columns,
-  );
-  const cardHeight = narrow ? 218 : columnWidth + 72;
-  const rows = Math.max(1, Math.floor(contentHeight / cardHeight));
-  const maxFullRows = Math.max(1, Math.floor(MAX_GRID_PAGE_SIZE / columns));
-  const minFullRows = Math.max(1, Math.ceil(MIN_PAGE_SIZE / columns));
-  const cardRows = clampPageSize(rows, minFullRows, maxFullRows);
-  const cards = columns * cardRows;
-  return { songs: songRows, cards };
-}
-type ThemeLabel =
-  | "deepSpace"
-  | "amberFilm"
-  | "neonCoral"
-  | "arcticAurora"
-  | "carbonVolt"
-  | "appleDark"
-  | "spotifyDark"
-  | "neteaseDark"
-  | "winampDark"
-  | "foobarDark"
-  | "smartisanClassic"
-  | "milkPorcelain"
-  | "oatLatte"
-  | "mintSoda"
-  | "sakuraWashi"
-  | "duskAmber"
-  | "appleLight"
-  | "spotifyLight"
-  | "neteaseLight"
-  | "winampLight"
-  | "foobarLight";
-type ThemeMode = "dark" | "light";
-type SettingsTab = "profile" | "users" | "site";
-type LibraryTab = "songs" | "offline" | "folders" | "network" | "radio" | "manage";
-type Collection = {
-  type: "playlist" | "album" | "artist";
-  id?: number;
-  title: string;
-  subtitle: string;
-  loading?: boolean;
-  error?: string;
-  favorite?: boolean;
-  songs: Song[];
-  albums?: Album[];
-  coverUrl?: string;
-  artistId?: number;
-  artistName?: string;
-};
-type OfflineCacheControls = {
-  cachedSongIds: Set<number>;
-  cachingSongIds: Set<number>;
-  entries: OfflineSongEntry[];
-  usage: OfflineCacheUsage;
-  clearing: boolean;
-  removingKeys: Set<string>;
-  onCacheSong: (song: Song) => void;
-  onCacheSongs: (songs: Song[]) => void;
-  onRemoveSong: (entry: OfflineSongEntry) => void;
-  onClearAll: () => void;
-};
-const themes: { id: Theme; label: ThemeLabel; mode: ThemeMode }[] = [
-  { id: "deep-space", label: "deepSpace", mode: "dark" },
-  { id: "amber-film", label: "amberFilm", mode: "dark" },
-  { id: "neon-coral", label: "neonCoral", mode: "dark" },
-  { id: "arctic-aurora", label: "arcticAurora", mode: "dark" },
-  { id: "carbon-volt", label: "carbonVolt", mode: "dark" },
-  { id: "apple-dark", label: "appleDark", mode: "dark" },
-  { id: "spotify-dark", label: "spotifyDark", mode: "dark" },
-  { id: "netease-dark", label: "neteaseDark", mode: "dark" },
-  { id: "winamp-dark", label: "winampDark", mode: "dark" },
-  { id: "foobar-dark", label: "foobarDark", mode: "dark" },
-  { id: "smartisan-classic", label: "smartisanClassic", mode: "light" },
-  { id: "milk-porcelain", label: "milkPorcelain", mode: "light" },
-  { id: "oat-latte", label: "oatLatte", mode: "light" },
-  { id: "mint-soda", label: "mintSoda", mode: "light" },
-  { id: "sakura-washi", label: "sakuraWashi", mode: "light" },
-  { id: "dusk-amber", label: "duskAmber", mode: "light" },
-  { id: "apple-light", label: "appleLight", mode: "light" },
-  { id: "spotify-light", label: "spotifyLight", mode: "light" },
-  { id: "netease-light", label: "neteaseLight", mode: "light" },
-  { id: "winamp-light", label: "winampLight", mode: "light" },
-  { id: "foobar-light", label: "foobarLight", mode: "light" },
-];
-const themeAliases: Record<string, Theme> = {
-  spotify: "spotify-dark",
-  apple: "apple-dark",
-  vinyl: "amber-film",
-  roon: "deep-space",
-  netease: "netease-dark",
-  winamp: "winamp-dark",
-  foobar: "foobar-dark",
-  midnight: "deep-space",
-  smartisan: "smartisan-classic",
-  hammer: "smartisan-classic",
-  tnt: "smartisan-classic",
-  paper: "amber-film",
-  porcelain: "milk-porcelain",
-  latte: "oat-latte",
-  mint: "mint-soda",
-  sakura: "sakura-washi",
-  amber: "dusk-amber",
-};
-const SONG_ROW_HEIGHT = 64;
-const VIRTUAL_TABLE_THRESHOLD = 220;
-const VIRTUAL_OVERSCAN = 8;
-const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
-const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
-const HOME_PLAYER_STYLE_KEY = "lark.home-player-style";
-const MOBILE_HOME_PLAYER_STYLE_KEY = "lark.mobile-home-player-style";
-const ARTIST_ALBUM_DISPLAY_STYLE_KEY = "lark.artist-album-display-style";
-const PERSISTENT_QUEUE_KEY = "lark.persistent-queue-enabled";
-const AUTO_CACHE_PLAYED_KEY = "lark.auto-cache-played-enabled";
-const AUTH_REDIRECT_KEY = "lark.auth.redirect";
-const defaultLibraryTab: LibraryTab = "songs";
-
 function normalizeLibraryTab(value?: string | null): LibraryTab {
   return value === "folders" || value === "network" || value === "radio" || value === "offline" || value === "manage" || value === "songs"
     ? value
@@ -377,10 +204,6 @@ function storedLibraryTab(): LibraryTab {
   } catch {
     return defaultLibraryTab;
   }
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function offlineUser(): User {
@@ -593,70 +416,6 @@ function takeAuthRedirect() {
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs = COLLECTION_LOAD_TIMEOUT_MS): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => {
-      reject(new Error("request-timeout"));
-    }, timeoutMs);
-    promise
-      .then(resolve, reject)
-      .finally(() => window.clearTimeout(timer));
-  });
-}
-
-function friendlyLoadError(error: unknown, t: ReturnType<typeof createT>) {
-  if (error instanceof Error && error.message === "request-timeout") {
-    return t("loadTimeout");
-  }
-  return t("loadFailed");
-}
-
-function readableErrorMessage(error: unknown, fallback: string) {
-  const message = error instanceof Error ? error.message : String(error || "");
-  if (!message) return fallback;
-  try {
-    const parsed = JSON.parse(message) as { error?: string; message?: string };
-    return parsed.error || parsed.message || fallback;
-  } catch {
-    return message;
-  }
-}
-
-function normalizeTheme(theme: string): Theme {
-  return themes.some((item) => item.id === theme)
-    ? (theme as Theme)
-    : (themeAliases[theme] ?? "deep-space");
-}
-
-function randomQueueIndex(length: number, currentIndex: number) {
-  if (length <= 1) return 0;
-  let nextIndex = Math.floor(Math.random() * length);
-  if (nextIndex === currentIndex) nextIndex = (nextIndex + 1) % length;
-  return nextIndex;
-}
-
-function uniqueSongs(items: Song[], limit = Number.POSITIVE_INFINITY) {
-  const seen = new Set<number>();
-  const out: Song[] = [];
-  for (const item of items) {
-    if (!item || seen.has(item.id)) continue;
-    seen.add(item.id);
-    out.push(item);
-    if (out.length >= limit) break;
-  }
-  return out;
-}
-
-function queueWithCurrent(base: Song[], current?: Song | null, limit = MAX_PLAYBACK_QUEUE_SIZE) {
-  const unique = uniqueSongs(base, limit);
-  if (!current) return unique;
-  if (unique.some((item) => item.id === current.id)) return unique;
-  return [current, ...unique.filter((item) => item.id !== current.id)].slice(0, limit);
-}
-
-function coverUrl(song?: Song | null) {
-  return song ? `/api/songs/${song.id}/cover` : undefined;
-}
 function radioPlaybackURL(streamURL: string) {
   const trimmed = streamURL.trim();
   if (!trimmed || trimmed.startsWith("/")) return trimmed;
@@ -1512,6 +1271,8 @@ export default function App() {
   const radioDownloadSampleRef = useRef({ at: 0, ahead: 0 });
   const durationRef = useRef(0);
   const collectionRequestRef = useRef(0);
+  const collectionAbortRef = useRef<AbortController | null>(null);
+  const recentPlayedRefreshRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
   const pendingAutoplayRef = useRef(false);
   const playbackSourceMutationRef = useRef<Promise<void>>(Promise.resolve());
@@ -2036,6 +1797,21 @@ export default function App() {
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [requestAudioPlay, resumeEqualizer]);
+
+  // Refresh "recently played" when the tab regains focus so the home list isn't stale
+  // after the app was backgrounded (the audio-focused handler above intentionally
+  // ignores this). Shares recentPlayedRefreshRef with playSong's scheduler to throttle.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - recentPlayedRefreshRef.current < 10_000) return;
+      recentPlayedRefreshRef.current = now;
+      api.recentPlayedSongs(HOME_RECENT_LIMIT).then(setRecentPlayedSongs).catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   useEffect(() => {
     const mediaDevices = navigator.mediaDevices;
@@ -2695,47 +2471,65 @@ export default function App() {
       activateOfflineSession(readOfflineSongIndex());
       return;
     }
-    const [songPageItem, recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems, dailyItems, folderItems, libraryStatsItem, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem, playbackQueueItem] =
-      await Promise.all([
-        api.songsPage(query, libraryPage, libraryPageSize),
-        api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
-        api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => []),
-        api.albumsPage(albumPage, gridPageSize, albumArtistFilter),
-        api.artistsPage(artistPage, gridPageSize),
-        api.playlistsPage(playlistPage, gridPageSize),
-        api.smartPlaylists().catch(() => []),
-        api.dailyMix(24).catch(() => []),
-        api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
-        api.libraryStats().catch(() => null),
-        api.libraryDirectories().catch(() => []),
-        api.songsPage("", 1, FAVORITES_FETCH_LIMIT, true).catch(() => ({
-          items: [],
-          total: 0,
-          limit: FAVORITES_FETCH_LIMIT,
-          offset: 0,
-          page: 1,
-        })),
-        api.favoriteAlbums(FAVORITES_FETCH_LIMIT).catch(() => []),
-        api.favoriteArtists().catch(() => []),
-        api.networkSources().catch(() => []),
-        api.radioSources().catch(() => []),
-        api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
-        api.radioFavorites().catch(() => []),
-        api.scrobblingSettings().catch(() => null),
-        api.uiSoundSettings().catch(() => ({ enabled: false, volume: 0.85 })),
-        api.playbackHistorySettings().catch(() => ({ separate_by_device: false })),
-        options.initializeQueue && persistentQueueEnabled
-          ? api.playbackQueue().catch(() => null)
-          : Promise.resolve(null),
-      ]);
+
+    // Layer 1: critical data needed for first render — block on these.
+    const [songPageItem, dailyItems, libraryStatsItem, playbackQueueItem] = await Promise.all([
+      api.songsPage(query, libraryPage, libraryPageSize),
+      api.dailyMix(24).catch(() => []),
+      api.libraryStats().catch(() => null),
+      options.initializeQueue && persistentQueueEnabled
+        ? api.playbackQueue().catch(() => null)
+        : Promise.resolve(null),
+    ]);
     const songItems = songPageItem.items;
     setSongs(songItems);
     setLibrarySongPage(songPageItem);
+    setDailyMix(dailyItems);
+    setLibraryStats(libraryStatsItem);
+
+    // Layer 2: browse data — stagger by 80ms to reduce SQLite contention on startup.
+    await new Promise((r) => setTimeout(r, 80));
+    const [recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems] = await Promise.all([
+      api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
+      api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => []),
+      api.albumsPage(albumPage, gridPageSize, albumArtistFilter),
+      api.artistsPage(artistPage, gridPageSize),
+      api.playlistsPage(playlistPage, gridPageSize),
+      api.smartPlaylists().catch(() => []),
+    ]);
     setRecentPlayedSongs(recentPlayedItems);
     setRecentAddedSongs(recentAddedItems);
-    setDailyMix(dailyItems);
+    setAlbumPageData(albumPageItem);
+    setArtistPageData(artistPageItem);
+    setPlaylistPageData(playlistPageItem);
+    setAlbums(albumPageItem.items);
+    setArtists(artistPageItem.items);
+    setPlaylists(playlistPageItem.items);
+    setSmartPlaylists(smartPlaylistItems);
+
+    // Layer 3: deferred data — favorites, settings, network, radio. Stagger by 300ms.
+    await new Promise((r) => setTimeout(r, 300));
+    const [folderItems, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem] = await Promise.all([
+      api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
+      api.libraryDirectories().catch(() => []),
+      api.songsPage("", 1, FAVORITES_FETCH_LIMIT, true).catch(() => ({
+        items: [],
+        total: 0,
+        limit: FAVORITES_FETCH_LIMIT,
+        offset: 0,
+        page: 1,
+      })),
+      api.favoriteAlbums(FAVORITES_FETCH_LIMIT).catch(() => []),
+      api.favoriteArtists().catch(() => []),
+      api.networkSources().catch(() => []),
+      api.radioSources().catch(() => []),
+      api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
+      api.radioFavorites().catch(() => []),
+      api.scrobblingSettings().catch(() => null),
+      api.uiSoundSettings().catch(() => ({ enabled: false, volume: 0.85 })),
+      api.playbackHistorySettings().catch(() => ({ separate_by_device: false })),
+    ]);
     setFolders(folderItems);
-    setLibraryStats(libraryStatsItem);
     setLibraryDirectories(libraryDirectoryItems);
     setFavoriteSongs(favoriteSongPageItem.items);
     setFavoriteAlbums(favoriteAlbumItems);
@@ -2744,16 +2538,11 @@ export default function App() {
     setRadioSources(radioSourceItems);
     setRadioStations(radioStationItems.map(radioStationToPlayable));
     setRadioFavorites(radioFavoriteItems.map(radioStationToPlayable));
-    setAlbumPageData(albumPageItem);
-    setArtistPageData(artistPageItem);
-    setPlaylistPageData(playlistPageItem);
-    setAlbums(albumPageItem.items);
-    setArtists(artistPageItem.items);
-    setPlaylists(playlistPageItem.items);
-    setSmartPlaylists(smartPlaylistItems);
     setScrobblingSettings(scrobblingItem);
     setUISoundSettingsState(uiSoundItem);
     setPlaybackHistorySettings(playbackHistoryItem);
+
+    // Restore playback queue from Layer 1 data.
     let restoredQueue: Song[] = [];
     let restoredCurrent: Song | null = null;
     if (options.initializeQueue && auth?.user && persistentQueueEnabled) {
@@ -2952,6 +2741,23 @@ export default function App() {
     setRecentPlayedSongs(await api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => recentPlayedSongs));
   }
 
+  // prependRecentPlayed optimistically moves the just-played song to the front so the
+  // home "recently played" list updates instantly, without waiting for a server round
+  // trip (the previous code blind-refetched on every play, causing visible lag).
+  function prependRecentPlayed(song: Song) {
+    setRecentPlayedSongs((old) => [song, ...old.filter((item) => item.id !== song.id)].slice(0, HOME_RECENT_LIMIT));
+  }
+
+  // scheduleRecentPlayedRefresh coalesces the server reconciliation so we don't fire a
+  // recent-played GET on every single track start; the optimistic prepend already gives
+  // instant UI and the server only needs to confirm ordering/play-counts periodically.
+  function scheduleRecentPlayedRefresh() {
+    const now = Date.now();
+    if (now - recentPlayedRefreshRef.current < 10_000) return;
+    recentPlayedRefreshRef.current = now;
+    void refreshRecentPlayed();
+  }
+
   function queuePlaybackSourceMutation(task: () => Promise<void>) {
     playbackSourceMutationRef.current = playbackSourceMutationRef.current
       .catch(() => undefined)
@@ -3074,8 +2880,9 @@ export default function App() {
     setPlaying(true);
     playUISound("play");
     persistPlaybackSourceForPlay(options);
+    prependRecentPlayed(song); // optimistic; instant home update
     await api.markPlayed(song.id).catch(() => undefined);
-    void refreshRecentPlayed();
+    scheduleRecentPlayedRefresh(); // coalesced server reconciliation
   }
 
   function playRadio(station: RadioStation, list?: RadioStation[]) {
@@ -3690,9 +3497,21 @@ export default function App() {
     if (items.length) insertNextBatch(items);
   }
 
+  // beginCollectionRequest starts a fresh collection load: it aborts any in-flight
+  // previous load (so rapid artist/album navigation doesn't stack orphaned requests
+  // that compound server load) and bumps the request id used to ignore stale results.
+  function beginCollectionRequest(): { requestId: number; controller: AbortController } {
+    collectionAbortRef.current?.abort();
+    const controller = new AbortController();
+    collectionAbortRef.current = controller;
+    const requestId = ++collectionRequestRef.current;
+    return { requestId, controller };
+  }
+
   function setCollectionLoadError(target: Collection, requestId: number, error: unknown) {
     if (requestId !== collectionRequestRef.current) return;
-    const message = friendlyLoadError(error, t);
+    if (isAbortError(error)) return; // superseded/cancelled load — not a real failure
+    const message = friendlyLoadError(error, t as (key: string) => string);
     setCollection((old) =>
       isSameCollection(target, old)
         ? {
@@ -3708,7 +3527,7 @@ export default function App() {
 
   async function openPlaylist(playlist: Playlist) {
     setCollectionBack(null);
-    const requestId = ++collectionRequestRef.current;
+    const { requestId, controller } = beginCollectionRequest();
     const nextCollection: Collection = {
       type: "playlist",
       id: playlist.id,
@@ -3721,7 +3540,7 @@ export default function App() {
     setCollection(nextCollection);
     setView("collection");
     try {
-      const items = await withTimeout(api.playlistSongs(playlist.id, COLLECTION_DETAIL_SONG_LIMIT));
+      const items = await loadWithTimeout((signal) => api.playlistSongs(playlist.id, COLLECTION_DETAIL_SONG_LIMIT, signal), controller);
       if (requestId !== collectionRequestRef.current) return;
       setCollection({
         type: "playlist",
@@ -3741,7 +3560,7 @@ export default function App() {
     if (!playlist.enabled) return;
     const label = smartPlaylistLabel(playlist.id, settings.language);
     setCollectionBack(null);
-    const requestId = ++collectionRequestRef.current;
+    const { requestId } = beginCollectionRequest();
     const nextCollection: Collection = {
       type: "playlist",
       id: 0,
@@ -3772,7 +3591,7 @@ export default function App() {
 
   async function openAlbum(album: Album, backTo: Collection | null = null) {
     setCollectionBack(backTo);
-    const requestId = ++collectionRequestRef.current;
+    const { requestId, controller } = beginCollectionRequest();
     const nextCollection: Collection = {
       type: "album",
       id: album.id,
@@ -3793,8 +3612,8 @@ export default function App() {
     setView("collection");
     try {
       const [items, refreshedAlbum] = await Promise.all([
-        withTimeout(api.albumSongs(album.id, COLLECTION_DETAIL_SONG_LIMIT), 20_000),
-        api.album(album.id).catch(() => album),
+        loadWithTimeout((signal) => api.albumSongs(album.id, COLLECTION_DETAIL_SONG_LIMIT, signal), controller, COLLECTION_LOAD_TIMEOUT_MS),
+        api.album(album.id, controller.signal).catch(() => album),
       ]);
       setAlbums((old) => {
         const exists = old.some((item) => item.id === refreshedAlbum.id);
@@ -3838,7 +3657,7 @@ export default function App() {
   async function openArtistById(id: number, fallbackName = "") {
     if (!id) return;
     setCollectionBack(null);
-    const requestId = ++collectionRequestRef.current;
+    const { requestId, controller } = beginCollectionRequest();
     const artist = artists.find((item) => item.id === id);
     const title = artist?.name || fallbackName || t("artists");
     const artistAlbums = albums.filter((album) => album.artist_id === id && album.song_count > 0);
@@ -3859,8 +3678,8 @@ export default function App() {
     setView("collection");
     try {
       const [items, artistAlbumPage] = await Promise.all([
-        withTimeout(api.artistSongs(id, COLLECTION_DETAIL_SONG_LIMIT)),
-        api.albumsPage(1, MAX_GRID_PAGE_SIZE, id).catch(() => null),
+        loadWithTimeout((signal) => api.artistSongs(id, COLLECTION_DETAIL_SONG_LIMIT, signal), controller),
+        api.albumsPage(1, MAX_GRID_PAGE_SIZE, id, controller.signal).catch(() => null),
       ]);
       if (requestId !== collectionRequestRef.current) return;
       const resolvedTitle =
@@ -3883,6 +3702,34 @@ export default function App() {
       }
     } catch (error) {
       setCollectionLoadError(nextCollection, requestId, error);
+    }
+  }
+
+  // retryCurrentCollection re-opens whatever collection is currently shown, used by the
+  // error-state retry button so a timed-out artist/album/playlist load can be retried in
+  // place without navigating away.
+  async function retryCurrentCollection() {
+    if (!collection?.id) return;
+    if (collection.type === "artist") {
+      void openArtistById(collection.id, collection.title);
+      return;
+    }
+    if (collection.type === "album") {
+      const cached = albums.find((item) => item.id === collection.id);
+      if (cached) {
+        void openAlbum(cached, collectionBack);
+        return;
+      }
+      try {
+        void openAlbum(await api.album(collection.id), collectionBack);
+      } catch {
+        /* ignore — error surfaces via the normal load path */
+      }
+      return;
+    }
+    if (collection.type === "playlist") {
+      const cached = playlists.find((item) => item.id === collection.id);
+      if (cached) void openPlaylist(cached);
     }
   }
 
@@ -4454,6 +4301,7 @@ export default function App() {
                         )
                     : undefined
                 }
+                onRetry={() => void retryCurrentCollection()}
               />
             )}
             {view === "playlists" && (
@@ -6461,6 +6309,7 @@ function CollectionView({
   onPlayAlbumCard,
   onOpenArtist,
   onOpenCollectionArtist,
+  onRetry,
 }: {
   collection: Collection;
   current: Song | null;
@@ -6484,6 +6333,7 @@ function CollectionView({
   onPlayAlbumCard?: (album: Album) => void;
   onOpenArtist: (song: Song) => void;
   onOpenCollectionArtist?: () => void;
+  onRetry?: () => void;
 }) {
   const label = collectionLabel(collection.type, t);
   const resolvedBackLabel = backLabel || label;
@@ -6608,7 +6458,12 @@ function CollectionView({
       ) : null}
       {collection.error ? (
         <div className="collection-inline-status error" role="alert">
-          {collection.error}
+          <span>{collection.error}</span>
+          {onRetry ? (
+            <button type="button" className="collection-retry-btn" onClick={onRetry}>
+              <ArrowClockwise weight="bold" /> {t("retry")}
+            </button>
+          ) : null}
         </div>
       ) : null}
       {collection.type === "artist" && artistView === "albums" ? (
@@ -6622,7 +6477,7 @@ function CollectionView({
             onPlayAlbum={onPlayAlbumCard}
           />
         ) : collection.loading ? (
-          <div className="empty collection-loading">{t("loading")}</div>
+          <SkeletonSongList count={6} />
         ) : (
           <div className="empty collection-loading">{t("emptyCollection")}</div>
         )
@@ -6641,7 +6496,7 @@ function CollectionView({
           onOpenArtist={onOpenArtist}
         />
       ) : collection.loading ? (
-        <div className="empty collection-loading">{t("loading")}</div>
+        <SkeletonSongList count={8} />
       ) : (
         <div className="empty collection-loading">{collection.error || t("emptyCollection")}</div>
       )}
@@ -7356,7 +7211,7 @@ function FolderBrowser({
         if (!cancelled) setDirectory(item);
       })
       .catch((err) => {
-        if (!cancelled) setError(friendlyLoadError(err, t));
+        if (!cancelled) setError(friendlyLoadError(err, t as unknown as (key: string) => string));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -9398,6 +9253,124 @@ function AboutView({
     </section>
   );
 }
+type SongRowProps = {
+  song: Song;
+  index: number;
+  active: boolean;
+  selected: boolean;
+  menuOpen: boolean;
+  virtual: boolean;
+  t: ReturnType<typeof createT>;
+  offlineState: OfflineCacheButtonState;
+  canSelect: boolean;
+  canInsertNext: boolean;
+  canShare: boolean;
+  canOpenAlbum: boolean;
+  canOpenArtist: boolean;
+  hasOffline: boolean;
+  onPlay: (song: Song) => void;
+  onFavorite: (song: Song) => void;
+  onAdd: (song: Song) => void;
+  onInsertNext: (song: Song) => void;
+  onShare: (song: Song) => void;
+  onOpenAlbum: (song: Song) => void;
+  onOpenArtist: (song: Song) => void;
+  onToggleSelected: (song: Song) => void;
+  onCacheSong: (song: Song) => void;
+  onToggleMenu: (song: Song) => void;
+  registerMoreButton: (id: number, node: HTMLButtonElement | null) => void;
+};
+
+// SongRow is memoized so that during playback (current/progress changing) and other
+// parent re-renders, only rows whose own data changed (active/selected/menuOpen/song)
+// re-render — not all 220-500 rows. Handlers are stabilized by SongTable via a latest-
+// ref so their identity never changes, keeping the shallow memo comparison effective.
+const SongRow = memo(function SongRow({
+  song, index, active, selected, menuOpen, virtual, t, offlineState,
+  canSelect, canInsertNext, canShare, canOpenAlbum, canOpenArtist, hasOffline,
+  onPlay, onFavorite, onAdd, onInsertNext, onShare, onOpenAlbum, onOpenArtist,
+  onToggleSelected, onCacheSong, onToggleMenu, registerMoreButton,
+}: SongRowProps) {
+  return (
+    <div
+      className={active ? "song-row active" : "song-row"}
+      style={virtual ? ({ top: index * SONG_ROW_HEIGHT } as React.CSSProperties) : undefined}
+      onDoubleClick={() => onPlay(song)}
+    >
+      {canSelect ? (
+        <label className="row-check" aria-label={`${t("selected")} ${song.title}`}>
+          <input type="checkbox" checked={selected} onChange={() => onToggleSelected(song)} />
+        </label>
+      ) : (
+        <span>{index + 1}</span>
+      )}
+      <button onClick={() => onPlay(song)} aria-label={t("play")}>
+        <Play weight="fill" />
+      </button>
+      <div>
+        <strong>{song.title}</strong>
+        {canOpenArtist && song.artist_id ? (
+          <button className="artist-link" onClick={() => onOpenArtist(song)}>{song.artist}</button>
+        ) : (
+          <small>{song.artist}</small>
+        )}
+      </div>
+      <div className="song-album">
+        {canOpenAlbum && song.album_id ? (
+          <button className="artist-link" onClick={() => onOpenAlbum(song)}>{song.album}</button>
+        ) : (
+          song.album
+        )}
+      </div>
+      <div className={QUALITY_CLASS} title={formatQuality(song)}>{formatQuality(song)}</div>
+      <div className="song-duration">{formatDuration(song.duration_seconds)}</div>
+      <div className="song-row-actions" aria-label={t("selected")}>
+        <button onClick={() => onFavorite(song)} title={t("favorites")} aria-label={t("favorites")}>
+          <Heart weight={song.favorite ? "fill" : "regular"} />
+        </button>
+        <span className="song-row-actions-primary">
+          {canInsertNext ? (
+            <button onClick={() => onInsertNext(song)} title={t("playNext")} aria-label={t("playNext")}>
+              <SkipForward />
+            </button>
+          ) : null}
+          {hasOffline ? (
+            <OfflineCacheButton
+              state={offlineState}
+              labels={{
+                cache: t("offlineCacheSong"),
+                caching: t("offlineCachePreparingShort"),
+                cached: t("offlineCacheReadyShort"),
+              }}
+              onClick={() => onCacheSong(song)}
+            />
+          ) : null}
+          <button onClick={() => onAdd(song)} title={t("addToPlaylist")} aria-label={t("addToPlaylist")}>
+            <PlaylistIcon />
+          </button>
+          {canShare ? (
+            <button onClick={() => onShare(song)} title={t("share")} aria-label={t("share")}>
+              <ShareNetwork />
+            </button>
+          ) : null}
+        </span>
+        <span className="song-row-actions-more">
+          <button
+            ref={(node) => { registerMoreButton(song.id, node); }}
+            onClick={() => onToggleMenu(song)}
+            title={t("more")}
+            aria-label={t("more")}
+            aria-expanded={menuOpen}
+            className={menuOpen ? "active" : ""}
+          >
+            <DotsThree weight="bold" />
+          </button>
+        </span>
+      </div>
+    </div>
+  );
+});
+
 function SongTable({
   songs,
   current,
@@ -9503,105 +9476,52 @@ function SongTable({
     if (offlineCache?.cachedSongIds.has(song.id)) return "cached";
     return "idle";
   };
+  // Stabilize the callbacks via a latest-ref so SongRow's memo comparison stays
+  // effective (stable identities) while always invoking the freshest props/closures.
+  const latest = useRef({ songs, current, onPlay, onFavorite, onAdd, onInsertNext, onShare, onOpenAlbum, onOpenArtist, onToggleSelected, offlineCache });
+  useEffect(() => {
+    latest.current = { songs, current, onPlay, onFavorite, onAdd, onInsertNext, onShare, onOpenAlbum, onOpenArtist, onToggleSelected, offlineCache };
+  });
+  const rowPlay = useCallback((song: Song) => latest.current.onPlay(song, latest.current.songs), []);
+  const rowFavorite = useCallback((song: Song) => latest.current.onFavorite(song), []);
+  const rowAdd = useCallback((song: Song) => latest.current.onAdd(song), []);
+  const rowInsertNext = useCallback((song: Song) => latest.current.onInsertNext?.(song), []);
+  const rowShare = useCallback((song: Song) => latest.current.onShare?.(song), []);
+  const rowOpenAlbum = useCallback((song: Song) => latest.current.onOpenAlbum?.(song), []);
+  const rowOpenArtist = useCallback((song: Song) => latest.current.onOpenArtist?.(song), []);
+  const rowToggleSelected = useCallback((song: Song) => latest.current.onToggleSelected?.(song), []);
+  const rowCacheSong = useCallback((song: Song) => latest.current.offlineCache?.onCacheSong(song), []);
+  const rowToggleMenu = useCallback((song: Song) => setMoreMenuSongId((cur) => (cur === song.id ? null : song.id)), []);
+  const registerMoreButton = useCallback((id: number, node: HTMLButtonElement | null) => { moreButtonRefs.current.set(id, node); }, []);
   const renderRow = (song: Song, absoluteIndex: number) => (
-    <div
+    <SongRow
       key={song.id}
-      className={current?.id === song.id ? "song-row active" : "song-row"}
-      style={
-        virtual
-          ? ({
-              top: absoluteIndex * SONG_ROW_HEIGHT,
-            } as React.CSSProperties)
-          : undefined
-      }
-      onDoubleClick={() => onPlay(song, songs)}
-    >
-      {onToggleSelected ? (
-        <label
-          className="row-check"
-          aria-label={`${t("selected")} ${song.title}`}
-        >
-          <input
-            type="checkbox"
-            checked={selectedIds?.has(song.id) ?? false}
-            onChange={() => onToggleSelected(song)}
-          />
-        </label>
-      ) : (
-        <span>{absoluteIndex + 1}</span>
-      )}
-      <button onClick={() => onPlay(song, songs)} aria-label={t("play")}>
-        <Play weight="fill" />
-      </button>
-      <div>
-        <strong>{song.title}</strong>
-        {onOpenArtist && song.artist_id ? (
-          <button className="artist-link" onClick={() => onOpenArtist(song)}>
-            {song.artist}
-          </button>
-        ) : (
-          <small>{song.artist}</small>
-        )}
-      </div>
-      <div className="song-album">
-        {onOpenAlbum && song.album_id ? (
-          <button className="artist-link" onClick={() => onOpenAlbum(song)}>
-            {song.album}
-          </button>
-        ) : (
-          song.album
-        )}
-      </div>
-      <div className={QUALITY_CLASS} title={formatQuality(song)}>{formatQuality(song)}</div>
-      <div className="song-duration">{formatDuration(song.duration_seconds)}</div>
-      <div className="song-row-actions" aria-label={t("selected")}>
-        <button onClick={() => onFavorite(song)} title={t("favorites")} aria-label={t("favorites")}>
-          <Heart weight={song.favorite ? "fill" : "regular"} />
-        </button>
-        <span className="song-row-actions-primary">
-          {onInsertNext ? (
-            <button
-              onClick={() => onInsertNext(song)}
-              title={t("playNext")}
-              aria-label={t("playNext")}
-            >
-              <SkipForward />
-            </button>
-          ) : null}
-          {offlineCache ? (
-            <OfflineCacheButton
-              state={offlineButtonState(song)}
-              labels={{
-                cache: t("offlineCacheSong"),
-                caching: t("offlineCachePreparingShort"),
-                cached: t("offlineCacheReadyShort"),
-              }}
-              onClick={() => offlineCache.onCacheSong(song)}
-            />
-          ) : null}
-          <button onClick={() => onAdd(song)} title={t("addToPlaylist")} aria-label={t("addToPlaylist")}>
-            <PlaylistIcon />
-          </button>
-          {onShare ? (
-            <button onClick={() => onShare(song)} title={t("share")} aria-label={t("share")}>
-              <ShareNetwork />
-            </button>
-          ) : null}
-        </span>
-        <span className="song-row-actions-more">
-          <button
-            ref={(node) => { moreButtonRefs.current.set(song.id, node); }}
-            onClick={() => setMoreMenuSongId(moreMenuSongId === song.id ? null : song.id)}
-            title={t("more")}
-            aria-label={t("more")}
-            aria-expanded={moreMenuSongId === song.id}
-            className={moreMenuSongId === song.id ? "active" : ""}
-          >
-            <DotsThree weight="bold" />
-          </button>
-        </span>
-      </div>
-    </div>
+      song={song}
+      index={absoluteIndex}
+      active={current?.id === song.id}
+      selected={selectedIds?.has(song.id) ?? false}
+      menuOpen={moreMenuSongId === song.id}
+      virtual={virtual}
+      t={t}
+      offlineState={offlineButtonState(song)}
+      canSelect={!!onToggleSelected}
+      canInsertNext={!!onInsertNext}
+      canShare={!!onShare}
+      canOpenAlbum={!!onOpenAlbum}
+      canOpenArtist={!!onOpenArtist}
+      hasOffline={!!offlineCache}
+      onPlay={rowPlay}
+      onFavorite={rowFavorite}
+      onAdd={rowAdd}
+      onInsertNext={rowInsertNext}
+      onShare={rowShare}
+      onOpenAlbum={rowOpenAlbum}
+      onOpenArtist={rowOpenArtist}
+      onToggleSelected={rowToggleSelected}
+      onCacheSong={rowCacheSong}
+      onToggleMenu={rowToggleMenu}
+      registerMoreButton={registerMoreButton}
+    />
   );
   if (!songs.length) return <div className="empty">{t("noSongs")}</div>;
   const moreMenuSong = moreMenuSongId != null ? songs.find((s) => s.id === moreMenuSongId) : null;

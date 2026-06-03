@@ -4830,6 +4830,7 @@ type SongMutation struct {
 	addyear               *int
 	lyrics_embedded       *string
 	lyrics_source         *string
+	has_lyrics            *bool
 	netease_id            *string
 	favorite              *bool
 	play_count            *int
@@ -5634,6 +5635,42 @@ func (m *SongMutation) ResetLyricsSource() {
 	m.lyrics_source = nil
 }
 
+// SetHasLyrics sets the "has_lyrics" field.
+func (m *SongMutation) SetHasLyrics(b bool) {
+	m.has_lyrics = &b
+}
+
+// HasLyrics returns the value of the "has_lyrics" field in the mutation.
+func (m *SongMutation) HasLyrics() (r bool, exists bool) {
+	v := m.has_lyrics
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHasLyrics returns the old "has_lyrics" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldHasLyrics(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHasLyrics is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHasLyrics requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHasLyrics: %w", err)
+	}
+	return oldValue.HasLyrics, nil
+}
+
+// ResetHasLyrics resets all changes to the "has_lyrics" field.
+func (m *SongMutation) ResetHasLyrics() {
+	m.has_lyrics = nil
+}
+
 // SetNeteaseID sets the "netease_id" field.
 func (m *SongMutation) SetNeteaseID(s string) {
 	m.netease_id = &s
@@ -6157,7 +6194,7 @@ func (m *SongMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SongMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 22)
 	if m.title != nil {
 		fields = append(fields, song.FieldTitle)
 	}
@@ -6202,6 +6239,9 @@ func (m *SongMutation) Fields() []string {
 	}
 	if m.lyrics_source != nil {
 		fields = append(fields, song.FieldLyricsSource)
+	}
+	if m.has_lyrics != nil {
+		fields = append(fields, song.FieldHasLyrics)
 	}
 	if m.netease_id != nil {
 		fields = append(fields, song.FieldNeteaseID)
@@ -6259,6 +6299,8 @@ func (m *SongMutation) Field(name string) (ent.Value, bool) {
 		return m.LyricsEmbedded()
 	case song.FieldLyricsSource:
 		return m.LyricsSource()
+	case song.FieldHasLyrics:
+		return m.HasLyrics()
 	case song.FieldNeteaseID:
 		return m.NeteaseID()
 	case song.FieldFavorite:
@@ -6310,6 +6352,8 @@ func (m *SongMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldLyricsEmbedded(ctx)
 	case song.FieldLyricsSource:
 		return m.OldLyricsSource(ctx)
+	case song.FieldHasLyrics:
+		return m.OldHasLyrics(ctx)
 	case song.FieldNeteaseID:
 		return m.OldNeteaseID(ctx)
 	case song.FieldFavorite:
@@ -6435,6 +6479,13 @@ func (m *SongMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetLyricsSource(v)
+		return nil
+	case song.FieldHasLyrics:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHasLyrics(v)
 		return nil
 	case song.FieldNeteaseID:
 		v, ok := value.(string)
@@ -6679,6 +6730,9 @@ func (m *SongMutation) ResetField(name string) error {
 		return nil
 	case song.FieldLyricsSource:
 		m.ResetLyricsSource()
+		return nil
+	case song.FieldHasLyrics:
+		m.ResetHasLyrics()
 		return nil
 	case song.FieldNeteaseID:
 		m.ResetNeteaseID()

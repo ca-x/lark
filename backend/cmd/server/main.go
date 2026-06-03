@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"lark/backend/ent"
 	"lark/backend/ent/migrate"
+	"lark/backend/ent/song"
 	"lark/backend/internal/api"
 	"lark/backend/internal/config"
 	"lark/backend/internal/kv"
@@ -19,9 +21,21 @@ import (
 	"lark/backend/internal/netease"
 	"lark/backend/internal/qqmusic"
 
+	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib-x/entsqlite"
 	_ "github.com/lib/pq"
+)
+
+const (
+	// SQLite connection-pool tuning. modernc.org/sqlite serializes writes regardless
+	// of pool size, while WAL mode permits N concurrent readers + 1 writer across
+	// separate connections. A small bounded pool keeps readers warm and makes
+	// contention fail fast (busy_timeout) instead of piling up unbounded connections.
+	sqliteMaxOpenConns    = 8
+	sqliteMaxIdleConns    = 8
+	sqliteConnMaxIdleTime = 5 * time.Minute
+	sqliteConnMaxLifetime = 0 // SQLite connections are local & cheap; no recycling needed
 )
 
 func main() {
@@ -35,13 +49,16 @@ func main() {
 	if cfg.DatabaseDSN == "" {
 		log.Fatalf("database DSN is required for LARK_DB_TYPE=%s", cfg.DatabaseType)
 	}
-	client, err := ent.Open(cfg.DatabaseDriver, cfg.DatabaseDSN)
+	client, err := openEntClient(cfg)
 	if err != nil {
 		log.Fatalf("open %s database: %v", cfg.DatabaseType, err)
 	}
 	defer client.Close()
 	if err := client.Schema.Create(context.Background(), migrate.WithForeignKeys(true)); err != nil {
 		log.Fatal(err)
+	}
+	if err := backfillHasLyrics(context.Background(), client); err != nil {
+		log.Printf("has_lyrics backfill skipped: %v", err)
 	}
 	cacheStore, err := openCacheStore(cfg, client)
 	if err != nil {
@@ -90,6 +107,39 @@ func main() {
 	case <-ctx.Done():
 		log.Printf("server did not stop before shutdown deadline: %v", ctx.Err())
 	}
+}
+
+func openEntClient(cfg config.Config) (*ent.Client, error) {
+	db, err := sql.Open(cfg.DatabaseDriver, cfg.DatabaseDSN)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.DatabaseType == "sqlite" {
+		db.SetMaxOpenConns(sqliteMaxOpenConns)
+		db.SetMaxIdleConns(sqliteMaxIdleConns)
+		db.SetConnMaxIdleTime(sqliteConnMaxIdleTime)
+		db.SetConnMaxLifetime(sqliteConnMaxLifetime)
+	}
+	drv := entsql.OpenDB(cfg.DatabaseDriver, db)
+	return ent.NewClient(ent.Driver(drv)), nil
+}
+
+// backfillHasLyrics is a one-shot, idempotent bulk UPDATE that sets has_lyrics=true
+// for legacy rows that have a lyrics source or a cached lyrics blob but were created
+// before the has_lyrics column existed. Re-running it matches nothing once backfilled.
+func backfillHasLyrics(ctx context.Context, client *ent.Client) error {
+	if client == nil {
+		return nil
+	}
+	updateCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	return client.Song.Update().
+		Where(
+			song.HasLyrics(false),
+			song.Or(song.LyricsSourceNEQ(""), song.LyricsEmbeddedNEQ("")),
+		).
+		SetHasLyrics(true).
+		Exec(updateCtx)
 }
 
 func cleanupLegacyCache(ctx context.Context, store kv.Store) error {

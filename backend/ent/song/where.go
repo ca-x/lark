@@ -130,6 +130,11 @@ func LyricsSource(v string) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldLyricsSource, v))
 }
 
+// HasLyrics applies equality check predicate on the "has_lyrics" field. It's identical to HasLyricsEQ.
+func HasLyrics(v bool) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldHasLyrics, v))
+}
+
 // NeteaseID applies equality check predicate on the "netease_id" field. It's identical to NeteaseIDEQ.
 func NeteaseID(v string) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldNeteaseID, v))
@@ -958,6 +963,16 @@ func LyricsSourceEqualFold(v string) predicate.Song {
 // LyricsSourceContainsFold applies the ContainsFold predicate on the "lyrics_source" field.
 func LyricsSourceContainsFold(v string) predicate.Song {
 	return predicate.Song(sql.FieldContainsFold(FieldLyricsSource, v))
+}
+
+// HasLyricsEQ applies the EQ predicate on the "has_lyrics" field.
+func HasLyricsEQ(v bool) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldHasLyrics, v))
+}
+
+// HasLyricsNEQ applies the NEQ predicate on the "has_lyrics" field.
+func HasLyricsNEQ(v bool) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldHasLyrics, v))
 }
 
 // NeteaseIDEQ applies the EQ predicate on the "netease_id" field.

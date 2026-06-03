@@ -44,6 +44,8 @@ const (
 	FieldLyricsEmbedded = "lyrics_embedded"
 	// FieldLyricsSource holds the string denoting the lyrics_source field in the database.
 	FieldLyricsSource = "lyrics_source"
+	// FieldHasLyrics holds the string denoting the has_lyrics field in the database.
+	FieldHasLyrics = "has_lyrics"
 	// FieldNeteaseID holds the string denoting the netease_id field in the database.
 	FieldNeteaseID = "netease_id"
 	// FieldFavorite holds the string denoting the favorite field in the database.
@@ -121,6 +123,7 @@ var Columns = []string{
 	FieldYear,
 	FieldLyricsEmbedded,
 	FieldLyricsSource,
+	FieldHasLyrics,
 	FieldNeteaseID,
 	FieldFavorite,
 	FieldPlayCount,
@@ -188,6 +191,8 @@ var (
 	DefaultLyricsEmbedded string
 	// DefaultLyricsSource holds the default value on creation for the "lyrics_source" field.
 	DefaultLyricsSource string
+	// DefaultHasLyrics holds the default value on creation for the "has_lyrics" field.
+	DefaultHasLyrics bool
 	// DefaultNeteaseID holds the default value on creation for the "netease_id" field.
 	DefaultNeteaseID string
 	// DefaultFavorite holds the default value on creation for the "favorite" field.
@@ -283,6 +288,11 @@ func ByLyricsEmbedded(opts ...sql.OrderTermOption) OrderOption {
 // ByLyricsSource orders the results by the lyrics_source field.
 func ByLyricsSource(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLyricsSource, opts...).ToFunc()
+}
+
+// ByHasLyrics orders the results by the has_lyrics field.
+func ByHasLyrics(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHasLyrics, opts...).ToFunc()
 }
 
 // ByNeteaseID orders the results by the netease_id field.

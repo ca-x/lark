@@ -28,6 +28,12 @@ func (Song) Fields() []ent.Field {
 		field.Int("year").Default(0),
 		field.String("lyrics_embedded").Default(""),
 		field.String("lyrics_source").Default(""),
+		// has_lyrics is a denormalized indicator derived from metadata at import time
+		// (meta.HasLyrics) so browse/list queries can answer "does this song have
+		// lyrics?" without selecting the large lyrics_embedded TEXT column. It also
+		// fixes the prior bug where the indicator was computed from lyrics_embedded,
+		// which is cleared at import and only populated lazily by the lyrics endpoint.
+		field.Bool("has_lyrics").Default(false),
 		field.String("netease_id").Default(""),
 		field.Bool("favorite").Default(false),
 		field.Int("play_count").Default(0),
@@ -56,6 +62,9 @@ func (Song) Indexes() []ent.Index {
 		index.Fields("netease_id"),
 		index.Fields("created_at"),
 		index.Fields("updated_at"),
+		index.Fields("has_lyrics"),
+		index.Fields("play_count"),
+		index.Fields("last_played_at"),
 		index.Edges("artist"),
 		index.Edges("album"),
 	}

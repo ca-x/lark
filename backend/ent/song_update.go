@@ -292,6 +292,20 @@ func (_u *SongUpdate) SetNillableLyricsSource(v *string) *SongUpdate {
 	return _u
 }
 
+// SetHasLyrics sets the "has_lyrics" field.
+func (_u *SongUpdate) SetHasLyrics(v bool) *SongUpdate {
+	_u.mutation.SetHasLyrics(v)
+	return _u
+}
+
+// SetNillableHasLyrics sets the "has_lyrics" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableHasLyrics(v *bool) *SongUpdate {
+	if v != nil {
+		_u.SetHasLyrics(*v)
+	}
+	return _u
+}
+
 // SetNeteaseID sets the "netease_id" field.
 func (_u *SongUpdate) SetNeteaseID(v string) *SongUpdate {
 	_u.mutation.SetNeteaseID(v)
@@ -677,6 +691,9 @@ func (_u *SongUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.LyricsSource(); ok {
 		_spec.SetField(song.FieldLyricsSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.HasLyrics(); ok {
+		_spec.SetField(song.FieldHasLyrics, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.NeteaseID(); ok {
 		_spec.SetField(song.FieldNeteaseID, field.TypeString, value)
@@ -1174,6 +1191,20 @@ func (_u *SongUpdateOne) SetNillableLyricsSource(v *string) *SongUpdateOne {
 	return _u
 }
 
+// SetHasLyrics sets the "has_lyrics" field.
+func (_u *SongUpdateOne) SetHasLyrics(v bool) *SongUpdateOne {
+	_u.mutation.SetHasLyrics(v)
+	return _u
+}
+
+// SetNillableHasLyrics sets the "has_lyrics" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableHasLyrics(v *bool) *SongUpdateOne {
+	if v != nil {
+		_u.SetHasLyrics(*v)
+	}
+	return _u
+}
+
 // SetNeteaseID sets the "netease_id" field.
 func (_u *SongUpdateOne) SetNeteaseID(v string) *SongUpdateOne {
 	_u.mutation.SetNeteaseID(v)
@@ -1589,6 +1620,9 @@ func (_u *SongUpdateOne) sqlSave(ctx context.Context) (_node *Song, err error) {
 	}
 	if value, ok := _u.mutation.LyricsSource(); ok {
 		_spec.SetField(song.FieldLyricsSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.HasLyrics(); ok {
+		_spec.SetField(song.FieldHasLyrics, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.NeteaseID(); ok {
 		_spec.SetField(song.FieldNeteaseID, field.TypeString, value)

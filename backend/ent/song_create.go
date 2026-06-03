@@ -211,6 +211,20 @@ func (_c *SongCreate) SetNillableLyricsSource(v *string) *SongCreate {
 	return _c
 }
 
+// SetHasLyrics sets the "has_lyrics" field.
+func (_c *SongCreate) SetHasLyrics(v bool) *SongCreate {
+	_c.mutation.SetHasLyrics(v)
+	return _c
+}
+
+// SetNillableHasLyrics sets the "has_lyrics" field if the given value is not nil.
+func (_c *SongCreate) SetNillableHasLyrics(v *bool) *SongCreate {
+	if v != nil {
+		_c.SetHasLyrics(*v)
+	}
+	return _c
+}
+
 // SetNeteaseID sets the "netease_id" field.
 func (_c *SongCreate) SetNeteaseID(v string) *SongCreate {
 	_c.mutation.SetNeteaseID(v)
@@ -461,6 +475,10 @@ func (_c *SongCreate) defaults() {
 		v := song.DefaultLyricsSource
 		_c.mutation.SetLyricsSource(v)
 	}
+	if _, ok := _c.mutation.HasLyrics(); !ok {
+		v := song.DefaultHasLyrics
+		_c.mutation.SetHasLyrics(v)
+	}
 	if _, ok := _c.mutation.NeteaseID(); !ok {
 		v := song.DefaultNeteaseID
 		_c.mutation.SetNeteaseID(v)
@@ -544,6 +562,9 @@ func (_c *SongCreate) check() error {
 	}
 	if _, ok := _c.mutation.LyricsSource(); !ok {
 		return &ValidationError{Name: "lyrics_source", err: errors.New(`ent: missing required field "Song.lyrics_source"`)}
+	}
+	if _, ok := _c.mutation.HasLyrics(); !ok {
+		return &ValidationError{Name: "has_lyrics", err: errors.New(`ent: missing required field "Song.has_lyrics"`)}
 	}
 	if _, ok := _c.mutation.NeteaseID(); !ok {
 		return &ValidationError{Name: "netease_id", err: errors.New(`ent: missing required field "Song.netease_id"`)}
@@ -645,6 +666,10 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.LyricsSource(); ok {
 		_spec.SetField(song.FieldLyricsSource, field.TypeString, value)
 		_node.LyricsSource = value
+	}
+	if value, ok := _c.mutation.HasLyrics(); ok {
+		_spec.SetField(song.FieldHasLyrics, field.TypeBool, value)
+		_node.HasLyrics = value
 	}
 	if value, ok := _c.mutation.NeteaseID(); ok {
 		_spec.SetField(song.FieldNeteaseID, field.TypeString, value)

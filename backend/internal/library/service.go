@@ -10,14 +10,10 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"mime"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,9 +22,8 @@ import (
 	"unicode"
 
 	entsql "entgo.io/ent/dialect/sql"
-	"github.com/cespare/xxhash/v2"
-	"github.com/dhowden/tag"
 	"github.com/fsnotify/fsnotify"
+	"golang.org/x/sync/singleflight"
 
 	"lark/backend/ent"
 	"lark/backend/ent/album"
@@ -88,6 +83,47 @@ type Service struct {
 	scanStatus models.ScanStatus
 	watchMu    sync.Mutex
 	watchers   map[string]*libraryWatcher
+	// loadSF dedupes concurrent identical browse loads (ArtistSongs/AlbumSongs/...)
+	// so a burst of requests for the same collection collapses to a single DB load.
+	loadSF singleflight.Group
+	// yearRefreshSF dedupes background album-year online lookups (see online.go).
+	yearRefreshSF singleflight.Group
+
+	// countCache holds materialized GROUP BY aggregates that change only on scan/import.
+	// Each entry is guarded by a mutex + timestamp so callers can read the cached map
+	// without touching the database.  The TTL defaults to 5 minutes, which is more than
+	// enough for browse/page loads between library scans.
+	countCacheMu        sync.RWMutex
+	albumSongCountsAll  cachedCounts // full album→song_count map
+	artistSongCountsAll cachedCounts // full artist→song_count map
+	artistAlbumCountsAll cachedCounts // full artist→album_count map
+	countCacheTTL       time.Duration
+}
+
+// cachedCounts stores a materialized count map with its fetch timestamp.
+type cachedCounts struct {
+	counts  map[int]int
+	fetched time.Time
+}
+
+// get returns the cached counts if fresh, or nil if stale/empty.
+func (c cachedCounts) get(ttl time.Duration) map[int]int {
+	if c.counts == nil || time.Since(c.fetched) > ttl {
+		return nil
+	}
+	return c.counts
+}
+
+// countsFromFullMap extracts a subset for the given IDs from a full map.
+// Returns a new map even if empty.
+func countsFromFullMap(full map[int]int, ids []int) map[int]int {
+	out := make(map[int]int, len(ids))
+	for _, id := range ids {
+		if v, ok := full[id]; ok {
+			out[id] = v
+		}
+	}
+	return out
 }
 
 type playbackDeviceContextKey struct{}
@@ -150,7 +186,7 @@ func WithCache(store kv.Store, ttl time.Duration) Option {
 }
 
 func New(client *ent.Client, dataDir, libraryDir, ffprobe, ffmpeg string, neteaseClient *netease.Client, qqClient *qqmusic.Client, opts ...Option) *Service {
-	svc := &Service{client: client, dataDir: dataDir, libraryDir: libraryDir, ffprobe: ffprobe, ffmpeg: ffmpeg, netease: neteaseClient, qqmusic: qqClient, online: online.Providers(), cache: kv.NoopStore{}, cacheTTL: 2 * time.Minute}
+	svc := &Service{client: client, dataDir: dataDir, libraryDir: libraryDir, ffprobe: ffprobe, ffmpeg: ffmpeg, netease: neteaseClient, qqmusic: qqClient, online: online.Providers(), cache: kv.NoopStore{}, cacheTTL: 2 * time.Minute, countCacheTTL: 5 * time.Minute}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(svc)
@@ -568,60 +604,6 @@ type resolvedFolderRoot struct {
 	Path string
 }
 
-func (s *Service) resolveLibraryFolderForUser(ctx context.Context, userID int, relPath string) (resolvedFolderRoot, error) {
-	roots, err := s.effectiveLibraryRoots(ctx, userID)
-	if err != nil {
-		return resolvedFolderRoot{}, err
-	}
-	rootID, rel := splitRootedFolderPath(relPath)
-	var root libraryRoot
-	found := false
-	for _, item := range roots {
-		if item.ID == rootID {
-			root = item
-			found = true
-			break
-		}
-	}
-	if !found {
-		return resolvedFolderRoot{}, fmt.Errorf("library directory not found")
-	}
-	cleanRel := filepath.Clean(strings.TrimSpace(rel))
-	if cleanRel == "" || cleanRel == "." || cleanRel == string(os.PathSeparator) {
-		return resolvedFolderRoot{Root: root, Rel: "", Path: root.Path}, nil
-	}
-	if filepath.IsAbs(cleanRel) {
-		return resolvedFolderRoot{}, fmt.Errorf("folder path must be relative")
-	}
-	target, err := filepath.Abs(filepath.Join(root.Path, cleanRel))
-	if err != nil {
-		return resolvedFolderRoot{}, err
-	}
-	if target != root.Path && !strings.HasPrefix(target, root.Path+string(os.PathSeparator)) {
-		return resolvedFolderRoot{}, fmt.Errorf("folder path escapes library")
-	}
-	return resolvedFolderRoot{Root: root, Rel: normalizeFolderRel(cleanRel), Path: target}, nil
-}
-
-func splitRootedFolderPath(path string) (string, string) {
-	trimmed := strings.TrimSpace(path)
-	if strings.HasPrefix(trimmed, "@") {
-		parts := strings.SplitN(strings.TrimPrefix(trimmed, "@"), ":", 2)
-		if len(parts) == 2 && strings.TrimSpace(parts[0]) != "" {
-			return strings.TrimSpace(parts[0]), parts[1]
-		}
-	}
-	return "env", trimmed
-}
-
-func rootedFolderPath(rootID, rel string) string {
-	clean := displayFolderRel(normalizeFolderRel(rel))
-	if rootID == "env" {
-		return clean
-	}
-	return "@" + rootID + ":" + clean
-}
-
 func (s *Service) rootDisplayName(root libraryRoot) string {
 	if strings.TrimSpace(root.Note) != "" {
 		return root.Note
@@ -633,157 +615,6 @@ func IsSupported(path string) bool { return supportedExts[strings.ToLower(filepa
 
 func IsAudioSupported(path string) bool {
 	return supportedAudioExts[strings.ToLower(filepath.Ext(path))]
-}
-
-func (s *Service) ScanStatus() models.ScanStatus {
-	s.scanMu.RLock()
-	defer s.scanMu.RUnlock()
-	return cloneScanStatus(s.scanStatus)
-}
-
-func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, error) {
-	if !s.scanRunMu.TryLock() {
-		return models.ScanResult{Errors: []string{ErrScanRunning.Error()}}, ErrScanRunning
-	}
-	defer s.scanRunMu.Unlock()
-	started := time.Now()
-	roots, err := s.effectiveLibraryRoots(ctx, userID)
-	if err != nil {
-		return models.ScanResult{Errors: []string{err.Error()}}, err
-	}
-	scanCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	s.setScanStatus(func(status *models.ScanStatus) {
-		s.scanCancel = cancel
-		*status = models.ScanStatus{Running: true, CurrentDir: s.libraryDir, Errors: []string{}, StartedAt: &started}
-	})
-	result := models.ScanResult{Errors: []string{}}
-	defer func() {
-		finished := time.Now()
-		s.setScanStatus(func(status *models.ScanStatus) {
-			status.Running = false
-			status.Canceled = result.Canceled
-			status.FinishedAt = &finished
-			s.scanCancel = nil
-		})
-	}()
-	for _, root := range roots {
-		rootPath := root.Path
-		cueReferencedAudio := s.cueReferencedAudioPaths(scanCtx, rootPath)
-		err := filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
-			if scanCtx.Err() != nil {
-				result.Canceled = true
-				return ErrScanCanceled
-			}
-			if err != nil {
-				result.Errors = append(result.Errors, err.Error())
-				s.updateScanProgress(path, filepath.Dir(path), &result)
-				return nil
-			}
-			if d.IsDir() {
-				if shouldSkipScanDir(rootPath, path, d.Name()) {
-					result.Skipped++
-					s.updateScanProgress("", filepath.Dir(path), &result)
-					return filepath.SkipDir
-				}
-				result.CurrentDir = path
-				s.updateScanProgress("", path, &result)
-				return nil
-			}
-			result.CurrentDir = filepath.Dir(path)
-			s.updateScanProgress(path, result.CurrentDir, &result)
-			if !IsSupported(path) {
-				result.Skipped++
-				s.updateScanProgress(path, result.CurrentDir, &result)
-				return nil
-			}
-			if isCUEFile(path) {
-				cueResult, err := s.importCUEFile(scanCtx, path, false)
-				if scanCtx.Err() != nil {
-					result.Canceled = true
-					s.updateScanProgress(path, result.CurrentDir, &result)
-					return ErrScanCanceled
-				}
-				if err != nil {
-					result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", path, err))
-					s.updateScanProgress(path, result.CurrentDir, &result)
-					return nil
-				}
-				result.Scanned += cueResult.Scanned
-				result.Added += cueResult.Added
-				result.Updated += cueResult.Updated
-				for _, audioPath := range cueResult.AudioPaths {
-					cueReferencedAudio[audioPath] = true
-				}
-				if cueResult.Scanned == 0 {
-					result.Skipped++
-				}
-				s.updateScanProgress(path, result.CurrentDir, &result)
-				return nil
-			}
-			abs, err := filepath.Abs(path)
-			if err == nil && cueReferencedAudio[abs] {
-				result.Skipped++
-				s.updateScanProgress(path, result.CurrentDir, &result)
-				return nil
-			}
-			result.Scanned++
-			added, err := s.importFile(scanCtx, path, false)
-			if scanCtx.Err() != nil {
-				result.Canceled = true
-				s.updateScanProgress(path, result.CurrentDir, &result)
-				return ErrScanCanceled
-			}
-			if err != nil {
-				result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", path, err))
-				s.updateScanProgress(path, result.CurrentDir, &result)
-				return nil
-			}
-			if added {
-				result.Added++
-			} else {
-				result.Updated++
-			}
-			if result.Scanned%500 == 0 {
-				debug.FreeOSMemory()
-			}
-			s.updateScanProgress(path, result.CurrentDir, &result)
-			return nil
-		})
-		if errors.Is(err, ErrScanCanceled) {
-			break
-		}
-		if err != nil {
-			return result, err
-		}
-	}
-	if result.Canceled {
-		s.invalidateLibraryCache(ctx)
-		s.invalidateSearchCatalogs(ctx)
-		return result, nil
-	}
-	rootPaths := make([]string, 0, len(roots))
-	for _, root := range roots {
-		rootPaths = append(rootPaths, root.Path)
-	}
-	if err := s.cleanupMissingLibraryEntries(ctx, rootPaths); err != nil {
-		result.Errors = append(result.Errors, fmt.Sprintf("cleanup missing library entries: %v", err))
-	}
-	s.invalidateLibraryCache(ctx)
-	s.invalidateSearchCatalogs(ctx)
-	debug.FreeOSMemory()
-	return result, nil
-}
-
-func (s *Service) CancelScan() bool {
-	s.scanMu.Lock()
-	defer s.scanMu.Unlock()
-	if !s.scanStatus.Running || s.scanCancel == nil {
-		return false
-	}
-	s.scanStatus.Canceled = true
-	s.scanCancel()
-	return true
 }
 
 func (s *Service) cleanupMissingLibraryEntries(ctx context.Context, roots []string) error {
@@ -897,37 +728,6 @@ func (s *Service) cleanupMissingLibraryEntries(ctx context.Context, roots []stri
 	return nil
 }
 
-func shouldSkipScanDir(root, path, name string) bool {
-	if samePath(root, path) {
-		return false
-	}
-	return name == ".shared-center"
-}
-
-func samePath(a, b string) bool {
-	absA, errA := filepath.Abs(a)
-	absB, errB := filepath.Abs(b)
-	if errA == nil && errB == nil {
-		return filepath.Clean(absA) == filepath.Clean(absB)
-	}
-	return filepath.Clean(a) == filepath.Clean(b)
-}
-
-func songPathMissing(path string) bool {
-	ref, ok := parseCueVirtualSongPath(path)
-	if ok {
-		if _, err := os.Stat(ref.AudioPath); err != nil {
-			return os.IsNotExist(err)
-		}
-		if _, err := os.Stat(ref.CuePath); err != nil {
-			return os.IsNotExist(err)
-		}
-		return false
-	}
-	_, err := os.Stat(path)
-	return os.IsNotExist(err)
-}
-
 func (s *Service) updateScanProgress(currentPath, currentDir string, result *models.ScanResult) {
 	s.setScanStatus(func(status *models.ScanStatus) {
 		status.CurrentPath = currentPath
@@ -941,441 +741,10 @@ func (s *Service) updateScanProgress(currentPath, currentDir string, result *mod
 	})
 }
 
-func recentScanErrors(errors []string) []string {
-	const maxScanStatusErrors = 50
-	if len(errors) <= maxScanStatusErrors {
-		return errors
-	}
-	return errors[len(errors)-maxScanStatusErrors:]
-}
-
 func (s *Service) setScanStatus(update func(*models.ScanStatus)) {
 	s.scanMu.Lock()
 	defer s.scanMu.Unlock()
 	update(&s.scanStatus)
-}
-
-func cloneScanStatus(status models.ScanStatus) models.ScanStatus {
-	status.Errors = append([]string{}, status.Errors...)
-	return status
-}
-
-func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
-	return s.importFile(ctx, path, true)
-}
-
-func (s *Service) importFile(ctx context.Context, path string, invalidate bool) (bool, error) {
-	if isCUEFile(path) {
-		result, err := s.importCUEFile(ctx, path, invalidate)
-		return result.Added > 0, err
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return false, err
-	}
-	info, err := os.Stat(abs)
-	if err != nil {
-		return false, err
-	}
-	if info.IsDir() || !IsAudioSupported(abs) {
-		return false, fmt.Errorf("unsupported audio file")
-	}
-	sizeBytes := info.Size()
-	modTimeUnixNano := info.ModTime().UnixNano()
-	existing, err := s.client.Song.Query().Where(song.Path(abs)).Only(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return false, err
-	}
-	existingNotFound := ent.IsNotFound(err)
-	reusedMissingContent := false
-	if err == nil && existing.SizeBytes == sizeBytes && existing.ModTimeUnixNano == modTimeUnixNano {
-		return false, nil
-	}
-	meta := s.probe(ctx, abs, probeOptions{
-		DetectLyrics: supportsEmbeddedLyrics(abs),
-		ReadLyrics:   false,
-	})
-	probedMeta := meta
-	applyMetadataFallback(abs, s.libraryDir, &meta)
-	if settings, err := s.GetSettings(ctx); err == nil {
-		if !settings.MetadataGrouping {
-			meta.AlbumArtist = meta.Artist
-		}
-		if settings.LibraryTagWriteback {
-			written, err := writeBackCorrectedMetadata(abs, probedMeta, meta)
-			if err != nil {
-				return false, err
-			}
-			if written {
-				info, err = os.Stat(abs)
-				if err != nil {
-					return false, err
-				}
-				sizeBytes = info.Size()
-				modTimeUnixNano = info.ModTime().UnixNano()
-			}
-		}
-	}
-	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(abs)), ".")
-	mimeType := mime.TypeByExtension(filepath.Ext(abs))
-	if mimeType == "" {
-		mimeType = audioMime(format)
-	}
-	artistEntity, err := s.ensureArtist(ctx, meta.Artist)
-	if err != nil {
-		return false, err
-	}
-	albumEntity, err := s.ensureAlbum(ctx, meta.Album, meta.AlbumArtist, artistEntity, meta.Year)
-	if err != nil {
-		return false, err
-	}
-	contentHash := songContentHash(meta.Artist, meta.Album, meta.Title)
-	if existingNotFound && contentHash != "" {
-		reusable, skipDuplicate, err := s.reusableSongByContentHash(ctx, contentHash, abs)
-		if err != nil {
-			return false, err
-		}
-		if skipDuplicate {
-			return false, nil
-		}
-		if reusable != nil {
-			existing = reusable
-			existingNotFound = false
-			reusedMissingContent = true
-		}
-	}
-	lyricsSource := ""
-	if meta.HasLyrics {
-		lyricsSource = "embedded"
-	}
-	if existingNotFound {
-		create := s.client.Song.Create().
-			SetTitle(meta.Title).
-			SetPath(abs).
-			SetFileName(filepath.Base(abs)).
-			SetFormat(format).
-			SetMime(mimeType).
-			SetSizeBytes(sizeBytes).
-			SetModTimeUnixNano(modTimeUnixNano).
-			SetContentHash(contentHash).
-			SetDurationSeconds(meta.Duration).
-			SetSampleRate(meta.SampleRate).
-			SetBitRate(meta.BitRate).
-			SetBitDepth(meta.BitDepth).
-			SetYear(meta.Year).
-			SetArtist(artistEntity).
-			SetAlbum(albumEntity)
-		if lyricsSource != "" {
-			create.SetLyricsSource(lyricsSource)
-		}
-		_, err = create.Save(ctx)
-		if err == nil && invalidate {
-			s.invalidateLibraryCache(ctx)
-			s.invalidateSearchCatalogs(ctx)
-		}
-		return true, err
-	}
-	update := existing.Update().
-		SetTitle(meta.Title).
-		SetPath(abs).
-		SetFileName(filepath.Base(abs)).
-		SetFormat(format).
-		SetMime(mimeType).
-		SetSizeBytes(sizeBytes).
-		SetModTimeUnixNano(modTimeUnixNano).
-		SetContentHash(contentHash).
-		SetDurationSeconds(meta.Duration).
-		SetSampleRate(meta.SampleRate).
-		SetBitRate(meta.BitRate).
-		SetBitDepth(meta.BitDepth).
-		SetYear(meta.Year).
-		SetArtist(artistEntity).
-		SetAlbum(albumEntity)
-	if meta.HasLyrics {
-		update.SetLyricsEmbedded("").SetLyricsSource("embedded")
-	} else if existing.LyricsSource == "embedded" {
-		update.SetLyricsEmbedded("").SetLyricsSource("")
-	}
-	_, err = update.Save(ctx)
-	if err == nil && invalidate {
-		s.invalidateLibraryCache(ctx)
-		s.invalidateSearchCatalogs(ctx)
-	}
-	return reusedMissingContent, err
-}
-
-func (s *Service) importCUEFile(ctx context.Context, cuePath string, invalidate bool) (cueImportResult, error) {
-	absCue, err := filepath.Abs(cuePath)
-	if err != nil {
-		return cueImportResult{}, err
-	}
-	cueInfo, err := os.Stat(absCue)
-	if err != nil {
-		return cueImportResult{}, err
-	}
-	sheet, err := s.parseCueSheet(ctx, absCue)
-	if err != nil {
-		return cueImportResult{}, err
-	}
-	result := cueImportResult{AudioPaths: uniqueCueAudioPaths(sheet)}
-	currentPaths := map[string]bool{}
-	audioMeta := map[string]fileMetadata{}
-	audioInfo := map[string]os.FileInfo{}
-
-	for _, audioPath := range result.AudioPaths {
-		if !IsAudioSupported(audioPath) {
-			return result, fmt.Errorf("unsupported cue audio format: %s", audioPath)
-		}
-		info, err := os.Stat(audioPath)
-		if err != nil {
-			return result, err
-		}
-		audioInfo[audioPath] = info
-		audioMeta[audioPath] = s.probe(ctx, audioPath, probeOptions{
-			DetectLyrics: supportsEmbeddedLyrics(audioPath),
-			ReadLyrics:   false,
-		})
-	}
-
-	for _, track := range sheet.Tracks {
-		if track.File == "" || !IsAudioSupported(track.File) {
-			continue
-		}
-		info := audioInfo[track.File]
-		baseMeta := audioMeta[track.File]
-		if info == nil {
-			continue
-		}
-		duration := 0.0
-		if track.EndSeconds > track.StartSeconds {
-			duration = track.EndSeconds - track.StartSeconds
-		}
-		if duration <= 0 && len(sheet.Tracks) == 1 && baseMeta.Duration > 0 {
-			duration = baseMeta.Duration
-		}
-		title := firstString(track.Title, fmt.Sprintf("Track %02d", track.Number))
-		trackArtist := firstString(track.Performer, sheet.Performer, baseMeta.Artist, "Unknown Artist")
-		albumTitle := firstString(sheet.Title, baseMeta.Album, fallbackAlbumFromFolder(track.File, s.libraryDir), "Unknown Album")
-		albumArtist := firstString(sheet.Performer, baseMeta.AlbumArtist, trackArtist)
-		meta := fileMetadata{
-			Title:       title,
-			Artist:      trackArtist,
-			Album:       albumTitle,
-			AlbumArtist: albumArtist,
-			HasLyrics:   baseMeta.HasLyrics,
-			Duration:    duration,
-			SampleRate:  baseMeta.SampleRate,
-			BitRate:     baseMeta.BitRate,
-			BitDepth:    baseMeta.BitDepth,
-			Year:        baseMeta.Year,
-		}
-		if settings, err := s.GetSettings(ctx); err == nil && !settings.MetadataGrouping {
-			meta.AlbumArtist = meta.Artist
-		}
-		sizeBytes := info.Size() + cueInfo.Size()
-		modTime := info.ModTime()
-		if cueInfo.ModTime().After(modTime) {
-			modTime = cueInfo.ModTime()
-		}
-		virtualPath := cueVirtualSongPath(track.File, absCue, track.Number, track.StartSeconds, track.EndSeconds)
-		currentPaths[virtualPath] = true
-		result.Scanned++
-		added, err := s.upsertCUETrack(ctx, virtualPath, track.File, meta, sizeBytes, modTime.UnixNano())
-		if err != nil {
-			return result, err
-		}
-		if added {
-			result.Added++
-		} else {
-			result.Updated++
-		}
-	}
-	if err := s.cleanupCUESongRows(ctx, absCue, result.AudioPaths, currentPaths); err != nil {
-		return result, err
-	}
-	if invalidate {
-		s.invalidateLibraryCache(ctx)
-		s.invalidateSearchCatalogs(ctx)
-	}
-	return result, nil
-}
-
-func (s *Service) upsertCUETrack(ctx context.Context, virtualPath, audioPath string, meta fileMetadata, sizeBytes, modTimeUnixNano int64) (bool, error) {
-	existing, err := s.client.Song.Query().Where(song.Path(virtualPath)).Only(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return false, err
-	}
-	existingNotFound := ent.IsNotFound(err)
-	if err == nil && existing.SizeBytes == sizeBytes && existing.ModTimeUnixNano == modTimeUnixNano {
-		return false, nil
-	}
-	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(audioPath)), ".")
-	mimeType := mime.TypeByExtension(filepath.Ext(audioPath))
-	if mimeType == "" {
-		mimeType = audioMime(format)
-	}
-	artistEntity, err := s.ensureArtist(ctx, meta.Artist)
-	if err != nil {
-		return false, err
-	}
-	albumEntity, err := s.ensureAlbum(ctx, meta.Album, meta.AlbumArtist, artistEntity, meta.Year)
-	if err != nil {
-		return false, err
-	}
-	contentHash := cueTrackContentHash(virtualPath, meta)
-	lyricsSource := ""
-	if meta.HasLyrics {
-		lyricsSource = "embedded"
-	}
-	if existingNotFound {
-		create := s.client.Song.Create().
-			SetTitle(meta.Title).
-			SetPath(virtualPath).
-			SetFileName(filepath.Base(audioPath)).
-			SetFormat(format).
-			SetMime(mimeType).
-			SetSizeBytes(sizeBytes).
-			SetModTimeUnixNano(modTimeUnixNano).
-			SetContentHash(contentHash).
-			SetDurationSeconds(meta.Duration).
-			SetSampleRate(meta.SampleRate).
-			SetBitRate(meta.BitRate).
-			SetBitDepth(meta.BitDepth).
-			SetYear(meta.Year).
-			SetArtist(artistEntity).
-			SetAlbum(albumEntity)
-		if lyricsSource != "" {
-			create.SetLyricsSource(lyricsSource)
-		}
-		_, err := create.Save(ctx)
-		return true, err
-	}
-	update := existing.Update().
-		SetTitle(meta.Title).
-		SetPath(virtualPath).
-		SetFileName(filepath.Base(audioPath)).
-		SetFormat(format).
-		SetMime(mimeType).
-		SetSizeBytes(sizeBytes).
-		SetModTimeUnixNano(modTimeUnixNano).
-		SetContentHash(contentHash).
-		SetDurationSeconds(meta.Duration).
-		SetSampleRate(meta.SampleRate).
-		SetBitRate(meta.BitRate).
-		SetBitDepth(meta.BitDepth).
-		SetYear(meta.Year).
-		SetArtist(artistEntity).
-		SetAlbum(albumEntity)
-	if meta.HasLyrics {
-		update.SetLyricsEmbedded("").SetLyricsSource("embedded")
-	} else if existing.LyricsSource == "embedded" {
-		update.SetLyricsEmbedded("").SetLyricsSource("")
-	}
-	return false, update.Exec(ctx)
-}
-
-func cueTrackContentHash(virtualPath string, meta fileMetadata) string {
-	seed := strings.Join([]string{virtualPath, meta.Artist, meta.Album, meta.Title}, "\x00")
-	sum := sha1.Sum([]byte(seed))
-	return hex.EncodeToString(sum[:])
-}
-
-func (s *Service) cleanupCUESongRows(ctx context.Context, cuePath string, audioPaths []string, currentPaths map[string]bool) error {
-	deleteIDs := []int{}
-	if len(audioPaths) > 0 {
-		fullAudioRows, err := s.client.Song.Query().Select(song.FieldID).Where(song.PathIn(audioPaths...)).All(ctx)
-		if err != nil {
-			return err
-		}
-		for _, item := range fullAudioRows {
-			deleteIDs = append(deleteIDs, item.ID)
-		}
-	}
-	virtualRows, err := s.client.Song.Query().
-		Select(song.FieldID, song.FieldPath).
-		Where(song.PathContains(cueVirtualMarker)).
-		All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, item := range virtualRows {
-		ref, ok := parseCueVirtualSongPath(item.Path)
-		if !ok || ref.CuePath != cuePath || currentPaths[item.Path] {
-			continue
-		}
-		deleteIDs = append(deleteIDs, item.ID)
-	}
-	return s.deleteSongIDs(ctx, deleteIDs)
-}
-
-func (s *Service) deleteSongIDs(ctx context.Context, ids []int) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	if _, err := s.client.UserSongFavorite.Delete().
-		Where(usersongfavorite.HasSongWith(song.IDIn(ids...))).
-		Exec(ctx); err != nil {
-		return err
-	}
-	if _, err := s.client.PlayHistory.Delete().
-		Where(playhistory.HasSongWith(song.IDIn(ids...))).
-		Exec(ctx); err != nil {
-		return err
-	}
-	_, err := s.client.Song.Delete().Where(song.IDIn(ids...)).Exec(ctx)
-	return err
-}
-
-func (s *Service) cueReferencedAudioPaths(ctx context.Context, root string) map[string]bool {
-	out := map[string]bool{}
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if err != nil || d.IsDir() || !isCUEFile(path) {
-			return nil
-		}
-		paths, err := cueSheetAudioPaths(path)
-		if err != nil {
-			return nil
-		}
-		for _, audioPath := range paths {
-			out[audioPath] = true
-		}
-		return nil
-	})
-	return out
-}
-
-func (s *Service) firstCueReferencingAudio(ctx context.Context, audioPath string) (string, bool) {
-	absAudio, err := filepath.Abs(audioPath)
-	if err != nil {
-		return "", false
-	}
-	dir := filepath.Dir(absAudio)
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", false
-	}
-	for _, entry := range entries {
-		if entry.IsDir() || !isCUEFile(entry.Name()) {
-			continue
-		}
-		cuePath := filepath.Join(dir, entry.Name())
-		paths, err := cueSheetAudioPaths(cuePath)
-		if err != nil {
-			continue
-		}
-		for _, path := range paths {
-			if ctx.Err() != nil {
-				return "", false
-			}
-			if samePath(path, absAudio) {
-				return cuePath, true
-			}
-		}
-	}
-	return "", false
 }
 
 func (s *Service) Songs(ctx context.Context, userID int, q string, favorites bool, limit int) ([]models.Song, error) {
@@ -1404,6 +773,30 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 			return cached, nil
 		}
 	}
+	// Singleflight for cacheable queries to collapse concurrent identical requests.
+	if cacheable {
+		v, err, _ := s.loadSF.Do(key, func() (any, error) {
+			var inner models.SongPage
+			if ok, e := s.cacheGetJSON(ctx, key, &inner); e == nil && ok {
+				return inner, nil
+			}
+			page, e := s.loadSongsPage(ctx, userID, term, favorites, deviceScope, limit, offset)
+			if e != nil {
+				return models.SongPage{}, e
+			}
+			_ = s.cacheSetJSON(ctx, key, page)
+			return page, nil
+		})
+		if err != nil {
+			return models.SongPage{}, err
+		}
+		return v.(models.SongPage), nil
+	}
+	return s.loadSongsPage(ctx, userID, term, favorites, deviceScope, limit, offset)
+}
+
+// loadSongsPage executes the actual DB queries for SongsPage.
+func (s *Service) loadSongsPage(ctx context.Context, userID int, term string, favorites bool, deviceScope string, limit, offset int) (models.SongPage, error) {
 	predicates, err := s.songListPredicates(ctx, userID, term, favorites)
 	if err != nil {
 		return models.SongPage{}, err
@@ -1416,7 +809,7 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 	if err != nil {
 		return models.SongPage{}, err
 	}
-	query := s.client.Song.Query().WithArtist().WithAlbum().Order(ent.Desc(song.FieldUpdatedAt))
+	query := s.client.Song.Query().Select(browseSongColumns...).WithArtist().WithAlbum().Order(ent.Desc(song.FieldUpdatedAt))
 	if len(predicates) > 0 {
 		query = query.Where(predicates...)
 	}
@@ -1432,17 +825,13 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 	if err != nil {
 		return models.SongPage{}, err
 	}
-	page := models.SongPage{
+	return models.SongPage{
 		Items:  out,
 		Total:  total,
 		Limit:  limit,
 		Offset: offset,
 		Page:   offset/limit + 1,
-	}
-	if cacheable {
-		_ = s.cacheSetJSON(ctx, key, page)
-	}
-	return page, nil
+	}, nil
 }
 
 func (s *Service) songListPredicates(ctx context.Context, userID int, term string, favorites bool) ([]predicate.Song, error) {
@@ -1521,11 +910,29 @@ func limitCollectionSongQuery(query *ent.SongQuery, limit int) {
 	}
 }
 
+// browseSongColumns is every Song column EXCEPT the large lyrics_embedded TEXT blob.
+// Browse/list queries that feed mapSongs only need has_lyrics (a bool) to indicate
+// lyrics presence, so projecting these columns avoids reading and allocating the
+// potentially multi-KB embedded-lyrics string per row on the hot path. Ent auto-adds
+// the FK columns (artist_songs/album_songs) when WithArtist/WithAlbum are set, and
+// always force-includes the ID, so they are intentionally omitted here.
+// NOTE: do NOT use this projection on the lyrics endpoints — they need lyrics_embedded.
+var browseSongColumns = []string{
+	song.FieldID, song.FieldTitle, song.FieldPath, song.FieldFileName,
+	song.FieldFormat, song.FieldMime, song.FieldSizeBytes, song.FieldModTimeUnixNano,
+	song.FieldContentHash, song.FieldDurationSeconds, song.FieldSampleRate,
+	song.FieldBitRate, song.FieldBitDepth, song.FieldYear, song.FieldNeteaseID,
+	song.FieldFavorite, song.FieldPlayCount, song.FieldLastPlayedAt,
+	song.FieldHasLyrics, song.FieldLyricsSource,
+	song.FieldCreatedAt, song.FieldUpdatedAt,
+}
+
 func (s *Service) RecentAddedSongs(ctx context.Context, userID, limit int) ([]models.Song, error) {
 	if limit <= 0 || limit > 50 {
 		limit = 12
 	}
 	items, err := s.client.Song.Query().
+		Select(browseSongColumns...).
 		WithArtist().
 		WithAlbum().
 		Order(ent.Desc(song.FieldCreatedAt), ent.Desc(song.FieldID)).
@@ -1548,7 +955,7 @@ func (s *Service) RecentPlayedSongs(ctx context.Context, userID, limit int) ([]m
 	histories, err := s.client.PlayHistory.Query().
 		Where(playHistoryUserPredicates(userID, deviceScope)...).
 		WithSong(func(q *ent.SongQuery) {
-			q.WithArtist().WithAlbum()
+			q.Select(browseSongColumns...).WithArtist().WithAlbum()
 		}).
 		Order(ent.Desc(playhistory.FieldUpdatedAt), ent.Desc(playhistory.FieldPlayedAt)).
 		Limit(limit * 4).
@@ -1603,83 +1010,6 @@ func (s *Service) Song(ctx context.Context, userID, id int) (models.Song, error)
 	return out[0], nil
 }
 
-func (s *Service) DailyMix(ctx context.Context, userID, limit int) ([]models.Song, error) {
-	if limit <= 0 || limit > 50 {
-		limit = 24
-	}
-	key := cacheKey("daily-mix", time.Now().Format("2006-01-02"), userID, s.userCacheVersion(ctx, userID), limit)
-	var cached []models.Song
-	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
-		return nil, err
-	} else if ok {
-		return cached, nil
-	}
-	total, err := s.client.Song.Query().Count(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if total == 0 {
-		return []models.Song{}, nil
-	}
-	candidateLimit := minInt(total, maxInt(limit*8, 200))
-	offset := dailyCandidateOffset(time.Now().Format("2006-01-02"), userID, total, candidateLimit)
-	query := s.client.Song.Query().WithArtist().WithAlbum().Order(ent.Asc(song.FieldID)).Limit(candidateLimit)
-	if offset > 0 {
-		query = query.Offset(offset)
-	}
-	items, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if len(items) < candidateLimit && offset > 0 {
-		wrapped, err := s.client.Song.Query().
-			WithArtist().
-			WithAlbum().
-			Order(ent.Asc(song.FieldID)).
-			Limit(candidateLimit - len(items)).
-			All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, wrapped...)
-	}
-	out, err := s.applySongUserState(ctx, userID, mapSongs(items))
-	if err != nil {
-		return nil, err
-	}
-	if len(out) <= limit {
-		_ = s.cacheSetJSON(ctx, key, out)
-		return out, nil
-	}
-	today := time.Now().Format("2006-01-02")
-	type scoredSong struct {
-		song  models.Song
-		score uint64
-	}
-	scored := make([]scoredSong, 0, len(out))
-	for _, item := range out {
-		score := dailyScore(today, userID, item)
-		scored = append(scored, scoredSong{song: item, score: score})
-	}
-	sort.SliceStable(scored, func(i, j int) bool {
-		return scored[i].score > scored[j].score
-	})
-	selected := make([]models.Song, 0, limit)
-	for len(selected) < limit && len(scored) > 0 {
-		pick := 0
-		for i := 0; i < len(scored); i++ {
-			if !recentArtistInMix(selected, scored[i].song.ArtistID, 3) {
-				pick = i
-				break
-			}
-		}
-		selected = append(selected, scored[pick].song)
-		scored = append(scored[:pick], scored[pick+1:]...)
-	}
-	_ = s.cacheSetJSON(ctx, key, selected)
-	return selected, nil
-}
-
 func (s *Service) SmartPlaylists(ctx context.Context) ([]models.SmartPlaylist, error) {
 	settings, err := s.GetSettings(ctx)
 	if err != nil {
@@ -1695,83 +1025,6 @@ func (s *Service) SmartPlaylists(ctx context.Context) ([]models.SmartPlaylist, e
 		{ID: "hi-res", Name: "Hi-Res", Description: "Songs with 24-bit audio or sample rate of at least 96 kHz.", Kind: "metadata", Enabled: enabled},
 		{ID: "needs-lyrics", Name: "Needs lyrics", Description: "Songs without embedded lyrics metadata.", Kind: "metadata", Enabled: enabled},
 	}, nil
-}
-
-func (s *Service) SmartPlaylistSongs(ctx context.Context, userID int, id string, limit int) ([]models.Song, error) {
-	if limit <= 0 || limit > 200 {
-		limit = 50
-	}
-	switch strings.TrimSpace(id) {
-	case "daily-mix":
-		return s.DailyMix(ctx, userID, limit)
-	case "recently-played":
-		return s.RecentPlayedSongs(ctx, userID, limit)
-	case "recently-added":
-		return s.RecentAddedSongs(ctx, userID, limit)
-	case "favorites":
-		return s.Songs(ctx, userID, "", true, limit)
-	case "unplayed":
-		deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		items, err := s.client.Song.Query().
-			WithArtist().
-			WithAlbum().
-			Where(song.Not(song.HasPlayHistoryWith(playHistoryUserPredicates(userID, deviceScope)...))).
-			Order(ent.Desc(song.FieldCreatedAt), ent.Desc(song.FieldID)).
-			Limit(limit).
-			All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return s.applySongUserState(ctx, userID, mapSongs(items))
-	case "hi-res":
-		items, err := s.client.Song.Query().
-			WithArtist().
-			WithAlbum().
-			Where(song.Or(song.BitDepthGTE(24), song.SampleRateGTE(96000))).
-			Order(ent.Desc(song.FieldBitDepth), ent.Desc(song.FieldSampleRate), ent.Desc(song.FieldUpdatedAt)).
-			Limit(limit).
-			All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return s.applySongUserState(ctx, userID, mapSongs(items))
-	case "needs-lyrics":
-		items, err := s.client.Song.Query().
-			WithArtist().
-			WithAlbum().
-			Where(song.LyricsEmbedded("")).
-			Order(ent.Desc(song.FieldUpdatedAt), ent.Desc(song.FieldID)).
-			Limit(limit).
-			All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return s.applySongUserState(ctx, userID, mapSongs(items))
-	default:
-		return nil, fmt.Errorf("smart playlist not found")
-	}
-}
-
-func dailyCandidateOffset(day string, userID, total, candidateLimit int) int {
-	if total <= candidateLimit {
-		return 0
-	}
-	return int(dailySeed(day, userID) % uint64(total-candidateLimit+1))
-}
-
-func songContentHash(artist, album, title string) string {
-	parts := []string{
-		normalizeSongContentHashPart(artist),
-		normalizeSongContentHashPart(album),
-		normalizeSongContentHashPart(title),
-	}
-	if parts[0] == "" && parts[1] == "" && parts[2] == "" {
-		return ""
-	}
-	return fmt.Sprintf("%x", xxhash.Sum64String(strings.Join(parts, "|")))
 }
 
 func normalizeSongContentHashPart(value string) string {
@@ -1864,89 +1117,15 @@ func maxInt(a, b int) int {
 	return b
 }
 
-const libraryCachePrefix = "library:v1:"
-const artistCatalogCacheKey = libraryCachePrefix + "catalog:v2:artists"
-const songCatalogCacheKey = libraryCachePrefix + "catalog:v2:songs"
 const transcodeWarmLeasePrefix = "runtime:v1:transcode-warm:"
 const playbackSourcePrefix = "runtime:v1:playback-source:"
 const playbackQueuePrefix = "runtime:v1:playback-queue:"
 const remoteAlbumSearchConcurrency = 3
-const searchCatalogBatchSize = 500
-const maxCatalogPredicateIDs = 5000
 const maxPlaybackQueueSongs = 500
 const defaultPlaybackSourceTTLHours = 24
 const defaultUISoundVolume = 0.85
 const collectionCoverHitTTL = 30 * 24 * time.Hour
 const collectionCoverMissTTL = 6 * time.Hour
-
-type songSearchCatalogEntry struct {
-	ID   int    `json:"id"`
-	Text string `json:"text"`
-}
-
-type artistSearchCatalogEntry struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	Text string `json:"text"`
-}
-
-func cacheKey(parts ...any) string {
-	var b strings.Builder
-	b.WriteString(libraryCachePrefix)
-	for i, part := range parts {
-		if i > 0 {
-			b.WriteByte(':')
-		}
-		b.WriteString(url.QueryEscape(fmt.Sprint(part)))
-	}
-	return b.String()
-}
-
-func (s *Service) cacheGetJSON(ctx context.Context, key string, out any) (bool, error) {
-	if s.cache == nil {
-		return false, nil
-	}
-	data, ok, err := s.cache.Get(ctx, key)
-	if err != nil || !ok {
-		return false, err
-	}
-	if err := json.Unmarshal(data, out); err != nil {
-		_ = s.cache.Delete(ctx, key)
-		return false, nil
-	}
-	return true, nil
-}
-
-func (s *Service) cacheSetJSON(ctx context.Context, key string, value any) error {
-	return s.cacheSetJSONWithTTL(ctx, key, value, s.cacheTTL)
-}
-
-func (s *Service) cacheSetJSONPermanent(ctx context.Context, key string, value any) error {
-	return s.cacheSetJSONWithTTL(ctx, key, value, 0)
-}
-
-func (s *Service) cacheSetJSONWithTTL(ctx context.Context, key string, value any, ttl time.Duration) error {
-	if s.cache == nil {
-		return nil
-	}
-	data, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	return s.cache.Set(ctx, key, data, ttl)
-}
-
-func (s *Service) searchCatalogCacheEnabled() bool {
-	if s.cache == nil {
-		return false
-	}
-	switch s.cache.(type) {
-	case kv.NoopStore, *kv.MemoryStore:
-		return false
-	default:
-		return true
-	}
-}
 
 func (s *Service) TryAcquireTranscodeWarmLease(ctx context.Context, cachePath string, ttl time.Duration) (bool, error) {
 	if s.cache == nil || ttl <= 0 {
@@ -1956,227 +1135,9 @@ func (s *Service) TryAcquireTranscodeWarmLease(ctx context.Context, cachePath st
 	return s.cache.SetNX(ctx, transcodeWarmLeaseKey(cachePath), value, ttl)
 }
 
-func (s *Service) ReleaseTranscodeWarmLease(ctx context.Context, cachePath string) {
-	if s.cache == nil {
-		return
-	}
-	_ = s.cache.Delete(ctx, transcodeWarmLeaseKey(cachePath))
-}
-
 func transcodeWarmLeaseKey(cachePath string) string {
 	sum := sha1.Sum([]byte(cachePath))
 	return transcodeWarmLeasePrefix + hex.EncodeToString(sum[:])
-}
-
-func (s *Service) PlaybackSource(ctx context.Context, userID int) (*models.PlaybackSource, error) {
-	if s.cache == nil {
-		return nil, nil
-	}
-	key, err := s.playbackSourceKey(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	var source models.PlaybackSource
-	ok, err := s.cacheGetJSON(ctx, key, &source)
-	if err != nil || !ok {
-		return nil, err
-	}
-	if source.SourceID <= 0 || (source.Type != "album" && source.Type != "artist" && source.Type != "playlist") {
-		_ = s.ClearPlaybackSource(ctx, userID)
-		return nil, nil
-	}
-	return &source, nil
-}
-
-func (s *Service) SavePlaybackSource(ctx context.Context, userID int, sourceType string, sourceID int) (models.PlaybackSource, error) {
-	sourceType = strings.ToLower(strings.TrimSpace(sourceType))
-	if sourceID <= 0 || (sourceType != "album" && sourceType != "artist" && sourceType != "playlist") {
-		return models.PlaybackSource{}, errors.New("playback source must be album, artist or playlist")
-	}
-	switch sourceType {
-	case "album":
-		if _, err := s.client.Album.Get(ctx, sourceID); err != nil {
-			return models.PlaybackSource{}, err
-		}
-	case "artist":
-		if _, err := s.client.Artist.Get(ctx, sourceID); err != nil {
-			return models.PlaybackSource{}, err
-		}
-	case "playlist":
-		if _, err := s.client.Playlist.Query().Where(playlist.ID(sourceID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx); err != nil {
-			return models.PlaybackSource{}, err
-		}
-	}
-	source := models.PlaybackSource{Type: sourceType, SourceID: sourceID, UpdatedAt: time.Now()}
-	ttl := s.playbackSourceTTL(ctx)
-	key, err := s.playbackSourceKey(ctx, userID)
-	if err != nil {
-		return models.PlaybackSource{}, err
-	}
-	if err := s.cacheSetJSONWithTTL(ctx, key, source, ttl); err != nil {
-		return models.PlaybackSource{}, err
-	}
-	return source, nil
-}
-
-func (s *Service) ClearPlaybackSource(ctx context.Context, userID int) error {
-	if s.cache == nil {
-		return nil
-	}
-	key, err := s.playbackSourceKey(ctx, userID)
-	if err != nil {
-		return err
-	}
-	return s.cache.Delete(ctx, key)
-}
-
-func (s *Service) PlaybackQueue(ctx context.Context, userID int) (*models.PlaybackQueue, error) {
-	if s.cache == nil {
-		return nil, nil
-	}
-	key, err := s.playbackQueueKey(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	var queue models.PlaybackQueue
-	ok, err := s.cacheGetJSON(ctx, key, &queue)
-	if err != nil || !ok {
-		return nil, err
-	}
-	queue.SongIDs = normalizePlaybackQueueSongIDs(queue.SongIDs, queue.CurrentID)
-	if len(queue.SongIDs) == 0 {
-		_ = s.ClearPlaybackQueue(ctx, userID)
-		return nil, nil
-	}
-	if queue.CurrentID <= 0 || !intSliceContains(queue.SongIDs, queue.CurrentID) {
-		queue.CurrentID = queue.SongIDs[0]
-	}
-	return &queue, nil
-}
-
-func (s *Service) SavePlaybackQueue(ctx context.Context, userID int, songIDs []int, currentID int) (models.PlaybackQueue, error) {
-	if s.cache == nil {
-		return models.PlaybackQueue{}, nil
-	}
-	ids := normalizePlaybackQueueSongIDs(songIDs, currentID)
-	if len(ids) == 0 {
-		return models.PlaybackQueue{}, s.ClearPlaybackQueue(ctx, userID)
-	}
-	existing, err := s.client.Song.Query().Where(song.IDIn(ids...)).Select(song.FieldID).All(ctx)
-	if err != nil {
-		return models.PlaybackQueue{}, err
-	}
-	exists := make(map[int]bool, len(existing))
-	for _, item := range existing {
-		exists[item.ID] = true
-	}
-	filtered := ids[:0]
-	for _, id := range ids {
-		if exists[id] {
-			filtered = append(filtered, id)
-		}
-	}
-	if len(filtered) == 0 {
-		return models.PlaybackQueue{}, s.ClearPlaybackQueue(ctx, userID)
-	}
-	if currentID <= 0 || !intSliceContains(filtered, currentID) {
-		currentID = filtered[0]
-	}
-	queue := models.PlaybackQueue{SongIDs: append([]int{}, filtered...), CurrentID: currentID, UpdatedAt: time.Now()}
-	key, err := s.playbackQueueKey(ctx, userID)
-	if err != nil {
-		return models.PlaybackQueue{}, err
-	}
-	if err := s.cacheSetJSONWithTTL(ctx, key, queue, s.playbackSourceTTL(ctx)); err != nil {
-		return models.PlaybackQueue{}, err
-	}
-	return queue, nil
-}
-
-func (s *Service) ClearPlaybackQueue(ctx context.Context, userID int) error {
-	if s.cache == nil {
-		return nil
-	}
-	key, err := s.playbackQueueKey(ctx, userID)
-	if err != nil {
-		return err
-	}
-	return s.cache.Delete(ctx, key)
-}
-
-func (s *Service) playbackSourceTTL(ctx context.Context) time.Duration {
-	settings, err := s.GetSettings(ctx)
-	if err != nil {
-		return time.Duration(defaultPlaybackSourceTTLHours) * time.Hour
-	}
-	return time.Duration(normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)) * time.Hour
-}
-
-func (s *Service) playbackSourceKey(ctx context.Context, userID int) (string, error) {
-	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
-	if err != nil {
-		return "", err
-	}
-	if deviceScope == "" {
-		return playbackSourcePrefix + strconv.Itoa(userID), nil
-	}
-	return playbackSourcePrefix + strconv.Itoa(userID) + ":" + deviceScope, nil
-}
-
-func (s *Service) playbackQueueKey(ctx context.Context, userID int) (string, error) {
-	if userID == 0 {
-		return "", ErrUnauthenticated
-	}
-	settings, err := s.GetPlaybackHistorySettings(ctx, userID)
-	if err != nil {
-		return "", err
-	}
-	if !settings.SeparateByDevice {
-		return playbackQueuePrefix + strconv.Itoa(userID), nil
-	}
-	deviceScope := playbackDeviceTypeFromContext(ctx)
-	return playbackQueuePrefix + strconv.Itoa(userID) + ":" + deviceScope, nil
-}
-
-func normalizePlaybackQueueSongIDs(songIDs []int, currentID int) []int {
-	seen := map[int]bool{}
-	out := make([]int, 0, minInt(len(songIDs)+1, maxPlaybackQueueSongs))
-	appendID := func(id int) {
-		if id <= 0 || seen[id] || len(out) >= maxPlaybackQueueSongs {
-			return
-		}
-		seen[id] = true
-		out = append(out, id)
-	}
-	for _, id := range songIDs {
-		appendID(id)
-	}
-	if currentID > 0 && !seen[currentID] {
-		if len(out) >= maxPlaybackQueueSongs {
-			out = out[:maxPlaybackQueueSongs-1]
-		}
-		out = append([]int{currentID}, out...)
-	}
-	return out
-}
-
-func intSliceContains(items []int, target int) bool {
-	for _, item := range items {
-		if item == target {
-			return true
-		}
-	}
-	return false
-}
-
-func normalizePlaybackSourceTTLHours(hours int) int {
-	if hours <= 0 {
-		return defaultPlaybackSourceTTLHours
-	}
-	if hours > 720 {
-		return 720
-	}
-	return hours
 }
 
 func normalizeMonitorInterval(minutes int) int {
@@ -2236,144 +1197,6 @@ func normalizeLyricsFontSize(px int) int {
 	return px
 }
 
-func (s *Service) GetScrobblingSettings(ctx context.Context, userID int) (models.ScrobblingSettings, error) {
-	if userID == 0 {
-		return models.ScrobblingSettings{}, ErrUnauthenticated
-	}
-	settings := defaultScrobblingSettings()
-	if s.client == nil {
-		return settings, nil
-	}
-	var stored scrobblingSettingsRecord
-	if ok, err := s.scrobblingRecord(ctx, userID, &stored); err != nil {
-		return models.ScrobblingSettings{}, err
-	} else if ok {
-		settings.Enabled = stored.Enabled
-		settings.Provider = normalizeScrobblingProvider(stored.Provider)
-		settings.SubmitNow = stored.SubmitNow
-		settings.MinSeconds = normalizeScrobblingMinSeconds(stored.MinSeconds)
-		settings.PercentGate = normalizeScrobblingPercentGate(stored.PercentGate)
-		settings.HasToken = strings.TrimSpace(stored.Token) != ""
-		settings.TokenHint = scrobblingTokenHint(stored.Token)
-	}
-	return settings, nil
-}
-
-func (s *Service) GetUISoundSettings(ctx context.Context, userID int) (models.UISoundSettings, error) {
-	if userID == 0 {
-		return models.UISoundSettings{}, ErrUnauthenticated
-	}
-	settings := defaultUISoundSettings()
-	if s.client == nil {
-		return settings, nil
-	}
-	item, err := s.client.AppSetting.Query().Where(appsetting.Key(uiSoundSettingsKey(userID))).Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return settings, nil
-		}
-		return models.UISoundSettings{}, err
-	}
-	if strings.TrimSpace(item.Value) == "true" || strings.TrimSpace(item.Value) == "false" {
-		settings.Enabled = item.Value == "true"
-		return settings, nil
-	}
-	_ = json.Unmarshal([]byte(item.Value), &settings)
-	settings.Volume = normalizeUISoundVolume(settings.Volume)
-	return settings, nil
-}
-
-func (s *Service) SaveUISoundSettings(ctx context.Context, userID int, settings models.UISoundSettings) (models.UISoundSettings, error) {
-	if userID == 0 {
-		return models.UISoundSettings{}, ErrUnauthenticated
-	}
-	if s.client == nil {
-		return models.UISoundSettings{}, errors.New("database is required")
-	}
-	settings.Volume = normalizeUISoundVolume(settings.Volume)
-	data, err := json.Marshal(settings)
-	if err != nil {
-		return models.UISoundSettings{}, err
-	}
-	if err := s.setSetting(ctx, uiSoundSettingsKey(userID), string(data)); err != nil {
-		return models.UISoundSettings{}, err
-	}
-	return s.GetUISoundSettings(ctx, userID)
-}
-
-func (s *Service) GetPlaybackHistorySettings(ctx context.Context, userID int) (models.PlaybackHistorySettings, error) {
-	if userID == 0 {
-		return models.PlaybackHistorySettings{}, ErrUnauthenticated
-	}
-	settings := models.PlaybackHistorySettings{SeparateByDevice: false}
-	if s.client == nil {
-		return settings, nil
-	}
-	item, err := s.client.AppSetting.Query().Where(appsetting.Key(playbackHistorySettingsKey(userID))).Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return settings, nil
-		}
-		return models.PlaybackHistorySettings{}, err
-	}
-	settings.SeparateByDevice = item.Value == "true"
-	return settings, nil
-}
-
-func (s *Service) SavePlaybackHistorySettings(ctx context.Context, userID int, settings models.PlaybackHistorySettings) (models.PlaybackHistorySettings, error) {
-	if userID == 0 {
-		return models.PlaybackHistorySettings{}, ErrUnauthenticated
-	}
-	if s.client == nil {
-		return models.PlaybackHistorySettings{}, errors.New("database is required")
-	}
-	if err := s.setSetting(ctx, playbackHistorySettingsKey(userID), strconv.FormatBool(settings.SeparateByDevice)); err != nil {
-		return models.PlaybackHistorySettings{}, err
-	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	return s.GetPlaybackHistorySettings(ctx, userID)
-}
-
-func (s *Service) GetUserPreferences(ctx context.Context, userID int) (models.UserPreferences, error) {
-	if userID == 0 {
-		return models.UserPreferences{}, ErrUnauthenticated
-	}
-	preferences := defaultUserPreferences()
-	if s.client == nil {
-		return preferences, nil
-	}
-	item, err := s.client.AppSetting.Query().Where(appsetting.Key(userPreferencesKey(userID))).Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return preferences, nil
-		}
-		return models.UserPreferences{}, err
-	}
-	var stored models.UserPreferences
-	if err := json.Unmarshal([]byte(item.Value), &stored); err != nil {
-		return preferences, nil
-	}
-	return normalizeUserPreferences(stored), nil
-}
-
-func (s *Service) SaveUserPreferences(ctx context.Context, userID int, preferences models.UserPreferences) (models.UserPreferences, error) {
-	if userID == 0 {
-		return models.UserPreferences{}, ErrUnauthenticated
-	}
-	if s.client == nil {
-		return models.UserPreferences{}, errors.New("database is required")
-	}
-	preferences = normalizeUserPreferences(preferences)
-	data, err := json.Marshal(preferences)
-	if err != nil {
-		return models.UserPreferences{}, err
-	}
-	if err := s.setSetting(ctx, userPreferencesKey(userID), string(data)); err != nil {
-		return models.UserPreferences{}, err
-	}
-	return s.GetUserPreferences(ctx, userID)
-}
-
 func (s *Service) playbackHistoryDeviceScope(ctx context.Context, userID int) (string, error) {
 	settings, err := s.GetPlaybackHistorySettings(ctx, userID)
 	if err != nil {
@@ -2383,37 +1206,6 @@ func (s *Service) playbackHistoryDeviceScope(ctx context.Context, userID int) (s
 		return "", nil
 	}
 	return playbackDeviceTypeFromContext(ctx), nil
-}
-
-func (s *Service) SaveScrobblingSettings(ctx context.Context, userID int, settings models.ScrobblingSettings, token string) (models.ScrobblingSettings, error) {
-	if userID == 0 {
-		return models.ScrobblingSettings{}, ErrUnauthenticated
-	}
-	if s.client == nil {
-		return models.ScrobblingSettings{}, errors.New("database is required")
-	}
-	existing := scrobblingSettingsRecord{}
-	_, _ = s.scrobblingRecord(ctx, userID, &existing)
-	cleanToken := strings.TrimSpace(token)
-	if cleanToken == "" {
-		cleanToken = existing.Token
-	}
-	record := scrobblingSettingsRecord{
-		Enabled:     settings.Enabled,
-		Provider:    normalizeScrobblingProvider(settings.Provider),
-		Token:       cleanToken,
-		SubmitNow:   settings.SubmitNow,
-		MinSeconds:  normalizeScrobblingMinSeconds(settings.MinSeconds),
-		PercentGate: normalizeScrobblingPercentGate(settings.PercentGate),
-	}
-	data, err := json.Marshal(record)
-	if err != nil {
-		return models.ScrobblingSettings{}, err
-	}
-	if err := s.setSetting(ctx, scrobblingKey(userID), string(data)); err != nil {
-		return models.ScrobblingSettings{}, err
-	}
-	return s.GetScrobblingSettings(ctx, userID)
 }
 
 func (s *Service) scrobblingRecord(ctx context.Context, userID int, out *scrobblingSettingsRecord) (bool, error) {
@@ -2568,193 +1360,6 @@ func scrobblingTokenHint(token string) string {
 	return token[:4] + "…" + token[len(token)-4:]
 }
 
-func (s *Service) invalidateLibraryCache(ctx context.Context) {
-	if s.cache == nil {
-		return
-	}
-	_ = s.cache.DeletePrefix(ctx, libraryCachePrefix)
-}
-
-const userVersionPrefix = libraryCachePrefix + "uver:v1:"
-const scrobblingPrefix = "user:v1:scrobbling:"
-const uiSoundSettingsPrefix = "user:v1:ui-sounds:"
-const playbackHistorySettingsPrefix = "user:v1:playback-history:"
-const userPreferencesPrefix = "user:v1:preferences:"
-
-func (s *Service) userCacheVersion(ctx context.Context, userID int) int {
-	if userID <= 0 || s.cache == nil {
-		return 0
-	}
-	key := fmt.Sprintf("%s%d", userVersionPrefix, userID)
-	data, ok, err := s.cache.Get(ctx, key)
-	if err != nil || !ok || len(data) == 0 {
-		return 0
-	}
-	v, _ := strconv.Atoi(string(data))
-	return v
-}
-
-func (s *Service) bumpUserCacheVersion(ctx context.Context, userID int) {
-	if userID <= 0 || s.cache == nil {
-		return
-	}
-	key := fmt.Sprintf("%s%d", userVersionPrefix, userID)
-	v := s.userCacheVersion(ctx, userID) + 1
-	_ = s.cache.Set(ctx, key, []byte(strconv.Itoa(v)), 30*24*time.Hour)
-}
-
-func (s *Service) invalidateUserLibraryCache(ctx context.Context, userID int) {
-	if s.cache == nil {
-		return
-	}
-	s.bumpUserCacheVersion(ctx, userID)
-}
-
-func (s *Service) invalidateArtistCatalog(ctx context.Context) {
-	if s.cache != nil {
-		_ = s.cache.Delete(ctx, artistCatalogCacheKey)
-	}
-}
-
-func (s *Service) invalidateSongCatalog(ctx context.Context) {
-	if s.cache != nil {
-		_ = s.cache.Delete(ctx, songCatalogCacheKey)
-	}
-}
-
-func (s *Service) invalidateSearchCatalogs(ctx context.Context) {
-	s.invalidateArtistCatalog(ctx)
-	s.invalidateSongCatalog(ctx)
-}
-
-func (s *Service) warmSearchCatalogs(ctx context.Context) error {
-	if !s.searchCatalogCacheEnabled() || s.client == nil {
-		return nil
-	}
-	if _, err := s.songSearchCatalog(ctx); err != nil {
-		return err
-	}
-	_, err := s.artistSearchCatalog(ctx)
-	return err
-}
-
-func (s *Service) songSearchCatalog(ctx context.Context) ([]songSearchCatalogEntry, error) {
-	if !s.searchCatalogCacheEnabled() || s.client == nil {
-		return nil, nil
-	}
-	var cached []songSearchCatalogEntry
-	if ok, err := s.cacheGetJSON(ctx, songCatalogCacheKey, &cached); err != nil {
-		return nil, err
-	} else if ok {
-		return cached, nil
-	}
-	out := []songSearchCatalogEntry{}
-	lastID := 0
-	for {
-		items, err := s.client.Song.Query().
-			Where(song.IDGT(lastID)).
-			WithArtist().
-			WithAlbum().
-			Order(ent.Asc(song.FieldID)).
-			Limit(searchCatalogBatchSize).
-			All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if len(items) == 0 {
-			break
-		}
-		for _, item := range items {
-			lastID = item.ID
-			artistName := ""
-			if item.Edges.Artist != nil {
-				artistName = item.Edges.Artist.Name
-			}
-			albumTitle := ""
-			albumArtist := ""
-			if item.Edges.Album != nil {
-				albumTitle = item.Edges.Album.Title
-				albumArtist = item.Edges.Album.AlbumArtist
-			}
-			out = append(out, songSearchCatalogEntry{
-				ID: item.ID,
-				Text: searchCatalogText(
-					item.Title,
-					item.FileName,
-					item.Format,
-					artistName,
-					albumTitle,
-					albumArtist,
-				),
-			})
-		}
-	}
-	if err := s.cacheSetJSONPermanent(ctx, songCatalogCacheKey, out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (s *Service) songCatalogIDsForTerm(ctx context.Context, term string) ([]int, bool, error) {
-	term = searchCatalogTerm(term)
-	if term == "" || !s.searchCatalogCacheEnabled() {
-		return nil, false, nil
-	}
-	catalog, err := s.songSearchCatalog(ctx)
-	if err != nil {
-		return nil, false, err
-	}
-	ids := make([]int, 0, minInt(len(catalog), maxCatalogPredicateIDs))
-	for _, item := range catalog {
-		if strings.Contains(item.Text, term) {
-			ids = append(ids, item.ID)
-			if len(ids) > maxCatalogPredicateIDs {
-				return nil, false, nil
-			}
-		}
-	}
-	return ids, true, nil
-}
-
-func (s *Service) artistSearchCatalog(ctx context.Context) ([]artistSearchCatalogEntry, error) {
-	if !s.searchCatalogCacheEnabled() || s.client == nil {
-		return nil, nil
-	}
-	var cached []artistSearchCatalogEntry
-	if ok, err := s.cacheGetJSON(ctx, artistCatalogCacheKey, &cached); err != nil {
-		return nil, err
-	} else if ok {
-		return cached, nil
-	}
-	items, err := s.client.Artist.Query().Order(ent.Asc(artist.FieldName)).All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]artistSearchCatalogEntry, 0, len(items))
-	for _, item := range items {
-		out = append(out, artistSearchCatalogEntry{ID: item.ID, Name: item.Name, Text: searchCatalogText(item.Name)})
-	}
-	if err := s.cacheSetJSONPermanent(ctx, artistCatalogCacheKey, out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func searchCatalogTerm(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
-}
-
-func searchCatalogText(values ...string) string {
-	parts := make([]string, 0, len(values))
-	for _, value := range values {
-		value = searchCatalogTerm(value)
-		if value != "" {
-			parts = append(parts, value)
-		}
-	}
-	return strings.Join(parts, "\x00")
-}
-
 func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Folder, error) {
 	if limit < 0 {
 		limit = 12
@@ -2809,124 +1414,6 @@ func (s *Service) Folders(ctx context.Context, userID, limit int) ([]models.Fold
 	return out, nil
 }
 
-func (s *Service) FolderDirectory(ctx context.Context, userID int, relPath string) (*models.FolderDirectory, error) {
-	resolved, err := s.resolveLibraryFolderForUser(ctx, userID, relPath)
-	if err != nil {
-		return nil, err
-	}
-	root := resolved.Root.Path
-	currentRel := displayFolderRel(resolved.Rel)
-	roots, err := s.effectiveLibraryRoots(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	prefix := resolved.Path
-	if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
-		prefix += string(os.PathSeparator)
-	}
-	currentClean := normalizeFolderRel(currentRel)
-	children := map[string]*models.Folder{}
-	childOrder := []string{}
-	directSongIDs := []int{}
-	var songCount int
-	var duration float64
-	var coverID int
-
-	if err := s.forEachSongSummary(ctx, []predicate.Song{song.Or(song.PathHasPrefix(prefix), song.Path(resolved.Path))}, func(item *ent.Song) error {
-		itemRel, ok := relativeFolderPath(root, filepath.Dir(item.Path))
-		if !ok {
-			return nil
-		}
-		itemClean := normalizeFolderRel(itemRel)
-		if !isFolderDescendantOrSame(currentClean, itemClean) {
-			return nil
-		}
-		songCount++
-		duration += item.DurationSeconds
-		if coverID == 0 {
-			coverID = item.ID
-		}
-		if itemClean == currentClean {
-			directSongIDs = append(directSongIDs, item.ID)
-			return nil
-		}
-		childRel, ok := immediateChildFolder(currentClean, itemClean)
-		if !ok {
-			return nil
-		}
-		child := children[childRel]
-		if child == nil {
-			child = &models.Folder{
-				Path:        rootedFolderPath(resolved.Root.ID, childRel),
-				Name:        filepath.Base(filepath.FromSlash(childRel)),
-				CoverSongID: item.ID,
-			}
-			children[childRel] = child
-			childOrder = append(childOrder, childRel)
-		}
-		child.SongCount++
-		child.DurationSeconds += item.DurationSeconds
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	if resolved.Root.ID == "env" && currentClean == "" {
-		for _, extraRoot := range roots {
-			if extraRoot.ID == "env" {
-				continue
-			}
-			folder := &models.Folder{Path: rootedFolderPath(extraRoot.ID, "."), Name: s.rootDisplayName(extraRoot)}
-			rootItems, err := s.folderSummarySongs(ctx, extraRoot.Path)
-			if err != nil {
-				return nil, err
-			}
-			for _, item := range rootItems {
-				folder.SongCount++
-				folder.DurationSeconds += item.DurationSeconds
-				if folder.CoverSongID == 0 {
-					folder.CoverSongID = item.ID
-				}
-			}
-			children[folder.Path] = folder
-			childOrder = append(childOrder, folder.Path)
-		}
-	}
-
-	sort.SliceStable(childOrder, func(i, j int) bool {
-		return strings.ToLower(children[childOrder[i]].Name) < strings.ToLower(children[childOrder[j]].Name)
-	})
-	folders := make([]models.Folder, 0, len(childOrder))
-	for _, childRel := range childOrder {
-		folders = append(folders, *children[childRel])
-	}
-	directEntSongs, err := s.songsByID(ctx, directSongIDs)
-	if err != nil {
-		return nil, err
-	}
-	directSongs, err := s.applySongUserState(ctx, userID, mapSongs(directEntSongs))
-	if err != nil {
-		return nil, err
-	}
-
-	parentPath := ""
-	if currentClean != "" {
-		parentPath = rootedFolderPath(resolved.Root.ID, parentFolderRel(currentClean))
-	}
-
-	return &models.FolderDirectory{
-		Path:            rootedFolderPath(resolved.Root.ID, currentClean),
-		Name:            s.folderDisplayName(root, currentClean),
-		ParentPath:      parentPath,
-		Breadcrumbs:     s.folderBreadcrumbsForRoot(resolved.Root, currentClean),
-		Folders:         folders,
-		Songs:           directSongs,
-		SongCount:       songCount,
-		DurationSeconds: duration,
-		CoverSongID:     coverID,
-	}, nil
-}
-
 func (s *Service) folderSummarySongs(ctx context.Context, root string) ([]*ent.Song, error) {
 	prefix := root
 	if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
@@ -2979,37 +1466,11 @@ func (s *Service) songsByID(ctx context.Context, ids []int) ([]*ent.Song, error)
 	}
 	return s.client.Song.Query().
 		Where(song.IDIn(ids...)).
+		Select(browseSongColumns...).
 		WithArtist().
 		WithAlbum().
 		Order(ent.Asc(song.FieldPath)).
 		All(ctx)
-}
-
-func (s *Service) FolderSongs(ctx context.Context, userID int, relPath string, limit int) ([]models.Song, error) {
-	resolved, err := s.resolveLibraryFolderForUser(ctx, userID, relPath)
-	if err != nil {
-		return nil, err
-	}
-	folderPath := resolved.Path
-	prefix := folderPath
-	if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
-		prefix += string(os.PathSeparator)
-	}
-	query := s.client.Song.Query().
-		Where(song.Or(song.PathHasPrefix(prefix), song.Path(folderPath))).
-		WithArtist().
-		WithAlbum().
-		Order(ent.Asc(song.FieldPath))
-	query = applySongQueryLimit(query, limit)
-	items, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out, err := s.applySongUserState(ctx, userID, mapSongs(items))
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func normalizeFolderRel(rel string) string {
@@ -3027,382 +1488,12 @@ func displayFolderRel(rel string) string {
 	return rel
 }
 
-func isFolderDescendantOrSame(parent, child string) bool {
-	if parent == "" {
-		return true
-	}
-	return child == parent || strings.HasPrefix(child, parent+"/")
-}
-
-func immediateChildFolder(parent, child string) (string, bool) {
-	if child == parent {
-		return "", false
-	}
-	remainder := child
-	if parent != "" {
-		if !strings.HasPrefix(child, parent+"/") {
-			return "", false
-		}
-		remainder = strings.TrimPrefix(child, parent+"/")
-	}
-	first, _, _ := strings.Cut(remainder, "/")
-	if first == "" {
-		return "", false
-	}
-	if parent == "" {
-		return first, true
-	}
-	return parent + "/" + first, true
-}
-
-func parentFolderRel(rel string) string {
-	clean := normalizeFolderRel(rel)
-	if clean == "" {
-		return ""
-	}
-	parent := filepath.ToSlash(filepath.Dir(clean))
-	if parent == "." {
-		return "."
-	}
-	return parent
-}
-
-func (s *Service) folderDisplayName(root, rel string) string {
-	if normalizeFolderRel(rel) == "" {
-		return filepath.Base(root)
-	}
-	return filepath.Base(filepath.FromSlash(rel))
-}
-
-func (s *Service) folderBreadcrumbs(root, rel string) []models.FolderBreadcrumb {
-	clean := normalizeFolderRel(rel)
-	breadcrumbs := []models.FolderBreadcrumb{{
-		Path: ".",
-		Name: filepath.Base(root),
-	}}
-	if clean == "" {
-		return breadcrumbs
-	}
-	parts := strings.Split(clean, "/")
-	for i := range parts {
-		path := strings.Join(parts[:i+1], "/")
-		breadcrumbs = append(breadcrumbs, models.FolderBreadcrumb{
-			Path: path,
-			Name: parts[i],
-		})
-	}
-	return breadcrumbs
-}
-
-func (s *Service) resolveLibraryFolder(relPath string) (string, error) {
-	root, err := filepath.Abs(s.libraryDir)
-	if err != nil {
-		return "", err
-	}
-	cleanRel := filepath.Clean(strings.TrimSpace(relPath))
-	if cleanRel == "" || cleanRel == "." || cleanRel == string(os.PathSeparator) {
-		return root, nil
-	}
-	if filepath.IsAbs(cleanRel) {
-		return "", fmt.Errorf("folder path must be relative")
-	}
-	target, err := filepath.Abs(filepath.Join(root, cleanRel))
-	if err != nil {
-		return "", err
-	}
-	if target != root && !strings.HasPrefix(target, root+string(os.PathSeparator)) {
-		return "", fmt.Errorf("folder path escapes library")
-	}
-	return target, nil
-}
-
-func matchingLibraryRoot(roots []libraryRoot, path string) (libraryRoot, string, bool) {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return libraryRoot{}, "", false
-	}
-	var best libraryRoot
-	bestRel := ""
-	bestLen := -1
-	for _, root := range roots {
-		rel, ok := relativeFolderPath(root.Path, abs)
-		if !ok {
-			continue
-		}
-		if len(root.Path) > bestLen {
-			best = root
-			bestRel = rel
-			bestLen = len(root.Path)
-		}
-	}
-	if bestLen < 0 {
-		return libraryRoot{}, "", false
-	}
-	return best, bestRel, true
-}
-
-func (s *Service) folderBreadcrumbsForRoot(root libraryRoot, rel string) []models.FolderBreadcrumb {
-	clean := normalizeFolderRel(rel)
-	breadcrumbs := []models.FolderBreadcrumb{{
-		Path: rootedFolderPath(root.ID, "."),
-		Name: s.rootDisplayName(root),
-	}}
-	if clean == "" {
-		return breadcrumbs
-	}
-	parts := strings.Split(clean, "/")
-	for i := range parts {
-		path := strings.Join(parts[:i+1], "/")
-		breadcrumbs = append(breadcrumbs, models.FolderBreadcrumb{
-			Path: rootedFolderPath(root.ID, path),
-			Name: parts[i],
-		})
-	}
-	return breadcrumbs
-}
-
-func relativeFolderPath(root, folder string) (string, bool) {
-	rel, err := filepath.Rel(root, folder)
-	if err != nil {
-		return "", false
-	}
-	if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-		return "", false
-	}
-	if rel == "" {
-		return ".", true
-	}
-	return filepath.ToSlash(rel), true
-}
-
 func (s *Service) RawSong(ctx context.Context, id int) (*ent.Song, error) {
 	return s.client.Song.Get(ctx, id)
 }
 
-func (s *Service) SongCover(ctx context.Context, id int) ([]byte, string, error) {
-	item, err := s.client.Song.Get(ctx, id)
-	if err != nil {
-		return nil, "", err
-	}
-	return s.cachedEmbeddedCover(item)
-}
-
-func (s *Service) AlbumCover(ctx context.Context, id int) ([]byte, string, error) {
-	if data, mimeType, ok, err := s.readCollectionCoverCache("albums", strconv.Itoa(id)); err != nil || ok {
-		return data, mimeType, err
-	}
-	items, err := s.client.Song.Query().
-		Select(song.FieldID, song.FieldPath).
-		Where(song.HasAlbumWith(album.ID(id))).
-		Order(ent.Asc(song.FieldID)).
-		Limit(50).
-		All(ctx)
-	if err != nil {
-		return nil, "", err
-	}
-	data, mimeType, err := s.firstEmbeddedCover(items)
-	if err != nil || len(data) > 0 {
-		if len(data) > 0 {
-			_ = s.writeCollectionCoverCache("albums", strconv.Itoa(id), mimeType, data)
-		}
-		return data, mimeType, err
-	}
-	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().Only(ctx)
-	if err != nil {
-		return nil, "", err
-	}
-	for _, info := range s.searchRemoteAlbums(ctx, a.Title, albumSearchArtistName(a)) {
-		if a.Year == 0 && info.Year > 0 {
-			if updated, updateErr := a.Update().SetYear(info.Year).Save(ctx); updateErr == nil {
-				a = updated
-			}
-		}
-		if strings.TrimSpace(info.Cover) == "" {
-			continue
-		}
-		data, mimeType, err := s.cachedRemoteImage(ctx, "album", strconv.Itoa(id), info.Cover)
-		if err != nil || len(data) > 0 {
-			if len(data) > 0 {
-				_ = s.writeCollectionCoverCache("albums", strconv.Itoa(id), mimeType, data)
-			}
-			return data, mimeType, err
-		}
-	}
-	_ = s.writeCollectionCoverMiss("albums", strconv.Itoa(id))
-	return nil, "", nil
-}
-
-func (s *Service) ArtistCover(ctx context.Context, id int) ([]byte, string, error) {
-	if data, mimeType, ok, err := s.readCollectionCoverCache("artists", strconv.Itoa(id)); err != nil || ok {
-		return data, mimeType, err
-	}
-	items, err := s.client.Song.Query().
-		Select(song.FieldID, song.FieldPath).
-		Where(song.HasArtistWith(artist.ID(id))).
-		Order(ent.Asc(song.FieldID)).
-		Limit(50).
-		All(ctx)
-	if err != nil {
-		return nil, "", err
-	}
-	data, mimeType, err := s.firstEmbeddedCover(items)
-	if err != nil || len(data) > 0 {
-		if len(data) > 0 {
-			_ = s.writeCollectionCoverCache("artists", strconv.Itoa(id), mimeType, data)
-		}
-		return data, mimeType, err
-	}
-	a, err := s.client.Artist.Query().Where(artist.ID(id)).WithAlbums(func(q *ent.AlbumQuery) {
-		q.Where(album.HasSongs()).Order(ent.Desc(album.FieldUpdatedAt)).Limit(20)
-	}).Only(ctx)
-	if err != nil {
-		return nil, "", err
-	}
-	for _, candidate := range a.Edges.Albums {
-		infoItems := s.searchRemoteAlbums(ctx, candidate.Title, firstString(candidate.AlbumArtist, a.Name))
-		for _, info := range infoItems {
-			if strings.TrimSpace(info.Cover) == "" {
-				continue
-			}
-			data, mimeType, err := s.cachedRemoteImage(ctx, "artist", strconv.Itoa(id), info.Cover)
-			if err != nil || len(data) > 0 {
-				if len(data) > 0 {
-					_ = s.writeCollectionCoverCache("artists", strconv.Itoa(id), mimeType, data)
-				}
-				return data, mimeType, err
-			}
-		}
-	}
-	_ = s.writeCollectionCoverMiss("artists", strconv.Itoa(id))
-	return nil, "", nil
-}
-
-func (s *Service) readCollectionCoverCache(kind, key string) ([]byte, string, bool, error) {
-	cacheDir := s.collectionCoverCacheDir(kind)
-	safeKey := collectionCoverCacheKey(key)
-	missPath := filepath.Join(cacheDir, safeKey+".miss")
-	if info, err := os.Stat(missPath); err == nil {
-		if time.Since(info.ModTime()) < collectionCoverMissTTL {
-			return nil, "", true, nil
-		}
-		_ = os.Remove(missPath)
-	}
-	for _, ext := range []string{".jpg", ".png", ".webp", ".bin"} {
-		path := filepath.Join(cacheDir, safeKey+ext)
-		info, err := os.Stat(path)
-		if err != nil {
-			continue
-		}
-		if time.Since(info.ModTime()) > collectionCoverHitTTL {
-			_ = os.Remove(path)
-			continue
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, "", false, err
-		}
-		if len(data) > 0 {
-			return data, coverMimeByExt(ext), true, nil
-		}
-	}
-	return nil, "", false, nil
-}
-
-func (s *Service) writeCollectionCoverCache(kind, key, mimeType string, data []byte) error {
-	if len(data) == 0 {
-		return s.writeCollectionCoverMiss(kind, key)
-	}
-	cacheDir := s.collectionCoverCacheDir(kind)
-	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
-		return err
-	}
-	safeKey := collectionCoverCacheKey(key)
-	for _, ext := range []string{".jpg", ".png", ".webp", ".bin", ".miss"} {
-		_ = os.Remove(filepath.Join(cacheDir, safeKey+ext))
-	}
-	return os.WriteFile(filepath.Join(cacheDir, safeKey+coverExtByMime(mimeType)), data, 0o644)
-}
-
-func (s *Service) writeCollectionCoverMiss(kind, key string) error {
-	cacheDir := s.collectionCoverCacheDir(kind)
-	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
-		return err
-	}
-	safeKey := collectionCoverCacheKey(key)
-	for _, ext := range []string{".jpg", ".png", ".webp", ".bin"} {
-		_ = os.Remove(filepath.Join(cacheDir, safeKey+ext))
-	}
-	return os.WriteFile(filepath.Join(cacheDir, safeKey+".miss"), []byte(time.Now().Format(time.RFC3339Nano)), 0o644)
-}
-
 func (s *Service) collectionCoverCacheDir(kind string) string {
 	return filepath.Join(s.dataDir, "covers", kind)
-}
-
-func collectionCoverCacheKey(key string) string {
-	return strings.NewReplacer("/", "_", "\\", "_", ":", "_").Replace(strings.TrimSpace(key))
-}
-
-func (s *Service) cachedRemoteImage(ctx context.Context, kind, key, remoteURL string) ([]byte, string, error) {
-	remoteURL = strings.TrimSpace(remoteURL)
-	if remoteURL == "" {
-		return nil, "", nil
-	}
-	cacheDir := filepath.Join(s.dataDir, "online-covers", kind)
-	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
-		return nil, "", err
-	}
-	safeKey := strings.NewReplacer("/", "_", "\\", "_", ":", "_").Replace(key)
-	failPath := filepath.Join(cacheDir, safeKey+".fail")
-	if info, err := os.Stat(failPath); err == nil && time.Since(info.ModTime()) < 30*time.Minute {
-		return nil, "", nil
-	}
-	for _, ext := range []string{".jpg", ".png", ".webp"} {
-		path := filepath.Join(cacheDir, safeKey+ext)
-		data, err := os.ReadFile(path)
-		if err == nil && len(data) > 0 {
-			return data, mime.TypeByExtension(ext), nil
-		}
-	}
-	downloadCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(downloadCtx, http.MethodGet, remoteURL, nil)
-	if err != nil {
-		return nil, "", err
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 Lark Music Player")
-	res, err := coverHTTPClient.Do(req)
-	if err != nil {
-		recordRemoteCoverFailure(failPath)
-		return nil, "", err
-	}
-	defer res.Body.Close()
-	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		recordRemoteCoverFailure(failPath)
-		return nil, "", fmt.Errorf("cover status %d", res.StatusCode)
-	}
-	contentType := res.Header.Get("Content-Type")
-	ext := ".jpg"
-	if strings.Contains(contentType, "png") {
-		ext = ".png"
-	} else if strings.Contains(contentType, "webp") {
-		ext = ".webp"
-	}
-	data, err := io.ReadAll(io.LimitReader(res.Body, 8<<20))
-	if err != nil {
-		recordRemoteCoverFailure(failPath)
-		return nil, "", err
-	}
-	if len(data) == 0 {
-		recordRemoteCoverFailure(failPath)
-		return nil, "", nil
-	}
-	_ = os.WriteFile(filepath.Join(cacheDir, safeKey+ext), data, 0o644)
-	_ = os.Remove(failPath)
-	if contentType == "" {
-		contentType = mime.TypeByExtension(ext)
-	}
-	return data, contentType, nil
 }
 
 func recordRemoteCoverFailure(path string) {
@@ -3458,226 +1549,6 @@ func (s *Service) cachedEmbeddedCover(item *ent.Song) ([]byte, string, error) {
 	return data, mimeType, nil
 }
 
-func coverExtByMime(mimeType string) string {
-	switch strings.ToLower(strings.TrimSpace(mimeType)) {
-	case "image/jpeg", "image/jpg":
-		return ".jpg"
-	case "image/png":
-		return ".png"
-	case "image/webp":
-		return ".webp"
-	default:
-		return ".bin"
-	}
-}
-
-func coverMimeByExt(ext string) string {
-	switch strings.ToLower(ext) {
-	case ".jpg", ".jpeg":
-		return "image/jpeg"
-	case ".png":
-		return "image/png"
-	case ".webp":
-		return "image/webp"
-	default:
-		return "application/octet-stream"
-	}
-}
-
-func coverFromFile(path string) ([]byte, string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, "", err
-	}
-	defer f.Close()
-	m, err := tag.ReadFrom(f)
-	if err != nil {
-		return nil, "", err
-	}
-	pic := m.Picture()
-	if pic == nil || len(pic.Data) == 0 {
-		return nil, "", nil
-	}
-	mimeType := strings.TrimSpace(pic.MIMEType)
-	if mimeType == "" {
-		switch strings.ToLower(pic.Ext) {
-		case "jpg", "jpeg":
-			mimeType = "image/jpeg"
-		case "png":
-			mimeType = "image/png"
-		case "webp":
-			mimeType = "image/webp"
-		default:
-			mimeType = "application/octet-stream"
-		}
-	}
-	return pic.Data, mimeType, nil
-}
-
-func (s *Service) ToggleSongFavorite(ctx context.Context, userID, id int) (models.Song, error) {
-	if _, err := s.client.Song.Get(ctx, id); err != nil {
-		return models.Song{}, err
-	}
-	existing, err := s.client.UserSongFavorite.Query().
-		Where(usersongfavorite.HasUserWith(user.ID(userID)), usersongfavorite.HasSongWith(song.ID(id))).
-		Only(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return models.Song{}, err
-	}
-	if ent.IsNotFound(err) {
-		_, err = s.client.UserSongFavorite.Create().SetUserID(userID).SetSongID(id).Save(ctx)
-	} else {
-		err = s.client.UserSongFavorite.DeleteOneID(existing.ID).Exec(ctx)
-	}
-	if err != nil {
-		return models.Song{}, err
-	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	return s.Song(ctx, userID, id)
-}
-
-func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
-	item, err := s.client.Song.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-	if _, err := s.client.PlayHistory.Create().
-		SetUserID(userID).
-		SetSongID(id).
-		SetDurationSeconds(item.DurationSeconds).
-		SetDeviceType(playbackDeviceTypeFromContext(ctx)).
-		Save(ctx); err != nil {
-		return err
-	}
-	if err := s.client.Song.UpdateOneID(id).AddPlayCount(1).SetLastPlayedAt(time.Now()).Exec(ctx); err != nil {
-		return err
-	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	s.invalidateSongCatalog(ctx)
-	return nil
-}
-
-func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, progressSeconds, durationSeconds float64, completed bool) error {
-	item, err := s.client.Song.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-	if durationSeconds <= 0 {
-		durationSeconds = item.DurationSeconds
-	}
-	if progressSeconds < 0 {
-		progressSeconds = 0
-	}
-	if durationSeconds > 0 && progressSeconds > durationSeconds {
-		progressSeconds = durationSeconds
-	}
-	if durationSeconds > 0 && durationSeconds-progressSeconds <= 3 {
-		completed = true
-	}
-	now := time.Now()
-	deviceType := playbackDeviceTypeFromContext(ctx)
-	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
-	if err != nil {
-		return err
-	}
-	history, err := s.client.PlayHistory.Query().
-		Where(playHistorySongPredicates(userID, id, deviceScope)...).
-		Order(ent.Desc(playhistory.FieldUpdatedAt), ent.Desc(playhistory.FieldPlayedAt)).
-		First(ctx)
-	if ent.IsNotFound(err) {
-		_, err = s.client.PlayHistory.Create().
-			SetUserID(userID).
-			SetSongID(id).
-			SetPlayedAt(now).
-			SetProgressSeconds(progressSeconds).
-			SetDurationSeconds(durationSeconds).
-			SetCompleted(completed).
-			SetDeviceType(deviceType).
-			Save(ctx)
-		if err == nil {
-			s.invalidateUserLibraryCache(ctx, userID)
-		}
-		return err
-	}
-	if err != nil {
-		return err
-	}
-	err = s.client.PlayHistory.UpdateOneID(history.ID).
-		SetProgressSeconds(progressSeconds).
-		SetDurationSeconds(durationSeconds).
-		SetCompleted(completed).
-		SetDeviceType(deviceType).
-		SetUpdatedAt(now).
-		Exec(ctx)
-	if err == nil {
-		s.invalidateUserLibraryCache(ctx, userID)
-	}
-	return err
-}
-
-func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.Lyrics, error) {
-	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().Only(ctx)
-	if err != nil {
-		return models.Lyrics{}, err
-	}
-	sourceID = strings.TrimSpace(sourceID)
-	if sourceID == "" || strings.EqualFold(sourceID, "embedded") {
-		includeSidecar := sourceID == ""
-		if lyric, source := s.preferredLocalLyrics(ctx, item, includeSidecar); lyric != "" {
-			if item.LyricsSource != source || strings.TrimSpace(item.LyricsEmbedded) != lyric {
-				_, _ = item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(source).Save(ctx)
-				s.invalidateSongCatalog(ctx)
-			}
-			return models.Lyrics{SongID: id, Source: source, Lyrics: lyric}, nil
-		}
-		if strings.EqualFold(sourceID, "embedded") {
-			return models.Lyrics{SongID: id, Source: "embedded:not-found", Lyrics: ""}, nil
-		}
-		if strings.TrimSpace(item.LyricsEmbedded) != "" && strings.TrimSpace(item.LyricsSource) != "" {
-			lyric := strings.TrimSpace(item.LyricsEmbedded)
-			s.saveLyricsSidecarIfEnabled(ctx, ActualAudioPath(item.Path), lyric)
-			return models.Lyrics{SongID: id, Source: item.LyricsSource, Lyrics: lyric}, nil
-		}
-	}
-	if sourceID == "" {
-		sourceID = strings.TrimSpace(item.NeteaseID)
-	}
-	artistName := ""
-	if item.Edges.Artist != nil {
-		artistName = item.Edges.Artist.Name
-	}
-	cleanArtist, cleanTitle := cleanLyricArtistTitle(artistName, item.Title)
-	var lyric, matchedID, matchedSource string
-	for index, title := range lyricTitleQueryVariants(cleanTitle) {
-		preferredID := sourceID
-		if index > 0 {
-			preferredID = ""
-		}
-		var matchErr error
-		lyric, matchedID, matchedSource, matchErr = s.matchOnlineLyrics(ctx, title, cleanArtist, preferredID)
-		if matchErr != nil {
-			return models.Lyrics{}, matchErr
-		}
-		if strings.TrimSpace(lyric) != "" {
-			break
-		}
-	}
-	if strings.TrimSpace(lyric) == "" {
-		return models.Lyrics{SongID: id, Source: "online:not-found", Lyrics: ""}, nil
-	}
-	if matchedSource == "" {
-		matchedSource = "online"
-	}
-	s.saveLyricsSidecarIfEnabled(ctx, ActualAudioPath(item.Path), lyric)
-	update := item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(matchedSource)
-	if matchedSource == "netease" && matchedID != "" {
-		update.SetNeteaseID(matchedID)
-	}
-	_, _ = update.Save(ctx)
-	s.invalidateSongCatalog(ctx)
-	return models.Lyrics{SongID: id, Source: matchedSource, Lyrics: lyric, Fetched: true}, nil
-}
-
 func (s *Service) preferredLocalLyrics(ctx context.Context, item *ent.Song, includeSidecar bool) (string, string) {
 	if item == nil {
 		return "", ""
@@ -3695,18 +1566,11 @@ func (s *Service) preferredLocalLyrics(ctx context.Context, item *ent.Song, incl
 		return "", ""
 	}
 	if lyric := strings.TrimSpace(s.probe(ctx, audioPath, probeOptions{DetectLyrics: true, ReadLyrics: true}).Lyrics); lyric != "" {
-		_, _ = item.Update().SetLyricsEmbedded(lyric).SetLyricsSource("embedded").Save(ctx)
+		_, _ = item.Update().SetLyricsEmbedded(lyric).SetLyricsSource("embedded").SetHasLyrics(true).Save(ctx)
 		s.invalidateSongCatalog(ctx)
 		return lyric, "embedded"
 	}
 	return "", ""
-}
-
-func preferredEmbeddedLyrics(item *ent.Song, fileLyrics string) string {
-	if item != nil && item.LyricsSource == "embedded" && strings.TrimSpace(item.LyricsEmbedded) != "" {
-		return strings.TrimSpace(item.LyricsEmbedded)
-	}
-	return strings.TrimSpace(fileLyrics)
 }
 
 func readSidecarLyrics(audioPath string) string {
@@ -3747,166 +1611,6 @@ func writeSidecarLyrics(audioPath, lyrics string) (bool, error) {
 	return true, nil
 }
 
-func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCandidate, error) {
-	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().Only(ctx)
-	if err != nil {
-		return nil, err
-	}
-	artistName := ""
-	if item.Edges.Artist != nil {
-		artistName = item.Edges.Artist.Name
-	}
-	out := []models.LyricCandidate{}
-	seen := map[string]bool{}
-	appendCandidates := func(items []models.LyricCandidate) {
-		for _, candidate := range items {
-			key := candidate.Source + ":" + candidate.ID
-			if candidate.ID == "" || seen[key] {
-				continue
-			}
-			seen[key] = true
-			out = append(out, candidate)
-		}
-	}
-	cleanArtist, cleanTitle := cleanLyricArtistTitle(artistName, item.Title)
-	titleVariants := lyricTitleQueryVariants(cleanTitle)
-	if s.netease != nil {
-		for _, title := range titleVariants {
-			items, _ := s.netease.SearchCandidates(ctx, title, cleanArtist)
-			appendCandidates(items)
-		}
-	}
-	if s.qqmusic != nil {
-		for _, title := range titleVariants {
-			items, _ := s.qqmusic.SearchCandidates(ctx, title, cleanArtist)
-			appendCandidates(items)
-		}
-	}
-	for _, provider := range s.online {
-		for _, title := range titleVariants {
-			items, err := provider.SearchSongs(ctx, title, cleanArtist)
-			if err != nil {
-				continue
-			}
-			candidates := make([]models.LyricCandidate, 0, len(items))
-			for _, found := range items {
-				candidates = append(candidates, models.LyricCandidate{ID: found.ID, Source: provider.Name(), Title: found.Title, Artist: found.Artist})
-			}
-			appendCandidates(candidates)
-		}
-	}
-	return out, nil
-}
-
-func (s *Service) SelectLyrics(ctx context.Context, id int, source, sourceID string) (models.Lyrics, error) {
-	source = strings.ToLower(strings.TrimSpace(source))
-	sourceID = strings.TrimSpace(sourceID)
-	if sourceID == "" {
-		return models.Lyrics{}, fmt.Errorf("lyric candidate id is required")
-	}
-	lyric, err := s.fetchLyricsBySource(ctx, source, sourceID)
-	if err != nil {
-		return models.Lyrics{}, err
-	}
-	if strings.TrimSpace(lyric) == "" {
-		return models.Lyrics{SongID: id, Source: source + ":not-found", Lyrics: ""}, nil
-	}
-	item, err := s.client.Song.Query().Where(song.ID(id)).Only(ctx)
-	if err != nil {
-		return models.Lyrics{}, err
-	}
-	s.saveLyricsSidecarIfEnabled(ctx, ActualAudioPath(item.Path), lyric)
-	update := item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(source)
-	if source == "netease" {
-		update.SetNeteaseID(sourceID)
-	}
-	if err := update.Exec(ctx); err != nil {
-		return models.Lyrics{}, err
-	}
-	s.invalidateSongCatalog(ctx)
-	return models.Lyrics{SongID: id, Source: source, Lyrics: lyric, Fetched: true}, nil
-}
-
-func (s *Service) matchOnlineLyrics(ctx context.Context, title, artist, preferredID string) (string, string, string, error) {
-	preferredID = strings.TrimSpace(preferredID)
-	if strings.Contains(preferredID, ":") {
-		parts := strings.SplitN(preferredID, ":", 2)
-		lyric, err := s.fetchLyricsBySource(ctx, parts[0], parts[1])
-		return lyric, parts[1], strings.ToLower(strings.TrimSpace(parts[0])), err
-	}
-	if preferredID != "" && s.netease != nil {
-		lyric, err := s.netease.Lyrics(ctx, preferredID)
-		if err != nil {
-			return "", "", "", err
-		}
-		if strings.TrimSpace(lyric) != "" {
-			return lyric, preferredID, "netease", nil
-		}
-	}
-	if s.netease != nil {
-		id, err := s.netease.SearchSongID(ctx, title, artist)
-		if err == nil && strings.TrimSpace(id) != "" {
-			lyric, lyricErr := s.netease.Lyrics(ctx, id)
-			if lyricErr != nil {
-				return "", "", "", lyricErr
-			}
-			if strings.TrimSpace(lyric) != "" {
-				return lyric, id, "netease", nil
-			}
-		}
-	}
-	if s.qqmusic != nil {
-		id, err := s.qqmusic.SearchSongID(ctx, title, artist)
-		if err == nil && strings.TrimSpace(id) != "" {
-			lyric, lyricErr := s.qqmusic.Lyrics(ctx, id)
-			if lyricErr != nil {
-				return "", "", "", lyricErr
-			}
-			if strings.TrimSpace(lyric) != "" {
-				return lyric, id, "qq", nil
-			}
-		}
-	}
-	for _, provider := range s.online {
-		found, err := provider.SearchSongs(ctx, title, artist)
-		if err != nil {
-			continue
-		}
-		for _, candidate := range found {
-			lyric, lyricErr := provider.Lyrics(ctx, candidate)
-			if lyricErr != nil || strings.TrimSpace(lyric) == "" {
-				continue
-			}
-			return lyric, candidate.ID, provider.Name(), nil
-		}
-	}
-	return "", "", "", nil
-}
-
-func (s *Service) fetchLyricsBySource(ctx context.Context, source, sourceID string) (string, error) {
-	source = strings.ToLower(strings.TrimSpace(source))
-	switch source {
-	case "netease", "":
-		if s.netease == nil {
-			return "", nil
-		}
-		return s.netease.Lyrics(ctx, sourceID)
-	case "qq", "qqmusic":
-		if s.qqmusic == nil {
-			return "", nil
-		}
-		return s.qqmusic.Lyrics(ctx, sourceID)
-	default:
-		for _, provider := range s.online {
-			if provider.Name() != source {
-				continue
-			}
-			return provider.Lyrics(ctx, online.Song{Source: provider.Name(), ID: sourceID, Extra: map[string]string{"rid": sourceID, "hash": sourceID, "content_id": sourceID, "tsid": sourceID, "track_id": sourceID, "songid": strings.Split(sourceID, "|")[0]}})
-		}
-		return "", fmt.Errorf("unsupported lyric source")
-	}
-}
-
 type albumSongCountRow struct {
 	AlbumID *int `json:"album_songs"`
 	Count   int  `json:"count"`
@@ -3927,77 +1631,14 @@ type playHistorySongCountRow struct {
 	Count  int  `json:"count"`
 }
 
-func (s *Service) albumSongCounts(ctx context.Context) (map[int]int, error) {
-	rows := []albumSongCountRow{}
-	if err := s.client.Song.Query().GroupBy(song.AlbumColumn).Aggregate(ent.Count()).Scan(ctx, &rows); err != nil {
-		return nil, err
-	}
-	counts := make(map[int]int, len(rows))
-	for _, row := range rows {
-		if row.AlbumID != nil && *row.AlbumID > 0 {
-			counts[*row.AlbumID] = row.Count
-		}
-	}
-	return counts, nil
-}
-
-func (s *Service) albumSongCountsForIDs(ctx context.Context, ids []int) (map[int]int, error) {
-	if len(ids) == 0 {
-		return map[int]int{}, nil
-	}
-	rows := []albumSongCountRow{}
-	if err := s.client.Song.Query().
-		Where(song.HasAlbumWith(album.IDIn(ids...))).
-		GroupBy(song.AlbumColumn).
-		Aggregate(ent.Count()).
-		Scan(ctx, &rows); err != nil {
-		return nil, err
-	}
-	counts := make(map[int]int, len(rows))
-	for _, row := range rows {
-		if row.AlbumID != nil && *row.AlbumID > 0 {
-			counts[*row.AlbumID] = row.Count
-		}
-	}
-	return counts, nil
-}
-
-func (s *Service) artistSongCounts(ctx context.Context) (map[int]int, error) {
-	rows := []artistSongCountRow{}
-	if err := s.client.Song.Query().GroupBy(song.ArtistColumn).Aggregate(ent.Count()).Scan(ctx, &rows); err != nil {
-		return nil, err
-	}
-	counts := make(map[int]int, len(rows))
-	for _, row := range rows {
-		if row.ArtistID != nil && *row.ArtistID > 0 {
-			counts[*row.ArtistID] = row.Count
-		}
-	}
-	return counts, nil
-}
-
-func (s *Service) artistSongCountsForIDs(ctx context.Context, ids []int) (map[int]int, error) {
-	if len(ids) == 0 {
-		return map[int]int{}, nil
-	}
-	rows := []artistSongCountRow{}
-	if err := s.client.Song.Query().
-		Where(song.HasArtistWith(artist.IDIn(ids...))).
-		GroupBy(song.ArtistColumn).
-		Aggregate(ent.Count()).
-		Scan(ctx, &rows); err != nil {
-		return nil, err
-	}
-	counts := make(map[int]int, len(rows))
-	for _, row := range rows {
-		if row.ArtistID != nil && *row.ArtistID > 0 {
-			counts[*row.ArtistID] = row.Count
-		}
-	}
-	return counts, nil
-}
-
 func (s *Service) artistAlbumCounts(ctx context.Context) (map[int]int, error) {
+	s.countCacheMu.RLock()
+	if cached := s.artistAlbumCountsAll.get(s.countCacheTTL); cached != nil {
+		s.countCacheMu.RUnlock()
+		return cached, nil
+	}
+	s.countCacheMu.RUnlock()
+
 	rows := []artistAlbumCountRow{}
 	if err := s.client.Album.Query().Where(album.HasSongs()).GroupBy(album.ArtistColumn).Aggregate(ent.Count()).Scan(ctx, &rows); err != nil {
 		return nil, err
@@ -4008,6 +1649,9 @@ func (s *Service) artistAlbumCounts(ctx context.Context) (map[int]int, error) {
 			counts[*row.ArtistID] = row.Count
 		}
 	}
+	s.countCacheMu.Lock()
+	s.artistAlbumCountsAll = cachedCounts{counts: counts, fetched: time.Now()}
+	s.countCacheMu.Unlock()
 	return counts, nil
 }
 
@@ -4015,6 +1659,13 @@ func (s *Service) artistAlbumCountsForIDs(ctx context.Context, ids []int) (map[i
 	if len(ids) == 0 {
 		return map[int]int{}, nil
 	}
+	s.countCacheMu.RLock()
+	if cached := s.artistAlbumCountsAll.get(s.countCacheTTL); cached != nil {
+		s.countCacheMu.RUnlock()
+		return countsFromFullMap(cached, ids), nil
+	}
+	s.countCacheMu.RUnlock()
+
 	rows := []artistAlbumCountRow{}
 	if err := s.client.Album.Query().
 		Where(album.HasSongs(), album.HasArtistWith(artist.IDIn(ids...))).
@@ -4030,29 +1681,6 @@ func (s *Service) artistAlbumCountsForIDs(ctx context.Context, ids []int) (map[i
 		}
 	}
 	return counts, nil
-}
-
-func collectAlbumIDs(items []*ent.Album) []int {
-	ids := make([]int, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, item.ID)
-	}
-	return ids
-}
-
-func collectArtistIDs(items []*ent.Artist) []int {
-	ids := make([]int, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, item.ID)
-	}
-	return ids
-}
-
-func (s *Service) playlistSongCount(ctx context.Context, item *ent.Playlist) (int, error) {
-	if item == nil {
-		return 0, nil
-	}
-	return item.QuerySongs().Count(ctx)
 }
 
 func (s *Service) Playlists(ctx context.Context, userID, limit int) ([]models.Playlist, error) {
@@ -4100,104 +1728,12 @@ func (s *Service) PlaylistsPage(ctx context.Context, userID, limit, offset int) 
 	return page, nil
 }
 
-func (s *Service) CreatePlaylist(ctx context.Context, userID int, name, description, theme string) (models.Playlist, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return models.Playlist{}, fmt.Errorf("playlist name is required")
-	}
-	if theme == "" {
-		theme = "deep-space"
-	}
-	p, err := s.client.Playlist.Create().SetName(name).SetDescription(description).SetCoverTheme(theme).SetOwnerID(userID).Save(ctx)
-	if err != nil {
-		return models.Playlist{}, err
-	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	return mapPlaylist(p), nil
-}
-
-func (s *Service) PlaylistSongs(ctx context.Context, userID, id int, limit int) ([]models.Song, error) {
-	p, err := s.client.Playlist.Query().
-		Where(playlist.ID(id), playlist.HasOwnerWith(user.ID(userID))).
-		WithSongs(func(q *ent.SongQuery) {
-			q.WithArtist().WithAlbum()
-			limitCollectionSongQuery(q, limit)
-		}).
-		Only(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := mapSongs(p.Edges.Songs)
-	return s.applySongUserState(ctx, userID, out)
-}
-
-func (s *Service) AddSongToPlaylist(ctx context.Context, userID, playlistID, songID int) error {
-	p, err := s.client.Playlist.Query().Where(playlist.ID(playlistID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx)
-	if err != nil {
-		return err
-	}
-	if err := p.Update().AddSongIDs(songID).Exec(ctx); err != nil {
-		return err
-	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	return nil
-}
-
-func (s *Service) RemoveSongFromPlaylist(ctx context.Context, userID, playlistID, songID int) error {
-	p, err := s.client.Playlist.Query().Where(playlist.ID(playlistID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx)
-	if err != nil {
-		return err
-	}
-	if err := p.Update().RemoveSongIDs(songID).Exec(ctx); err != nil {
-		return err
-	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	return nil
-}
-
 func (s *Service) Albums(ctx context.Context, userID, limit int) ([]models.Album, error) {
 	page, err := s.AlbumsPage(ctx, userID, limit, 0, 0)
 	if err != nil {
 		return nil, err
 	}
 	return page.Items, nil
-}
-
-func (s *Service) FavoriteAlbums(ctx context.Context, userID, limit int) ([]models.Album, error) {
-	if limit <= 0 || limit > 500 {
-		limit = 500
-	}
-	favorites, err := s.client.UserAlbumFavorite.Query().
-		Where(useralbumfavorite.HasUserWith(user.ID(userID))).
-		WithAlbum(func(q *ent.AlbumQuery) {
-			q.WithArtist().Where(album.HasSongs())
-		}).
-		Order(ent.Desc(useralbumfavorite.FieldCreatedAt)).
-		Limit(limit).
-		All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]int, 0, len(favorites))
-	for _, favorite := range favorites {
-		if favorite.Edges.Album != nil {
-			ids = append(ids, favorite.Edges.Album.ID)
-		}
-	}
-	counts, err := s.albumSongCountsForIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]models.Album, 0, len(favorites))
-	for _, favorite := range favorites {
-		if favorite.Edges.Album == nil {
-			continue
-		}
-		item := mapAlbumWithCount(favorite.Edges.Album, counts[favorite.Edges.Album.ID])
-		item.Favorite = true
-		out = append(out, item)
-	}
-	return out, nil
 }
 
 func (s *Service) Album(ctx context.Context, userID, id int) (models.Album, error) {
@@ -4216,176 +1752,18 @@ func (s *Service) Album(ctx context.Context, userID, id int) (models.Album, erro
 	return items[0], nil
 }
 
-func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset, artistID int) (models.AlbumPage, error) {
-	limit, offset = normalizePage(limit, offset)
-	key := cacheKey("albums-page", userID, s.userCacheVersion(ctx, userID), limit, offset, artistID)
-	var cached models.AlbumPage
-	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
-		return models.AlbumPage{}, err
-	} else if ok {
-		return cached, nil
-	}
-	predicates := []predicate.Album{album.HasSongs()}
-	if artistID > 0 {
-		predicates = append(predicates, album.HasArtistWith(artist.ID(artistID)))
-	}
-	total, err := s.client.Album.Query().Where(predicates...).Count(ctx)
-	if err != nil {
-		return models.AlbumPage{}, err
-	}
-	query := s.client.Album.Query().Where(predicates...).WithArtist().Order(ent.Desc(album.FieldUpdatedAt)).Limit(limit)
-	if offset > 0 {
-		query = query.Offset(offset)
-	}
-	items, err := query.All(ctx)
-	if err != nil {
-		return models.AlbumPage{}, err
-	}
-	counts, err := s.albumSongCountsForIDs(ctx, collectAlbumIDs(items))
-	if err != nil {
-		return models.AlbumPage{}, err
-	}
-	out := make([]models.Album, 0, len(items))
-	for _, a := range items {
-		out = append(out, mapAlbumWithCount(a, counts[a.ID]))
-	}
-	out, err = s.applyAlbumUserState(ctx, userID, out)
-	if err != nil {
-		return models.AlbumPage{}, err
-	}
-	page := models.AlbumPage{Items: out, Total: total, Limit: limit, Offset: offset, Page: offset/limit + 1}
-	_ = s.cacheSetJSON(ctx, key, page)
-	return page, nil
-}
-
-func (s *Service) AlbumSongs(ctx context.Context, userID, id int, limit int) ([]models.Song, error) {
-	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().WithSongs(func(q *ent.SongQuery) {
-		q.WithArtist().WithAlbum()
-		limitCollectionSongQuery(q, limit)
-	}).Only(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if a.Year == 0 {
-		_, _ = s.refreshAlbumYearFromOnline(ctx, id)
-	}
-	out := mapSongs(a.Edges.Songs)
-	return s.applySongUserState(ctx, userID, out)
-}
-
+// cachedSongCollection wraps a song-collection load with a kv cache and a
+// singleflight barrier. The cache key embeds userID + userCacheVersion (per-user
+// state like favorites/play-count is baked into the result), so it invalidates the
+// same way as the sibling *Page methods. The singleflight collapses a burst of
+// identical concurrent requests (the artist/album-open thundering herd) into a
+// single DB load + single cache write.
 func (s *Service) Artists(ctx context.Context, userID, limit int) ([]models.Artist, error) {
 	page, err := s.ArtistsPage(ctx, userID, limit, 0)
 	if err != nil {
 		return nil, err
 	}
 	return page.Items, nil
-}
-
-func (s *Service) FavoriteArtists(ctx context.Context, userID, limit int) ([]models.Artist, error) {
-	if limit <= 0 || limit > 500 {
-		limit = 500
-	}
-	favorites, err := s.client.UserArtistFavorite.Query().
-		Where(userartistfavorite.HasUserWith(user.ID(userID))).
-		WithArtist().
-		Order(ent.Desc(userartistfavorite.FieldCreatedAt)).
-		Limit(limit).
-		All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]int, 0, len(favorites))
-	for _, favorite := range favorites {
-		if favorite.Edges.Artist != nil {
-			ids = append(ids, favorite.Edges.Artist.ID)
-		}
-	}
-	songCounts, err := s.artistSongCountsForIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	albumCounts, err := s.artistAlbumCountsForIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]models.Artist, 0, len(favorites))
-	for _, favorite := range favorites {
-		if favorite.Edges.Artist == nil {
-			continue
-		}
-		item := mapArtistWithCounts(favorite.Edges.Artist, songCounts[favorite.Edges.Artist.ID], albumCounts[favorite.Edges.Artist.ID])
-		item.Favorite = true
-		out = append(out, item)
-	}
-	return out, nil
-}
-
-func (s *Service) SearchArtists(ctx context.Context, userID int, term string, limit int) ([]models.Artist, error) {
-	term = strings.TrimSpace(term)
-	if limit <= 0 || limit > 50 {
-		limit = 20
-	}
-	if term != "" && s.searchCatalogCacheEnabled() {
-		catalog, err := s.artistSearchCatalog(ctx)
-		if err != nil {
-			return nil, err
-		}
-		needle := searchCatalogTerm(term)
-		ids := make([]int, 0, limit)
-		for _, item := range catalog {
-			if strings.Contains(item.Text, needle) {
-				ids = append(ids, item.ID)
-				if len(ids) >= limit {
-					break
-				}
-			}
-		}
-		if len(ids) == 0 {
-			return []models.Artist{}, nil
-		}
-		items, err := s.client.Artist.Query().Where(artist.IDIn(ids...)).Order(ent.Asc(artist.FieldName)).All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		songCounts, err := s.artistSongCountsForIDs(ctx, ids)
-		if err != nil {
-			return nil, err
-		}
-		albumCounts, err := s.artistAlbumCountsForIDs(ctx, ids)
-		if err != nil {
-			return nil, err
-		}
-		out := make([]models.Artist, 0, len(items))
-		for _, item := range items {
-			out = append(out, mapArtistWithCounts(item, songCounts[item.ID], albumCounts[item.ID]))
-		}
-		return s.applyArtistUserState(ctx, userID, out)
-	}
-	query := s.client.Artist.Query().Order(ent.Asc(artist.FieldName)).Limit(limit)
-	if term != "" {
-		query = query.Where(artist.NameContainsFold(term))
-	}
-	items, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]int, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, item.ID)
-	}
-	songCounts, err := s.artistSongCountsForIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	albumCounts, err := s.artistAlbumCountsForIDs(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]models.Artist, 0, len(items))
-	for _, item := range items {
-		out = append(out, mapArtistWithCounts(item, songCounts[item.ID], albumCounts[item.ID]))
-	}
-	return s.applyArtistUserState(ctx, userID, out)
 }
 
 func (s *Service) Artist(ctx context.Context, userID, id int) (models.Artist, error) {
@@ -4406,258 +1784,6 @@ func (s *Service) Artist(ctx context.Context, userID, id int) (models.Artist, er
 		return models.Artist{}, err
 	}
 	return items[0], nil
-}
-
-func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int) (models.ArtistPage, error) {
-	limit, offset = normalizePage(limit, offset)
-	key := cacheKey("artists-page", userID, s.userCacheVersion(ctx, userID), limit, offset)
-	var cached models.ArtistPage
-	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
-		return models.ArtistPage{}, err
-	} else if ok {
-		return cached, nil
-	}
-	total, err := s.client.Artist.Query().Count(ctx)
-	if err != nil {
-		return models.ArtistPage{}, err
-	}
-	query := s.client.Artist.Query().Order(ent.Asc(artist.FieldName)).Limit(limit)
-	if offset > 0 {
-		query = query.Offset(offset)
-	}
-	items, err := query.All(ctx)
-	if err != nil {
-		return models.ArtistPage{}, err
-	}
-	songCounts, err := s.artistSongCountsForIDs(ctx, collectArtistIDs(items))
-	if err != nil {
-		return models.ArtistPage{}, err
-	}
-	albumCounts, err := s.artistAlbumCountsForIDs(ctx, collectArtistIDs(items))
-	if err != nil {
-		return models.ArtistPage{}, err
-	}
-	out := make([]models.Artist, 0, len(items))
-	for _, a := range items {
-		out = append(out, mapArtistWithCounts(a, songCounts[a.ID], albumCounts[a.ID]))
-	}
-	out, err = s.applyArtistUserState(ctx, userID, out)
-	if err != nil {
-		return models.ArtistPage{}, err
-	}
-	page := models.ArtistPage{Items: out, Total: total, Limit: limit, Offset: offset, Page: offset/limit + 1}
-	_ = s.cacheSetJSON(ctx, key, page)
-	return page, nil
-}
-
-func (s *Service) ArtistSongs(ctx context.Context, userID, id int, limit int) ([]models.Song, error) {
-	a, err := s.client.Artist.Query().Where(artist.ID(id)).WithSongs(func(q *ent.SongQuery) {
-		q.WithArtist().WithAlbum().Order(ent.Asc(song.FieldTitle))
-		limitCollectionSongQuery(q, limit)
-	}).Only(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := mapSongs(a.Edges.Songs)
-	return s.applySongUserState(ctx, userID, out)
-}
-
-func (s *Service) ToggleAlbumFavorite(ctx context.Context, userID, id int) (models.Album, error) {
-	if _, err := s.client.Album.Get(ctx, id); err != nil {
-		return models.Album{}, err
-	}
-	existing, err := s.client.UserAlbumFavorite.Query().
-		Where(useralbumfavorite.HasUserWith(user.ID(userID)), useralbumfavorite.HasAlbumWith(album.ID(id))).
-		Only(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return models.Album{}, err
-	}
-	if ent.IsNotFound(err) {
-		_, err = s.client.UserAlbumFavorite.Create().SetUserID(userID).SetAlbumID(id).Save(ctx)
-	} else {
-		err = s.client.UserAlbumFavorite.DeleteOneID(existing.ID).Exec(ctx)
-	}
-	if err != nil {
-		return models.Album{}, err
-	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().Only(ctx)
-	if err != nil {
-		return models.Album{}, err
-	}
-	counts, err := s.albumSongCountsForIDs(ctx, []int{id})
-	if err != nil {
-		return models.Album{}, err
-	}
-	items, err := s.applyAlbumUserState(ctx, userID, []models.Album{mapAlbumWithCount(a, counts[a.ID])})
-	if err != nil {
-		return models.Album{}, err
-	}
-	return items[0], nil
-}
-
-func (s *Service) ToggleArtistFavorite(ctx context.Context, userID, id int) (models.Artist, error) {
-	if _, err := s.client.Artist.Get(ctx, id); err != nil {
-		return models.Artist{}, err
-	}
-	existing, err := s.client.UserArtistFavorite.Query().
-		Where(userartistfavorite.HasUserWith(user.ID(userID)), userartistfavorite.HasArtistWith(artist.ID(id))).
-		Only(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return models.Artist{}, err
-	}
-	if ent.IsNotFound(err) {
-		_, err = s.client.UserArtistFavorite.Create().SetUserID(userID).SetArtistID(id).Save(ctx)
-	} else {
-		err = s.client.UserArtistFavorite.DeleteOneID(existing.ID).Exec(ctx)
-	}
-	if err != nil {
-		return models.Artist{}, err
-	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	a, err := s.client.Artist.Get(ctx, id)
-	if err != nil {
-		return models.Artist{}, err
-	}
-	songCounts, err := s.artistSongCountsForIDs(ctx, []int{id})
-	if err != nil {
-		return models.Artist{}, err
-	}
-	albumCounts, err := s.artistAlbumCountsForIDs(ctx, []int{id})
-	if err != nil {
-		return models.Artist{}, err
-	}
-	items, err := s.applyArtistUserState(ctx, userID, []models.Artist{mapArtistWithCounts(a, songCounts[a.ID], albumCounts[a.ID])})
-	if err != nil {
-		return models.Artist{}, err
-	}
-	return items[0], nil
-}
-
-func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
-	settings := models.Settings{
-		Language:               "zh-CN",
-		Theme:                  "deep-space",
-		SleepTimerMins:         0,
-		LibraryPath:            s.libraryDir,
-		NeteaseFallback:        true,
-		RegistrationEnabled:    false,
-		PlaybackSourceTTLHours: defaultPlaybackSourceTTLHours,
-		LyricsFontSize:         0,
-		MetadataGrouping:       false,
-		LibraryTagWriteback:    false,
-		SmartPlaylistsEnabled:  false,
-		SharingEnabled:         false,
-		SubsonicServerEnabled:  false,
-		TranscodePolicy:        "auto",
-		TranscodeQualityKbps:   192,
-	}
-	items, err := s.client.AppSetting.Query().All(ctx)
-	if err != nil {
-		return settings, err
-	}
-	for _, item := range items {
-		switch item.Key {
-		case "language":
-			settings.Language = item.Value
-		case "theme":
-			settings.Theme = item.Value
-		case "sleep_timer_mins":
-			settings.SleepTimerMins, _ = strconv.Atoi(item.Value)
-		case "netease_fallback":
-			settings.NeteaseFallback = item.Value != "false"
-		case settingRegistrationEnabled:
-			settings.RegistrationEnabled = item.Value == "true"
-		case "diagnostics_enabled":
-			settings.DiagnosticsEnabled = item.Value == "true"
-		case "playback_source_ttl_hours":
-			settings.PlaybackSourceTTLHours, _ = strconv.Atoi(item.Value)
-		case "web_font_family":
-			settings.WebFontFamily = item.Value
-		case "web_font_url":
-			settings.WebFontURL = item.Value
-		case "lyrics_auto_save_to_song_dir":
-			settings.LyricsAutoSaveToSongDir = item.Value == "true"
-		case "lyrics_font_family":
-			settings.LyricsFontFamily = item.Value
-		case "lyrics_font_url":
-			settings.LyricsFontURL = item.Value
-		case "lyrics_font_size":
-			settings.LyricsFontSize, _ = strconv.Atoi(item.Value)
-		case "metadata_grouping":
-			settings.MetadataGrouping = item.Value == "true"
-		case "library_tag_writeback":
-			settings.LibraryTagWriteback = item.Value == "true"
-		case "smart_playlists_enabled":
-			settings.SmartPlaylistsEnabled = item.Value == "true"
-		case "sharing_enabled":
-			settings.SharingEnabled = item.Value == "true"
-		case "subsonic_server_enabled":
-			settings.SubsonicServerEnabled = item.Value == "true"
-		case "transcode_policy":
-			settings.TranscodePolicy = item.Value
-		case "transcode_quality_kbps":
-			settings.TranscodeQualityKbps, _ = strconv.Atoi(item.Value)
-		}
-	}
-	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
-	settings.LyricsFontFamily = sanitizeFontFamily(settings.LyricsFontFamily)
-	settings.LyricsFontURL = sanitizeFontURL(settings.LyricsFontURL)
-	if settings.LyricsFontURL == "" {
-		settings.LyricsFontFamily = ""
-	}
-	settings.LyricsFontSize = normalizeLyricsFontSize(settings.LyricsFontSize)
-	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
-	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
-	return settings, nil
-}
-
-func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (models.Settings, error) {
-	if settings.Language == "" {
-		settings.Language = "zh-CN"
-	}
-	if settings.Theme == "" {
-		settings.Theme = "deep-space"
-	}
-	settings.WebFontFamily = sanitizeFontFamily(settings.WebFontFamily)
-	settings.WebFontURL = sanitizeFontURL(settings.WebFontURL)
-	settings.LyricsFontFamily = sanitizeFontFamily(settings.LyricsFontFamily)
-	settings.LyricsFontURL = sanitizeFontURL(settings.LyricsFontURL)
-	if settings.LyricsFontURL == "" {
-		settings.LyricsFontFamily = ""
-	}
-	settings.LyricsFontSize = normalizeLyricsFontSize(settings.LyricsFontSize)
-	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
-	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
-	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
-	pairs := map[string]string{
-		"language":                     settings.Language,
-		"theme":                        settings.Theme,
-		"sleep_timer_mins":             strconv.Itoa(settings.SleepTimerMins),
-		"netease_fallback":             strconv.FormatBool(settings.NeteaseFallback),
-		settingRegistrationEnabled:     strconv.FormatBool(settings.RegistrationEnabled),
-		"diagnostics_enabled":          strconv.FormatBool(settings.DiagnosticsEnabled),
-		"playback_source_ttl_hours":    strconv.Itoa(settings.PlaybackSourceTTLHours),
-		"web_font_family":              settings.WebFontFamily,
-		"web_font_url":                 settings.WebFontURL,
-		"lyrics_auto_save_to_song_dir": strconv.FormatBool(settings.LyricsAutoSaveToSongDir),
-		"lyrics_font_family":           settings.LyricsFontFamily,
-		"lyrics_font_url":              settings.LyricsFontURL,
-		"lyrics_font_size":             strconv.Itoa(settings.LyricsFontSize),
-		"metadata_grouping":            strconv.FormatBool(settings.MetadataGrouping),
-		"library_tag_writeback":        strconv.FormatBool(settings.LibraryTagWriteback),
-		"smart_playlists_enabled":      strconv.FormatBool(settings.SmartPlaylistsEnabled),
-		"sharing_enabled":              strconv.FormatBool(settings.SharingEnabled),
-		"subsonic_server_enabled":      strconv.FormatBool(settings.SubsonicServerEnabled),
-		"transcode_policy":             settings.TranscodePolicy,
-		"transcode_quality_kbps":       strconv.Itoa(settings.TranscodeQualityKbps),
-	}
-	for key, value := range pairs {
-		if err := s.setSetting(ctx, key, value); err != nil {
-			return models.Settings{}, err
-		}
-	}
-	return s.GetSettings(ctx)
 }
 
 func (s *Service) UploadWebFont(ctx context.Context, fontFile *multipart.FileHeader) (models.Settings, error) {
@@ -4711,261 +1837,13 @@ func (s *Service) UploadWebFont(ctx context.Context, fontFile *multipart.FileHea
 	return s.SaveSettings(ctx, settings)
 }
 
-func (s *Service) LoadWebFont(ctx context.Context, name string) ([]byte, string, error) {
-	_ = ctx
-	filename := safeFontFileName(name)
-	if filename == "" || !isSupportedFont(filename) {
-		return nil, "", errors.New("font not found")
-	}
-	path := filepath.Join(s.fontDir(), filename)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, "", err
-	}
-	return data, detectFontContentType(path), nil
-}
-
-func (s *Service) ListWebFonts(ctx context.Context) ([]models.WebFont, error) {
-	_ = ctx
-	entries, err := os.ReadDir(s.fontDir())
-	if errors.Is(err, os.ErrNotExist) {
-		return []models.WebFont{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	fonts := make([]models.WebFont, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() || !isSupportedFont(entry.Name()) {
-			continue
-		}
-		info, err := entry.Info()
-		if err != nil {
-			continue
-		}
-		fonts = append(fonts, webFontModel(entry.Name(), info.Size()))
-	}
-	sort.Slice(fonts, func(i, j int) bool { return strings.ToLower(fonts[i].Family) < strings.ToLower(fonts[j].Family) })
-	return fonts, nil
-}
-
-func (s *Service) DeleteWebFont(ctx context.Context, name string) (models.Settings, error) {
-	filename := safeFontFileName(name)
-	if filename == "" || !isSupportedFont(filename) {
-		return models.Settings{}, errors.New("font not found")
-	}
-	path := filepath.Join(s.fontDir(), filename)
-	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return models.Settings{}, err
-	}
-	settings, err := s.GetSettings(ctx)
-	if err != nil {
-		return models.Settings{}, err
-	}
-	if settings.WebFontURL == webFontModel(filename, 0).URL {
-		settings.WebFontFamily = ""
-		settings.WebFontURL = ""
-	}
-	if settings.LyricsFontURL == webFontModel(filename, 0).URL {
-		settings.LyricsFontFamily = ""
-		settings.LyricsFontURL = ""
-	}
-	return s.SaveSettings(ctx, settings)
-}
-
-func webFontModel(filename string, size int64) models.WebFont {
-	family := sanitizeFontFamily(strings.TrimSuffix(filename, filepath.Ext(filename)))
-	if family == "" {
-		family = "Lark Custom Font"
-	}
-	return models.WebFont{Name: filename, Family: family, URL: "/api/fonts/" + url.PathEscape(filename), Size: size}
-}
-
-func safeFontFileName(name string) string {
-	base := filepath.Base(strings.TrimSpace(name))
-	base = strings.ReplaceAll(base, string(filepath.Separator), "-")
-	base = strings.Map(func(r rune) rune {
-		if r == '-' || r == '_' || r == '.' || r == ' ' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= 0x4e00 && r <= 0x9fff {
-			return r
-		}
-		return '-'
-	}, base)
-	base = strings.Trim(base, ". -")
-	if base == "" || base == "." || base == ".." {
-		return ""
-	}
-	return base
-}
-
-func isSupportedFont(name string) bool {
-	switch strings.ToLower(filepath.Ext(name)) {
-	case ".woff2", ".woff", ".ttf", ".otf":
-		return true
-	default:
-		return false
-	}
-}
-
-func detectFontContentType(path string) string {
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".woff2":
-		return "font/woff2"
-	case ".woff":
-		return "font/woff"
-	case ".otf":
-		return "font/otf"
-	case ".ttf":
-		return "font/ttf"
-	default:
-		return "application/octet-stream"
-	}
-}
-
-func sanitizeFontFamily(value string) string {
-	value = strings.TrimSpace(value)
-	value = strings.Trim(value, "'\"")
-	value = strings.Map(func(r rune) rune {
-		if r == ' ' || r == '-' || r == '_' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= 0x4e00 && r <= 0x9fff {
-			return r
-		}
-		return -1
-	}, value)
-	return strings.TrimSpace(value)
-}
-
-func sanitizeFontURL(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	if !strings.HasPrefix(value, "/api/fonts/") {
-		return ""
-	}
-	return value
-}
-
-func (s *Service) setSetting(ctx context.Context, key, value string) error {
-	existing, err := s.client.AppSetting.Query().Where(appsetting.Key(key)).Only(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return err
-	}
-	if ent.IsNotFound(err) {
-		_, err = s.client.AppSetting.Create().SetKey(key).SetValue(value).Save(ctx)
-		return err
-	}
-	return existing.Update().SetValue(value).Exec(ctx)
-}
-
-func (s *Service) ensureArtist(ctx context.Context, name string) (*ent.Artist, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		name = "Unknown Artist"
-	}
-	item, err := s.client.Artist.Query().Where(artist.Name(name)).Only(ctx)
-	if err == nil {
-		return item, nil
-	}
-	if !ent.IsNotFound(err) {
-		return nil, err
-	}
-	return s.client.Artist.Create().SetName(name).Save(ctx)
-}
-
-func (s *Service) ensureAlbum(ctx context.Context, title, albumArtist string, ar *ent.Artist, year int) (*ent.Album, error) {
-	title = strings.TrimSpace(title)
-	if title == "" {
-		title = "Unknown Album"
-	}
-	albumArtist = strings.TrimSpace(albumArtist)
-	if albumArtist == "" && ar != nil {
-		albumArtist = strings.TrimSpace(ar.Name)
-	}
-	item, err := s.client.Album.Query().Where(album.Title(title), album.AlbumArtist(albumArtist)).Only(ctx)
-	if err == nil {
-		if item.Year == 0 && year > 0 {
-			updated, updateErr := item.Update().SetYear(year).Save(ctx)
-			if updateErr != nil {
-				return nil, updateErr
-			}
-			return updated, nil
-		}
-		return item, nil
-	}
-	if !ent.IsNotFound(err) {
-		return nil, err
-	}
-	return s.client.Album.Create().SetTitle(title).SetAlbumArtist(albumArtist).SetYear(year).SetArtist(ar).Save(ctx)
-}
-
-func prepareProbeCommand(cmd *exec.Cmd) {
-	prepareProbeProcessGroup(cmd)
-	cmd.Cancel = func() error {
-		terminateProbeCommand(cmd)
-		return nil
-	}
-	cmd.WaitDelay = 5 * time.Second
-}
-
 var errProbeOutputTooLarge = errors.New("ffprobe output exceeded memory limit")
 
 const maxFFprobeOutputBytes = 4 << 20
 
-func commandOutputLimited(cmd *exec.Cmd, limit int64) ([]byte, error) {
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-	data, readErr := io.ReadAll(io.LimitReader(stdout, limit+1))
-	if int64(len(data)) > limit {
-		terminateProbeCommand(cmd)
-		readErr = errProbeOutputTooLarge
-	}
-	waitErr := cmd.Wait()
-	if readErr != nil {
-		return nil, readErr
-	}
-	if waitErr != nil {
-		return nil, waitErr
-	}
-	return data, nil
-}
-
-func terminateProbeCommand(cmd *exec.Cmd) {
-	if cmd == nil || cmd.Process == nil {
-		return
-	}
-	if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-		return
-	}
-	if terminateProbeProcessGroup(cmd) {
-		return
-	}
-	_ = cmd.Process.Kill()
-}
-
 type probeOptions struct {
 	DetectLyrics bool
 	ReadLyrics   bool
-}
-
-func supportsEmbeddedLyrics(path string) bool {
-	return embeddedLyricsExts[strings.ToLower(filepath.Ext(path))]
-}
-
-func (s *Service) probe(ctx context.Context, path string, options probeOptions) fileMetadata {
-	if s.ffprobe != "" {
-		if meta := s.probeViaFFprobe(ctx, path, options); !meta.empty() {
-			s.enrichMetadataViaTags(path, &meta, options)
-			mergeFileMetadata(&meta, probeWAVMetadata(path))
-			return meta
-		}
-	}
-	meta := s.probeTags(path, options)
-	mergeFileMetadata(&meta, probeWAVMetadata(path))
-	return meta
 }
 
 func (meta fileMetadata) empty() bool {
@@ -4979,64 +1857,6 @@ func (meta fileMetadata) empty() bool {
 		meta.BitRate <= 0 &&
 		meta.BitDepth <= 0 &&
 		meta.Year <= 0
-}
-
-func (s *Service) probeViaFFprobe(ctx context.Context, path string, options probeOptions) fileMetadata {
-	probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(probeCtx, s.ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path)
-	prepareProbeCommand(cmd)
-	out, err := commandOutputLimited(cmd, maxFFprobeOutputBytes)
-	if err != nil {
-		return fileMetadata{}
-	}
-	var probed ffprobeOutput
-	if err := json.Unmarshal(out, &probed); err != nil {
-		return fileMetadata{}
-	}
-	tags := normalizeTags(map[string]string(probed.Format.Tags))
-	meta := fileMetadata{
-		Title:       first(tags, "title"),
-		Artist:      first(tags, "artist", "album_artist", "albumartist"),
-		Album:       first(tags, "album"),
-		AlbumArtist: first(tags, "album_artist", "albumartist"),
-		Year:        parseYear(first(tags, "date", "year", "originaldate", "originalyear", "releasedate")),
-	}
-	if options.ReadLyrics {
-		meta.Lyrics = first(tags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
-		meta.HasLyrics = strings.TrimSpace(meta.Lyrics) != ""
-	} else if options.DetectLyrics {
-		meta.HasLyrics = hasAnyTag(tags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
-	}
-	if duration, _ := strconv.ParseFloat(probed.Format.Duration, 64); duration > 0 {
-		meta.Duration = duration
-	}
-	if bitrate, _ := strconv.Atoi(probed.Format.BitRate); bitrate > 0 {
-		meta.BitRate = bitrate
-	}
-	for _, stream := range probed.Streams {
-		if stream.CodecType != "audio" {
-			continue
-		}
-		if sampleRate, _ := strconv.Atoi(stream.SampleRate); sampleRate > 0 {
-			meta.SampleRate = sampleRate
-		}
-		if stream.Bits > 0 {
-			meta.BitDepth = stream.Bits
-		}
-		streamTags := normalizeTags(map[string]string(stream.Tags))
-		if options.ReadLyrics && meta.Lyrics == "" {
-			meta.Lyrics = first(streamTags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
-			meta.HasLyrics = strings.TrimSpace(meta.Lyrics) != ""
-		} else if options.DetectLyrics && !meta.HasLyrics {
-			meta.HasLyrics = hasAnyTag(streamTags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
-		}
-		if meta.Year == 0 {
-			meta.Year = parseYear(first(streamTags, "date", "year", "originaldate", "originalyear", "releasedate"))
-		}
-		break
-	}
-	return meta
 }
 
 func (s *Service) enrichMetadataViaTags(path string, meta *fileMetadata, options probeOptions) {
@@ -5069,35 +1889,6 @@ func (s *Service) enrichMetadataViaTags(path string, meta *fileMetadata, options
 	if meta.Year == 0 && tags.Year > 0 {
 		meta.Year = tags.Year
 	}
-}
-
-func (s *Service) probeTags(path string, options probeOptions) fileMetadata {
-	f, err := os.Open(path)
-	if err != nil {
-		return fileMetadata{}
-	}
-	defer f.Close()
-	m, err := tag.ReadFrom(f)
-	if err != nil {
-		return fileMetadata{}
-	}
-	meta := fileMetadata{
-		Title:       cleanMetadataText(m.Title()),
-		Artist:      cleanMetadataText(m.Artist()),
-		Album:       cleanMetadataText(m.Album()),
-		AlbumArtist: cleanMetadataText(m.AlbumArtist()),
-		Year:        m.Year(),
-	}
-	if options.ReadLyrics {
-		meta.Lyrics = cleanMetadataText(m.Lyrics())
-		meta.HasLyrics = strings.TrimSpace(meta.Lyrics) != ""
-	} else if options.DetectLyrics {
-		meta.HasLyrics = strings.TrimSpace(m.Lyrics()) != ""
-	}
-	if meta.Artist == "" {
-		meta.Artist = cleanMetadataText(m.Composer())
-	}
-	return meta
 }
 
 type metadataTags map[string]string
@@ -5445,262 +2236,6 @@ func sourceIf(ok bool, yes, no string) string {
 	return no
 }
 
-func (s *Service) applySongUserState(ctx context.Context, userID int, items []models.Song) ([]models.Song, error) {
-	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	return s.applySongUserStateWithDevice(ctx, userID, items, deviceScope)
-}
-
-func (s *Service) applySongUserStateWithDevice(ctx context.Context, userID int, items []models.Song, deviceScope string) ([]models.Song, error) {
-	if len(items) == 0 {
-		return items, nil
-	}
-	ids := make([]int, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, item.ID)
-	}
-	favorites, err := s.client.UserSongFavorite.Query().
-		Where(usersongfavorite.HasUserWith(user.ID(userID)), usersongfavorite.HasSongWith(song.IDIn(ids...))).
-		WithSong().
-		All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	favoriteIDs := map[int]bool{}
-	for _, favorite := range favorites {
-		if favorite.Edges.Song != nil {
-			favoriteIDs[favorite.Edges.Song.ID] = true
-		}
-	}
-	playCounts, err := s.playHistoryCountsForSongs(ctx, userID, ids, deviceScope)
-	if err != nil {
-		return nil, err
-	}
-	lastPlayed, resumePositions, err := s.latestPlayHistoryStateForSongs(ctx, userID, items, deviceScope)
-	if err != nil {
-		return nil, err
-	}
-	for i := range items {
-		items[i].Favorite = favoriteIDs[items[i].ID]
-		items[i].PlayCount = playCounts[items[i].ID]
-		items[i].ResumePosition = resumePositions[items[i].ID]
-		if playedAt, ok := lastPlayed[items[i].ID]; ok {
-			items[i].LastPlayedAt = &playedAt
-		} else {
-			items[i].LastPlayedAt = nil
-		}
-	}
-	return items, nil
-}
-
-func playHistoryUserPredicates(userID int, deviceScope string) []predicate.PlayHistory {
-	predicates := []predicate.PlayHistory{playhistory.HasUserWith(user.ID(userID))}
-	if deviceScope != "" {
-		predicates = append(predicates, playhistory.DeviceTypeEQ(deviceScope))
-	}
-	return predicates
-}
-
-func playHistorySongPredicates(userID, songID int, deviceScope string) []predicate.PlayHistory {
-	predicates := playHistoryUserPredicates(userID, deviceScope)
-	predicates = append(predicates, playhistory.HasSongWith(song.ID(songID)))
-	return predicates
-}
-
-func playHistorySongsPredicates(userID int, songIDs []int, deviceScope string) []predicate.PlayHistory {
-	predicates := playHistoryUserPredicates(userID, deviceScope)
-	predicates = append(predicates, playhistory.HasSongWith(song.IDIn(songIDs...)))
-	return predicates
-}
-
-func (s *Service) playHistoryCountsForSongs(ctx context.Context, userID int, ids []int, deviceScope string) (map[int]int, error) {
-	rows := []playHistorySongCountRow{}
-	if err := s.client.PlayHistory.Query().
-		Where(playHistorySongsPredicates(userID, ids, deviceScope)...).
-		GroupBy(playhistory.SongColumn).
-		Aggregate(ent.Count()).
-		Scan(ctx, &rows); err != nil {
-		return nil, err
-	}
-	counts := make(map[int]int, len(rows))
-	for _, row := range rows {
-		if row.SongID != nil && *row.SongID > 0 {
-			counts[*row.SongID] = row.Count
-		}
-	}
-	return counts, nil
-}
-
-func (s *Service) latestPlayHistoryStateForSongs(ctx context.Context, userID int, items []models.Song, deviceScope string) (map[int]time.Time, map[int]float64, error) {
-	lastPlayed := map[int]time.Time{}
-	resumePositions := map[int]float64{}
-	ids := make([]int, 0, len(items))
-	durationByID := make(map[int]float64, len(items))
-	for i := range items {
-		ids = append(ids, items[i].ID)
-		durationByID[items[i].ID] = items[i].DurationSeconds
-	}
-	limit := maxInt(len(ids)*4, 200)
-	if limit > 1000 {
-		limit = 1000
-	}
-	histories, err := s.client.PlayHistory.Query().
-		Where(playHistorySongsPredicates(userID, ids, deviceScope)...).
-		WithSong(func(q *ent.SongQuery) { q.Select(song.FieldID, song.FieldDurationSeconds) }).
-		Order(ent.Desc(playhistory.FieldUpdatedAt), ent.Desc(playhistory.FieldPlayedAt)).
-		Limit(limit).
-		All(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, history := range histories {
-		if history.Edges.Song == nil {
-			continue
-		}
-		songID := history.Edges.Song.ID
-		if _, ok := lastPlayed[songID]; ok {
-			continue
-		}
-		lastPlayed[songID] = history.PlayedAt
-		if !history.Completed && history.ProgressSeconds >= 5 {
-			duration := history.DurationSeconds
-			if duration <= 0 {
-				duration = durationByID[songID]
-			}
-			if duration <= 0 || history.ProgressSeconds < duration-5 {
-				resumePositions[songID] = history.ProgressSeconds
-			}
-		}
-	}
-	return lastPlayed, resumePositions, nil
-}
-
-func (s *Service) applyAlbumUserState(ctx context.Context, userID int, items []models.Album) ([]models.Album, error) {
-	if len(items) == 0 {
-		return items, nil
-	}
-	ids := make([]int, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, item.ID)
-	}
-	favorites, err := s.client.UserAlbumFavorite.Query().
-		Where(useralbumfavorite.HasUserWith(user.ID(userID)), useralbumfavorite.HasAlbumWith(album.IDIn(ids...))).
-		WithAlbum().
-		All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	favoriteIDs := map[int]bool{}
-	for _, favorite := range favorites {
-		if favorite.Edges.Album != nil {
-			favoriteIDs[favorite.Edges.Album.ID] = true
-		}
-	}
-	for i := range items {
-		items[i].Favorite = favoriteIDs[items[i].ID]
-	}
-	return items, nil
-}
-
-func (s *Service) applyArtistUserState(ctx context.Context, userID int, items []models.Artist) ([]models.Artist, error) {
-	if len(items) == 0 {
-		return items, nil
-	}
-	ids := make([]int, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, item.ID)
-	}
-	favorites, err := s.client.UserArtistFavorite.Query().
-		Where(userartistfavorite.HasUserWith(user.ID(userID)), userartistfavorite.HasArtistWith(artist.IDIn(ids...))).
-		WithArtist().
-		All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	favoriteIDs := map[int]bool{}
-	for _, favorite := range favorites {
-		if favorite.Edges.Artist != nil {
-			favoriteIDs[favorite.Edges.Artist.ID] = true
-		}
-	}
-	for i := range items {
-		items[i].Favorite = favoriteIDs[items[i].ID]
-	}
-	return items, nil
-}
-
-func mapLibraryDirectory(item *ent.LibraryDirectory) models.LibraryDirectory {
-	return models.LibraryDirectory{ID: strconv.Itoa(item.ID), Path: item.Path, Note: item.Note, WatchEnabled: item.WatchEnabled, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
-}
-
-func mapSongs(items []*ent.Song) []models.Song {
-	out := make([]models.Song, 0, len(items))
-	for _, item := range items {
-		out = append(out, mapSong(item))
-	}
-	return out
-}
-
-func mapSong(item *ent.Song) models.Song {
-	artistID, albumID := 0, 0
-	artistName, albumTitle := "", ""
-	if item.Edges.Artist != nil {
-		artistID = item.Edges.Artist.ID
-		artistName = item.Edges.Artist.Name
-	}
-	if item.Edges.Album != nil {
-		albumID = item.Edges.Album.ID
-		albumTitle = item.Edges.Album.Title
-	}
-	return models.Song{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumID: albumID, Album: albumTitle, Path: item.Path, FileName: item.FileName, Format: item.Format, Mime: item.Mime, SizeBytes: item.SizeBytes, DurationSeconds: item.DurationSeconds, SampleRate: item.SampleRate, BitRate: item.BitRate, BitDepth: item.BitDepth, Year: item.Year, NeteaseID: item.NeteaseID, Favorite: item.Favorite, PlayCount: item.PlayCount, LastPlayedAt: item.LastPlayedAt, HasLyrics: strings.TrimSpace(item.LyricsEmbedded) != "", LyricsSource: item.LyricsSource, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
-}
-
-func mapAlbum(item *ent.Album) models.Album {
-	count := 0
-	if item.Edges.Songs != nil {
-		count = len(item.Edges.Songs)
-	}
-	return mapAlbumWithCount(item, count)
-}
-
-func mapAlbumWithCount(item *ent.Album, songCount int) models.Album {
-	artistID := 0
-	artistName := ""
-	if item.Edges.Artist != nil {
-		artistID = item.Edges.Artist.ID
-		artistName = item.Edges.Artist.Name
-	}
-	year := item.Year
-	for _, song := range item.Edges.Songs {
-		if song.Year > 0 && (year == 0 || song.Year < year) {
-			year = song.Year
-		}
-	}
-	return models.Album{ID: item.ID, Title: item.Title, ArtistID: artistID, Artist: artistName, AlbumArtist: item.AlbumArtist, Year: year, Favorite: item.Favorite, SongCount: songCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
-}
-
-func mapArtist(item *ent.Artist) models.Artist {
-	return mapArtistWithCounts(item, len(item.Edges.Songs), len(item.Edges.Albums))
-}
-
-func mapArtistWithCounts(item *ent.Artist, songCount, albumCount int) models.Artist {
-	return models.Artist{ID: item.ID, Name: item.Name, SongCount: songCount, AlbumCount: albumCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
-}
-
-func mapPlaylist(item *ent.Playlist) models.Playlist {
-	count := 0
-	if item.Edges.Songs != nil {
-		count = len(item.Edges.Songs)
-	}
-	return mapPlaylistWithCount(item, count)
-}
-
-func mapPlaylistWithCount(item *ent.Playlist, songCount int) models.Playlist {
-	return models.Playlist{ID: item.ID, Name: item.Name, Description: item.Description, CoverTheme: item.CoverTheme, Favorite: item.Favorite, SongCount: songCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
-}
-
 func IsMissing(err error) bool { return errors.Is(err, os.ErrNotExist) || ent.IsNotFound(err) }
 
 func (s *Service) refreshAlbumYearFromOnline(ctx context.Context, id int) (*ent.Album, error) {
@@ -5716,6 +2251,44 @@ func (s *Service) refreshAlbumYearFromOnline(ctx context.Context, id int) (*ent.
 		return updated, err
 	}
 	return a, nil
+}
+
+const albumYearNegPrefix = "runtime:v1:albumyear-neg:"
+const albumYearNegTTL = 7 * 24 * time.Hour    // don't retry a never-resolving year for a week
+const albumYearInflightTTL = 30 * time.Second // cross-request dedupe window for a single lookup
+
+// triggerAlbumYearRefresh kicks an online album-year lookup in the background so it
+// NEVER blocks the request path (the previous inline call could stall a request up to
+// 12s, and repeated forever for albums whose year never resolves online). It is deduped
+// across requests via a SetNX inflight lock, deduped in-process via singleflight, and
+// guarded by a negative cache so a failed lookup isn't retried for a week.
+func (s *Service) triggerAlbumYearRefresh(albumID int) {
+	if s.cache == nil || albumID <= 0 {
+		return
+	}
+	bg := context.Background()
+	negKey := fmt.Sprintf("%s%d", albumYearNegPrefix, albumID)
+	if _, ok, _ := s.cache.Get(bg, negKey); ok {
+		return // recently failed to resolve; skip
+	}
+	lockKey := negKey + ":inflight"
+	if ok, err := s.cache.SetNX(bg, lockKey, []byte("1"), albumYearInflightTTL); err != nil || !ok {
+		return // another request is already refreshing this album
+	}
+	go func() {
+		defer func() { _ = s.cache.Delete(bg, lockKey) }()
+		_, _, _ = s.yearRefreshSF.Do(strconv.Itoa(albumID), func() (any, error) {
+			ctx, cancel := context.WithTimeout(bg, 15*time.Second)
+			defer cancel()
+			updated, err := s.refreshAlbumYearFromOnline(ctx, albumID)
+			if err != nil || updated == nil || updated.Year == 0 {
+				_ = s.cache.Set(bg, negKey, []byte("1"), albumYearNegTTL) // negative-cache the miss
+				return nil, nil
+			}
+			s.invalidateLibraryCache(bg) // surface the resolved year in album-page / album-songs caches
+			return nil, nil
+		})
+	}()
 }
 
 func albumSearchArtistName(a *ent.Album) string {

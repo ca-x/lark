@@ -20,6 +20,16 @@
   --focus-ring: color-mix(in srgb, var(--accent) 50%, transparent);
   --muted-strong: color-mix(in srgb, var(--text) 70%, transparent);
   --main-pad-bottom: calc(var(--player-h) + var(--safe-bottom) + 24px);
+  /* Core motion + shape scale (additive; per-theme tokens above stay authoritative).
+     Components use these so transitions/radii/elevation stay consistent app-wide. */
+  --dur-fast: .16s;
+  --dur: .26s;
+  --dur-slow: .42s;
+  --ease-out: cubic-bezier(.22,1,.36,1);
+  --radius-sm: 12px;
+  --radius-lg: 32px;
+  --shadow-1: 0 2px 8px rgba(0,0,0,.12);
+  --shadow-2: 0 10px 30px rgba(0,0,0,.22);
 }
 html, body, .app-shell, .song-row, .library-summary-stat, .album-card, .artist-card, .playlist-card, .card, .nav, .sidebar, .player, .settings-page, .empty-state, .lyrics-empty, .lyrics-candidates, button, input, select, textarea {
   transition: background-color .32s var(--ease), color .32s var(--ease), border-color .32s var(--ease), box-shadow .32s var(--ease);
@@ -1210,7 +1220,11 @@ body, button, input, select { font-family: var(--app-font); }
 .folder-tree-actions [role='button'] { width:38px; height:38px; min-width:38px; min-height:38px; display:grid; place-items:center; border-radius:999px; color:var(--bg); background:var(--accent); }
 .collection-loading { padding:42px 18px; }
 .collection-inline-status { min-width:0; padding:10px 14px; border-radius:16px; border:1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); color:var(--muted); font-size:13px; line-height:1.35; }
-.collection-inline-status.error { border-color:color-mix(in srgb, #d45a4c 36%, var(--line)); background:color-mix(in srgb, #d45a4c 10%, var(--panel2)); color:var(--text); }
+.collection-inline-status.error { border-color:color-mix(in srgb, #d45a4c 36%, var(--line)); background:color-mix(in srgb, #d45a4c 10%, var(--panel2)); color:var(--text); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.collection-retry-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:999px; border:1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); background:color-mix(in srgb, var(--accent) 16%, var(--panel)); color:var(--text); font-size:12.5px; font-weight:600; cursor:pointer; white-space:nowrap; transition:background var(--dur-fast, .16s) var(--ease, ease), transform var(--dur-fast, .16s) var(--ease, ease); }
+.collection-retry-btn:hover { background:color-mix(in srgb, var(--accent) 28%, var(--panel)); }
+.collection-retry-btn:active { transform:scale(.96); }
+.collection-retry-btn svg { width:14px; height:14px; }
 
 
 /* v0.2.13 vinyl deck and VU meter integration */

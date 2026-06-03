@@ -91,7 +91,13 @@ func legacySQLitePath(dataDir string) string {
 }
 
 func sqliteDSN(path string) string {
-	return fmt.Sprintf("file:%s?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-10000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)", path)
+	// NOTE: cache=shared is intentionally NOT set. With a bounded connection pool
+	// (see openEntClient in cmd/server/main.go), shared-cache mode serializes WAL
+	// readers behind a single page-cache mutex; private per-connection caches let
+	// WAL run N concurrent readers + 1 writer. mmap is enabled (256 MiB) so page
+	// reads avoid syscall+copy overhead, and busy_timeout is 5s to fail fast rather
+	// than stall a request for 10s under contention.
+	return fmt.Sprintf("file:%s?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(5000)&_pragma=cache_size(-20000)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)", path)
 }
 
 func normalizeDatabaseType(value string) string {

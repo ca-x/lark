@@ -97,24 +97,24 @@ export const api = {
   },
   albums: (limit = 0) => request<Album[]>(`/api/albums${limit > 0 ? `?limit=${limit}` : ''}`),
   favoriteAlbums: (limit = 500) => request<Album[]>(`/api/albums/favorites?limit=${limit}`),
-  albumsPage: (page = 1, limit = 100, artistId = 0) => {
+  albumsPage: (page = 1, limit = 100, artistId = 0, signal?: AbortSignal) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     if (artistId > 0) params.set('artist_id', String(artistId))
-    return request<AlbumPage>(`/api/albums/page?${params.toString()}`)
+    return request<AlbumPage>(`/api/albums/page?${params.toString()}`, { signal })
   },
-  album: (id: number) => request<Album>(`/api/albums/${id}`),
-  albumSongs: (id: number, limit = 0) => request<Song[]>(`/api/albums/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`),
+  album: (id: number, signal?: AbortSignal) => request<Album>(`/api/albums/${id}`, { signal }),
+  albumSongs: (id: number, limit = 0, signal?: AbortSignal) => request<Song[]>(`/api/albums/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`, { signal }),
   artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
   favoriteArtists: (limit = 500) => request<Artist[]>(`/api/artists/favorites?limit=${limit}`),
   artistsPage: (page = 1, limit = 100) => request<ArtistPage>(`/api/artists/page?page=${page}&limit=${limit}`),
   searchArtists: (q = '', limit = 20) => request<Artist[]>(`/api/artists/search?q=${encodeURIComponent(q)}&limit=${limit}`),
-  artistSongs: (id: number, limit = 0) => request<Song[]>(`/api/artists/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`),
+  artistSongs: (id: number, limit = 0, signal?: AbortSignal) => request<Song[]>(`/api/artists/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`, { signal }),
   favoriteArtist: (id: number) => request<Artist>(`/api/artists/${id}/favorite`, { method: 'POST' }),
   favoriteAlbum: (id: number) => request<Album>(`/api/albums/${id}/favorite`, { method: 'POST' }),
   playlists: (limit = 0) => request<Playlist[]>(`/api/playlists${limit > 0 ? `?limit=${limit}` : ''}`),
   playlistsPage: (page = 1, limit = 100) => request<PlaylistPage>(`/api/playlists/page?page=${page}&limit=${limit}`),
   createPlaylist: (name: string, description = '', cover_theme = 'deep-space') => request<Playlist>('/api/playlists', { method: 'POST', body: JSON.stringify({ name, description, cover_theme }) }),
-  playlistSongs: (id: number, limit = 0) => request<Song[]>(`/api/playlists/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`),
+  playlistSongs: (id: number, limit = 0, signal?: AbortSignal) => request<Song[]>(`/api/playlists/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`, { signal }),
   addToPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'POST' }),
   removeFromPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'DELETE' }),
 

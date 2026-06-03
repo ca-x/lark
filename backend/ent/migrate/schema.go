@@ -245,6 +245,7 @@ var (
 		{Name: "year", Type: field.TypeInt, Default: 0},
 		{Name: "lyrics_embedded", Type: field.TypeString, Default: ""},
 		{Name: "lyrics_source", Type: field.TypeString, Default: ""},
+		{Name: "has_lyrics", Type: field.TypeBool, Default: false},
 		{Name: "netease_id", Type: field.TypeString, Default: ""},
 		{Name: "favorite", Type: field.TypeBool, Default: false},
 		{Name: "play_count", Type: field.TypeInt, Default: 0},
@@ -262,13 +263,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "songs_albums_songs",
-				Columns:    []*schema.Column{SongsColumns[22]},
+				Columns:    []*schema.Column{SongsColumns[23]},
 				RefColumns: []*schema.Column{AlbumsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "songs_artists_songs",
-				Columns:    []*schema.Column{SongsColumns[23]},
+				Columns:    []*schema.Column{SongsColumns[24]},
 				RefColumns: []*schema.Column{ArtistsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -292,32 +293,47 @@ var (
 			{
 				Name:    "song_favorite",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[17]},
+				Columns: []*schema.Column{SongsColumns[18]},
 			},
 			{
 				Name:    "song_netease_id",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[16]},
+				Columns: []*schema.Column{SongsColumns[17]},
 			},
 			{
 				Name:    "song_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[20]},
+				Columns: []*schema.Column{SongsColumns[21]},
 			},
 			{
 				Name:    "song_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[21]},
+				Columns: []*schema.Column{SongsColumns[22]},
+			},
+			{
+				Name:    "song_has_lyrics",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[16]},
+			},
+			{
+				Name:    "song_play_count",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[19]},
+			},
+			{
+				Name:    "song_last_played_at",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[20]},
 			},
 			{
 				Name:    "song_artist_songs",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[23]},
+				Columns: []*schema.Column{SongsColumns[24]},
 			},
 			{
 				Name:    "song_album_songs",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[22]},
+				Columns: []*schema.Column{SongsColumns[23]},
 			},
 		},
 	}

@@ -15,6 +15,7 @@ require (
 	github.com/longbridgeapp/opencc v0.3.13
 	github.com/modelcontextprotocol/go-sdk v1.5.0
 	github.com/redis/go-redis/v9 v9.18.0
+	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.33.0
 )
 

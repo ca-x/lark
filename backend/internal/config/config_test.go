@@ -121,13 +121,19 @@ func TestSQLiteDSNBoundsMemoryOrientedPragmas(t *testing.T) {
 	for _, want := range []string{
 		"_pragma=journal_mode(WAL)",
 		"_pragma=synchronous(NORMAL)",
-		"_pragma=busy_timeout(10000)",
-		"_pragma=cache_size(-10000)",
-		"_pragma=temp_store(FILE)",
-		"_pragma=mmap_size(0)",
+		"_pragma=busy_timeout(5000)",
+		"_pragma=cache_size(-20000)",
+		"_pragma=temp_store(MEMORY)",
+		"_pragma=mmap_size(268435456)",
 	} {
 		if !strings.Contains(dsn, want) {
 			t.Fatalf("sqliteDSN missing %q in %q", want, dsn)
 		}
+	}
+	// cache=shared serializes WAL readers behind a single page-cache mutex; with a
+	// bounded connection pool we intentionally use private per-connection caches so
+	// WAL can run concurrent readers. Guard against a regression that re-adds it.
+	if strings.Contains(dsn, "cache=shared") {
+		t.Fatalf("sqliteDSN must not set cache=shared (serializes WAL readers): %q", dsn)
 	}
 }

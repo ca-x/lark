@@ -244,24 +244,28 @@ func init() {
 	songDescLyricsSource := songFields[14].Descriptor()
 	// song.DefaultLyricsSource holds the default value on creation for the lyrics_source field.
 	song.DefaultLyricsSource = songDescLyricsSource.Default.(string)
+	// songDescHasLyrics is the schema descriptor for has_lyrics field.
+	songDescHasLyrics := songFields[15].Descriptor()
+	// song.DefaultHasLyrics holds the default value on creation for the has_lyrics field.
+	song.DefaultHasLyrics = songDescHasLyrics.Default.(bool)
 	// songDescNeteaseID is the schema descriptor for netease_id field.
-	songDescNeteaseID := songFields[15].Descriptor()
+	songDescNeteaseID := songFields[16].Descriptor()
 	// song.DefaultNeteaseID holds the default value on creation for the netease_id field.
 	song.DefaultNeteaseID = songDescNeteaseID.Default.(string)
 	// songDescFavorite is the schema descriptor for favorite field.
-	songDescFavorite := songFields[16].Descriptor()
+	songDescFavorite := songFields[17].Descriptor()
 	// song.DefaultFavorite holds the default value on creation for the favorite field.
 	song.DefaultFavorite = songDescFavorite.Default.(bool)
 	// songDescPlayCount is the schema descriptor for play_count field.
-	songDescPlayCount := songFields[17].Descriptor()
+	songDescPlayCount := songFields[18].Descriptor()
 	// song.DefaultPlayCount holds the default value on creation for the play_count field.
 	song.DefaultPlayCount = songDescPlayCount.Default.(int)
 	// songDescCreatedAt is the schema descriptor for created_at field.
-	songDescCreatedAt := songFields[19].Descriptor()
+	songDescCreatedAt := songFields[20].Descriptor()
 	// song.DefaultCreatedAt holds the default value on creation for the created_at field.
 	song.DefaultCreatedAt = songDescCreatedAt.Default.(func() time.Time)
 	// songDescUpdatedAt is the schema descriptor for updated_at field.
-	songDescUpdatedAt := songFields[20].Descriptor()
+	songDescUpdatedAt := songFields[21].Descriptor()
 	// song.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	song.DefaultUpdatedAt = songDescUpdatedAt.Default.(func() time.Time)
 	// song.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
