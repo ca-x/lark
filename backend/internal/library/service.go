@@ -88,6 +88,9 @@ type Service struct {
 	loadSF singleflight.Group
 	// yearRefreshSF dedupes background album-year online lookups (see online.go).
 	yearRefreshSF singleflight.Group
+	// userVersionMu serializes bumpUserCacheVersion read-modify-write so concurrent
+	// favorite/playlist toggles don't lose a version bump.
+	userVersionMu sync.Mutex
 
 	// countCache holds materialized GROUP BY aggregates that change only on scan/import.
 	// Each entry is guarded by a mutex + timestamp so callers can read the cached map

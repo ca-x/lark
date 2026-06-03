@@ -31,6 +31,8 @@ type Config struct {
 	AdminUsername      string
 	AdminPassword      string
 	AdminNickname      string
+	SQLiteMaxOpenConns int
+	SQLiteMaxIdleConns int
 }
 
 func Load() (Config, error) {
@@ -70,6 +72,8 @@ func Load() (Config, error) {
 		AdminUsername:      strings.TrimSpace(os.Getenv("LARK_ADMIN_USERNAME")),
 		AdminPassword:      os.Getenv("LARK_ADMIN_PASSWORD"),
 		AdminNickname:      strings.TrimSpace(os.Getenv("LARK_ADMIN_NICKNAME")),
+		SQLiteMaxOpenConns: GetEnvInt("LARK_SQLITE_MAX_OPEN_CONNS", 4),
+		SQLiteMaxIdleConns: GetEnvInt("LARK_SQLITE_MAX_IDLE_CONNS", 4),
 	}
 	return cfg, nil
 }

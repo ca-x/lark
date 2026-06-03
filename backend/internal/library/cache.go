@@ -124,6 +124,11 @@ func (s *Service) bumpUserCacheVersion(ctx context.Context, userID int) {
 	if userID <= 0 || s.cache == nil {
 		return
 	}
+	// Serialize the read-modify-write so concurrent callers (e.g. two favorite
+	// toggles in quick succession) cannot read the same version, increment, and
+	// write the same result — which would lose one bump.
+	s.userVersionMu.Lock()
+	defer s.userVersionMu.Unlock()
 	key := fmt.Sprintf("%s%d", userVersionPrefix, userID)
 	v := s.userCacheVersion(ctx, userID) + 1
 	_ = s.cache.Set(ctx, key, []byte(strconv.Itoa(v)), 30*24*time.Hour)

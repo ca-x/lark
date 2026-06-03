@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	// SQLite connection-pool tuning. modernc.org/sqlite serializes writes regardless
-	// of pool size, while WAL mode permits N concurrent readers + 1 writer across
-	// separate connections. A small bounded pool keeps readers warm and makes
-	// contention fail fast (busy_timeout) instead of piling up unbounded connections.
-	sqliteMaxOpenConns    = 8
-	sqliteMaxIdleConns    = 8
+	// SQLite connection-pool defaults. modernc.org/sqlite serializes writes
+	// regardless of pool size, while WAL mode permits N concurrent readers +
+	// 1 writer across separate connections. A small bounded pool keeps readers
+	// warm and makes contention fail fast (busy_timeout) instead of piling up
+	// unbounded connections. Override via LARK_SQLITE_MAX_OPEN_CONNS /
+	// LARK_SQLITE_MAX_IDLE_CONNS for low-memory devices (e.g. set to 2).
 	sqliteConnMaxIdleTime = 5 * time.Minute
 	sqliteConnMaxLifetime = 0 // SQLite connections are local & cheap; no recycling needed
 )
@@ -115,8 +115,8 @@ func openEntClient(cfg config.Config) (*ent.Client, error) {
 		return nil, err
 	}
 	if cfg.DatabaseType == "sqlite" {
-		db.SetMaxOpenConns(sqliteMaxOpenConns)
-		db.SetMaxIdleConns(sqliteMaxIdleConns)
+		db.SetMaxOpenConns(cfg.SQLiteMaxOpenConns)
+		db.SetMaxIdleConns(cfg.SQLiteMaxIdleConns)
 		db.SetConnMaxIdleTime(sqliteConnMaxIdleTime)
 		db.SetConnMaxLifetime(sqliteConnMaxLifetime)
 	}

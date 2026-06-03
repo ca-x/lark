@@ -128,6 +128,8 @@ Default server settings:
 | `LARK_REDIS_PASSWORD` | empty | Redis password |
 | `LARK_REDIS_DB` | empty | Redis database number; runtime fallback is `0` when Redis is selected |
 | `LARK_REDIS_KEY_PREFIX` | empty | Prefix for Lark cache keys in Redis; runtime fallback is `lark:cache:` when Redis is selected |
+| `LARK_SQLITE_MAX_OPEN_CONNS` | `4` | SQLite connection pool size. Lower to `2` on low-memory devices (e.g. NAS, Raspberry Pi). |
+| `LARK_SQLITE_MAX_IDLE_CONNS` | `4` | SQLite idle connections kept warm. Should equal `LARK_SQLITE_MAX_OPEN_CONNS`. |
 
 Release builds inject `lark/backend/pkg/version` values with Go `-ldflags`; the Web settings page displays the running version, commit, and build time from `/api/health`.
 
@@ -171,15 +173,36 @@ The default compose file stores app data and uploaded music in the `lark_data` v
 LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d
 ```
 
-SQLite is used by default. To place the SQLite database somewhere else, set `LARK_DB_DSN`:
+SQLite is used by default. Lark applies a tuned DSN automatically — you only need `LARK_DB_DSN` to relocate the file:
 
 ```bash
-LARK_DB_TYPE=sqlite \
-LARK_DB_DSN='file:/app/data/lark.db?cache=shared&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-10000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)' \
-docker compose up -d
+LARK_DB_DSN=/app/data/lark.db docker compose up -d
 ```
 
-For SQLite, a plain path such as `LARK_DB_DSN=/app/data/lark.db` is also accepted; Lark will expand it to the tuned SQLite `file:` DSN above.
+#### Recommended SQLite configuration
+
+Lark's default DSN enables WAL mode, foreign keys, and memory-mapped I/O. The connection pool defaults to 4 connections, which is sufficient for most deployments including 9000+ FLAC libraries. For low-memory devices (Raspberry Pi, NAS with ≤1 GB RAM), reduce the pool:
+
+```bash
+# Low-memory device (e.g. Raspberry Pi, NAS)
+LARK_SQLITE_MAX_OPEN_CONNS=2
+LARK_SQLITE_MAX_IDLE_CONNS=2
+LARK_DB_DSN='file:/app/data/lark.db?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(5000)&_pragma=cache_size(-8000)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(134217728)'
+```
+
+The default DSN (applied when you only set a plain path) uses these pragmas:
+
+| Pragma | Value | Purpose |
+| --- | --- | --- |
+| `foreign_keys` | `1` | Enable referential integrity |
+| `journal_mode` | `WAL` | Concurrent readers + 1 writer; crash-safe |
+| `synchronous` | `NORMAL` | Good durability with WAL; faster than FULL |
+| `busy_timeout` | `5000` | Fail fast on write contention (5 s) |
+| `cache_size` | `-20000` | ~20 MB shared page cache per connection |
+| `temp_store` | `MEMORY` | Temp tables in RAM |
+| `mmap_size` | `268435456` | 256 MB memory-mapped I/O for reads |
+
+If you set a custom `LARK_DB_DSN` with `?` parameters, Lark uses your DSN as-is without adding defaults. This is useful when you need to tune for a specific workload.
 
 To use another database, set both `LARK_DB_TYPE` and `LARK_DB_DSN`:
 
