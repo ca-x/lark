@@ -975,10 +975,27 @@ body, button, input, select { font-family: var(--app-font); }
 .metadata-result-list span { color:var(--text); }
 .metadata-result-list em { grid-column:2; color:var(--muted); font-size:12px; font-style:normal; }
 .metadata-editor-actions {
-  margin-top:12px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  margin-top:0;
   padding-top:12px;
   border-top:1px solid color-mix(in srgb, var(--line) 78%, transparent);
   background:color-mix(in srgb, var(--panel) 94%, transparent);
+}
+.metadata-editor-action-buttons {
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:10px;
+  min-width:max-content;
+}
+.metadata-editor-action-buttons button {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
 }
 .metadata-write-confirm-layer {
   position:absolute;

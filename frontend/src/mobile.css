@@ -174,7 +174,19 @@
   .metadata-editor-grid, .metadata-candidate-list { grid-template-columns:1fr; }
   .metadata-candidate-list { max-height:clamp(112px, 24dvh, 180px); overflow:auto; padding-right:0; }
   .metadata-result-list { max-height:clamp(96px, 22dvh, 160px); overflow:auto; padding-right:0; }
-  .metadata-editor-actions { display:grid; grid-template-columns:1fr; gap:8px; margin-top:10px; padding-top:10px; }
+  .metadata-editor-actions {
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+    margin-top:0;
+    padding-top:10px;
+  }
+  .metadata-editor-action-buttons {
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+    min-width:0;
+  }
   .metadata-editor-actions button { width:100%; justify-content:center; min-height:44px; }
   .metadata-write-confirm-layer {
     place-items:end stretch;

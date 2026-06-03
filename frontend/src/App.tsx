@@ -5395,6 +5395,10 @@ function AuthView({
 
 function useDialogLifecycle<T extends HTMLElement>(onClose: () => void) {
   const dialogRef = useRef<T | null>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = dialogRef.current;
@@ -5406,7 +5410,7 @@ function useDialogLifecycle<T extends HTMLElement>(onClose: () => void) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || !dialog) return;
@@ -5428,7 +5432,7 @@ function useDialogLifecycle<T extends HTMLElement>(onClose: () => void) {
       document.removeEventListener("keydown", onKeyDown);
       previouslyFocused?.focus();
     };
-  }, [onClose]);
+  }, []);
   return dialogRef;
 }
 
@@ -5924,14 +5928,6 @@ function MetadataEditorDialog({
             )}
           </div>
 
-          <label className="metadata-confirm">
-            <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
-            <span>
-              <strong><ShieldCheck /> {t("metadataConfirmTitle")}</strong>
-              <em>{pathAssist && isAlbum ? t("metadataPathAssistConfirmBody") : t("metadataConfirmBody")}</em>
-            </span>
-          </label>
-
           {error ? <div className="metadata-error" role="alert">{error}</div> : null}
           {result ? (
             <div className="metadata-result">
@@ -5953,13 +5949,22 @@ function MetadataEditorDialog({
         </div>
 
         <div className="modal-actions metadata-editor-actions">
-          <button type="button" onClick={onClose} disabled={saving}>
-            {t("close")}
-          </button>
-          <button className="primary" type="submit" disabled={!dirty || !confirmed || saving}>
-            {saving ? <CircleNotch weight="bold" className="offline-cache-spinner" /> : <PencilSimple />}
-            {saving ? t("loading") : t("metadataWriteToFiles")}
-          </button>
+          <label className="metadata-confirm">
+            <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+            <span>
+              <strong><ShieldCheck /> {t("metadataConfirmTitle")}</strong>
+              <em>{pathAssist && isAlbum ? t("metadataPathAssistConfirmBody") : t("metadataConfirmBody")}</em>
+            </span>
+          </label>
+          <div className="metadata-editor-action-buttons">
+            <button type="button" onClick={onClose} disabled={saving}>
+              {t("close")}
+            </button>
+            <button className="primary" type="submit" disabled={!dirty || !confirmed || saving}>
+              {saving ? <CircleNotch weight="bold" className="offline-cache-spinner" /> : <PencilSimple />}
+              {saving ? t("loading") : t("metadataWriteToFiles")}
+            </button>
+          </div>
         </div>
         {finalConfirmOpen ? (
           <div className="metadata-write-confirm-layer" role="presentation" onKeyDown={trapFinalConfirmKeyDown}>
