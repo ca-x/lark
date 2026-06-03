@@ -4153,6 +4153,7 @@ export default function App() {
     soundEffects: t("mobileSoundEffects"),
     queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
     lyrics: t("lyrics"),
+    sleepTimer: t("sleepTimer"),
   };
   const seekStyle = {
     "--played": playedPercent,
@@ -4803,6 +4804,7 @@ export default function App() {
           onFavorite={canFavoriteCurrent ? toggleCurrentFavorite : undefined}
           onSoundEffects={toggleEqualizerPanel}
           onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
+          onSleepTimer={() => setSleepTimerOpen(true)}
           onLyrics={current ? () => {
             setMobilePlayerExpanded(mobileViewport);
             setLyricsFullScreen(true);
@@ -4810,6 +4812,7 @@ export default function App() {
           favoriteActive={Boolean(currentRadio?.favorite || current?.favorite)}
           soundEffectsActive={eqPanelOpen || eqEnabled}
           queueActive={queueOpen}
+          sleepTimerActive={sleepTimerMode !== "off"}
           lyricsActive={lyricsFullScreen || inlineLyrics}
         />
         <PlayerMood
@@ -5699,120 +5702,122 @@ function MetadataEditorDialog({
           </button>
         </div>
 
-        <div className="metadata-editor-cover">
-          <div className="metadata-cover-preview">
-            {previewCover ? <img src={previewCover} alt={t("metadataCoverPreview")} /> : <Record weight="fill" />}
+        <div className="metadata-editor-body">
+          <div className="metadata-editor-cover">
+            <div className="metadata-cover-preview">
+              {previewCover ? <img src={previewCover} alt={t("metadataCoverPreview")} /> : <Record weight="fill" />}
+            </div>
+            <div>
+              <strong>{t("metadataSourceWriteback")}</strong>
+              <span>{isAlbum ? t("metadataAlbumHint") : t("metadataSongHint")}</span>
+            </div>
           </div>
-          <div>
-            <strong>{t("metadataSourceWriteback")}</strong>
-            <span>{isAlbum ? t("metadataAlbumHint") : t("metadataSongHint")}</span>
-          </div>
-        </div>
 
-        <div className="metadata-editor-grid">
-          <label>
-            {isAlbum ? t("metadataAlbumTitle") : t("metadataSongTitle")}
-            <input value={title} maxLength={180} autoFocus onChange={(event) => setTitle(event.target.value)} />
-          </label>
-          {isAlbum ? (
+          <div className="metadata-editor-grid">
             <label>
-              {t("metadataAlbumArtist")}
-              <input value={albumArtist} maxLength={180} onChange={(event) => setAlbumArtist(event.target.value)} />
+              {isAlbum ? t("metadataAlbumTitle") : t("metadataSongTitle")}
+              <input value={title} maxLength={180} onChange={(event) => setTitle(event.target.value)} />
             </label>
-          ) : (
-            <>
+            {isAlbum ? (
               <label>
-                {t("metadataArtist")}
-                <input value={artist} maxLength={180} onChange={(event) => setArtist(event.target.value)} />
+                {t("metadataAlbumArtist")}
+                <input value={albumArtist} maxLength={180} onChange={(event) => setAlbumArtist(event.target.value)} />
               </label>
-              <label>
-                {t("metadataAlbumTitle")}
-                <input value={album} maxLength={180} onChange={(event) => setAlbum(event.target.value)} />
-              </label>
-            </>
-          )}
-          <label>
-            {t("metadataYear")}
-            <input
-              value={year}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={4}
-              onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))}
-            />
-          </label>
-          <label className="metadata-cover-url">
-            {t("metadataCoverURL")}
-            <input value={coverURL} placeholder="https://..." onChange={(event) => setCoverURL(event.target.value)} />
-          </label>
-          <label className="metadata-cover-upload">
-            <span><UploadSimple /> {t("metadataUploadCover")}</span>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
-              onChange={(event) => {
-                const file = event.target.files?.[0] || null;
-                setCoverFile(file);
-                if (file) setCoverURL("");
-              }}
-            />
-          </label>
-        </div>
-
-        <div className="metadata-candidates">
-          <div className="metadata-section-head">
-            <strong>{t("metadataCandidates")}</strong>
-            <span>{candidatesLoading ? t("loading") : `${candidates.length} ${t("candidate")}`}</span>
+            ) : (
+              <>
+                <label>
+                  {t("metadataArtist")}
+                  <input value={artist} maxLength={180} onChange={(event) => setArtist(event.target.value)} />
+                </label>
+                <label>
+                  {t("metadataAlbumTitle")}
+                  <input value={album} maxLength={180} onChange={(event) => setAlbum(event.target.value)} />
+                </label>
+              </>
+            )}
+            <label>
+              {t("metadataYear")}
+              <input
+                value={year}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={4}
+                onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))}
+              />
+            </label>
+            <label className="metadata-cover-url">
+              {t("metadataCoverURL")}
+              <input value={coverURL} placeholder="https://..." onChange={(event) => setCoverURL(event.target.value)} />
+            </label>
+            <label className="metadata-cover-upload">
+              <span><UploadSimple /> {t("metadataUploadCover")}</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/bmp"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  setCoverFile(file);
+                  if (file) setCoverURL("");
+                }}
+              />
+            </label>
           </div>
-          {candidates.length ? (
-            <div className="metadata-candidate-list">
-              {candidates.map((candidate) => (
-                <button
-                  key={`${candidate.source}-${candidate.id}`}
-                  type="button"
-                  onClick={() => applyCandidate(candidate)}
-                >
-                  {candidate.cover ? <img src={candidate.cover} alt="" loading="lazy" /> : <ImageSquare />}
-                  <span>
-                    <strong>{candidate.title}</strong>
-                    <em>{[candidate.artist, candidate.album, candidate.year || candidate.release_date].filter(Boolean).join(" · ")}</em>
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <span className="metadata-empty">{candidatesLoading ? t("loadingContent") : t("metadataNoCandidates")}</span>
-          )}
-        </div>
 
-        <label className="metadata-confirm">
-          <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
-          <span>
-            <strong><ShieldCheck /> {t("metadataConfirmTitle")}</strong>
-            <em>{t("metadataConfirmBody")}</em>
-          </span>
-        </label>
-
-        {error ? <div className="metadata-error" role="alert">{error}</div> : null}
-        {result ? (
-          <div className="metadata-result">
+          <div className="metadata-candidates">
             <div className="metadata-section-head">
-              <strong>{t("metadataWritebackResult")}</strong>
-              <span>{result.updated} / {result.skipped} / {result.failed}</span>
+              <strong>{t("metadataCandidates")}</strong>
+              <span>{candidatesLoading ? t("loading") : `${candidates.length} ${t("candidate")}`}</span>
             </div>
-            <div className="metadata-result-list">
-              {result.items.map((item, index) => (
-                <div key={`${item.path}-${index}`} data-status={item.status}>
-                  <strong>{metadataStatusLabel(item.status, t)}</strong>
-                  <span title={item.path}>{item.title || item.path}</span>
-                  {item.message ? <em>{item.message}</em> : null}
-                </div>
-              ))}
-            </div>
+            {candidates.length ? (
+              <div className="metadata-candidate-list">
+                {candidates.map((candidate) => (
+                  <button
+                    key={`${candidate.source}-${candidate.id}`}
+                    type="button"
+                    onClick={() => applyCandidate(candidate)}
+                  >
+                    {candidate.cover ? <img src={candidate.cover} alt="" loading="lazy" /> : <ImageSquare />}
+                    <span>
+                      <strong>{candidate.title}</strong>
+                      <em>{[candidate.artist, candidate.album, candidate.year || candidate.release_date].filter(Boolean).join(" · ")}</em>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="metadata-empty">{candidatesLoading ? t("loadingContent") : t("metadataNoCandidates")}</span>
+            )}
           </div>
-        ) : null}
 
-        <div className="modal-actions">
+          <label className="metadata-confirm">
+            <input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />
+            <span>
+              <strong><ShieldCheck /> {t("metadataConfirmTitle")}</strong>
+              <em>{t("metadataConfirmBody")}</em>
+            </span>
+          </label>
+
+          {error ? <div className="metadata-error" role="alert">{error}</div> : null}
+          {result ? (
+            <div className="metadata-result">
+              <div className="metadata-section-head">
+                <strong>{t("metadataWritebackResult")}</strong>
+                <span>{result.updated} / {result.skipped} / {result.failed}</span>
+              </div>
+              <div className="metadata-result-list">
+                {result.items.map((item, index) => (
+                  <div key={`${item.path}-${index}`} data-status={item.status}>
+                    <strong>{metadataStatusLabel(item.status, t)}</strong>
+                    <span title={item.path}>{item.title || item.path}</span>
+                    {item.message ? <em>{item.message}</em> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="modal-actions metadata-editor-actions">
           <button type="button" onClick={onClose} disabled={saving}>
             {t("close")}
           </button>
@@ -8561,105 +8566,107 @@ function SleepTimerDialog({
           </button>
         </div>
 
-        <section className="sleep-timer-section">
-          <div>
-            <strong>{t("sleepByDuration")}</strong>
-            <span>{t("sleepByDurationHint")}</span>
-          </div>
-          <div className="sleep-option-grid" role="group" aria-label={t("sleepByDuration")}>
-            {SLEEP_DURATION_PRESETS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={mode === "time" && minutes === value ? "sleep-option selected" : "sleep-option"}
-                aria-pressed={mode === "time" && minutes === value}
-                onClick={() => onSetTime(value)}
-              >
-                {mode === "time" && minutes === value ? <CheckCircle weight="fill" /> : <Timer />}
-                <span>{formatSleepMinutesLabel(value, t)}</span>
-              </button>
-            ))}
-          </div>
-          <form
-            className="sleep-custom-row"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (canApplyMinutes) onSetTime(customMinutesValue);
-            }}
-          >
-            <label htmlFor="sleep-custom-minutes">{t("sleepCustomMinutes")}</label>
-            <input
-              id="sleep-custom-minutes"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max="1440"
-              value={customMinutes}
-              onChange={(event) => setCustomMinutes(event.target.value)}
-            />
-            <button type="submit" disabled={!canApplyMinutes}>{t("apply")}</button>
-          </form>
-        </section>
+        <div className="sleep-timer-groups">
+          <section className="sleep-timer-section">
+            <div>
+              <strong>{t("sleepByDuration")}</strong>
+              <span>{t("sleepByDurationHint")}</span>
+            </div>
+            <div className="sleep-option-grid" role="group" aria-label={t("sleepByDuration")}>
+              {SLEEP_DURATION_PRESETS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={mode === "time" && minutes === value ? "sleep-option selected" : "sleep-option"}
+                  aria-pressed={mode === "time" && minutes === value}
+                  onClick={() => onSetTime(value)}
+                >
+                  {mode === "time" && minutes === value ? <CheckCircle weight="fill" /> : <Timer />}
+                  <span>{formatSleepMinutesLabel(value, t)}</span>
+                </button>
+              ))}
+            </div>
+            <form
+              className="sleep-custom-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (canApplyMinutes) onSetTime(customMinutesValue);
+              }}
+            >
+              <label htmlFor="sleep-custom-minutes">{t("sleepCustomMinutes")}</label>
+              <input
+                id="sleep-custom-minutes"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max="1440"
+                value={customMinutes}
+                onChange={(event) => setCustomMinutes(event.target.value)}
+              />
+              <button type="submit" disabled={!canApplyMinutes}>{t("apply")}</button>
+            </form>
+          </section>
 
-        <section className="sleep-timer-section">
-          <div>
-            <strong>{t("sleepBySongs")}</strong>
-            <span>{canUseSongTimer ? t("sleepBySongsHint") : t("sleepSongsUnavailable")}</span>
-          </div>
-          <div className="sleep-option-grid" role="group" aria-label={t("sleepBySongs")}>
-            {SLEEP_SONG_PRESETS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={mode === "songs" && songsLeft === value ? "sleep-option selected" : "sleep-option"}
-                aria-pressed={mode === "songs" && songsLeft === value}
+          <section className="sleep-timer-section">
+            <div>
+              <strong>{t("sleepBySongs")}</strong>
+              <span>{canUseSongTimer ? t("sleepBySongsHint") : t("sleepSongsUnavailable")}</span>
+            </div>
+            <div className="sleep-option-grid sleep-song-grid" role="group" aria-label={t("sleepBySongs")}>
+              {SLEEP_SONG_PRESETS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={mode === "songs" && songsLeft === value ? "sleep-option selected" : "sleep-option"}
+                  aria-pressed={mode === "songs" && songsLeft === value}
+                  disabled={!canUseSongTimer}
+                  onClick={() => onSetSongs(value)}
+                >
+                  {mode === "songs" && songsLeft === value ? <CheckCircle weight="fill" /> : <MusicNotes />}
+                  <span>{formatSleepSongsLabel(value, t)}</span>
+                </button>
+              ))}
+            </div>
+            <form
+              className="sleep-custom-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (canUseSongTimer && canApplySongs) onSetSongs(customSongsValue);
+              }}
+            >
+              <label htmlFor="sleep-custom-songs">{t("sleepCustomSongs")}</label>
+              <input
+                id="sleep-custom-songs"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max="99"
+                value={customSongs}
                 disabled={!canUseSongTimer}
-                onClick={() => onSetSongs(value)}
-              >
-                {mode === "songs" && songsLeft === value ? <CheckCircle weight="fill" /> : <MusicNotes />}
-                <span>{formatSleepSongsLabel(value, t)}</span>
-              </button>
-            ))}
-          </div>
-          <form
-            className="sleep-custom-row"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (canUseSongTimer && canApplySongs) onSetSongs(customSongsValue);
-            }}
-          >
-            <label htmlFor="sleep-custom-songs">{t("sleepCustomSongs")}</label>
-            <input
-              id="sleep-custom-songs"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max="99"
-              value={customSongs}
-              disabled={!canUseSongTimer}
-              onChange={(event) => setCustomSongs(event.target.value)}
-            />
-            <button type="submit" disabled={!canUseSongTimer || !canApplySongs}>{t("apply")}</button>
-          </form>
-        </section>
+                onChange={(event) => setCustomSongs(event.target.value)}
+              />
+              <button type="submit" disabled={!canUseSongTimer || !canApplySongs}>{t("apply")}</button>
+            </form>
+          </section>
 
-        <section className="sleep-timer-section">
-          <div>
-            <strong>{t("sleepByAlbum")}</strong>
-            <span>{canUseAlbumTimer ? t("sleepByAlbumHint") : t("sleepAlbumUnavailable")}</span>
-          </div>
-          <button
-            type="button"
-            className={mode === "album" ? "sleep-option sleep-album-option selected" : "sleep-option sleep-album-option"}
-            aria-pressed={mode === "album"}
-            disabled={!canUseAlbumTimer}
-            onClick={onSetAlbum}
-          >
-            {mode === "album" ? <CheckCircle weight="fill" /> : <Disc />}
-            <span>{t("sleepAfterCurrentAlbum")}</span>
-            <small>{albumTitle || t("album")}</small>
-          </button>
-        </section>
+          <section className="sleep-timer-section sleep-album-section">
+            <div>
+              <strong>{t("sleepByAlbum")}</strong>
+              <span>{canUseAlbumTimer ? t("sleepByAlbumHint") : t("sleepAlbumUnavailable")}</span>
+            </div>
+            <button
+              type="button"
+              className={mode === "album" ? "sleep-option sleep-album-option selected" : "sleep-option sleep-album-option"}
+              aria-pressed={mode === "album"}
+              disabled={!canUseAlbumTimer}
+              onClick={onSetAlbum}
+            >
+              {mode === "album" ? <CheckCircle weight="fill" /> : <Disc />}
+              <span>{t("sleepAfterCurrentAlbum")}</span>
+              <small>{albumTitle || t("album")}</small>
+            </button>
+          </section>
+        </div>
       </div>
     </div>
   );

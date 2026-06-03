@@ -5,6 +5,36 @@
 
 ---
 
+## 0.7.29 — 移动端弹窗体验修复
+
+发布日期 / Released: 2026-06-03
+
+### 修复
+
+- **修复歌词页元信息编辑弹窗移动端闪烁。** 编辑器改为头部、内容滚动区、底部操作三段式布局，并取消打开时自动聚焦输入框，避免软键盘触发布局反复重算。
+- **修复元信息编辑底部操作不可达。** 候选和结果列表在移动端不再嵌套抢滚动，确认与写入按钮固定在弹窗底部区域。
+- **优化定时关闭弹窗适配。** 桌面端改为紧凑双列布局，移动端改为底部 sheet，内容区单独滚动并保留安全区。
+- **补齐移动播放器定时入口。** 移动端自定义播放器操作区新增定时关闭按钮，和桌面控制栏共享同一套定时状态。
+
+完整 diff：`git log v0.7.28..v0.7.29`
+
+---
+
+## v0.7.29 — Mobile dialog UX fixes
+
+Released: 2026-06-03
+
+### Fixes
+
+- **Fixed metadata editor flicker on mobile lyrics view.** The editor now uses fixed header, scrollable body, and fixed action rows, and no longer auto-focuses the title field on open.
+- **Fixed unreachable metadata editor actions.** Candidate and result lists no longer compete for nested scrolling on mobile, keeping confirmation and writeback actions reachable.
+- **Improved sleep timer dialog responsiveness.** Desktop now uses a compact two-column layout, while mobile uses a safe-area-aware bottom sheet with a dedicated scroll body.
+- **Added the sleep timer entry to mobile player themes.** The custom mobile player action row now exposes the same sleep timer state as the desktop control bar.
+
+Full diff: `git log v0.7.28..v0.7.29`
+
+---
+
 ## 0.7.27 — 源文件元信息回写编辑器
 
 发布日期 / Released: 2026-06-03

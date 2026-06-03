@@ -24,10 +24,12 @@ export function MobilePlayerDock({
   onFavorite,
   onSoundEffects,
   onQueue,
+  onSleepTimer,
   onLyrics,
   favoriteActive,
   soundEffectsActive,
   queueActive,
+  sleepTimerActive,
   lyricsActive,
 }: {
   theme: MobileHomePlayerStyle;
@@ -52,10 +54,12 @@ export function MobilePlayerDock({
   onFavorite?: () => void;
   onSoundEffects?: () => void;
   onQueue?: () => void;
+  onSleepTimer?: () => void;
   onLyrics?: () => void;
   favoriteActive?: boolean;
   soundEffectsActive?: boolean;
   queueActive?: boolean;
+  sleepTimerActive?: boolean;
   lyricsActive?: boolean;
 }) {
   return (
@@ -82,10 +86,12 @@ export function MobilePlayerDock({
       onFavorite={onFavorite}
       onSoundEffects={onSoundEffects}
       onQueue={onQueue}
+      onSleepTimer={onSleepTimer}
       onLyrics={onLyrics}
       favoriteActive={favoriteActive}
       soundEffectsActive={soundEffectsActive}
       queueActive={queueActive}
+      sleepTimerActive={sleepTimerActive}
       lyricsActive={lyricsActive}
     />
   );

@@ -14,6 +14,7 @@ import {
   SkipForward,
   SpeakerSimpleHigh,
   SpeakerSimpleX,
+  Timer,
   Waveform,
 } from "@phosphor-icons/react";
 
@@ -37,6 +38,7 @@ const DEFAULT_LABELS = {
   favorite: "Favorite",
   soundEffects: "Sound effects",
   queue: "Queue",
+  sleepTimer: "Sleep timer",
   lyrics: "Lyrics",
 };
 
@@ -72,10 +74,12 @@ export function MobileArtPlayer({
   onFavorite,
   onSoundEffects,
   onQueue,
+  onSleepTimer,
   onLyrics,
   favoriteActive = false,
   soundEffectsActive = false,
   queueActive = false,
+  sleepTimerActive = false,
   lyricsActive = false,
 }: {
   variant: MobileArtPlayerVariant;
@@ -100,10 +104,12 @@ export function MobileArtPlayer({
   onFavorite?: () => void;
   onSoundEffects?: () => void;
   onQueue?: () => void;
+  onSleepTimer?: () => void;
   onLyrics?: () => void;
   favoriteActive?: boolean;
   soundEffectsActive?: boolean;
   queueActive?: boolean;
+  sleepTimerActive?: boolean;
   lyricsActive?: boolean;
 }) {
   const text = { ...DEFAULT_LABELS, ...labels };
@@ -192,6 +198,9 @@ export function MobileArtPlayer({
           </button>
           <button type="button" className={soundEffectsActive ? "active" : ""} aria-label={text.soundEffects} aria-pressed={soundEffectsActive} disabled={!onSoundEffects} onClick={onSoundEffects}>
             <MusicNotes weight={soundEffectsActive ? "fill" : "regular"} />
+          </button>
+          <button type="button" className={sleepTimerActive ? "active" : ""} aria-label={text.sleepTimer} aria-pressed={sleepTimerActive} disabled={!onSleepTimer} onClick={onSleepTimer}>
+            <Timer weight={sleepTimerActive ? "fill" : "regular"} />
           </button>
           <button type="button" className={lyricsActive ? "active" : ""} aria-label={text.lyrics} aria-pressed={lyricsActive} disabled={!onLyrics} onClick={onLyrics}>
             <ChatText weight={lyricsActive ? "fill" : "regular"} />

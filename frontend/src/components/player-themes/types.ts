@@ -18,5 +18,6 @@ export type MobileArtPlayerLabels = Partial<{
   favorite: string;
   soundEffects: string;
   queue: string;
+  sleepTimer: string;
   lyrics: string;
 }>;

@@ -916,7 +916,25 @@ body, button, input, select { font-family: var(--app-font); }
 .playlist-picker-list button.active, .playlist-picker-list button:hover { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
 .playlist-picker-list strong, .playlist-picker-list span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .playlist-picker-list span { color:var(--muted); font-size:13px; }
-.metadata-editor { width:min(760px, 100%); gap:18px; }
+.metadata-editor {
+  width:min(760px, 100%);
+  max-height:min(86dvh, 720px);
+  display:grid;
+  grid-template-rows:auto minmax(0, 1fr) auto;
+  gap:0;
+  overflow:hidden;
+}
+.metadata-editor .modal-card-head { padding-bottom:14px; }
+.metadata-editor-body {
+  min-height:0;
+  display:grid;
+  gap:14px;
+  overflow:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding-right:2px;
+}
+.metadata-editor-body > * { min-width:0; }
 .metadata-editor-cover { display:grid; grid-template-columns:96px minmax(0,1fr); gap:14px; align-items:center; padding:12px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); }
 .metadata-cover-preview { width:96px; aspect-ratio:1; display:grid; place-items:center; overflow:hidden; border-radius:14px; color:var(--muted); background:color-mix(in srgb, var(--panel) 86%, #000); border:1px solid color-mix(in srgb, var(--text) 12%, transparent); }
 .metadata-cover-preview img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -933,7 +951,7 @@ body, button, input, select { font-family: var(--app-font); }
 .metadata-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; }
 .metadata-section-head strong { color:var(--text); }
 .metadata-section-head span { color:var(--muted); font-size:12px; font-weight:850; white-space:nowrap; }
-.metadata-candidate-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px,1fr)); gap:8px; max-height:min(28dvh, 230px); overflow:auto; padding-right:2px; }
+.metadata-candidate-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px,1fr)); gap:8px; max-height:min(20dvh, 160px); overflow:auto; padding-right:2px; }
 .metadata-candidate-list button { min-width:0; display:grid; grid-template-columns:44px minmax(0,1fr); gap:10px; align-items:center; min-height:62px; padding:8px; border-radius:14px; border:1px solid var(--line); color:var(--text); background:var(--panel2); text-align:left; }
 .metadata-candidate-list button:hover, .metadata-candidate-list button:focus-visible { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
 .metadata-candidate-list img, .metadata-candidate-list > button > svg { width:44px; height:44px; border-radius:10px; object-fit:cover; color:var(--muted); background:var(--panel); }
@@ -946,7 +964,7 @@ body, button, input, select { font-family: var(--app-font); }
 .metadata-confirm strong { display:flex; align-items:center; gap:8px; color:var(--text); }
 .metadata-confirm em { display:block; margin-top:4px; color:var(--muted); font-size:13px; line-height:1.45; font-style:normal; }
 .metadata-error { padding:10px 12px; border-radius:14px; color:#f1d5d5; background:color-mix(in srgb, #b42318 30%, var(--panel2)); border:1px solid color-mix(in srgb, #f04438 38%, var(--line)); }
-.metadata-result-list { display:grid; gap:8px; max-height:min(24dvh, 210px); overflow:auto; padding-right:2px; }
+.metadata-result-list { display:grid; gap:8px; max-height:min(20dvh, 180px); overflow:auto; padding-right:2px; }
 .metadata-result-list div { min-width:0; display:grid; grid-template-columns:72px minmax(0,1fr); gap:8px 10px; align-items:center; padding:10px 12px; border-radius:14px; border:1px solid var(--line); background:var(--panel2); }
 .metadata-result-list div[data-status='updated'] strong { color:#31a66a; }
 .metadata-result-list div[data-status='skipped'] strong { color:#b8872d; }
@@ -954,6 +972,12 @@ body, button, input, select { font-family: var(--app-font); }
 .metadata-result-list span, .metadata-result-list em { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .metadata-result-list span { color:var(--text); }
 .metadata-result-list em { grid-column:2; color:var(--muted); font-size:12px; font-style:normal; }
+.metadata-editor-actions {
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  background:color-mix(in srgb, var(--panel) 94%, transparent);
+}
 
 /* v0.2.1 smooth management grids and compact timer control */
 .sleep-control svg { transition:opacity .18s var(--ease), transform .18s var(--ease); }
@@ -962,7 +986,14 @@ body, button, input, select { font-family: var(--app-font); }
 .sleep-control.active::after { display:none !important; }
 [data-theme='carbon-volt'] .sleep-control .sleep-countdown { color:#b8f0c8; }
 
-.sleep-timer-dialog { width:min(580px, calc(100vw - 36px)); overflow-x:hidden; }
+.sleep-timer-dialog {
+  width:min(720px, calc(100vw - 36px));
+  max-height:min(86dvh, 720px);
+  display:grid;
+  grid-template-rows:auto auto minmax(0, 1fr);
+  gap:14px;
+  overflow:hidden;
+}
 .sleep-timer-status { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:12px; min-height:58px; padding:12px 14px; border:1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-radius:18px; background:color-mix(in srgb, var(--panel2) 82%, transparent); }
 .sleep-timer-status > svg { width:24px; height:24px; color:var(--accent); }
 .sleep-timer-status strong, .sleep-timer-status span { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -970,11 +1001,31 @@ body, button, input, select { font-family: var(--app-font); }
 .sleep-timer-status span { margin-top:2px; color:var(--muted); font-size:12px; }
 .sleep-timer-status button { min-height:38px; padding:7px 12px; border-radius:999px; color:var(--text); background:var(--panel); border:1px solid var(--line); }
 .sleep-timer-status button:disabled { opacity:.45; cursor:not-allowed; }
-.sleep-timer-section { display:grid; gap:10px; padding-top:14px; border-top:1px solid color-mix(in srgb, var(--line) 72%, transparent); }
+.sleep-timer-groups {
+  min-height:0;
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+  overflow:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding-right:2px;
+}
+.sleep-timer-section {
+  min-width:0;
+  display:grid;
+  gap:10px;
+  align-content:start;
+  padding:12px;
+  border:1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius:16px;
+  background:color-mix(in srgb, var(--panel2) 76%, transparent);
+}
 .sleep-timer-section > div:first-child { display:grid; gap:3px; }
 .sleep-timer-section > div:first-child strong { color:var(--text); font-size:14px; font-weight:850; }
 .sleep-timer-section > div:first-child span { color:var(--muted); font-size:12px; line-height:1.45; }
 .sleep-option-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+.sleep-song-grid { grid-template-columns:repeat(3, minmax(0, 1fr)); }
 .sleep-option { min-width:0; min-height:48px; display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:9px; padding:10px 12px; border-radius:14px; text-align:left; color:var(--text); background:color-mix(in srgb, var(--panel2) 88%, transparent); border:1px solid var(--line); }
 .sleep-option svg { width:19px; height:19px; color:var(--accent); }
 .sleep-option span, .sleep-option small { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -982,6 +1033,7 @@ body, button, input, select { font-family: var(--app-font); }
 .sleep-option small { grid-column:2; color:var(--muted); font-size:12px; font-weight:500; }
 .sleep-option:hover, .sleep-option.selected { border-color:color-mix(in srgb, var(--accent) 58%, var(--line)); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
 .sleep-option:disabled { opacity:.45; cursor:not-allowed; }
+.sleep-album-section { grid-column:1 / -1; grid-template-columns:minmax(0, 1fr) minmax(220px, .9fr); align-items:center; }
 .sleep-album-option { width:100%; grid-template-columns:auto minmax(0,1fr); }
 .sleep-custom-row { display:grid; grid-template-columns:minmax(0,1fr) 96px auto; align-items:end; gap:8px; }
 .sleep-custom-row label { min-width:0; color:var(--muted); font-size:12px; font-weight:850; }
