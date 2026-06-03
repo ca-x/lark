@@ -97,6 +97,53 @@ func TestMetadataWritebackFileGroupsDeduplicateCUETracks(t *testing.T) {
 	}
 }
 
+func TestMetadataPathCandidateFromSongUsesFilenameAndFolder(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "周杰伦", "叶惠美", "01 - 周杰伦 - 晴天.flac")
+	item := &ent.Song{ID: 42, Path: path}
+	candidate, ok := metadataPathCandidateFromSong(item, root)
+	if !ok {
+		t.Fatal("expected path metadata candidate")
+	}
+	if candidate.Source != metadataPathCandidateSource {
+		t.Fatalf("source = %q, want %q", candidate.Source, metadataPathCandidateSource)
+	}
+	if candidate.Title != "晴天" || candidate.Artist != "周杰伦" || candidate.Album != "叶惠美" {
+		t.Fatalf("candidate = %#v, want title/artist/album from path", candidate)
+	}
+}
+
+func TestMetadataPathCandidateFromAlbumInfersMultidiscFolder(t *testing.T) {
+	root := t.TempDir()
+	item := &ent.Album{ID: 7}
+	item.Edges.Songs = []*ent.Song{
+		{ID: 1, Path: filepath.Join(root, "周杰伦", "范特西", "CD1", "01 - 爱在西元前.flac")},
+		{ID: 2, Path: filepath.Join(root, "周杰伦", "范特西", "CD2", "02 - 简单爱.flac")},
+	}
+	candidate, ok := metadataPathCandidateFromAlbum(item, root)
+	if !ok {
+		t.Fatal("expected album path metadata candidate")
+	}
+	if candidate.Title != "范特西" || candidate.Artist != "周杰伦" {
+		t.Fatalf("candidate = %#v, want album and artist from folder path", candidate)
+	}
+}
+
+func TestParseFilenameMetadataTreatsTrackNumberTitleAsTitleOnly(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "周杰伦", "范特西", "01 - 爱在西元前.flac")
+	parsed := parseFilenameMetadata(path, root)
+	if parsed.Title != "爱在西元前" {
+		t.Fatalf("title = %q, want 爱在西元前", parsed.Title)
+	}
+	if parsed.Artist != "" {
+		t.Fatalf("artist = %q, want empty artist for track-number title filename", parsed.Artist)
+	}
+	if parsed.Album != "范特西" {
+		t.Fatalf("album = %q, want 范特西", parsed.Album)
+	}
+}
+
 func copyTaglibTestdata(t *testing.T, name string) string {
 	t.Helper()
 	src := filepath.Join(taglibTestdataDir(t), name)

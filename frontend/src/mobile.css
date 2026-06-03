@@ -180,6 +180,27 @@
   }
   .metadata-editor-actions { display:grid; grid-template-columns:1fr; gap:8px; margin-top:10px; padding-top:10px; }
   .metadata-editor-actions button { width:100%; justify-content:center; min-height:44px; }
+  .metadata-write-confirm-layer {
+    place-items:end stretch;
+    padding:10px;
+  }
+  .metadata-write-confirm-scrim { border-radius:22px; }
+  .metadata-write-confirm-dialog {
+    width:100%;
+    gap:12px;
+    padding:14px;
+    border-radius:18px;
+  }
+  .metadata-write-confirm-actions {
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+  .metadata-write-confirm-actions button {
+    width:100%;
+    min-height:44px;
+    justify-content:center;
+  }
   body[data-mcp-help-open='true'] .player,
   body[data-mcp-help-open='true'] .sidebar,
   body[data-mcp-help-open='true'] .pagination-controls { display:none; }

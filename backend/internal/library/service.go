@@ -2064,6 +2064,8 @@ func parseFilenameMetadata(path, libraryRoot string) filenameMetadata {
 	case len(parts) >= 3 && looksLikeTrackNumber(parts[0]):
 		out.Artist = parts[1]
 		out.Title = strings.Join(parts[2:], " - ")
+	case len(parts) >= 2 && looksLikeTrackNumber(parts[0]):
+		out.Title = strings.Join(parts[1:], " - ")
 	case len(parts) >= 2 && spacedSeparator:
 		out.Artist = parts[0]
 		out.Title = strings.Join(parts[1:], " - ")

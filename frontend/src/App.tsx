@@ -1,4 +1,4 @@
-import type { ChangeEvent, FormEvent, ReactNode, UIEvent } from "react";
+import type { ChangeEvent, FormEvent, ReactNode, UIEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowClockwise,
@@ -5365,7 +5365,7 @@ function useDialogLifecycle<T extends HTMLElement>(onClose: () => void) {
     const dialog = dialogRef.current;
     const focusSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
     const focusFirst = () => {
-      const target = dialog?.querySelector<HTMLElement>("[autofocus]") ?? dialog?.querySelector<HTMLElement>(focusSelector);
+      const target = dialog?.querySelector<HTMLElement>("[data-autofocus], [autofocus]") ?? dialog?.querySelector<HTMLElement>(focusSelector);
       target?.focus();
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -5561,15 +5561,21 @@ function MetadataEditorDialog({
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [finalConfirmOpen, setFinalConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<MetadataWritebackResult | null>(null);
   const [candidates, setCandidates] = useState<MetadataCandidate[]>([]);
   const [candidatesLoading, setCandidatesLoading] = useState(false);
   const dialogRef = useDialogLifecycle<HTMLFormElement>(onClose);
+  const finalConfirmCancelRef = useRef<HTMLButtonElement | null>(null);
   const currentCover = isAlbum ? albumCoverUrl(target.album) : coverUrl(target.song);
   const previewCover = coverPreview || coverURL.trim() || currentCover;
   const estimatedFiles = metadataTargetFileCount(target);
+  const finalTargetTitle = title.trim() || (isAlbum ? target.album.title : target.song.title);
+  const finalConfirmMessage = t("metadataFinalConfirm")
+    .replace("{count}", String(estimatedFiles))
+    .replace("{target}", finalTargetTitle);
   const dirty =
     title.trim() !== initial.title ||
     artist.trim() !== initial.artist ||
@@ -5588,9 +5594,16 @@ function MetadataEditorDialog({
     setCoverURL("");
     setCoverFile(null);
     setConfirmed(false);
+    setFinalConfirmOpen(false);
     setError("");
     setResult(null);
   }, [initial]);
+
+  useEffect(() => {
+    if (!finalConfirmOpen) return;
+    const frame = window.requestAnimationFrame(() => finalConfirmCancelRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [finalConfirmOpen]);
 
   useEffect(() => {
     if (!coverFile) {
@@ -5642,18 +5655,10 @@ function MetadataEditorDialog({
     }
   };
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const writeMetadata = async () => {
     setError("");
     if (!dirty || saving) return;
-    if (!confirmed) {
-      setError(t("metadataConfirmRequired"));
-      return;
-    }
-    const finalMessage = t("metadataFinalConfirm")
-      .replace("{count}", String(estimatedFiles))
-      .replace("{target}", isAlbum ? target.album.title : target.song.title);
-    if (!window.confirm(finalMessage)) return;
+    setFinalConfirmOpen(false);
     const body = new FormData();
     body.set("title", title.trim());
     if (isAlbum) {
@@ -5678,6 +5683,38 @@ function MetadataEditorDialog({
       setError(readableErrorMessage(err, t("metadataWritebackFailed")));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    if (!dirty || saving) return;
+    if (!confirmed) {
+      setError(t("metadataConfirmRequired"));
+      return;
+    }
+    setFinalConfirmOpen(true);
+  };
+
+  const trapFinalConfirmKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setFinalConfirmOpen(false);
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
     }
   };
 
@@ -5716,22 +5753,47 @@ function MetadataEditorDialog({
           <div className="metadata-editor-grid">
             <label>
               {isAlbum ? t("metadataAlbumTitle") : t("metadataSongTitle")}
-              <input value={title} maxLength={180} onChange={(event) => setTitle(event.target.value)} />
+              <input
+                data-autofocus
+                type="text"
+                value={title}
+                maxLength={180}
+                autoComplete="off"
+                onChange={(event) => setTitle(event.target.value)}
+              />
             </label>
             {isAlbum ? (
               <label>
                 {t("metadataAlbumArtist")}
-                <input value={albumArtist} maxLength={180} onChange={(event) => setAlbumArtist(event.target.value)} />
+                <input
+                  type="text"
+                  value={albumArtist}
+                  maxLength={180}
+                  autoComplete="off"
+                  onChange={(event) => setAlbumArtist(event.target.value)}
+                />
               </label>
             ) : (
               <>
                 <label>
                   {t("metadataArtist")}
-                  <input value={artist} maxLength={180} onChange={(event) => setArtist(event.target.value)} />
+                  <input
+                    type="text"
+                    value={artist}
+                    maxLength={180}
+                    autoComplete="off"
+                    onChange={(event) => setArtist(event.target.value)}
+                  />
                 </label>
                 <label>
                   {t("metadataAlbumTitle")}
-                  <input value={album} maxLength={180} onChange={(event) => setAlbum(event.target.value)} />
+                  <input
+                    type="text"
+                    value={album}
+                    maxLength={180}
+                    autoComplete="off"
+                    onChange={(event) => setAlbum(event.target.value)}
+                  />
                 </label>
               </>
             )}
@@ -5739,15 +5801,23 @@ function MetadataEditorDialog({
               {t("metadataYear")}
               <input
                 value={year}
+                type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
                 maxLength={4}
+                autoComplete="off"
                 onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))}
               />
             </label>
             <label className="metadata-cover-url">
               {t("metadataCoverURL")}
-              <input value={coverURL} placeholder="https://..." onChange={(event) => setCoverURL(event.target.value)} />
+              <input
+                type="url"
+                value={coverURL}
+                placeholder="https://..."
+                autoComplete="off"
+                onChange={(event) => setCoverURL(event.target.value)}
+              />
             </label>
             <label className="metadata-cover-upload">
               <span><UploadSimple /> {t("metadataUploadCover")}</span>
@@ -5776,10 +5846,18 @@ function MetadataEditorDialog({
                     type="button"
                     onClick={() => applyCandidate(candidate)}
                   >
-                    {candidate.cover ? <img src={candidate.cover} alt="" loading="lazy" /> : <ImageSquare />}
+                    {candidate.source === "path"
+                      ? <FolderSimple />
+                      : candidate.cover
+                        ? <img src={candidate.cover} alt="" loading="lazy" />
+                        : <ImageSquare />}
                     <span>
-                      <strong>{candidate.title}</strong>
-                      <em>{[candidate.artist, candidate.album, candidate.year || candidate.release_date].filter(Boolean).join(" · ")}</em>
+                      <strong>{candidate.source === "path" ? t("metadataPathCandidate") : candidate.title}</strong>
+                      <em>
+                        {candidate.source === "path"
+                          ? [candidate.title, candidate.artist, candidate.album].filter(Boolean).join(" · ") || t("metadataPathCandidateHint")
+                          : [candidate.artist, candidate.album, candidate.year || candidate.release_date].filter(Boolean).join(" · ")}
+                      </em>
                     </span>
                   </button>
                 ))}
@@ -5826,6 +5904,41 @@ function MetadataEditorDialog({
             {saving ? t("loading") : t("metadataWriteToFiles")}
           </button>
         </div>
+        {finalConfirmOpen ? (
+          <div className="metadata-write-confirm-layer" role="presentation" onKeyDown={trapFinalConfirmKeyDown}>
+            <button
+              className="metadata-write-confirm-scrim"
+              type="button"
+              aria-label={t("cancel")}
+              onClick={() => setFinalConfirmOpen(false)}
+            />
+            <div
+              className="metadata-write-confirm-dialog"
+              role="alertdialog"
+              aria-labelledby="metadata-write-confirm-title"
+              aria-describedby="metadata-write-confirm-body"
+            >
+              <div>
+                <strong id="metadata-write-confirm-title"><WarningCircle /> {t("metadataFinalConfirmTitle")}</strong>
+                <p id="metadata-write-confirm-body">{finalConfirmMessage}</p>
+              </div>
+              <div className="metadata-write-confirm-actions">
+                <button
+                  ref={finalConfirmCancelRef}
+                  type="button"
+                  onClick={() => setFinalConfirmOpen(false)}
+                  disabled={saving}
+                >
+                  {t("cancel")}
+                </button>
+                <button className="primary" type="button" onClick={() => void writeMetadata()} disabled={saving}>
+                  {saving ? <CircleNotch weight="bold" className="offline-cache-spinner" /> : <ShieldCheck />}
+                  {saving ? t("loading") : t("metadataFinalConfirmAction")}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </form>
     </div>
   );

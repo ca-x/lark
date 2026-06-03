@@ -25,6 +25,7 @@ import (
 )
 
 const metadataCoverMaxBytes = 8 << 20
+const metadataPathCandidateSource = "path"
 
 type MetadataWritebackInput struct {
 	Title            string
@@ -54,7 +55,11 @@ func (s *Service) SongMetadataCandidates(ctx context.Context, id int) ([]models.
 	if item.Edges.Artist != nil {
 		artistName = strings.TrimSpace(item.Edges.Artist.Name)
 	}
+	pathCandidate, hasPathCandidate := metadataPathCandidateFromSong(item, s.libraryDir)
 	if title == "" {
+		if hasPathCandidate {
+			return []models.MetadataCandidate{pathCandidate}, nil
+		}
 		return nil, nil
 	}
 	searchCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
@@ -117,11 +122,20 @@ func (s *Service) SongMetadataCandidates(ctx context.Context, id int) ([]models.
 	if len(out) > 12 {
 		out = out[:12]
 	}
+	if hasPathCandidate {
+		out = append([]models.MetadataCandidate{pathCandidate}, out...)
+	}
 	return out, nil
 }
 
 func (s *Service) AlbumMetadataCandidates(ctx context.Context, id int) ([]models.MetadataCandidate, error) {
-	item, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().Only(ctx)
+	item, err := s.client.Album.Query().
+		Where(album.ID(id)).
+		WithArtist().
+		WithSongs(func(q *ent.SongQuery) {
+			q.Order(ent.Asc(song.FieldID))
+		}).
+		Only(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +152,9 @@ func (s *Service) AlbumMetadataCandidates(ctx context.Context, id int) ([]models
 			ReleaseDate: strings.TrimSpace(candidate.ReleaseDate),
 			Link:        strings.TrimSpace(candidate.Link),
 		})
+	}
+	if candidate, ok := metadataPathCandidateFromAlbum(item, s.libraryDir); ok {
+		out = append([]models.MetadataCandidate{candidate}, out...)
 	}
 	return out, nil
 }
@@ -402,6 +419,141 @@ func metadataCandidateScore(candidate models.MetadataCandidate, title, artistNam
 		score++
 	}
 	return score
+}
+
+func metadataPathCandidateFromSong(item *ent.Song, libraryRoot string) (models.MetadataCandidate, bool) {
+	if item == nil || strings.TrimSpace(item.Path) == "" {
+		return models.MetadataCandidate{}, false
+	}
+	parsed := parseFilenameMetadata(ActualAudioPath(item.Path), libraryRoot)
+	if strings.TrimSpace(parsed.Title) == "" {
+		return models.MetadataCandidate{}, false
+	}
+	return models.MetadataCandidate{
+		Source: metadataPathCandidateSource,
+		ID:     fmt.Sprintf("song-%d", item.ID),
+		Title:  parsed.Title,
+		Artist: parsed.Artist,
+		Album:  parsed.Album,
+	}, true
+}
+
+func metadataPathCandidateFromAlbum(item *ent.Album, libraryRoot string) (models.MetadataCandidate, bool) {
+	if item == nil || len(item.Edges.Songs) == 0 {
+		return models.MetadataCandidate{}, false
+	}
+	albumVotes := []string{}
+	artistVotes := []string{}
+	seenPaths := map[string]bool{}
+	for _, songItem := range item.Edges.Songs {
+		if songItem == nil || strings.TrimSpace(songItem.Path) == "" {
+			continue
+		}
+		audioPath := ActualAudioPath(songItem.Path)
+		if seenPaths[audioPath] {
+			continue
+		}
+		seenPaths[audioPath] = true
+		parsed := parseFilenameMetadata(audioPath, libraryRoot)
+		folderAlbum, folderArtist := metadataPathAlbumAndArtistFromFolder(audioPath, libraryRoot)
+		if folderAlbum != "" {
+			albumVotes = append(albumVotes, folderAlbum)
+		} else if parsed.Album != "" {
+			albumVotes = append(albumVotes, parsed.Album)
+		}
+		if folderArtist != "" {
+			artistVotes = append(artistVotes, folderArtist)
+		} else if parsed.Artist != "" && !looksLikeTrackNumber(parsed.Artist) {
+			artistVotes = append(artistVotes, parsed.Artist)
+		}
+	}
+	title := mostCommonMetadataPathValue(albumVotes)
+	artistName := mostCommonMetadataPathValue(artistVotes)
+	if title == "" && artistName == "" {
+		return models.MetadataCandidate{}, false
+	}
+	return models.MetadataCandidate{
+		Source: metadataPathCandidateSource,
+		ID:     fmt.Sprintf("album-%d", item.ID),
+		Title:  title,
+		Artist: artistName,
+	}, true
+}
+
+func metadataPathAlbumAndArtistFromFolder(path, libraryRoot string) (string, string) {
+	if strings.TrimSpace(path) == "" || strings.TrimSpace(libraryRoot) == "" {
+		return "", ""
+	}
+	root, err := filepath.Abs(libraryRoot)
+	if err != nil {
+		return "", ""
+	}
+	audioPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", ""
+	}
+	parent := filepath.Dir(audioPath)
+	if samePath(root, parent) {
+		return "", ""
+	}
+	albumDir := parent
+	albumName := cleanFilenameForMetadata(filepath.Base(albumDir))
+	if looksLikeDiscFolderName(albumName) {
+		albumDir = filepath.Dir(albumDir)
+		albumName = cleanFilenameForMetadata(filepath.Base(albumDir))
+	}
+	if albumName == "" || samePath(root, albumDir) {
+		return "", ""
+	}
+	artistDir := filepath.Dir(albumDir)
+	artistName := ""
+	if !samePath(root, artistDir) {
+		if rel, err := filepath.Rel(root, artistDir); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+			artistName = cleanFilenameForMetadata(filepath.Base(artistDir))
+		}
+	}
+	return albumName, artistName
+}
+
+func looksLikeDiscFolderName(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.NewReplacer(" ", "", "-", "", "_", "", ".", "").Replace(normalized)
+	for _, prefix := range []string{"cd", "disc", "disk", "vol", "volume"} {
+		if rest := strings.TrimPrefix(normalized, prefix); rest != normalized && rest != "" && looksLikeTrackNumber(rest) {
+			return true
+		}
+	}
+	return false
+}
+
+func mostCommonMetadataPathValue(values []string) string {
+	type vote struct {
+		value string
+		count int
+		first int
+	}
+	votes := map[string]vote{}
+	for index, value := range values {
+		value = cleanFilenameForMetadata(value)
+		if value == "" {
+			continue
+		}
+		key := strings.ToLower(value)
+		current, ok := votes[key]
+		if !ok {
+			votes[key] = vote{value: value, count: 1, first: index}
+			continue
+		}
+		current.count++
+		votes[key] = current
+	}
+	best := vote{first: len(values) + 1}
+	for _, current := range votes {
+		if current.count > best.count || (current.count == best.count && current.first < best.first) {
+			best = current
+		}
+	}
+	return best.value
 }
 
 func normalizeMetadataWritebackInput(input MetadataWritebackInput) MetadataWritebackInput {

@@ -5,6 +5,42 @@
 
 ---
 
+## 0.8.0 — 元信息编辑器可用性增强
+
+发布日期 / Released: 2026-06-03
+
+### 新功能
+
+- **新增从文件路径解析元信息候选。** 单曲和专辑元信息编辑器会优先给出本地路径解析候选，适合现有音频标签已经错误、线上匹配关键词不可靠的场景。
+
+### 修复
+
+- **修复专辑元信息编辑难以手动输入。** 编辑器现在显式聚焦第一个可编辑字段，并约束上传封面控件的点击区域，避免透明文件输入影响其它字段。
+- **替换元信息写入浏览器确认弹窗。** 二次确认改为应用内浮动弹窗，移动端使用底部 sheet，并支持键盘取消和焦点循环。
+- **修正音轨号文件名解析。** `01 - 歌名` 这类路径不再把 `01` 误当作歌手，专辑候选也能从多碟目录推断专辑名和专辑艺人。
+
+完整 diff：`git log v0.7.29..v0.8.0`
+
+---
+
+## v0.8.0 — Metadata editor usability improvements
+
+Released: 2026-06-03
+
+### Features
+
+- **Added file-path metadata candidates.** Song and album metadata editors now surface local path-derived candidates first, useful when existing audio tags are wrong and online matching starts from unreliable keywords.
+
+### Fixes
+
+- **Fixed album metadata fields being hard to edit manually.** The editor now focuses the first editable field and confines the cover upload hit area so the transparent file input cannot interfere with other fields.
+- **Replaced browser writeback confirmation.** The final confirmation now uses an in-app floating dialog, with a mobile bottom sheet plus keyboard cancel and focus cycling.
+- **Fixed track-number filename parsing.** Paths like `01 - Title` no longer treat `01` as the artist, and album candidates can infer album title and album artist from multi-disc folders.
+
+Full diff: `git log v0.7.29..v0.8.0`
+
+---
+
 ## 0.7.29 — 移动端弹窗体验修复
 
 发布日期 / Released: 2026-06-03
