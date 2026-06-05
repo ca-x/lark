@@ -5,6 +5,30 @@
 
 ---
 
+## 0.8.3 — 曲库与专辑筛选区避让修复
+
+发布日期 / Released: 2026-06-05
+
+### 修复
+
+- **修复用户菜单展开时遮挡曲库/专辑控件。** 曲库操作区、专辑歌手筛选和艺术家首字母筛选改为标题下方左对齐，避免落在右上角用户菜单浮层正下方。
+
+完整 diff：`git log v0.8.2..v0.8.3`
+
+---
+
+## v0.8.3 — Library and album filter overlap fix
+
+Released: 2026-06-05
+
+### Fixes
+
+- **Fixed the user menu covering library and album controls.** Library actions, album artist filtering, and artist initial filtering now align below the title on the left instead of sitting under the top-right user menu popover.
+
+Full diff: `git log v0.8.2..v0.8.3`
+
+---
+
 ## 0.8.2 — 曲库与专辑界面布局修复
 
 发布日期 / Released: 2026-06-05
