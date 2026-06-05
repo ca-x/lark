@@ -124,7 +124,7 @@ func (s *Service) GetUserPreferences(ctx context.Context, userID int) (models.Us
 		}
 		return models.UserPreferences{}, err
 	}
-	var stored models.UserPreferences
+	stored := defaultUserPreferences()
 	if err := json.Unmarshal([]byte(item.Value), &stored); err != nil {
 		return preferences, nil
 	}

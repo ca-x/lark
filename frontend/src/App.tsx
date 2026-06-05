@@ -327,6 +327,7 @@ function normalizeUserPreferences(value?: Partial<UserPreferences> | null): User
     home_player_style: normalizeHomePlayerStyle(value?.home_player_style),
     mobile_home_player_style: normalizeMobileHomePlayerStyle(value?.mobile_home_player_style),
     artist_album_display_style: normalizeArtistAlbumDisplayStyle(value?.artist_album_display_style),
+    lyrics_drag_seek_enabled: value?.lyrics_drag_seek_enabled ?? true,
   };
 }
 
@@ -334,7 +335,8 @@ function sameUserPreferences(left: UserPreferences | null, right: UserPreference
   if (!left) return false;
   return left.home_player_style === right.home_player_style &&
     left.mobile_home_player_style === right.mobile_home_player_style &&
-    left.artist_album_display_style === right.artist_album_display_style;
+    left.artist_album_display_style === right.artist_album_display_style &&
+    left.lyrics_drag_seek_enabled === right.lyrics_drag_seek_enabled;
 }
 
 function artistAlbumDisplayStyleKey(user?: User | null) {
@@ -909,6 +911,7 @@ export default function App() {
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
   const [mobileHomePlayerStyle, setMobileHomePlayerStyle] = useState<MobileHomePlayerStyle>(storedMobileHomePlayerStyle);
   const [artistAlbumDisplayStyle, setArtistAlbumDisplayStyle] = useState<ArtistAlbumDisplayStyle>(() => storedArtistAlbumDisplayStyle());
+  const [lyricsDragSeekEnabled, setLyricsDragSeekEnabled] = useState(true);
   const userPreferencesReadyRef = useRef(false);
   const lastSavedUserPreferencesRef = useRef<UserPreferences | null>(null);
   const userPreferencesSaveTimerRef = useRef<number | null>(null);
@@ -1271,6 +1274,7 @@ export default function App() {
       home_player_style: homePlayerStyle,
       mobile_home_player_style: mobileHomePlayerStyle,
       artist_album_display_style: artistAlbumDisplayStyle,
+      lyrics_drag_seek_enabled: lyricsDragSeekEnabled,
     });
     if (sameUserPreferences(lastSavedUserPreferencesRef.current, nextPreferences)) return;
     if (userPreferencesSaveTimerRef.current != null) {
@@ -1284,7 +1288,7 @@ export default function App() {
         })
         .catch(() => undefined);
     }, 250);
-  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, mobileHomePlayerStyle]);
+  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, lyricsDragSeekEnabled, mobileHomePlayerStyle]);
 
   useEffect(() => {
     return () => {
@@ -1989,6 +1993,7 @@ export default function App() {
       setHomePlayerStyle(normalized.home_player_style);
       setMobileHomePlayerStyle(normalized.mobile_home_player_style);
       setArtistAlbumDisplayStyle(normalized.artist_album_display_style);
+      setLyricsDragSeekEnabled(normalized.lyrics_drag_seek_enabled);
       rememberHomePlayerStyle(normalized.home_player_style);
       rememberMobileHomePlayerStyle(normalized.mobile_home_player_style);
       rememberArtistAlbumDisplayStyle(normalized.artist_album_display_style, user);
@@ -3931,6 +3936,7 @@ export default function App() {
               if (mobileViewport) setMobilePlayerExpanded(true);
             }}
             onSeek={seekTo}
+            lyricsDragSeekEnabled={lyricsDragSeekEnabled}
             candidates={lyricCandidates}
             candidatesOpen={lyricCandidatesOpen}
             candidatesLoading={lyricCandidatesLoading}
@@ -4365,6 +4371,8 @@ export default function App() {
                 onMobileHomePlayerStyleChange={setMobileHomePlayerStyle}
                 artistAlbumDisplayStyle={artistAlbumDisplayStyle}
                 onArtistAlbumDisplayStyleChange={setArtistAlbumDisplayStyle}
+                lyricsDragSeekEnabled={lyricsDragSeekEnabled}
+                onLyricsDragSeekEnabledChange={setLyricsDragSeekEnabled}
                 persistentQueueEnabled={persistentQueueEnabled}
                 onPersistentQueueChange={(enabled) => {
                   setPersistentQueueEnabled(enabled);
@@ -7084,6 +7092,7 @@ function FullLyrics({
   scrollRef,
   onToggleView,
   onSeek,
+  lyricsDragSeekEnabled,
   candidates,
   candidatesOpen,
   candidatesLoading,
@@ -7109,6 +7118,7 @@ function FullLyrics({
   scrollRef: React.RefObject<HTMLDivElement | null>;
   onToggleView: () => void;
   onSeek: (seconds: number) => void;
+  lyricsDragSeekEnabled: boolean;
   candidates: LyricCandidate[];
   candidatesOpen: boolean;
   candidatesLoading: boolean;
@@ -7137,9 +7147,20 @@ function FullLyrics({
       if (seekTimer.current != null) window.clearTimeout(seekTimer.current);
     };
   }, []);
+  const clearPendingLyricSeek = useCallback((clearTarget = false) => {
+    if (seekTimer.current != null) {
+      window.clearTimeout(seekTimer.current);
+      seekTimer.current = null;
+    }
+    if (clearTarget) setSeekTargetKey((current) => (current ? "" : current));
+  }, []);
+  useEffect(() => {
+    clearPendingLyricSeek(lyricsDragSeekEnabled);
+  }, [clearPendingLyricSeek, lyricsDragSeekEnabled]);
   const syncSeekTargetFromScroll = () => {
     const container = scrollRef.current;
-    if (!container || Date.now() > userScrollUntil.current) return;
+    if (!container) return;
+    if (lyricsDragSeekEnabled && Date.now() > userScrollUntil.current) return;
     const center = container.getBoundingClientRect().top + container.clientHeight / 2;
     const nodes = Array.from(
       container.querySelectorAll<HTMLElement>("[data-lyric-key]"),
@@ -7156,6 +7177,10 @@ function FullLyrics({
     }
     if (!best) return;
     setSeekTargetKey(best.key);
+    if (!lyricsDragSeekEnabled) {
+      clearPendingLyricSeek();
+      return;
+    }
     if (seekTimer.current != null) window.clearTimeout(seekTimer.current);
     seekTimer.current = window.setTimeout(() => {
       onSeek(best!.at);
@@ -7295,29 +7320,49 @@ function FullLyrics({
       ) : null}
       <div
         className={lines.length ? "full-lyrics-lines" : "full-lyrics-lines empty-state"}
+        data-drag-seek={lyricsDragSeekEnabled ? "true" : "false"}
         ref={scrollRef}
         onScroll={syncSeekTargetFromScroll}
         onWheel={markUserScroll}
         onTouchMove={markUserScroll}
       >
         {lines.length ? (
-          lines.map((line) => (
-            <p
-              key={line.key}
-              data-lyric-key={line.key}
-              data-lyric-at={adjustedLyricTime(line, lyricOffsetSeconds)}
-              aria-current={line.key === activeLyric ? "true" : undefined}
-              className={[
-                line.key === activeLyric ? "live" : "",
-                line.key === seekTargetKey ? "seek-target" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => line.at >= 0 && onSeek(adjustedLyricTime(line, lyricOffsetSeconds))}
-            >
-              {line.text}
-            </p>
-          ))
+          lines.map((line) => {
+            const lyricTime = adjustedLyricTime(line, lyricOffsetSeconds);
+            const showCursorPlay = !lyricsDragSeekEnabled && line.key === seekTargetKey && lyricTime >= 0;
+            return (
+              <p
+                key={line.key}
+                data-lyric-key={line.key}
+                data-lyric-at={lyricTime}
+                aria-current={line.key === activeLyric ? "true" : undefined}
+                className={[
+                  line.key === activeLyric ? "live" : "",
+                  line.key === seekTargetKey ? "seek-target" : "",
+                  showCursorPlay ? "has-cursor-action" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={lyricsDragSeekEnabled ? () => line.at >= 0 && onSeek(lyricTime) : undefined}
+              >
+                <span className="lyric-line-text">{line.text}</span>
+                {showCursorPlay ? (
+                  <button
+                    type="button"
+                    className="lyrics-cursor-play"
+                    title={t("playFromLyric")}
+                    aria-label={t("playFromLyric")}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSeek(lyricTime);
+                    }}
+                  >
+                    <Play weight="fill" />
+                  </button>
+                ) : null}
+              </p>
+            );
+          })
         ) : (
           <div className="lyrics-empty">
             <strong>
@@ -7833,6 +7878,8 @@ function SettingsPanel({
   onMobileHomePlayerStyleChange,
   artistAlbumDisplayStyle,
   onArtistAlbumDisplayStyleChange,
+  lyricsDragSeekEnabled,
+  onLyricsDragSeekEnabledChange,
   persistentQueueEnabled,
   onPersistentQueueChange,
   uiSoundSettings,
@@ -7867,6 +7914,8 @@ function SettingsPanel({
   onMobileHomePlayerStyleChange: (style: MobileHomePlayerStyle) => void;
   artistAlbumDisplayStyle: ArtistAlbumDisplayStyle;
   onArtistAlbumDisplayStyleChange: (style: ArtistAlbumDisplayStyle) => void;
+  lyricsDragSeekEnabled: boolean;
+  onLyricsDragSeekEnabledChange: (enabled: boolean) => void;
   persistentQueueEnabled: boolean;
   onPersistentQueueChange: (enabled: boolean) => void;
   uiSoundSettings: UISoundSettings;
@@ -8357,6 +8406,17 @@ function SettingsPanel({
               </button>
             </div>
           </SettingsSection>
+          <label className="switch-row settings-wide-row">
+            <span>
+              <span>{t("lyricsDragSeek")}</span>
+              <small>{t("lyricsDragSeekHint")}</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={lyricsDragSeekEnabled}
+              onChange={(e) => onLyricsDragSeekEnabledChange(e.target.checked)}
+            />
+          </label>
           <label className="switch-row settings-wide-row">
             <span>
               <span>{t("persistentQueue")}</span>

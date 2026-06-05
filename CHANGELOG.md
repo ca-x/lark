@@ -5,6 +5,38 @@
 
 ---
 
+## 0.8.4 — 歌词拖动播放跟随开关
+
+发布日期 / Released: 2026-06-05
+
+### 新功能
+
+- **新增个人歌词拖动播放跟随开关。** 用户可以在个人设置中关闭“跟随歌词拖动播放”，关闭后滚动歌词只用于阅读，不会自动调整播放进度，并可通过当前居中行右侧按钮从该句播放；开启后保持原来的拖动即跳转交互且隐藏该按钮。
+
+### 修复
+
+- **避免关闭开关后残留滚动定时器触发跳转。** 切换为自由阅读模式时会清理待执行的歌词 seek，歌词高亮保持原有行为，歌词行本身不会触发跳转。
+
+完整 diff：`git log v0.8.3..v0.8.4`
+
+---
+
+## v0.8.4 — Lyric drag playback-follow toggle
+
+Released: 2026-06-05
+
+### Features
+
+- **Added a personal lyric drag playback-follow toggle.** Users can turn off lyric drag seeking in profile settings so scrolling lyrics is only for reading and does not change playback progress, then use the centered-line play button to start from that line; turning it on keeps the previous drag-to-seek behavior and hides that button.
+
+### Fixes
+
+- **Prevented pending lyric scroll timers from seeking after the toggle is disabled.** Switching to free-reading mode clears any queued lyric seek while keeping lyric highlighting intact; lyric lines no longer seek unless the dedicated play button is clicked.
+
+Full diff: `git log v0.8.3..v0.8.4`
+
+---
+
 ## 0.8.3 — 曲库与专辑筛选区避让修复
 
 发布日期 / Released: 2026-06-05

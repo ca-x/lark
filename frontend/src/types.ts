@@ -246,6 +246,7 @@ export interface UserPreferences {
   home_player_style: HomePlayerStyle;
   mobile_home_player_style: MobileHomePlayerStyle;
   artist_album_display_style: ArtistAlbumDisplayStyle;
+  lyrics_drag_seek_enabled: boolean;
 }
 export interface HealthInfo {
   status: string;

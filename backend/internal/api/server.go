@@ -203,6 +203,7 @@ type userPreferencesRequest struct {
 	HomePlayerStyle         string `json:"home_player_style"`
 	MobileHomePlayerStyle   string `json:"mobile_home_player_style"`
 	ArtistAlbumDisplayStyle string `json:"artist_album_display_style"`
+	LyricsDragSeekEnabled   *bool  `json:"lyrics_drag_seek_enabled"`
 }
 
 type authUserResponse struct {
@@ -595,10 +596,19 @@ func (s *Server) handleSaveUserPreferences(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
+	current, err := s.lib.GetUserPreferences(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	lyricsDragSeekEnabled := current.LyricsDragSeekEnabled
+	if req.LyricsDragSeekEnabled != nil {
+		lyricsDragSeekEnabled = *req.LyricsDragSeekEnabled
+	}
 	preferences, err := s.lib.SaveUserPreferences(c.Request().Context(), currentUserID(c), models.UserPreferences{
 		HomePlayerStyle:         req.HomePlayerStyle,
 		MobileHomePlayerStyle:   req.MobileHomePlayerStyle,
 		ArtistAlbumDisplayStyle: req.ArtistAlbumDisplayStyle,
+		LyricsDragSeekEnabled:   lyricsDragSeekEnabled,
 	})
 	if err != nil {
 		return mapError(err)

@@ -1306,6 +1306,7 @@ func defaultUserPreferences() models.UserPreferences {
 		HomePlayerStyle:         "vinyl",
 		MobileHomePlayerStyle:   "neon-console",
 		ArtistAlbumDisplayStyle: "classic",
+		LyricsDragSeekEnabled:   true,
 	}
 }
 
@@ -1314,6 +1315,7 @@ func normalizeUserPreferences(preferences models.UserPreferences) models.UserPre
 		HomePlayerStyle:         normalizeUserHomePlayerStyle(preferences.HomePlayerStyle),
 		MobileHomePlayerStyle:   normalizeUserMobileHomePlayerStyle(preferences.MobileHomePlayerStyle),
 		ArtistAlbumDisplayStyle: normalizeArtistAlbumDisplayStyle(preferences.ArtistAlbumDisplayStyle),
+		LyricsDragSeekEnabled:   preferences.LyricsDragSeekEnabled,
 	}
 }
 

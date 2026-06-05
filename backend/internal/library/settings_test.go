@@ -218,7 +218,7 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if defaults.HomePlayerStyle != "vinyl" || defaults.MobileHomePlayerStyle != "neon-console" || defaults.ArtistAlbumDisplayStyle != "classic" {
+	if defaults.HomePlayerStyle != "vinyl" || defaults.MobileHomePlayerStyle != "neon-console" || defaults.ArtistAlbumDisplayStyle != "classic" || !defaults.LyricsDragSeekEnabled {
 		t.Fatalf("expected default user preferences, got %#v", defaults)
 	}
 
@@ -226,18 +226,19 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 		HomePlayerStyle:         "album-slide",
 		MobileHomePlayerStyle:   "indiewave",
 		ArtistAlbumDisplayStyle: "showcase",
+		LyricsDragSeekEnabled:   false,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.HomePlayerStyle != "album-slide" || saved.MobileHomePlayerStyle != "indiewave" || saved.ArtistAlbumDisplayStyle != "showcase" {
+	if saved.HomePlayerStyle != "album-slide" || saved.MobileHomePlayerStyle != "indiewave" || saved.ArtistAlbumDisplayStyle != "showcase" || saved.LyricsDragSeekEnabled {
 		t.Fatalf("expected saved user preferences to persist, got %#v", saved)
 	}
 	loaded, err := service.GetUserPreferences(ctx, 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.HomePlayerStyle != "album-slide" || loaded.MobileHomePlayerStyle != "indiewave" || loaded.ArtistAlbumDisplayStyle != "showcase" {
+	if loaded.HomePlayerStyle != "album-slide" || loaded.MobileHomePlayerStyle != "indiewave" || loaded.ArtistAlbumDisplayStyle != "showcase" || loaded.LyricsDragSeekEnabled {
 		t.Fatalf("expected user preferences to load from database, got %#v", loaded)
 	}
 
@@ -245,8 +246,19 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if otherUser.HomePlayerStyle != "vinyl" || otherUser.MobileHomePlayerStyle != "neon-console" || otherUser.ArtistAlbumDisplayStyle != "classic" {
+	if otherUser.HomePlayerStyle != "vinyl" || otherUser.MobileHomePlayerStyle != "neon-console" || otherUser.ArtistAlbumDisplayStyle != "classic" || !otherUser.LyricsDragSeekEnabled {
 		t.Fatalf("expected user preferences to be scoped per user, got %#v", otherUser)
+	}
+
+	if err := service.setSetting(ctx, userPreferencesKey(9), `{"home_player_style":"cassette","mobile_home_player_style":"soft-vinyl","artist_album_display_style":"showcase"}`); err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := service.GetUserPreferences(ctx, 9)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.HomePlayerStyle != "cassette" || legacy.MobileHomePlayerStyle != "soft-vinyl" || legacy.ArtistAlbumDisplayStyle != "showcase" || !legacy.LyricsDragSeekEnabled {
+		t.Fatalf("expected legacy user preferences to keep lyrics drag seek enabled, got %#v", legacy)
 	}
 
 	normalized, err := service.SaveUserPreferences(ctx, 7, models.UserPreferences{
@@ -257,7 +269,7 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if normalized.HomePlayerStyle != "vinyl" || normalized.MobileHomePlayerStyle != "neon-console" || normalized.ArtistAlbumDisplayStyle != "classic" {
+	if normalized.HomePlayerStyle != "vinyl" || normalized.MobileHomePlayerStyle != "neon-console" || normalized.ArtistAlbumDisplayStyle != "classic" || normalized.LyricsDragSeekEnabled {
 		t.Fatalf("expected invalid user preferences to normalize, got %#v", normalized)
 	}
 }
