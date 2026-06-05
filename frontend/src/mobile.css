@@ -2469,22 +2469,22 @@
     top:-10px;
     padding-bottom:8px;
   }
-  .topbar .song-search-options > button { min-height:42px; padding:6px 10px; }
+  .topbar .song-search-options > button { min-height:44px; padding:7px 10px; }
   .topbar .song-search-options > button > span { font-size:11px; }
   .topbar .user-menu-trigger {
-    width:38px !important;
-    min-width:38px;
-    height:38px;
-    max-width:38px;
+    width:44px !important;
+    min-width:44px;
+    height:44px;
+    max-width:44px;
   }
-  .topbar .song-search-combobox { grid-column:1; }
+  .topbar .song-search-combobox { grid-column:1 / -1; order:3; }
   .topbar .user-menu { grid-column:2; display:block; }
   .topbar .user-menu-trigger {
-    width:38px !important;
-    min-width:38px;
-    height:38px;
-    max-width:38px;
-    padding:4px !important;
+    width:44px !important;
+    min-width:44px;
+    height:44px;
+    max-width:44px;
+    padding:5px !important;
   }
   .topbar .user-menu-trigger > span,
   .topbar .user-menu-trigger > svg { display:none; }

@@ -5,6 +5,40 @@
 
 ---
 
+## 0.8.2 — 曲库与专辑界面布局修复
+
+发布日期 / Released: 2026-06-05
+
+### 修复
+
+- **修复曲库和专辑页面顶部区域挤压错位。** 顶栏搜索、离线状态和用户菜单现在使用稳定列布局，中等宽度下曲库操作区和专辑筛选器会主动换行。
+- **修复移动端用户菜单触控区偏小。** 头像入口恢复到 44px 以上，搜索建议项也保持可点击高度，降低误触概率。
+
+### 维护
+
+- **分批拆分 `App.tsx`。** 抽出卡片网格、分页、用户菜单、鉴权页、播放列表弹窗、元数据编辑器和通用工具函数，降低后续维护风险。
+
+完整 diff：`git log v0.8.1..v0.8.2`
+
+---
+
+## v0.8.2 — Library and album layout fixes
+
+Released: 2026-06-05
+
+### Fixes
+
+- **Fixed cramped top areas on library and album views.** Topbar search, offline status, and user menu now use stable columns, while library actions and album filters wrap on medium-width screens.
+- **Fixed undersized mobile user menu hit target.** The avatar trigger is back above 44px, and search suggestion rows keep a tappable height.
+
+### Maintenance
+
+- **Split `App.tsx` in batches.** Extracted card grids, pagination, user menu, auth view, playlist dialogs, metadata editor, and shared utility helpers to reduce maintenance risk.
+
+Full diff: `git log v0.8.1..v0.8.2`
+
+---
+
 ## 0.8.0 — 元信息编辑器可用性增强
 
 发布日期 / Released: 2026-06-03

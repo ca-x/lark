@@ -154,6 +154,9 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .artist-filter-options strong, .artist-filter-options small { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .artist-filter-options small, .artist-filter-options > span { color:var(--muted); }
 .artist-filter-options > span { padding:10px; }
+.card-grid-section[data-has-action='true'] > .section-head { align-items:flex-start; }
+.card-grid-section[data-has-action='true'] > .section-head > h2 { min-width:0; }
+.card-grid-section[data-has-action='true'] .artist-filter-combobox { justify-self:end; max-width:min(420px, 100%); }
 .card-grid-artist > .section-head { display:grid; grid-template-columns:auto minmax(0, 1fr); align-items:start; gap:12px; }
 .artist-initial-filter { justify-self:end; width:max-content; min-width:0; max-width:100%; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:5px; padding:4px; border:1px solid var(--line); border-radius:18px; background:color-mix(in srgb, var(--panel2) 92%, transparent); overflow:visible; scrollbar-width:none; }
 .artist-initial-filter::-webkit-scrollbar { display:none; }
@@ -249,10 +252,11 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .empty-library .disc-art { width:150px; height:150px; }
 .empty-library h2 { color:var(--text); margin:0; font-size:34px; }
 .empty-library p { margin:0; max-width:520px; }
-.empty-actions, .library-actions > div { display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap; }
+.empty-actions, .library-actions > div { min-width:0; display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap; }
 .empty-actions .primary { margin-top:0; }
-.library-actions { margin-bottom:10px; }
-.library-actions .song-search-combobox { flex:1 1 280px; max-width:min(520px, 100%); }
+.library-actions { margin-bottom:10px; align-items:flex-start; }
+.library-actions > div { justify-content:flex-end; }
+.library-actions .song-search-combobox { flex:1 1 320px; min-width:min(280px, 100%); max-width:min(520px, 100%); }
 
 .disc-art { width:220px; height:220px; border-radius:50%; display:grid; place-items:center; flex:0 0 auto; color:#050505; background:var(--cover); box-shadow:inset 0 0 0 12px rgba(255,255,255,.08), 0 22px 60px rgba(0,0,0,.35); }
 .disc-art svg { width:78%; height:78%; opacity:.8; animation:spin 12s linear infinite; animation-play-state:paused; }
@@ -1222,14 +1226,17 @@ body, button, input, select { font-family: var(--app-font); }
 :root[data-custom-font='true'] input,
 :root[data-custom-font='true'] select,
 :root[data-custom-font='true'] textarea { font-family: var(--app-font) !important; }
-.topbar { grid-template-columns:minmax(160px, auto) minmax(240px, 520px) auto; }
-.user-menu { position:relative; justify-self:end; min-width:0; }
+.topbar { grid-template-columns:minmax(160px, auto) minmax(240px, 520px) auto; overflow:visible; }
+.topbar .song-search-combobox,
+.topbar-search-spacer { min-width:0; width:100%; }
+.topbar > .offline-status-pill { justify-self:end; align-self:center; }
+.user-menu { position:relative; justify-self:end; min-width:0; z-index:45; }
 .user-menu-trigger { min-width:0; max-width:240px; display:flex !important; align-items:center; gap:9px; padding:6px 10px 6px 7px !important; border-radius:999px; background:var(--panel2); border:1px solid var(--line); color:var(--text); box-shadow:none; }
 .user-menu-trigger.active, .user-menu-trigger:hover { border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
 .user-menu-trigger .user-avatar { width:34px; height:34px; flex-basis:34px; box-shadow:none; }
 .user-menu-trigger span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:850; }
 .user-menu-trigger svg { flex:0 0 auto; color:var(--muted); }
-.user-menu-popover { position:absolute; right:0; top:calc(100% + 8px); z-index:40; width:min(280px, calc(100vw - 28px)); display:grid; gap:8px; padding:10px; border-radius:18px; background:color-mix(in srgb, var(--panel) 98%, transparent); border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); box-shadow:var(--shadow); }
+.user-menu-popover { position:absolute; right:0; top:calc(100% + 8px); z-index:80; width:min(280px, calc(100vw - 28px)); display:grid; gap:8px; padding:10px; border-radius:18px; background:color-mix(in srgb, var(--panel) 98%, transparent); border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); box-shadow:var(--shadow); }
 .user-menu-head { display:flex; align-items:center; gap:10px; padding:8px; border-radius:14px; background:color-mix(in srgb, var(--panel2) 72%, transparent); }
 .user-menu-head .user-avatar { width:40px; height:40px; flex-basis:40px; }
 .user-menu-head strong, .user-menu-head span { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -2159,9 +2166,13 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   }
   .top-title { display:none; }
   .topbar {
-    grid-template-columns:minmax(260px, 520px) auto;
+    grid-template-columns:minmax(220px, 520px) max-content max-content;
     justify-content:end;
   }
+  .topbar > .song-search-combobox,
+  .topbar > .topbar-search-spacer { grid-column:1; }
+  .topbar > .offline-status-pill { grid-column:2; }
+  .topbar > .user-menu { grid-column:3; }
   .favorites-view > .section-head,
   .card-grid-section[data-has-action='false'] > .section-head {
     display:flex;
@@ -2173,6 +2184,30 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   }
   .about-hero p {
     display:none;
+  }
+}
+
+@media (min-width:721px) and (max-width:1180px) {
+  .section-head.library-actions,
+  .card-grid-section[data-has-action='true'] > .section-head {
+    display:grid;
+    grid-template-columns:minmax(0, 1fr);
+    align-items:start;
+  }
+  .library-actions > div {
+    justify-content:flex-start;
+  }
+  .library-actions .song-search-combobox,
+  .card-grid-section[data-has-action='true'] .artist-filter-combobox {
+    width:100%;
+    max-width:min(560px, 100%);
+  }
+  .card-grid-artist > .section-head {
+    grid-template-columns:minmax(0, 1fr);
+  }
+  .artist-initial-filter {
+    justify-self:start;
+    justify-content:flex-start;
   }
 }
 
