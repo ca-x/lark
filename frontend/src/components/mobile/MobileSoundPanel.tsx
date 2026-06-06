@@ -1,6 +1,8 @@
+import type { CSSProperties } from "react";
 import { Guitar, MicrophoneStage, MusicNotes, PianoKeys, Power, Sparkle, Waveform, X } from "@phosphor-icons/react";
 
 import type { createT } from "../../i18n";
+import { useDialogLifecycle } from "../../hooks/useDialogLifecycle";
 import { EQ_PRESETS, type EqualizerPresetKey } from "../equalizer";
 
 const presetKeys = Object.keys(EQ_PRESETS) as EqualizerPresetKey[];
@@ -46,21 +48,31 @@ export function MobileSoundPanel({
   onClose: () => void;
 }) {
   const activePreset = matchingPreset(bands);
+  const dialogRef = useDialogLifecycle<HTMLElement>(onClose);
 
   return (
-    <section className="mobile-sound-panel" role="dialog" aria-label={t("mobileSoundEffects")} data-enabled={enabled ? "true" : "false"}>
+    <section
+      ref={dialogRef}
+      className="mobile-sound-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mobile-sound-title"
+      data-enabled={enabled ? "true" : "false"}
+    >
       <div className="mobile-sound-handle" aria-hidden="true" />
       <header className="mobile-sound-head">
-        <button type="button" aria-label={t("close")} onClick={onClose}>
+        <button type="button" data-autofocus aria-label={t("close")} onClick={onClose}>
           <X weight="bold" />
         </button>
-        <strong>{t("mobileSoundEffects")}</strong>
+        <strong id="mobile-sound-title">{t("mobileSoundEffects")}</strong>
         <button type="button" className={enabled ? "active" : ""} aria-label={enabled ? t("off") : t("on")} onClick={onToggle}>
           <Power weight="bold" />
         </button>
       </header>
-      <div className="mobile-sound-orb" aria-hidden="true">
-        {Array.from({ length: 5 }, (_, index) => <i key={index} />)}
+      <div className="mobile-sound-meter" aria-hidden="true">
+        {bands.map((value, index) => (
+          <i key={index} style={{ "--band-level": `${Math.max(0.18, Math.min(1, (value + 12) / 24))}` } as CSSProperties} />
+        ))}
       </div>
       <div className="mobile-sound-presets" role="group" aria-label={t("equalizerPresets")}>
         {presetKeys.map((key) => (

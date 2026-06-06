@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
 
-export function useDialogLifecycle<T extends HTMLElement>(onClose: () => void) {
+export function useDialogLifecycle<T extends HTMLElement>(onClose: () => void, enabled = true) {
   const dialogRef = useRef<T | null>(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
   useEffect(() => {
+    if (!enabled) return;
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = dialogRef.current;
     const focusSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -39,6 +40,6 @@ export function useDialogLifecycle<T extends HTMLElement>(onClose: () => void) {
       document.removeEventListener("keydown", onKeyDown);
       previouslyFocused?.focus();
     };
-  }, []);
+  }, [enabled]);
   return dialogRef;
 }

@@ -3493,7 +3493,7 @@
   .mobile-soft-record,
   .mobile-stage-disc,
   .mobile-blue-art,
-  .mobile-sound-orb i {
+  .mobile-sound-meter i {
     animation:none !important;
     transition:none !important;
   }
@@ -3580,27 +3580,20 @@
     position:relative;
     z-index:1;
     width:100%;
-    min-height:min(58dvh, 520px);
+    min-height:min(56dvh, 500px);
+    pointer-events:auto;
     display:grid;
     grid-template-rows:auto auto 1fr auto;
     gap:16px;
     padding:10px 18px calc(24px + var(--safe-bottom));
     overflow:hidden;
-    border-radius:24px 24px 0 0;
-    color:#fff;
-    background:
-      radial-gradient(circle at 72% 10%, rgba(230,54,79,.54), transparent 34%),
-      radial-gradient(circle at 10% 82%, rgba(34,83,174,.62), transparent 38%),
-      linear-gradient(145deg, #7e315d, #be2937 42%, #244b96);
-    box-shadow:0 -26px 76px rgba(0,0,0,.42);
-    animation:mobile-queue-sheet .24s var(--ease);
-  }
-  .mobile-sound-panel::before {
-    content:'';
-    position:absolute;
-    inset:0;
-    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0));
-    pointer-events:none;
+    border-radius:26px 26px 0 0;
+    color:var(--text);
+    background:linear-gradient(180deg, color-mix(in srgb, var(--panel) 98%, transparent), color-mix(in srgb, var(--panel2) 94%, transparent));
+    border:1px solid color-mix(in srgb, var(--line) 92%, transparent);
+    border-bottom:0;
+    box-shadow:0 -26px 76px rgba(0,0,0,.38), var(--mobile-pa-inner, inset 0 1px 0 rgba(255,255,255,.08));
+    animation:mobile-queue-sheet .28s cubic-bezier(0.32,0.72,0,1);
   }
   .mobile-sound-panel > * {
     position:relative;
@@ -3611,7 +3604,7 @@
     width:44px;
     height:5px;
     border-radius:999px;
-    background:rgba(255,255,255,.22);
+    background:color-mix(in srgb, var(--muted) 42%, transparent);
   }
   .mobile-sound-head {
     display:grid;
@@ -3632,10 +3625,10 @@
     display:grid;
     place-items:center;
     padding:0;
-    color:rgba(255,255,255,.78);
-    background:rgba(255,255,255,.08);
-    border:1px solid rgba(255,255,255,.13);
-    backdrop-filter:blur(12px);
+    color:var(--text);
+    background:color-mix(in srgb, var(--panel2) 86%, transparent);
+    border:1px solid color-mix(in srgb, var(--line) 88%, transparent);
+    backdrop-filter:none;
   }
   .mobile-sound-head button {
     width:44px;
@@ -3646,45 +3639,35 @@
   }
   .mobile-sound-head button.active,
   .mobile-sound-presets button.active {
-    color:#fff;
-    background:rgba(255,255,255,.22);
-    border-color:rgba(255,255,255,.38);
-    box-shadow:0 0 22px rgba(255,255,255,.16);
+    color:var(--mobile-active-text);
+    background:var(--accent);
+    border-color:transparent;
+    box-shadow:0 12px 26px color-mix(in srgb, var(--accent) 18%, transparent);
   }
-  .mobile-sound-orb {
-    min-height:190px;
+  .mobile-sound-meter {
+    min-height:178px;
     display:flex;
-    align-items:center;
+    align-items:end;
     justify-content:center;
-    gap:10px;
+    gap:8px;
+    padding:22px 12px;
+    border-radius:22px;
+    background:rgba(242,238,230,.045);
+    border:1px solid color-mix(in srgb, var(--line) 90%, transparent);
   }
-  .mobile-sound-orb i {
-    width:18px;
-    height:84px;
+  .mobile-sound-meter i {
+    width:12px;
+    height:144px;
+    max-height:144px;
     border-radius:999px;
-    border:4px solid rgba(255,255,255,.62);
-    box-shadow:0 0 22px rgba(255,255,255,.36), inset 0 0 18px rgba(255,255,255,.16);
-    transform:scaleY(.72);
-    animation:mobile-sound-pulse 1.2s var(--ease) infinite alternate;
+    background:linear-gradient(180deg, #F2EEE6, var(--accent));
+    opacity:.76;
+    transform:scaleY(var(--band-level));
+    transform-origin:bottom;
   }
-  .mobile-sound-orb i:nth-child(1),
-  .mobile-sound-orb i:nth-child(5) {
-    height:56px;
-    opacity:.68;
-    animation-delay:-.32s;
-  }
-  .mobile-sound-orb i:nth-child(2),
-  .mobile-sound-orb i:nth-child(4) {
-    height:116px;
-    animation-delay:-.18s;
-  }
-  .mobile-sound-orb i:nth-child(3) {
-    width:24px;
-    height:152px;
-  }
-  .mobile-sound-panel[data-enabled='false'] .mobile-sound-orb i {
-    animation-play-state:paused;
-    opacity:.38;
+  .mobile-sound-panel[data-enabled='false'] .mobile-sound-meter i {
+    transform:scaleY(.32);
+    opacity:.34;
   }
   .mobile-sound-presets {
     display:grid;
@@ -3698,17 +3681,6 @@
   }
   .mobile-sound-presets button:disabled {
     opacity:.38;
-  }
-}
-
-@keyframes mobile-sound-pulse {
-  from { transform:scaleY(.55); opacity:.56; }
-  to { transform:scaleY(1); opacity:1; }
-}
-
-@media (prefers-reduced-motion:reduce) {
-  .mobile-sound-orb i {
-    animation:none !important;
   }
 }
 

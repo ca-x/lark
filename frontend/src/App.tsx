@@ -4876,6 +4876,7 @@ export default function App() {
               stations={radioPanelStations}
               currentRadio={currentRadio}
               playing={playing}
+              modal={mobileViewport}
               t={t}
               onPlay={(station) => playRadio(station, radioPanelStations)}
               onClose={() => setQueueOpen(false)}
@@ -4884,6 +4885,7 @@ export default function App() {
             <QueuePanel
               queue={queue}
               current={current}
+              modal={mobileViewport}
               t={t}
               onPlay={(song) => void playSong(song, queue, { keepPlaybackSource: true })}
               onClose={() => setQueueOpen(false)}
@@ -7479,6 +7481,7 @@ function RadioQueuePanel({
   stations,
   currentRadio,
   playing,
+  modal = false,
   t,
   onPlay,
   onClose,
@@ -7486,15 +7489,23 @@ function RadioQueuePanel({
   stations: RadioStation[];
   currentRadio: RadioStation | null;
   playing: boolean;
+  modal?: boolean;
   t: ReturnType<typeof createT>;
   onPlay: (station: RadioStation) => void;
   onClose: () => void;
 }) {
+  const dialogRef = useDialogLifecycle<HTMLDivElement>(onClose, modal);
   return (
-    <div className="queue-panel radio-queue-panel">
+    <div
+      ref={modal ? dialogRef : undefined}
+      className="queue-panel radio-queue-panel"
+      role={modal ? "dialog" : undefined}
+      aria-modal={modal ? "true" : undefined}
+      aria-labelledby="radio-queue-title"
+    >
       <div className="queue-head radio-queue-head">
-        <strong>{t("onlineRadio")}</strong>
-        <button onClick={onClose}>×</button>
+        <strong id="radio-queue-title">{t("onlineRadio")}</strong>
+        <button type="button" data-autofocus aria-label={t("close")} onClick={onClose}>×</button>
       </div>
       <div className="queue-list radio-queue-list">
         {stations.map((station, index) => {
@@ -7528,21 +7539,30 @@ function RadioQueuePanel({
 function QueuePanel({
   queue,
   current,
+  modal = false,
   t,
   onPlay,
   onClose,
 }: {
   queue: Song[];
   current: Song | null;
+  modal?: boolean;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song) => void;
   onClose: () => void;
 }) {
+  const dialogRef = useDialogLifecycle<HTMLDivElement>(onClose, modal);
   return (
-    <div className="queue-panel">
+    <div
+      ref={modal ? dialogRef : undefined}
+      className="queue-panel"
+      role={modal ? "dialog" : undefined}
+      aria-modal={modal ? "true" : undefined}
+      aria-labelledby="queue-panel-title"
+    >
       <div className="queue-head">
-        <strong>{t("queue")}</strong>
-        <button onClick={onClose}>×</button>
+        <strong id="queue-panel-title">{t("queue")}</strong>
+        <button type="button" data-autofocus aria-label={t("close")} onClick={onClose}>×</button>
       </div>
       <div className="queue-list">
         {queue.map((song, index) => (
