@@ -327,6 +327,18 @@ func (s *Service) UpdateAlbumMetadata(ctx context.Context, userID, id int, input
 			return models.MetadataWritebackResult{}, err
 		}
 	}
+	targetSongArtistName := albumTargetTrackArtistName(input, item)
+	var targetSongArtist *ent.Artist
+	if targetSongArtistName != "" {
+		if targetArtist != nil && strings.EqualFold(strings.TrimSpace(targetArtist.Name), targetSongArtistName) {
+			targetSongArtist = targetArtist
+		} else {
+			targetSongArtist, err = s.ensureArtist(ctx, targetSongArtistName)
+			if err != nil {
+				return models.MetadataWritebackResult{}, err
+			}
+		}
+	}
 	targetAlbum, err := s.ensureAlbum(ctx, targetTitle, targetAlbumArtist, targetArtist, targetYear)
 	if err != nil {
 		return models.MetadataWritebackResult{}, err
@@ -336,8 +348,8 @@ func (s *Service) UpdateAlbumMetadata(ctx context.Context, userID, id int, input
 	coverVersion := time.Now().UnixNano()
 	updatedSongIDs := []int{}
 	for _, group := range groups {
-		tags := taglibTagsForAlbum(input)
-		wavMeta := wavPatchForAlbum(input)
+		tags := taglibTagsForAlbum(input, targetSongArtistName)
+		wavMeta := wavPatchForAlbum(input, targetSongArtistName)
 		written, writeErr := writeAudioMetadata(group.Path, tags, wavMeta, coverData, coverMime)
 		if writeErr != nil {
 			addMetadataWritebackItem(&result, models.MetadataWritebackItem{
@@ -356,7 +368,7 @@ func (s *Service) UpdateAlbumMetadata(ctx context.Context, userID, id int, input
 			continue
 		}
 		for _, songItem := range group.Songs {
-			if err := s.updateAlbumSongRowAfterWriteback(ctx, songItem, targetAlbum, targetYear, group.Path); err != nil {
+			if err := s.updateAlbumSongRowAfterWriteback(ctx, songItem, targetSongArtist, targetAlbum, input.Year, group.Path); err != nil {
 				addMetadataWritebackItem(&result, models.MetadataWritebackItem{
 					SongID:  songItem.ID,
 					Title:   songItem.Title,
@@ -756,10 +768,13 @@ func taglibTagsForSong(input MetadataWritebackInput) map[string][]string {
 	return tags
 }
 
-func taglibTagsForAlbum(input MetadataWritebackInput) map[string][]string {
+func taglibTagsForAlbum(input MetadataWritebackInput, trackArtist string) map[string][]string {
 	tags := map[string][]string{}
 	if input.Title != "" {
 		tags[taglib.Album] = []string{input.Title}
+	}
+	if trackArtist != "" {
+		tags[taglib.Artist] = []string{trackArtist}
 	}
 	if input.AlbumArtist != "" {
 		tags[taglib.AlbumArtist] = []string{input.AlbumArtist}
@@ -770,12 +785,41 @@ func taglibTagsForAlbum(input MetadataWritebackInput) map[string][]string {
 	return tags
 }
 
+func albumTargetTrackArtistName(input MetadataWritebackInput, item *ent.Album) string {
+	if input.Artist != "" {
+		return input.Artist
+	}
+	if input.AlbumArtist == "" || !albumArtistMatchesEverySongArtist(item) {
+		return ""
+	}
+	return input.AlbumArtist
+}
+
+func albumArtistMatchesEverySongArtist(item *ent.Album) bool {
+	currentAlbumArtist := albumSearchArtistName(item)
+	if currentAlbumArtist == "" || item == nil || len(item.Edges.Songs) == 0 {
+		return false
+	}
+	for _, songItem := range item.Edges.Songs {
+		if !sameMetadataArtistName(songArtistName(songItem), currentAlbumArtist) {
+			return false
+		}
+	}
+	return true
+}
+
+func sameMetadataArtistName(a, b string) bool {
+	a = strings.TrimSpace(a)
+	b = strings.TrimSpace(b)
+	return a != "" && b != "" && strings.EqualFold(normalizeCompareText(a), normalizeCompareText(b))
+}
+
 func wavPatchForSong(input MetadataWritebackInput) fileMetadata {
 	return fileMetadata{Title: input.Title, Artist: input.Artist, Album: input.Album, Year: input.Year}
 }
 
-func wavPatchForAlbum(input MetadataWritebackInput) fileMetadata {
-	return fileMetadata{Artist: input.AlbumArtist, Album: input.Title, Year: input.Year}
+func wavPatchForAlbum(input MetadataWritebackInput, trackArtist string) fileMetadata {
+	return fileMetadata{Artist: trackArtist, Album: input.Title, Year: input.Year}
 }
 
 func taglibTagsForPathMetadata(meta fileMetadata, includeTitle bool) map[string][]string {
@@ -998,7 +1042,7 @@ func (s *Service) updateSongRowAfterWriteback(ctx context.Context, item *ent.Son
 	return s.client.Song.Query().Where(song.ID(item.ID)).WithArtist().WithAlbum().Only(ctx)
 }
 
-func (s *Service) updateAlbumSongRowAfterWriteback(ctx context.Context, item *ent.Song, targetAlbum *ent.Album, year int, audioPath string) error {
+func (s *Service) updateAlbumSongRowAfterWriteback(ctx context.Context, item *ent.Song, targetArtist *ent.Artist, targetAlbum *ent.Album, year int, audioPath string) error {
 	info, err := os.Stat(audioPath)
 	if err != nil {
 		return err
@@ -1007,6 +1051,9 @@ func (s *Service) updateAlbumSongRowAfterWriteback(ctx context.Context, item *en
 		SetSizeBytes(info.Size()).
 		SetModTimeUnixNano(info.ModTime().UnixNano()).
 		SetAlbum(targetAlbum)
+	if targetArtist != nil {
+		update.SetArtist(targetArtist)
+	}
 	if year > 0 {
 		update.SetYear(year)
 	}

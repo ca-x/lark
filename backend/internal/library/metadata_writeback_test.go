@@ -11,6 +11,7 @@ import (
 	"lark/backend/ent"
 	"lark/backend/ent/album"
 	"lark/backend/ent/enttest"
+	"lark/backend/ent/song"
 
 	_ "github.com/lib-x/entsqlite"
 	taglib "go.senan.xyz/taglib"
@@ -96,6 +97,257 @@ func TestWriteAudioMetadataMergesWAVInfoFields(t *testing.T) {
 	}
 	if meta.Album != "New Album" || meta.Year != 2026 {
 		t.Fatalf("album/year = %q/%d, want New Album/2026", meta.Album, meta.Year)
+	}
+}
+
+func TestUpdateAlbumMetadataWritesAlbumArtistToFilesAndSongRows(t *testing.T) {
+	ctx := context.Background()
+	audioPath := copyTaglibTestdata(t, "eg.flac")
+	client := enttest.Open(t, "sqlite3", "file:album-writeback-artist?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: filepath.Dir(audioPath)}
+	userItem, err := client.User.Create().SetUsername("album-writeback-owner").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldArtist, err := client.Artist.Create().SetName("Old Artist").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldAlbum, err := client.Album.Create().SetTitle("Old Album").SetAlbumArtist("Old Artist").SetArtist(oldArtist).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	songItem, err := client.Song.Create().
+		SetTitle("Existing Song").
+		SetPath(audioPath).
+		SetFileName(filepath.Base(audioPath)).
+		SetArtist(oldArtist).
+		SetAlbum(oldAlbum).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := service.UpdateAlbumMetadata(ctx, userItem.ID, oldAlbum.ID, MetadataWritebackInput{
+		Title:            "New Album",
+		AlbumArtist:      "New Album Artist",
+		Year:             2026,
+		ConfirmWriteback: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Updated != 1 {
+		t.Fatalf("expected 1 updated file, got %#v", result)
+	}
+
+	tags, err := taglib.ReadTags(audioPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := firstTaglibValue(tags, taglib.Album); got != "New Album" {
+		t.Fatalf("album tag = %q, want New Album", got)
+	}
+	if got := firstTaglibValue(tags, taglib.AlbumArtist); got != "New Album Artist" {
+		t.Fatalf("album artist tag = %q, want New Album Artist", got)
+	}
+	if got := firstTaglibValue(tags, taglib.Artist); got != "New Album Artist" {
+		t.Fatalf("track artist tag = %q, want New Album Artist", got)
+	}
+	if got := firstTaglibValue(tags, taglib.Date); got != "2026" {
+		t.Fatalf("date tag = %q, want 2026", got)
+	}
+
+	updatedSong, err := client.Song.Query().Where(song.ID(songItem.ID)).WithArtist().WithAlbum().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := updatedSong.Edges.Artist.Name; got != "New Album Artist" {
+		t.Fatalf("song artist = %q, want New Album Artist", got)
+	}
+	if got := updatedSong.Edges.Album.Title; got != "New Album" {
+		t.Fatalf("song album = %q, want New Album", got)
+	}
+	if got := updatedSong.Year; got != 2026 {
+		t.Fatalf("song year = %d, want 2026", got)
+	}
+}
+
+func TestUpdateAlbumMetadataKeepsCompilationTrackArtists(t *testing.T) {
+	ctx := context.Background()
+	firstPath := copyTaglibTestdata(t, "eg.flac")
+	secondPath := copyTaglibTestdata(t, "eg.flac")
+	if _, err := writeAudioMetadata(firstPath, map[string][]string{
+		taglib.Artist:      {"Artist A"},
+		taglib.Album:       {"Old Compilation"},
+		taglib.AlbumArtist: {"Various Artists"},
+	}, fileMetadata{}, nil, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writeAudioMetadata(secondPath, map[string][]string{
+		taglib.Artist:      {"Artist B"},
+		taglib.Album:       {"Old Compilation"},
+		taglib.AlbumArtist: {"Various Artists"},
+	}, fileMetadata{}, nil, ""); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:album-writeback-compilation?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: filepath.Dir(firstPath)}
+	userItem, err := client.User.Create().SetUsername("compilation-owner").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	albumArtist, err := client.Artist.Create().SetName("Various Artists").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artistA, err := client.Artist.Create().SetName("Artist A").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artistB, err := client.Artist.Create().SetName("Artist B").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldAlbum, err := client.Album.Create().SetTitle("Old Compilation").SetAlbumArtist("Various Artists").SetArtist(albumArtist).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstSong, err := client.Song.Create().
+		SetTitle("Track A").
+		SetPath(firstPath).
+		SetFileName(filepath.Base(firstPath)).
+		SetArtist(artistA).
+		SetAlbum(oldAlbum).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondSong, err := client.Song.Create().
+		SetTitle("Track B").
+		SetPath(secondPath).
+		SetFileName(filepath.Base(secondPath)).
+		SetArtist(artistB).
+		SetAlbum(oldAlbum).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := service.UpdateAlbumMetadata(ctx, userItem.ID, oldAlbum.ID, MetadataWritebackInput{
+		AlbumArtist:      "New Compilation Artist",
+		Year:             2026,
+		ConfirmWriteback: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Updated != 2 {
+		t.Fatalf("expected 2 updated files, got %#v", result)
+	}
+
+	firstTags, err := taglib.ReadTags(firstPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondTags, err := taglib.ReadTags(secondPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := firstTaglibValue(firstTags, taglib.Artist); got != "Artist A" {
+		t.Fatalf("first track artist tag = %q, want Artist A", got)
+	}
+	if got := firstTaglibValue(secondTags, taglib.Artist); got != "Artist B" {
+		t.Fatalf("second track artist tag = %q, want Artist B", got)
+	}
+	if got := firstTaglibValue(firstTags, taglib.AlbumArtist); got != "New Compilation Artist" {
+		t.Fatalf("first album artist tag = %q, want New Compilation Artist", got)
+	}
+	if got := firstTaglibValue(secondTags, taglib.AlbumArtist); got != "New Compilation Artist" {
+		t.Fatalf("second album artist tag = %q, want New Compilation Artist", got)
+	}
+	for _, item := range []struct {
+		id   int
+		want string
+	}{
+		{firstSong.ID, "Artist A"},
+		{secondSong.ID, "Artist B"},
+	} {
+		updatedSong, err := client.Song.Query().Where(song.ID(item.id)).WithArtist().Only(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := updatedSong.Edges.Artist.Name; got != item.want {
+			t.Fatalf("song %d artist = %q, want %q", item.id, got, item.want)
+		}
+	}
+}
+
+func TestUpdateAlbumMetadataTitleOnlyKeepsSongYear(t *testing.T) {
+	ctx := context.Background()
+	audioPath := filepath.Join(t.TempDir(), "title-only.wav")
+	writeMinimalWAVFile(t, audioPath)
+	if _, err := writeWAVInfoMetadata(audioPath, fileMetadata{
+		Title:  "Track",
+		Artist: "Artist",
+		Album:  "Old Album",
+		Year:   1999,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:album-writeback-title-only?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: filepath.Dir(audioPath)}
+	userItem, err := client.User.Create().SetUsername("title-only-owner").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artistItem, err := client.Artist.Create().SetName("Artist").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldAlbum, err := client.Album.Create().SetTitle("Old Album").SetAlbumArtist("Artist").SetYear(2020).SetArtist(artistItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	songItem, err := client.Song.Create().
+		SetTitle("Track").
+		SetPath(audioPath).
+		SetFileName(filepath.Base(audioPath)).
+		SetYear(1999).
+		SetArtist(artistItem).
+		SetAlbum(oldAlbum).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := service.UpdateAlbumMetadata(ctx, userItem.ID, oldAlbum.ID, MetadataWritebackInput{
+		Title:            "New Album",
+		ConfirmWriteback: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Updated != 1 {
+		t.Fatalf("expected 1 updated file, got %#v", result)
+	}
+
+	meta := probeWAVMetadata(audioPath)
+	if meta.Album != "New Album" {
+		t.Fatalf("file album = %q, want New Album", meta.Album)
+	}
+	if meta.Year != 1999 {
+		t.Fatalf("file year = %d, want 1999", meta.Year)
+	}
+	updatedSong, err := client.Song.Query().Where(song.ID(songItem.ID)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := updatedSong.Year; got != 1999 {
+		t.Fatalf("song year = %d, want 1999", got)
 	}
 }
 
