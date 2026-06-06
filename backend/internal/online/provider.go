@@ -24,6 +24,11 @@ const (
 	mobileUA  = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
 )
 
+var (
+	htmlTagPattern = regexp.MustCompile(`<[^>]+>`)
+	yearPattern    = regexp.MustCompile(`(19|20)\d{2}`)
+)
+
 type baseProvider struct{ http *http.Client }
 
 func newHTTP() *http.Client { return &http.Client{Timeout: 10 * time.Second} }
@@ -81,7 +86,7 @@ func query(title, artist string) string {
 	return strings.TrimSpace(strings.TrimSpace(title) + " " + strings.TrimSpace(artist))
 }
 func clean(v string) string     { return strings.TrimSpace(html.UnescapeString(stripTags(v))) }
-func stripTags(v string) string { return regexp.MustCompile(`<[^>]+>`).ReplaceAllString(v, "") }
+func stripTags(v string) string { return htmlTagPattern.ReplaceAllString(v, "") }
 func first(vals ...string) string {
 	for _, v := range vals {
 		if strings.TrimSpace(v) != "" {
@@ -108,8 +113,7 @@ func matchArtist(want, got string) bool {
 	return a == "" || b == "" || a == b || strings.Contains(a, b) || strings.Contains(b, a)
 }
 func parseYear(v string) int {
-	re := regexp.MustCompile(`(19|20)\d{2}`)
-	m := re.FindString(v)
+	m := yearPattern.FindString(v)
 	if m == "" {
 		return 0
 	}
@@ -380,7 +384,7 @@ func (p *Kuwo) Lyrics(ctx context.Context, song Song) (string, error) {
 		m := int(sec) / 60
 		s := int(sec) % 60
 		ms := int((sec - float64(int(sec))) * 100)
-		sb.WriteString(fmt.Sprintf("[%02d:%02d.%02d]%s\n", m, s, ms, line.LineLyric))
+		fmt.Fprintf(&sb, "[%02d:%02d.%02d]%s\n", m, s, ms, line.LineLyric)
 	}
 	return trimLyrics(sb.String()), nil
 }

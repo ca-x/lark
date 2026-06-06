@@ -26,9 +26,10 @@ type entry struct {
 }
 
 type MemoryStore struct {
-	mu     sync.RWMutex
-	values map[string]entry
-	stopCh chan struct{}
+	mu       sync.RWMutex
+	values   map[string]entry
+	stopCh   chan struct{}
+	stopOnce sync.Once
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -145,11 +146,9 @@ func (s *MemoryStore) RunValueLogGC(ctx context.Context) error {
 }
 
 func (s *MemoryStore) Close() error {
-	select {
-	case <-s.stopCh:
-	default:
+	s.stopOnce.Do(func() {
 		close(s.stopCh)
-	}
+	})
 	return nil
 }
 

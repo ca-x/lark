@@ -2,6 +2,7 @@ package kv
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 )
@@ -9,6 +10,7 @@ import (
 func TestMemoryStoreSetNXRespectsTTL(t *testing.T) {
 	ctx := context.Background()
 	store := NewMemoryStore()
+	defer store.Close()
 
 	ok, err := store.SetNX(ctx, "lease", []byte("first"), 200*time.Millisecond)
 	if err != nil || !ok {
@@ -34,4 +36,21 @@ func TestMemoryStoreSetNXRespectsTTL(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatal("expected expired lease to be acquirable")
+}
+
+func TestMemoryStoreCloseIsConcurrentSafe(t *testing.T) {
+	store := NewMemoryStore()
+	var wg sync.WaitGroup
+	for range 32 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 16 {
+				if err := store.Close(); err != nil {
+					t.Error(err)
+				}
+			}
+		}()
+	}
+	wg.Wait()
 }

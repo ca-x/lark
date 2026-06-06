@@ -5,6 +5,42 @@
 
 ---
 
+## 0.8.5 — 后端并发与预热修复
+
+发布日期 / Released: 2026-06-06
+
+### 修复
+
+- **限制曲库监听导入并发。** 文件监听事件改为固定 worker 队列处理，避免大量文件写入时无限创建导入 goroutine，并在停止监听时通过 context 取消后台导入。
+- **修复转码预热生命周期。** 转码预热 reservation 与 shutdown 等待绑定，完成后释放 warm lease，避免同一路径预热被旧 lease 阻塞。
+- **修复内存 KV 关闭竞态。** `MemoryStore.Close` 改为并发安全，重复或并发关闭不会触发关闭已关闭 channel 的 panic。
+
+### 维护
+
+- **减少在线 provider 热路径分配。** HTML 清理和年份解析复用包级正则，Kuwo 歌词格式化直接写入 builder。
+
+完整 diff：`git log v0.8.4..v0.8.5`
+
+---
+
+## v0.8.5 — Backend concurrency and warmup fixes
+
+Released: 2026-06-06
+
+### Fixes
+
+- **Bounded library watcher imports.** File watcher events now flow through a fixed worker queue, avoiding unbounded import goroutines during large writes and canceling background imports when watchers stop.
+- **Fixed transcode warmup lifecycle.** Transcode warmup reservations are tied to shutdown waiting and release the warm lease on completion, preventing stale leases from blocking later warmups for the same path.
+- **Fixed memory KV close races.** `MemoryStore.Close` is now concurrent-safe, so repeated or concurrent closes cannot panic by closing an already closed channel.
+
+### Maintenance
+
+- **Reduced online provider hot-path allocations.** HTML cleanup and year parsing reuse package-level regexps, and Kuwo lyric formatting writes directly to the builder.
+
+Full diff: `git log v0.8.4..v0.8.5`
+
+---
+
 ## 0.8.4 — 歌词拖动播放跟随开关
 
 发布日期 / Released: 2026-06-05

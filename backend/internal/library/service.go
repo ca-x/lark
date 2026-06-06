@@ -472,23 +472,29 @@ func (s *Service) runLibraryWatcher(ctx context.Context, state *libraryWatcher) 
 		}
 		s.watchMu.Unlock()
 	}()
-	importChangedFile := func(path string) {
+	importJobs := make(chan string, libraryWatcherImportQueueSize)
+	var importWG sync.WaitGroup
+	for range libraryWatcherImportConcurrency {
+		importWG.Add(1)
+		go func() {
+			defer importWG.Done()
+			for path := range importJobs {
+				s.importLibraryWatcherFile(ctx, path)
+			}
+		}()
+	}
+	defer func() {
+		close(importJobs)
+		importWG.Wait()
+	}()
+	enqueueChangedFile := func(path string) {
 		if !IsSupported(path) {
 			return
 		}
-		go func() {
-			importCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer cancel()
-			if isCUEFile(path) {
-				_, _ = s.importCUEFile(importCtx, path, true)
-				return
-			}
-			if cuePath, ok := s.firstCueReferencingAudio(importCtx, path); ok {
-				_, _ = s.importCUEFile(importCtx, cuePath, true)
-				return
-			}
-			_, _ = s.ImportFile(importCtx, path)
-		}()
+		select {
+		case importJobs <- path:
+		case <-ctx.Done():
+		}
 	}
 	for {
 		select {
@@ -503,10 +509,10 @@ func (s *Service) runLibraryWatcher(ctx context.Context, state *libraryWatcher) 
 					_ = addWatchTree(watcher, event.Name)
 					continue
 				}
-				importChangedFile(event.Name)
+				enqueueChangedFile(event.Name)
 			}
 			if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
-				cleanupCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				cleanupCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 				_ = s.cleanupMissingLibraryEntries(cleanupCtx, []string{state.root.Path})
 				cancel()
 				s.invalidateLibraryCache(context.Background())
@@ -515,6 +521,20 @@ func (s *Service) runLibraryWatcher(ctx context.Context, state *libraryWatcher) 
 		case <-watcher.Errors:
 		}
 	}
+}
+
+func (s *Service) importLibraryWatcherFile(ctx context.Context, path string) {
+	importCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if isCUEFile(path) {
+		_, _ = s.importCUEFile(importCtx, path, true)
+		return
+	}
+	if cuePath, ok := s.firstCueReferencingAudio(importCtx, path); ok {
+		_, _ = s.importCUEFile(importCtx, cuePath, true)
+		return
+	}
+	_, _ = s.ImportFile(importCtx, path)
 }
 
 func addWatchTree(watcher *fsnotify.Watcher, root string) error {
@@ -1148,6 +1168,8 @@ func maxInt(a, b int) int {
 const transcodeWarmLeasePrefix = "runtime:v1:transcode-warm:"
 const playbackSourcePrefix = "runtime:v1:playback-source:"
 const playbackQueuePrefix = "runtime:v1:playback-queue:"
+const libraryWatcherImportConcurrency = 4
+const libraryWatcherImportQueueSize = 128
 const remoteAlbumSearchConcurrency = 3
 const maxPlaybackQueueSongs = 500
 const defaultPlaybackSourceTTLHours = 24

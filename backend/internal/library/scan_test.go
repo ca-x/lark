@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf16"
 
 	"lark/backend/ent"
@@ -471,6 +472,7 @@ func TestPreferredEmbeddedLyricsTrustsStoredEmbeddedLyrics(t *testing.T) {
 func TestInvalidateSearchCatalogsClearsPersistentCache(t *testing.T) {
 	ctx := context.Background()
 	store := kv.NewMemoryStore()
+	defer store.Close()
 	service := &Service{cache: store}
 	if err := service.cacheSetJSONPermanent(ctx, artistCatalogCacheKey, []models.Artist{{ID: 1, Name: "Artist"}}); err != nil {
 		t.Fatal(err)
@@ -486,6 +488,33 @@ func TestInvalidateSearchCatalogsClearsPersistentCache(t *testing.T) {
 	}
 	if _, ok, err := store.Get(ctx, songCatalogCacheKey); err != nil || ok {
 		t.Fatalf("expected song catalog cache deleted, ok=%v err=%v", ok, err)
+	}
+}
+
+func TestTranscodeWarmLeaseCanBeReleased(t *testing.T) {
+	ctx := context.Background()
+	store := kv.NewMemoryStore()
+	defer store.Close()
+	service := &Service{cache: store}
+	cachePath := filepath.Join(t.TempDir(), "song.mp3")
+
+	ok, err := service.TryAcquireTranscodeWarmLease(ctx, cachePath, time.Minute)
+	if err != nil || !ok {
+		t.Fatalf("expected initial lease acquire, ok=%v err=%v", ok, err)
+	}
+	ok, err = service.TryAcquireTranscodeWarmLease(ctx, cachePath, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("expected duplicate lease acquire to be rejected")
+	}
+
+	service.ReleaseTranscodeWarmLease(ctx, cachePath)
+
+	ok, err = service.TryAcquireTranscodeWarmLease(ctx, cachePath, time.Minute)
+	if err != nil || !ok {
+		t.Fatalf("expected lease acquire after release, ok=%v err=%v", ok, err)
 	}
 }
 

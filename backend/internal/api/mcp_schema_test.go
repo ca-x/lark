@@ -71,6 +71,11 @@ func TestTranscodeCacheLockTracksWaiters(t *testing.T) {
 
 func TestTranscodeWarmerReservationHonorsLimitAndDeduplicates(t *testing.T) {
 	server := &Server{transcodeWarmLimit: 2}
+	t.Cleanup(func() {
+		server.releaseTranscodeWarmer("/tmp/one.mp3")
+		server.releaseTranscodeWarmer("/tmp/two.mp3")
+		server.releaseTranscodeWarmer("/tmp/three.mp3")
+	})
 	if !server.reserveTranscodeWarmer("/tmp/one.mp3") {
 		t.Fatal("expected first warmer to be reserved")
 	}

@@ -42,6 +42,7 @@ type Server struct {
 	transcodeWarmersMu     sync.Mutex
 	transcodeWarmersWG     sync.WaitGroup
 	transcodeWarmersActive int
+	transcodeWarmersClosed bool
 	transcodeWarmTTL       time.Duration
 	transcodeWarmLimit     int
 	offlineTranscodeErrors sync.Map
@@ -397,6 +398,9 @@ func (s *Server) Start(addr string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.ctx = ctx
 	s.cancel = cancel
+	s.transcodeWarmersMu.Lock()
+	s.transcodeWarmersClosed = false
+	s.transcodeWarmersMu.Unlock()
 	if err := s.lib.StartLibraryWatchers(ctx); err != nil {
 		cancel()
 		return err
@@ -410,6 +414,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	s.lib.StopLibraryWatchers(ctx)
 	s.transcodeWarmersMu.Lock()
+	s.transcodeWarmersClosed = true
 	s.transcodeWarmersMu.Unlock()
 	done := make(chan struct{})
 	go func() {
@@ -1211,9 +1216,7 @@ func (s *Server) startOfflineTranscodePrepare(ffmpeg string, source library.Audi
 		s.releaseTranscodeWarmer(cachePath)
 		return true, nil
 	}
-	s.transcodeWarmersWG.Add(1)
 	go func() {
-		defer s.transcodeWarmersWG.Done()
 		defer s.releaseTranscodeWarmer(cachePath)
 		defer s.lib.ReleaseTranscodeWarmLease(parent, cachePath)
 		ctx, cancel := context.WithTimeout(parent, offlinePrepareTimeout)
@@ -1514,10 +1517,9 @@ func (s *Server) startTranscodeCacheWarm(ffmpeg string, source library.AudioSegm
 		s.releaseTranscodeWarmer(cachePath)
 		return
 	}
-	s.transcodeWarmersWG.Add(1)
 	go func() {
-		defer s.transcodeWarmersWG.Done()
 		defer s.releaseTranscodeWarmer(cachePath)
+		defer s.lib.ReleaseTranscodeWarmLease(parent, cachePath)
 		ctx, cancel := context.WithTimeout(parent, ttl)
 		defer cancel()
 		_, _ = s.ensureTranscodeCache(ctx, ffmpeg, source, quality)
@@ -1527,6 +1529,9 @@ func (s *Server) startTranscodeCacheWarm(ffmpeg string, source library.AudioSegm
 func (s *Server) reserveTranscodeWarmer(cachePath string) bool {
 	s.transcodeWarmersMu.Lock()
 	defer s.transcodeWarmersMu.Unlock()
+	if s.transcodeWarmersClosed {
+		return false
+	}
 	if _, loaded := s.transcodeCacheWarmers.Load(cachePath); loaded {
 		return false
 	}
@@ -1535,14 +1540,19 @@ func (s *Server) reserveTranscodeWarmer(cachePath string) bool {
 	}
 	s.transcodeCacheWarmers.Store(cachePath, struct{}{})
 	s.transcodeWarmersActive++
+	s.transcodeWarmersWG.Add(1)
 	return true
 }
 
 func (s *Server) releaseTranscodeWarmer(cachePath string) {
 	s.transcodeWarmersMu.Lock()
-	defer s.transcodeWarmersMu.Unlock()
-	if _, loaded := s.transcodeCacheWarmers.LoadAndDelete(cachePath); loaded && s.transcodeWarmersActive > 0 {
+	_, loaded := s.transcodeCacheWarmers.LoadAndDelete(cachePath)
+	if loaded && s.transcodeWarmersActive > 0 {
 		s.transcodeWarmersActive--
+	}
+	s.transcodeWarmersMu.Unlock()
+	if loaded {
+		s.transcodeWarmersWG.Done()
 	}
 }
 
