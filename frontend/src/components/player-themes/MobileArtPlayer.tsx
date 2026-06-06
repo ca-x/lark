@@ -118,9 +118,11 @@ export function MobileArtPlayer({
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
   const smartisanNeedleAngle = mobileSmartisanNeedleAngle(pct, duration, playing);
+  const precisionTonearmAngle = 15 + pct * 24;
   const style = {
     "--mobile-art-progress-pct": `${(pct * 100).toFixed(2)}%`,
     "--mobile-smartisan-needle": `${smartisanNeedleAngle.toFixed(2)}deg`,
+    "--mobile-pa-tonearm": `${precisionTonearmAngle.toFixed(2)}deg`,
     ...(coverState.coverImage ? { "--mobile-art-cover-image": coverState.coverImage } : {}),
   } as CSSProperties;
   const [swipeY, setSwipeY] = useState(0);
@@ -171,7 +173,7 @@ export function MobileArtPlayer({
         ) : null}
 
         {variant === "neon-console" ? (
-          <NeonConsoleVisual cover={coverState.displayUrl} playing={playing} onCoverError={coverState.onCoverError} />
+          <PrecisionAudioVisual cover={coverState.displayUrl} playing={playing} onCoverError={coverState.onCoverError} />
         ) : variant === "indiewave" ? (
           <IndiewaveVisual cover={coverState.displayUrl} onCoverError={coverState.onCoverError} />
         ) : variant === "editorial-pulse" ? (
@@ -288,6 +290,31 @@ function VolumeTicks({
   );
 }
 
+function PrecisionAudioVisual({ cover, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
+  return (
+    <div className="mobile-pa-visual">
+      <div className="mobile-pa-art-stack">
+        <span className="mobile-pa-vinyl" aria-hidden="true"><i /></span>
+        <div className="mobile-pa-cover" data-has-cover={cover ? "true" : "false"}>
+          {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : <MusicNotes weight="fill" />}
+        </div>
+      </div>
+      <div className="mobile-pa-tonearm" aria-hidden="true">
+        <span />
+        <i />
+      </div>
+      <div className="mobile-pa-status" aria-hidden="true">
+        <span className={playing ? "mobile-pa-led on" : "mobile-pa-led"} />
+        <strong>33</strong>
+        <em>RPM</em>
+        <div className="mobile-pa-vu">
+          {Array.from({ length: 8 }, (_, index) => <i key={index} style={{ "--vu-height": `${7 + index * 1.6}px` } as CSSProperties} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SoftVinylVisual({ cover, onCoverError }: CoverVisualProps) {
   return (
     <div className="mobile-soft-stage">
@@ -300,18 +327,6 @@ function SoftVinylVisual({ cover, onCoverError }: CoverVisualProps) {
         <span aria-hidden="true" className="mobile-soft-cube"><span /></span>
         <span aria-hidden="true" className="mobile-soft-knob" />
       </div>
-    </div>
-  );
-}
-
-function NeonConsoleVisual({ cover, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
-  return (
-    <div className="mobile-neon-visual">
-      <div className="mobile-neon-record" data-has-cover={cover ? "true" : "false"}>
-        {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
-        <span />
-      </div>
-      <span className={playing ? "mobile-neon-led on" : "mobile-neon-led"} />
     </div>
   );
 }
