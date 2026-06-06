@@ -46,7 +46,7 @@ For release notes, see [CHANGELOG.md](CHANGELOG.md).
 ### Playback Experience
 
 - Desktop home player styles include vinyl deck, cassette deck, iPod, audio scope, album sleeve, and Smartisan deck.
-- Mobile player styles include hardware console, indiewave, music editor, soft vinyl, stage glass, blue halo, and Smartisan classic.
+- Mobile player styles include Precision Audio, indiewave, music editor, soft vinyl, stage glass, blue halo, and Smartisan classic.
 - The bottom player exposes queue, play mode, volume, progress, favorites, sleep timer, and fullscreen lyrics.
 - Sleep timer can stop by duration, after a number of songs, or at the end of the current album.
 - Equalizer presets apply to local music, network tracks, and radio playback.

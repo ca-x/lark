@@ -14,7 +14,7 @@ export type View =
   | "settings"
   | "about";
 
-export const MOBILE_PLAYBACK_VIEWS = new Set<View>(["home", "favorites", "library", "playlists", "albums", "artists", "collection", "settings"]);
+export const MOBILE_PLAYBACK_VIEWS = new Set<View>(["home", "favorites", "library", "radio", "playlists", "albums", "artists", "collection", "settings"]);
 
 export type PlayMode = "sequence" | "shuffle" | "repeat-one";
 export type ResumeMode = "resume" | "restart";
