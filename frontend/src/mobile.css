@@ -2677,22 +2677,22 @@
   }
   .mobile-home-library-hub {
     display:grid;
-    grid-template-columns:repeat(3, minmax(0, 1fr));
+    grid-template-columns:repeat(4, minmax(0, 1fr));
     gap:8px;
   }
   .mobile-home-library-hub button {
     min-width:0;
-    min-height:108px;
+    min-height:102px;
     display:grid;
     align-content:start;
-    justify-items:start;
+    justify-items:center;
     gap:8px;
-    padding:10px;
+    padding:9px 7px;
     border-radius:22px;
     color:var(--text);
     background:color-mix(in srgb, var(--panel2) 84%, transparent);
     border:1px solid color-mix(in srgb, var(--line) 84%, transparent);
-    text-align:left;
+    text-align:center;
     touch-action:manipulation;
   }
   .mobile-collection-cover {
@@ -2737,6 +2737,9 @@
     min-width:0;
     display:grid;
     gap:3px;
+  }
+  .mobile-home-library-hub span {
+    justify-items:center;
   }
   .mobile-home-library-hub strong,
   .mobile-home-library-hub small,
@@ -2860,26 +2863,6 @@
     background:#fffefa;
     border-color:rgba(255,255,255,.86);
     box-shadow:0 12px 28px rgba(9,45,100,.16);
-  }
-  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs {
-    margin:0;
-    padding:5px 8px;
-    border-radius:0;
-    color:rgba(0,0,0,.40);
-    background:url('/smartisan/titlebar-bg.png') center / 100% 100%, linear-gradient(180deg,#fff,#efefef);
-    border-bottom:1px solid rgba(169,169,169,.44);
-    box-shadow:0 8px 0 -7px rgba(0,0,0,.18);
-  }
-  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs button {
-    border-radius:5px;
-    color:rgba(0,0,0,.46);
-    background:transparent;
-    text-shadow:0 1px 0 rgba(255,255,255,.82);
-  }
-  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs button.active {
-    color:#e65c53;
-    background:linear-gradient(180deg,#fff8f8,#fbe6e5);
-    border:1px solid #e8c3c0;
   }
   .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-now,
   .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-highlight,
@@ -3410,33 +3393,6 @@
 }
 
 @media (max-width:720px) {
-  .mobile-home-tabs {
-    display:flex;
-    gap:8px;
-    overflow-x:auto;
-    overscroll-behavior-x:contain;
-    -webkit-overflow-scrolling:touch;
-    scrollbar-width:none;
-  }
-  .mobile-home-tabs::-webkit-scrollbar {
-    display:none;
-  }
-  .mobile-home-tabs button {
-    flex:0 0 auto;
-    min-height:40px;
-    padding:0 13px;
-    border-radius:999px;
-    color:var(--muted);
-    background:color-mix(in srgb, var(--panel2) 78%, transparent);
-    border:1px solid color-mix(in srgb, var(--line) 82%, transparent);
-    font-size:12px;
-    font-weight:850;
-  }
-  .mobile-home-tabs button.active {
-    color:var(--bg);
-    background:var(--accent);
-    border-color:transparent;
-  }
   .mobile-home-now {
     min-width:0;
     display:grid;
@@ -4290,7 +4246,6 @@
   }
 
   .app-shell[data-mobile-theme] .mobile-bottom-nav button.active,
-  .app-shell[data-mobile-theme] .mobile-home-tabs button.active,
   .app-shell[data-mobile-theme] .mobile-mini-player .mobile-mini-play,
   .app-shell[data-mobile-theme] .mobile-home-now > button > svg {
     color:var(--mobile-active-text);
@@ -4727,7 +4682,6 @@
   .mobile-art-controls button,
   .mobile-art-topbar-icon,
   .mobile-mini-player > button,
-  .mobile-home-tabs button,
   .mobile-home-now > button,
   .mobile-home-highlight > button,
   .mobile-home-library-hub button,
@@ -4746,7 +4700,6 @@
   .mobile-art-actions button:not(:disabled):active,
   .mobile-art-controls button:not(:disabled):active,
   .mobile-mini-player > button:not(.mobile-mini-main):not(:disabled):active,
-  .mobile-home-tabs button:not(:disabled):active,
   .mobile-home-now > button:not(:disabled):active,
   .mobile-home-highlight > button:not(:disabled):active,
   .mobile-home-library-hub button:not(:disabled):active,
@@ -4822,7 +4775,6 @@
 
   .mobile-home-song-strip button.active,
   .mobile-home-list button.active,
-  .mobile-home-tabs button.active,
   .mobile-bottom-nav button.active {
     box-shadow:0 10px 24px color-mix(in srgb, var(--accent) 18%, transparent);
   }
@@ -4886,7 +4838,6 @@
 @media (max-width:720px) {
   /* Mobile UX hardening: prevent accidental selection and double-tap zoom */
   .app-shell[data-mobile-theme] button,
-  .app-shell[data-mobile-theme] .mobile-home-tabs,
   .app-shell[data-mobile-theme] .mobile-bottom-nav,
   .app-shell[data-mobile-theme] .mobile-home-surface,
   .app-shell[data-mobile-theme] .mobile-mini-player,
@@ -4895,14 +4846,12 @@
     -webkit-user-select: none;
   }
   .app-shell[data-mobile-theme] button,
-  .app-shell[data-mobile-theme] .mobile-home-tabs button,
   .app-shell[data-mobile-theme] .mobile-home-now > button {
     touch-action: manipulation;
   }
 
   /* Editorial-pulse: warmer accent shadow for active buttons on yellow bg */
   .app-shell[data-mobile-theme='editorial-pulse'] .mobile-bottom-nav button.active,
-  .app-shell[data-mobile-theme='editorial-pulse'] .mobile-home-tabs button.active,
   .app-shell[data-mobile-theme='editorial-pulse'] .collection-tabs button.active,
   .app-shell[data-mobile-theme='editorial-pulse'] .collection-actions .primary {
     box-shadow: 0 10px 24px color-mix(in srgb, #b8202a 28%, transparent);
@@ -5083,7 +5032,6 @@
   .app-shell button,
   .app-shell a,
   .app-shell [role='button'],
-  .app-shell .mobile-home-tabs button,
   .app-shell .mobile-bottom-nav button,
   .app-shell .song-row,
   .app-shell .queue-item,
@@ -5106,7 +5054,6 @@
   .app-shell .topbar,
   .app-shell .topbar h1,
   .app-shell .topbar button,
-  .app-shell .mobile-home-tabs,
   .app-shell .mobile-bottom-nav,
   .app-shell .mobile-mini-player,
   .app-shell .mobile-art-player,
@@ -5170,7 +5117,6 @@
   .playlist-card:active,
   .album-slide:active,
   .collection-brick:active,
-  .mobile-home-tabs button:active,
   .mobile-bottom-nav button:active,
   .settings-tabs button:active,
   .collection-tabs button:active {
@@ -5205,63 +5151,12 @@
 }
 
 @media (max-width:720px) {
-  /* Keep after the generic mobile tab rules: Smartisan uses a fixed titlebar, not scroll pills. */
   .mobile-home-surface[data-mobile-theme='smartisan-classic'] {
     width:100%;
     max-width:100%;
     overflow-x:hidden;
     gap:12px;
     padding-bottom:calc(42px + var(--safe-bottom));
-  }
-
-  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs {
-    width:100%;
-    display:grid;
-    grid-template-columns:repeat(4, minmax(0, 1fr));
-    gap:0;
-    margin:0 0 6px;
-    padding:0;
-    overflow:visible;
-    min-height:52px;
-    background:url('/smartisan/titlebar-bg.png') center / 100% 100%, linear-gradient(180deg,#fff,#efefef);
-    border-top:1px solid rgba(255,255,255,.78);
-    border-bottom:1px solid rgba(169,169,169,.44);
-    box-shadow:0 8px 0 -7px rgba(0,0,0,.18);
-  }
-
-  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs::-webkit-scrollbar {
-    display:none;
-  }
-
-  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs button {
-    width:100%;
-    min-width:0;
-    min-height:52px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:0 6px;
-    overflow:hidden;
-    border:0;
-    border-left:1px solid rgba(0,0,0,.04);
-    border-radius:0;
-    color:rgba(0,0,0,.46);
-    background:transparent;
-    box-shadow:none;
-    text-align:center;
-    text-overflow:ellipsis;
-    text-shadow:0 1px 0 rgba(255,255,255,.82);
-    white-space:nowrap;
-  }
-
-  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs button:first-child {
-    border-left:0;
-  }
-
-  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-tabs button.active {
-    color:#e65c53 !important;
-    background:linear-gradient(180deg,#fff8f8,#fbe6e5);
-    box-shadow:inset 0 -2px 0 #e65c53, inset 0 1px 0 rgba(255,255,255,.95);
   }
 
   .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-library-hub,
@@ -5281,7 +5176,7 @@
   }
 
   .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-library-hub {
-    grid-template-columns:repeat(3, minmax(0, 1fr));
+    grid-template-columns:repeat(4, minmax(0, 1fr));
   }
 }
 

@@ -4062,6 +4062,10 @@ export default function App() {
                   setView("playlists");
                   void loadPlaylistPage(1);
                 }}
+                onOpenRadio={() => {
+                  setView("radio");
+                  if (!radioStations.length) void loadRadioStations();
+                }}
               />
             )}
 
@@ -5003,11 +5007,10 @@ function HomeView({
   onOpenArtist,
   onPlayPlaylist,
   onOpenPlaylist,
-  onOpenLibrary,
-  onOpenFavorites,
   onOpenAlbums,
   onOpenArtists,
   onOpenPlaylists,
+  onOpenRadio,
 }: {
   songs: Song[];
   recentPlayedSongs: Song[];
@@ -5054,6 +5057,7 @@ function HomeView({
   onOpenAlbums: () => void;
   onOpenArtists: () => void;
   onOpenPlaylists: () => void;
+  onOpenRadio: () => void;
 }) {
   const [recentTab, setRecentTab] = useState<RecentHomeTab>("played");
   const [dailyView, setDailyView] = useState<DailyDiscoveryView>("songs");
@@ -5093,11 +5097,10 @@ function HomeView({
           onPlay={onPlay}
           onResume={onResume}
           onTogglePlayback={onTogglePlayback}
-          onOpenLibrary={onOpenLibrary}
-          onOpenFavorites={onOpenFavorites}
           onOpenAlbums={onOpenAlbums}
           onOpenArtists={onOpenArtists}
           onOpenPlaylists={onOpenPlaylists}
+          onOpenRadio={onOpenRadio}
           onOpenAlbum={onOpenAlbum}
           onOpenArtist={onOpenArtist}
           onOpenPlaylist={onOpenPlaylist}

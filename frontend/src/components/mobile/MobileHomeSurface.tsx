@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { Disc, MicrophoneStage, Pause, Play, Playlist as PlaylistIcon, Record } from "@phosphor-icons/react";
+import { Disc, MicrophoneStage, MusicNotes, Pause, Play, Playlist as PlaylistIcon, Record } from "@phosphor-icons/react";
 
 import type { createT } from "../../i18n";
 import type { Album, Artist, LibraryStats, MobileHomePlayerStyle, Playlist, Song } from "../../types";
@@ -41,7 +41,7 @@ function MobileCollectionCover({
   fallback,
 }: {
   src?: string;
-  fallback: "album" | "artist" | "playlist";
+  fallback: "album" | "artist" | "playlist" | "radio";
 }) {
   const [failedSrc, setFailedSrc] = useState("");
   useEffect(() => {
@@ -52,7 +52,7 @@ function MobileCollectionCover({
   return (
     <span className="mobile-collection-cover" data-has-cover={displaySrc ? "true" : "false"} data-kind={fallback} style={style}>
       {displaySrc ? <img src={displaySrc} alt="" loading="lazy" decoding="async" onError={() => setFailedSrc(displaySrc)} /> : null}
-      {fallback === "artist" ? <MicrophoneStage weight="fill" /> : fallback === "playlist" ? <PlaylistIcon weight="fill" /> : <Disc weight="fill" />}
+      {fallback === "artist" ? <MicrophoneStage weight="fill" /> : fallback === "playlist" ? <PlaylistIcon weight="fill" /> : fallback === "radio" ? <MusicNotes weight="fill" /> : <Disc weight="fill" />}
     </span>
   );
 }
@@ -73,11 +73,10 @@ export function MobileHomeSurface({
   onPlay,
   onResume,
   onTogglePlayback,
-  onOpenLibrary,
-  onOpenFavorites,
   onOpenAlbums,
   onOpenArtists,
   onOpenPlaylists,
+  onOpenRadio,
   onOpenAlbum,
   onOpenArtist,
   onOpenPlaylist,
@@ -97,11 +96,10 @@ export function MobileHomeSurface({
   onPlay: (song: Song, list?: Song[]) => void;
   onResume: (song: Song) => void;
   onTogglePlayback: () => void;
-  onOpenLibrary: () => void;
-  onOpenFavorites: () => void;
   onOpenAlbums: () => void;
   onOpenArtists: () => void;
   onOpenPlaylists: () => void;
+  onOpenRadio: () => void;
   onOpenAlbum: (album: Album) => void;
   onOpenArtist: (id: number, fallbackName?: string) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
@@ -115,27 +113,9 @@ export function MobileHomeSurface({
   const featuredAlbum = albums[0];
   const featuredArtist = artists[0];
   const featuredPlaylist = playlists[0];
-  const showSurfaceTabs = theme !== "smartisan-classic";
 
   return (
     <section className="mobile-home-surface" data-mobile-theme={theme}>
-      {showSurfaceTabs ? (
-        <nav className="mobile-home-tabs" aria-label={t("home")}>
-          <button type="button" className="active">
-            {t("mobileForYou")}
-          </button>
-          <button type="button" onClick={onOpenLibrary}>
-            {t("library")}
-          </button>
-          <button type="button" onClick={onOpenFavorites}>
-            {t("favorites")}
-          </button>
-          <button type="button" onClick={onOpenPlaylists}>
-            {t("playlists")}
-          </button>
-        </nav>
-      ) : null}
-
       <section className="mobile-home-now">
         <div>
           <span>{t("nowPlaying")}</span>
@@ -174,21 +154,28 @@ export function MobileHomeSurface({
           <MobileCollectionCover src={albumCoverUrl(featuredAlbum)} fallback="album" />
           <span>
             <strong>{t("albums")}</strong>
-            <small>{stats?.albums ?? albums.length} {t("album")}</small>
+            <small>{stats ? stats.albums : albums.length} {t("album")}</small>
           </span>
         </button>
         <button type="button" onClick={onOpenArtists}>
           <MobileCollectionCover src={artistCoverUrl(featuredArtist)} fallback="artist" />
           <span>
             <strong>{t("artists")}</strong>
-            <small>{stats?.artists ?? artists.length} {t("artists")}</small>
+            <small>{stats ? stats.artists : artists.length} {t("artists")}</small>
           </span>
         </button>
         <button type="button" onClick={onOpenPlaylists}>
           <MobileCollectionCover fallback="playlist" />
           <span>
             <strong>{t("playlists")}</strong>
-            <small>{stats?.playlists ?? playlists.length} {t("playlists")}</small>
+            <small>{stats ? stats.playlists : playlists.length} {t("playlists")}</small>
+          </span>
+        </button>
+        <button type="button" onClick={onOpenRadio}>
+          <MobileCollectionCover fallback="radio" />
+          <span>
+            <strong>{t("onlineRadio")}</strong>
+            <small>{t("liveRadio")}</small>
           </span>
         </button>
       </div>
