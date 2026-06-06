@@ -29,6 +29,7 @@ func probeWAVMetadata(path string) fileMetadata {
 	var meta fileMetadata
 	var byteRate int
 	var dataBytes uint32
+chunks:
 	for {
 		var chunkHeader [8]byte
 		if _, err := io.ReadFull(f, chunkHeader[:]); err != nil {
@@ -36,12 +37,12 @@ func probeWAVMetadata(path string) fileMetadata {
 		}
 		chunkID := string(chunkHeader[0:4])
 		chunkSize := binary.LittleEndian.Uint32(chunkHeader[4:8])
-		chunkData, err := readChunkData(f, chunkSize)
-		if err != nil {
-			break
-		}
 		switch chunkID {
 		case "fmt ":
+			chunkData, err := readChunkData(f, chunkSize)
+			if err != nil {
+				break chunks
+			}
 			if len(chunkData) >= 16 {
 				meta.SampleRate = int(binary.LittleEndian.Uint32(chunkData[4:8]))
 				byteRate = int(binary.LittleEndian.Uint32(chunkData[8:12]))
@@ -49,10 +50,25 @@ func probeWAVMetadata(path string) fileMetadata {
 			}
 		case "data":
 			dataBytes = chunkSize
+			if err := skipChunkData(f, chunkSize); err != nil {
+				break chunks
+			}
 		case "LIST":
+			chunkData, err := readChunkData(f, chunkSize)
+			if err != nil {
+				break chunks
+			}
 			mergeFileMetadata(&meta, parseWAVInfoList(chunkData))
 		case "id3 ", "ID3 ":
+			chunkData, err := readChunkData(f, chunkSize)
+			if err != nil {
+				break chunks
+			}
 			mergeFileMetadata(&meta, parseID3Metadata(chunkData))
+		default:
+			if err := skipChunkData(f, chunkSize); err != nil {
+				break chunks
+			}
 		}
 		if chunkSize%2 == 1 {
 			_, _ = f.Seek(1, io.SeekCurrent)
@@ -65,6 +81,11 @@ func probeWAVMetadata(path string) fileMetadata {
 		meta.BitRate = byteRate * 8
 	}
 	return meta
+}
+
+func skipChunkData(f *os.File, size uint32) error {
+	_, err := f.Seek(int64(size), io.SeekCurrent)
+	return err
 }
 
 func filepathExt(path string) string {
@@ -341,82 +362,231 @@ func metadataFieldNeedsWrite(original, corrected string) bool {
 }
 
 func writeWAVInfoMetadata(path string, meta fileMetadata) (bool, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false, err
-	}
-	if len(data) < 12 || string(data[0:4]) != "RIFF" || string(data[8:12]) != "WAVE" {
-		return false, nil
-	}
 	listChunk := buildWAVInfoListChunk(meta)
 	if len(listChunk) == 0 {
-		return false, nil
-	}
-	out := append([]byte{}, data[:12]...)
-	replaced := false
-	for pos := 12; pos+8 <= len(data); {
-		chunkID := string(data[pos : pos+4])
-		chunkSize := int(binary.LittleEndian.Uint32(data[pos+4 : pos+8]))
-		chunkEnd := pos + 8 + chunkSize
-		if chunkSize < 0 || chunkEnd > len(data) {
-			return false, nil
-		}
-		paddedEnd := chunkEnd
-		if chunkSize%2 == 1 {
-			paddedEnd++
-		}
-		if paddedEnd > len(data) {
-			return false, nil
-		}
-		if chunkID == "LIST" && chunkSize >= 4 && string(data[pos+8:pos+12]) == "INFO" {
-			if !replaced {
-				out = append(out, listChunk...)
-				replaced = true
-			}
-		} else {
-			out = append(out, data[pos:paddedEnd]...)
-		}
-		pos = paddedEnd
-	}
-	if !replaced {
-		out = append(out, listChunk...)
-	}
-	riffSize := len(out) - 8
-	if riffSize < 0 || riffSize > int(^uint32(0)) {
-		return false, nil
-	}
-	binary.LittleEndian.PutUint32(out[4:8], uint32(riffSize))
-	if bytes.Equal(out, data) {
 		return false, nil
 	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return false, err
 	}
+	src, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer src.Close()
+	var header [12]byte
+	if _, err := io.ReadFull(src, header[:]); err != nil || string(header[0:4]) != "RIFF" || string(header[8:12]) != "WAVE" {
+		return false, nil
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*.tmp")
 	if err != nil {
 		return false, err
 	}
 	tmpPath := tmp.Name()
-	_, writeErr := tmp.Write(out)
-	closeErr := tmp.Close()
-	if writeErr != nil {
+	cleanup := func() {
+		_ = tmp.Close()
 		_ = os.Remove(tmpPath)
+	}
+	written, writeErr := rewriteWAVInfoChunks(src, tmp, header, listChunk)
+	if writeErr != nil {
+		cleanup()
 		return false, writeErr
 	}
-	if closeErr != nil {
-		_ = os.Remove(tmpPath)
-		return false, closeErr
+	if written <= 8 || written-8 > int64(^uint32(0)) {
+		cleanup()
+		return false, nil
+	}
+	var riffSize [4]byte
+	binary.LittleEndian.PutUint32(riffSize[:], uint32(written-8))
+	if _, err := tmp.Seek(4, io.SeekStart); err != nil {
+		cleanup()
+		return false, err
+	}
+	if _, err := writeAll(tmp, riffSize[:]); err != nil {
+		cleanup()
+		return false, err
 	}
 	if err := os.Chmod(tmpPath, info.Mode()); err != nil {
+		cleanup()
+		return false, err
+	}
+	if err := tmp.Close(); err != nil {
 		_ = os.Remove(tmpPath)
 		return false, err
+	}
+	same, err := sameFileContent(path, tmpPath)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return false, err
+	}
+	if same {
+		_ = os.Remove(tmpPath)
+		return false, nil
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
 		_ = os.Remove(tmpPath)
 		return false, err
 	}
 	return true, nil
+}
+
+func rewriteWAVInfoChunks(src *os.File, dst *os.File, header [12]byte, listChunk []byte) (int64, error) {
+	written, err := writeAll(dst, header[:])
+	if err != nil {
+		return written, err
+	}
+	replaced := false
+	for {
+		var chunkHeader [8]byte
+		if _, err := io.ReadFull(src, chunkHeader[:]); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return 0, err
+		}
+		chunkID := string(chunkHeader[0:4])
+		chunkSize := binary.LittleEndian.Uint32(chunkHeader[4:8])
+		if chunkID == "LIST" && chunkSize >= 4 {
+			var listType [4]byte
+			if _, err := io.ReadFull(src, listType[:]); err != nil {
+				return 0, err
+			}
+			remaining := int64(chunkSize) - int64(len(listType))
+			if string(listType[:]) == "INFO" {
+				if !replaced {
+					n, err := writeAll(dst, listChunk)
+					written += n
+					if err != nil {
+						return 0, err
+					}
+					replaced = true
+				}
+				if err := discardExactly(src, remaining); err != nil {
+					return 0, err
+				}
+				if chunkSize%2 == 1 {
+					if err := discardExactly(src, 1); err != nil {
+						return 0, err
+					}
+				}
+				continue
+			}
+			n, err := writeAll(dst, chunkHeader[:])
+			written += n
+			if err != nil {
+				return 0, err
+			}
+			n, err = writeAll(dst, listType[:])
+			written += n
+			if err != nil {
+				return 0, err
+			}
+			n, err = copyExactly(dst, src, remaining)
+			written += n
+			if err != nil {
+				return 0, err
+			}
+		} else {
+			n, err := writeAll(dst, chunkHeader[:])
+			written += n
+			if err != nil {
+				return 0, err
+			}
+			n, err = copyExactly(dst, src, int64(chunkSize))
+			written += n
+			if err != nil {
+				return 0, err
+			}
+		}
+		if chunkSize%2 == 1 {
+			n, err := copyExactly(dst, src, 1)
+			written += n
+			if err != nil {
+				return 0, err
+			}
+		}
+	}
+	if !replaced {
+		n, err := writeAll(dst, listChunk)
+		written += n
+		if err != nil {
+			return 0, err
+		}
+	}
+	return written, nil
+}
+
+func writeAll(w io.Writer, data []byte) (int64, error) {
+	written := 0
+	for written < len(data) {
+		n, err := w.Write(data[written:])
+		written += n
+		if err != nil {
+			return int64(written), err
+		}
+		if n == 0 {
+			return int64(written), io.ErrShortWrite
+		}
+	}
+	return int64(written), nil
+}
+
+func copyExactly(dst io.Writer, src io.Reader, n int64) (int64, error) {
+	if n <= 0 {
+		return 0, nil
+	}
+	return io.CopyN(dst, src, n)
+}
+
+func discardExactly(r io.Reader, n int64) error {
+	if n <= 0 {
+		return nil
+	}
+	_, err := io.CopyN(io.Discard, r, n)
+	return err
+}
+
+func sameFileContent(a, b string) (bool, error) {
+	aInfo, err := os.Stat(a)
+	if err != nil {
+		return false, err
+	}
+	bInfo, err := os.Stat(b)
+	if err != nil {
+		return false, err
+	}
+	if aInfo.Size() != bInfo.Size() {
+		return false, nil
+	}
+	left, err := os.Open(a)
+	if err != nil {
+		return false, err
+	}
+	defer left.Close()
+	right, err := os.Open(b)
+	if err != nil {
+		return false, err
+	}
+	defer right.Close()
+	leftBuf := make([]byte, 64*1024)
+	rightBuf := make([]byte, 64*1024)
+	for {
+		leftN, leftErr := left.Read(leftBuf)
+		rightN, rightErr := right.Read(rightBuf)
+		if leftN != rightN || !bytes.Equal(leftBuf[:leftN], rightBuf[:rightN]) {
+			return false, nil
+		}
+		if leftErr == io.EOF && rightErr == io.EOF {
+			return true, nil
+		}
+		if leftErr != nil && leftErr != io.EOF {
+			return false, leftErr
+		}
+		if rightErr != nil && rightErr != io.EOF {
+			return false, rightErr
+		}
+	}
 }
 
 func buildWAVInfoListChunk(meta fileMetadata) []byte {

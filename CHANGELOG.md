@@ -5,6 +5,40 @@
 
 ---
 
+## 0.8.6 — 移动端播放体验与元信息写回修复
+
+发布日期 / Released: 2026-06-06
+
+### 新功能
+
+- **重做移动端首页与播放界面。** 移动端新增更精致的迷你播放器、展开播放页、音效面板和首页信息层级，吸收桌面首页播放器的视觉效果，同时保留桌面端现有布局。
+
+### 修复
+
+- **修复专辑元信息写回。** 在专辑页编辑专辑名、专辑歌手、年份等信息时，会同步写回对应歌曲文件和歌曲记录，和单曲元信息编辑保持一致。
+- **增强 WAV 元信息写回可靠性。** WAV `LIST/INFO` 写回改为流式重写，避免大文件整文件读入，并修复 chunk 解析和短写边界处理。
+
+完整 diff：`git log v0.8.5..v0.8.6`
+
+---
+
+## v0.8.6 — Mobile playback polish and metadata writeback fixes
+
+Released: 2026-06-06
+
+### Features
+
+- **Redesigned the mobile home and playback experience.** Mobile now has a more polished mini player, expanded now-playing view, sound panel, and home hierarchy, borrowing the desktop home player treatment while preserving the existing desktop layout.
+
+### Fixes
+
+- **Fixed album metadata writeback.** Editing album title, album artist, year, and related fields from the album page now writes the changes back to the matching audio files and song records, matching single-track metadata editing.
+- **Hardened WAV metadata writeback.** WAV `LIST/INFO` updates now rewrite files as a stream instead of reading the full file into memory, with safer chunk parsing and short-write handling.
+
+Full diff: `git log v0.8.5..v0.8.6`
+
+---
+
 ## 0.8.5 — 后端并发与预热修复
 
 发布日期 / Released: 2026-06-06
