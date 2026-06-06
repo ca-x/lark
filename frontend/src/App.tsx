@@ -7224,7 +7224,7 @@ function FullLyrics({
         >
           <MiniCover song={song} playing={false} />
         </button>
-        <div>
+        <div className="lyrics-title-block">
           <p>{t("nowPlaying")}</p>
           <h1 className="lyrics-title-marquee" title={lyricsTitle}>
             <span>
@@ -7241,34 +7241,6 @@ function FullLyrics({
           ) : (
             <span>—</span>
           )}
-          <div className="lyrics-offset-panel" aria-label={t("lyricsOffset")}>
-            <div>
-              <span>{t("lyricsOffset")}</span>
-              <strong>{formatLyricOffset(lyricOffsetMs)}</strong>
-            </div>
-            <div className="lyrics-offset-actions">
-              {LYRIC_OFFSET_STEP_MS.map((step) => (
-                <button
-                  key={step}
-                  type="button"
-                  onClick={() => onAdjustLyricOffset(step)}
-                  aria-label={`${step > 0 ? "+" : ""}${step} ms`}
-                >
-                  {step < 0 ? <Minus /> : <Plus />}
-                  <span>{step > 0 ? `+${step}` : step}ms</span>
-                </button>
-              ))}
-              <button
-                type="button"
-                className="lyrics-offset-reset"
-                onClick={onResetLyricOffset}
-                disabled={lyricOffsetMs === 0}
-              >
-                <ArrowClockwise />
-                <span>{t("lyricsOffsetReset")}</span>
-              </button>
-            </div>
-          </div>
         </div>
         {song ? (
           <div className="lyrics-actions">
@@ -7311,6 +7283,34 @@ function FullLyrics({
             </button>
           </div>
         ) : null}
+        <div className="lyrics-offset-panel" aria-label={t("lyricsOffset")}>
+          <div>
+            <span>{t("lyricsOffset")}</span>
+            <strong>{formatLyricOffset(lyricOffsetMs)}</strong>
+          </div>
+          <div className="lyrics-offset-actions">
+            {LYRIC_OFFSET_STEP_MS.map((step) => (
+              <button
+                key={step}
+                type="button"
+                onClick={() => onAdjustLyricOffset(step)}
+                aria-label={`${step > 0 ? "+" : ""}${step} ms`}
+              >
+                {step < 0 ? <Minus /> : <Plus />}
+                <span>{step > 0 ? `+${step}` : step}ms</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              className="lyrics-offset-reset"
+              onClick={onResetLyricOffset}
+              disabled={lyricOffsetMs === 0}
+            >
+              <ArrowClockwise />
+              <span>{t("lyricsOffsetReset")}</span>
+            </button>
+          </div>
+        </div>
       </div>
       {candidatesOpen ? (
         <div className="lyrics-candidates">

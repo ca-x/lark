@@ -3387,7 +3387,7 @@
     position:relative;
     min-width:0;
     display:grid;
-    grid-template-columns:minmax(0,1fr) 48px 40px 44px;
+    grid-template-columns:minmax(0,1fr) 48px 44px 44px;
     align-items:center;
     gap:4px;
     color:var(--text);
@@ -3514,10 +3514,10 @@
     box-shadow:0 12px 22px color-mix(in srgb, var(--accent) 20%, transparent);
   }
   .mobile-mini-player .mobile-mini-next {
-    width:40px;
-    min-width:40px;
-    height:40px;
-    min-height:40px;
+    width:44px;
+    min-width:44px;
+    height:44px;
+    min-height:44px;
     display:grid;
     place-items:center;
     padding:0;
@@ -3909,9 +3909,9 @@
     height:100dvh;
     min-height:100dvh;
     display:grid;
-    grid-template-rows:auto minmax(0, 1fr);
+    grid-template-rows:auto auto minmax(0, 1fr);
     gap:0;
-    padding:12px 16px max(18px, calc(16px + var(--safe-bottom)));
+    padding:max(12px, calc(12px + var(--safe-top))) 16px max(18px, calc(16px + var(--safe-bottom)));
     border-radius:0;
     border:0;
     background:
@@ -4030,6 +4030,52 @@
     font-size:0;
   }
 
+  .app-shell.lyrics-mode .lyrics-offset-panel {
+    grid-column:1 / -1;
+    width:100%;
+    max-width:100%;
+    margin-top:0;
+    display:grid;
+    grid-template-columns:1fr;
+    align-items:center;
+    gap:8px;
+    overflow:visible;
+    scrollbar-width:auto;
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-panel > div:first-child {
+    width:100%;
+    min-height:36px;
+    justify-content:space-between;
+    padding:7px 11px;
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-actions {
+    width:100%;
+    min-width:0;
+    display:grid;
+    grid-template-columns:repeat(4, minmax(0, 1fr)) 44px;
+    gap:6px;
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-actions button {
+    min-width:0;
+    min-height:44px;
+    padding:0 4px;
+    border-radius:14px;
+    font-size:11px;
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-actions button:not(.lyrics-offset-reset) svg,
+  .app-shell.lyrics-mode .lyrics-offset-reset span {
+    display:none;
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-reset {
+    width:44px;
+    min-width:44px;
+  }
+
   .app-shell.lyrics-mode .full-lyrics-lines {
     min-height:0;
     padding:max(18px, 16vh) 2vw max(24px, 24vh);
@@ -4044,11 +4090,12 @@
   }
 
   .app-shell.lyrics-mode .lyrics-candidates {
-    top:82px;
-    left:12px;
-    right:12px;
-    width:auto;
-    max-height:min(58dvh, 520px);
+    position:relative;
+    inset:auto;
+    justify-self:stretch;
+    width:100%;
+    max-height:min(34dvh, 340px);
+    margin:10px 0 0;
   }
 }
 
