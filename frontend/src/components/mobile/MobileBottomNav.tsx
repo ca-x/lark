@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { cloneElement, type ReactNode } from "react";
 
 export type MobileBottomNavItem = {
   key: string;
@@ -27,7 +27,9 @@ export function MobileBottomNav({
           title={item.label}
           onClick={item.onSelect}
         >
-          {item.icon}
+          {item.active && item.icon && typeof item.icon === "object" && "type" in item.icon
+            ? cloneElement(item.icon as React.ReactElement<any>, { weight: "fill" })
+            : item.icon}
           <span>{item.label}</span>
         </button>
       ))}

@@ -69,6 +69,7 @@ export function MobileHomeSurface({
   artists,
   playlists,
   stats,
+  loading,
   t,
   onPlay,
   onResume,
@@ -92,6 +93,7 @@ export function MobileHomeSurface({
   artists: Artist[];
   playlists: Playlist[];
   stats?: LibraryStats | null;
+  loading?: boolean;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list?: Song[]) => void;
   onResume: (song: Song) => void;
@@ -213,6 +215,46 @@ export function MobileHomeSurface({
         ) : null}
       </div>
 
+      {albums.length > 1 ? (
+        <div className="mobile-home-carousel">
+          <div className="mobile-home-section-head">
+            <h2>{t("albums")}</h2>
+            <button type="button" onClick={onOpenAlbums}>
+              {t("viewAll")}
+            </button>
+          </div>
+          <div className="mobile-home-carousel-strip">
+            {albums.slice(0, 8).map((album) => (
+              <button key={album.id} type="button" onClick={() => onOpenAlbum(album)}>
+                <MobileCollectionCover src={albumCoverUrl(album)} fallback="album" />
+                <strong>{album.title}</strong>
+                <small>{album.artist}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {playlists.length > 1 ? (
+        <div className="mobile-home-carousel">
+          <div className="mobile-home-section-head">
+            <h2>{t("playlists")}</h2>
+            <button type="button" onClick={onOpenPlaylists}>
+              {t("viewAll")}
+            </button>
+          </div>
+          <div className="mobile-home-carousel-strip">
+            {playlists.slice(0, 8).map((playlist) => (
+              <button key={playlist.id} type="button" onClick={() => onOpenPlaylist(playlist)}>
+                <MobileCollectionCover fallback="playlist" />
+                <strong>{playlist.name}</strong>
+                <small>{playlist.song_count} {t("count")}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mobile-home-quickplay">
         <div className="mobile-home-section-head">
           <h2>{t("mobileForYou")}</h2>
@@ -223,7 +265,11 @@ export function MobileHomeSurface({
           ) : null}
         </div>
         <div className="mobile-home-song-strip">
-          {recentSongs.length ? (
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="mobile-home-skeleton" style={{ height: 152, minWidth: 140 }} />
+            ))
+          ) : recentSongs.length ? (
             recentSongs.map((song) => (
               <button key={song.id} type="button" className={song.id === current?.id ? "active" : ""} onClick={() => onPlay(song, recentSongs)}>
                 <MobileSongCover song={song} playing={playing && song.id === current?.id} />
@@ -244,7 +290,11 @@ export function MobileHomeSurface({
           <h2>{t("dailyRecommendedSongs")}</h2>
         </div>
         <div className="mobile-home-list">
-          {recommendedSongs.length ? (
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="mobile-home-skeleton" style={{ height: 56 }} />
+            ))
+          ) : recommendedSongs.length ? (
             recommendedSongs.slice(0, 6).map((song) => (
               <button key={song.id} type="button" className={song.id === current?.id ? "active" : ""} onClick={() => onPlay(song, recommendedSongs)}>
                 <MobileSongCover song={song} playing={playing && song.id === current?.id} />

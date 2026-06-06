@@ -126,42 +126,58 @@ export function MobileArtPlayer({
     ...(coverState.coverImage ? { "--mobile-art-cover-image": coverState.coverImage } : {}),
   } as CSSProperties;
   const [swipeY, setSwipeY] = useState(0);
+  const [swipeX, setSwipeX] = useState(0);
   const swipeStart = useRef({ x: 0, y: 0, tracking: false });
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!onBack || isSwipeIgnoredTarget(e.target)) {
+    if (isSwipeIgnoredTarget(e.target)) {
       swipeStart.current.tracking = false;
       return;
     }
     const touch = e.touches[0];
     swipeStart.current = { x: touch.clientX, y: touch.clientY, tracking: true };
-  }, [onBack]);
+  }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!swipeStart.current.tracking) return;
     const touch = e.touches[0];
     const deltaY = touch.clientY - swipeStart.current.y;
-    const deltaX = Math.abs(touch.clientX - swipeStart.current.x);
-    if (deltaY > 10 && deltaY > deltaX * 1.25) setSwipeY(deltaY);
+    const deltaX = touch.clientX - swipeStart.current.x;
+    const absDeltaY = Math.abs(deltaY);
+    const absDeltaX = Math.abs(deltaX);
+    if (absDeltaY > 10 && absDeltaY > absDeltaX * 1.25 && deltaY > 0) {
+      setSwipeY(deltaY);
+      setSwipeX(0);
+    } else if (absDeltaX > 10 && absDeltaX > absDeltaY * 1.25) {
+      setSwipeX(deltaX);
+      setSwipeY(0);
+    }
   }, []);
 
   const handleTouchEnd = useCallback(() => {
     if (swipeY > 100) onBack?.();
+    else if (swipeX > 80) onPrevious?.();
+    else if (swipeX < -80) onNext?.();
     swipeStart.current.tracking = false;
     setSwipeY(0);
-  }, [swipeY, onBack]);
+    setSwipeX(0);
+  }, [swipeY, swipeX, onBack, onPrevious, onNext]);
 
   const handleTouchCancel = useCallback(() => {
     swipeStart.current.tracking = false;
     setSwipeY(0);
+    setSwipeX(0);
   }, []);
   const modeIcon =
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
 
   return (
     <div className={`mobile-art-player mobile-art-${variant}`} data-playing={playing ? "true" : "false"} style={style}>
-      <div className="mobile-art-phone" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchCancel} style={{ transform: swipeY > 0 ? `translateY(${swipeY * 0.6}px)` : undefined, transition: swipeY === 0 ? "transform .35s var(--ease)" : "none", opacity: swipeY > 0 ? Math.max(0, 1 - swipeY / 400) : undefined }}>
+      <div className="mobile-art-phone" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchCancel} style={{ transform: swipeY > 0 ? `translateY(${swipeY * 0.6}px)` : swipeX !== 0 ? `translateX(${swipeX * 0.4}px)` : undefined, transition: swipeY === 0 && swipeX === 0 ? "transform .35s var(--ease)" : "none", opacity: swipeY > 0 ? Math.max(0, 1 - swipeY / 400) : undefined }}>
         <div className="mobile-art-bg" aria-hidden="true" />
+        {coverState.displayUrl ? (
+          <div className="mobile-art-blur-bg" style={{ backgroundImage: `url(${coverState.displayUrl})` }} aria-hidden="true" />
+        ) : null}
         {onBack ? (
           <div className="mobile-art-topbar">
             <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>

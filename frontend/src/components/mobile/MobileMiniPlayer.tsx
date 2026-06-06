@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { Pause, Play, Queue, Record } from "@phosphor-icons/react";
+import { Pause, Play, Queue, Record, SkipForward } from "@phosphor-icons/react";
 
 import type { MobileHomePlayerStyle } from "../../types";
 
@@ -16,6 +16,7 @@ export function MobileMiniPlayer({
   onToggle,
   onExpand,
   onQueue,
+  onNext,
 }: {
   theme: MobileHomePlayerStyle;
   cover?: string;
@@ -29,10 +30,12 @@ export function MobileMiniPlayer({
     pause: string;
     expand: string;
     queue: string;
+    next: string;
   };
   onToggle: () => void;
   onExpand: () => void;
   onQueue?: () => void;
+  onNext?: () => void;
 }) {
   const [failedCover, setFailedCover] = useState("");
   useEffect(() => {
@@ -62,15 +65,18 @@ export function MobileMiniPlayer({
             <strong>{title}</strong>
             <span>{artist}</span>
           </span>
-          <span className="mobile-mini-progress" aria-hidden="true" />
         </span>
       </button>
       <button type="button" className="mobile-mini-play" aria-label={playing ? labels.pause : labels.play} onClick={onToggle}>
         {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
       </button>
+      <button type="button" className="mobile-mini-next" aria-label={labels.next} disabled={!onNext} onClick={onNext}>
+        <SkipForward weight="bold" />
+      </button>
       <button type="button" className="mobile-mini-queue" aria-label={labels.queue} disabled={!onQueue} onClick={onQueue}>
         <Queue weight="bold" />
       </button>
+      <span className="mobile-mini-progress" aria-hidden="true" />
     </div>
   );
 }
