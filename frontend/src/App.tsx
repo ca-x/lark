@@ -3900,7 +3900,22 @@ export default function App() {
           <img src="/logo.png" alt={t("brand")} /> <span>{t("brand")}</span>
         </div>
         <nav aria-label="Primary">
-          {desktopNav.map((item) => (
+          <span className="nav-section-label">{t("playback")}</span>
+          {playbackNav.map((item) => (
+            <button
+              key={item.id}
+              title={item.label}
+              aria-label={item.label}
+              className={activeNav(item.id) ? "active" : ""}
+              onClick={() => openNavigationView(item.id)}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+          <hr className="nav-divider" />
+          <span className="nav-section-label">{t("settings")}</span>
+          {desktopNav.slice(playbackNav.length).map((item) => (
             <button
               key={item.id}
               title={item.label}
@@ -4476,6 +4491,7 @@ export default function App() {
             pause: t("pause"),
             expand: t("expandPlayer"),
             queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
+            next: t("next"),
           }}
           onToggle={() => setPlaying((value) => {
             playUISound(value ? "pause" : "play");
@@ -4486,6 +4502,7 @@ export default function App() {
             setMobilePlayerExpanded(true);
           }}
           onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
+          onNext={() => next(1)}
         />
         <MobilePlayerDock
           theme={mobileHomePlayerStyle}
@@ -9271,6 +9288,10 @@ const SongRow = memo(function SongRow({
         <label className="row-check" aria-label={`${t("selected")} ${song.title}`}>
           <input type="checkbox" checked={selected} onChange={() => onToggleSelected(song)} />
         </label>
+      ) : active ? (
+        <span className="song-row-eq" aria-label={t("playing")}>
+          <i /><i /><i />
+        </span>
       ) : (
         <span>{index + 1}</span>
       )}
@@ -9494,6 +9515,17 @@ function SongTable({
     />
   );
   if (!songs.length) return <div className="empty">{t("noSongs")}</div>;
+  const columnHeader = (
+    <div className="song-table-header" aria-hidden="true">
+      <span>#</span>
+      <span />
+      <span>{t("songs")}</span>
+      <span>{t("artist")}</span>
+      <span>{t("album")}</span>
+      <span />
+      <span />
+    </div>
+  );
   const moreMenuSong = moreMenuSongId != null ? songs.find((s) => s.id === moreMenuSongId) : null;
   const moreMenu = moreMenuSong && moreMenuPos ? (
     <div
@@ -9533,6 +9565,7 @@ function SongTable({
         ref={scrollerRef}
         onScroll={handleVirtualScroll}
       >
+        {columnHeader}
         <div
           className="song-table-spacer"
           style={{ height: songs.length * SONG_ROW_HEIGHT }}
@@ -9547,6 +9580,7 @@ function SongTable({
   }
   return (
     <section className="song-table">
+      {columnHeader}
       {songs.map((song, index) => renderRow(song, index))}
       {moreMenu}
     </section>
