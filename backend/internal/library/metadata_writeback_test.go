@@ -174,6 +174,103 @@ func TestUpdateAlbumMetadataWritesAlbumArtistToFilesAndSongRows(t *testing.T) {
 	}
 }
 
+func TestUpdateAlbumMetadataRepairsUniformWrongSongArtists(t *testing.T) {
+	ctx := context.Background()
+	firstPath := copyTaglibTestdata(t, "eg.flac")
+	secondPath := copyTaglibTestdata(t, "eg.flac")
+	const (
+		albumTitle    = "Power Of Live 影音全记录珍藏盘"
+		correctArtist = "陶喆"
+		wrongArtist   = "QQ群号:562125679 公众号:时光匆忙旅行者"
+	)
+	for _, path := range []string{firstPath, secondPath} {
+		if _, err := writeAudioMetadata(path, map[string][]string{
+			taglib.Artist:      {wrongArtist},
+			taglib.Album:       {albumTitle},
+			taglib.AlbumArtist: {correctArtist},
+			taglib.Date:        {"2007"},
+		}, fileMetadata{}, nil, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	client := enttest.Open(t, "sqlite3", "file:album-writeback-uniform-wrong-artist?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: filepath.Dir(firstPath)}
+	userItem, err := client.User.Create().SetUsername("uniform-wrong-artist-owner").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	albumArtist, err := client.Artist.Create().SetName(correctArtist).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	badArtist, err := client.Artist.Create().SetName(wrongArtist).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldAlbum, err := client.Album.Create().SetTitle(albumTitle).SetAlbumArtist(correctArtist).SetYear(2007).SetArtist(albumArtist).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstSong, err := client.Song.Create().
+		SetTitle("Overture - 找自己").
+		SetPath(firstPath).
+		SetFileName(filepath.Base(firstPath)).
+		SetYear(2007).
+		SetArtist(badArtist).
+		SetAlbum(oldAlbum).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondSong, err := client.Song.Create().
+		SetTitle("王八蛋").
+		SetPath(secondPath).
+		SetFileName(filepath.Base(secondPath)).
+		SetYear(2007).
+		SetArtist(badArtist).
+		SetAlbum(oldAlbum).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := service.UpdateAlbumMetadata(ctx, userItem.ID, oldAlbum.ID, MetadataWritebackInput{
+		Title:            albumTitle,
+		AlbumArtist:      correctArtist,
+		Year:             2007,
+		ConfirmWriteback: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Updated != 2 {
+		t.Fatalf("expected 2 updated files, got %#v", result)
+	}
+
+	for _, path := range []string{firstPath, secondPath} {
+		tags, err := taglib.ReadTags(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := firstTaglibValue(tags, taglib.Artist); got != correctArtist {
+			t.Fatalf("track artist tag for %s = %q, want %q", path, got, correctArtist)
+		}
+		if got := firstTaglibValue(tags, taglib.AlbumArtist); got != correctArtist {
+			t.Fatalf("album artist tag for %s = %q, want %q", path, got, correctArtist)
+		}
+	}
+	for _, id := range []int{firstSong.ID, secondSong.ID} {
+		updatedSong, err := client.Song.Query().Where(song.ID(id)).WithArtist().Only(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := updatedSong.Edges.Artist.Name; got != correctArtist {
+			t.Fatalf("song %d artist = %q, want %q", id, got, correctArtist)
+		}
+	}
+}
+
 func TestUpdateAlbumMetadataKeepsCompilationTrackArtists(t *testing.T) {
 	ctx := context.Background()
 	firstPath := copyTaglibTestdata(t, "eg.flac")

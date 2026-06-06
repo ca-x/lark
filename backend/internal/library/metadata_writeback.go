@@ -789,10 +789,13 @@ func albumTargetTrackArtistName(input MetadataWritebackInput, item *ent.Album) s
 	if input.Artist != "" {
 		return input.Artist
 	}
-	if input.AlbumArtist == "" || !albumArtistMatchesEverySongArtist(item) {
+	if input.AlbumArtist == "" {
 		return ""
 	}
-	return input.AlbumArtist
+	if albumArtistMatchesEverySongArtist(item) || albumSongsShareOneArtist(item) {
+		return input.AlbumArtist
+	}
+	return ""
 }
 
 func albumArtistMatchesEverySongArtist(item *ent.Album) bool {
@@ -806,6 +809,27 @@ func albumArtistMatchesEverySongArtist(item *ent.Album) bool {
 		}
 	}
 	return true
+}
+
+func albumSongsShareOneArtist(item *ent.Album) bool {
+	if item == nil || len(item.Edges.Songs) == 0 {
+		return false
+	}
+	firstArtist := ""
+	for _, songItem := range item.Edges.Songs {
+		artistName := songArtistName(songItem)
+		if artistName == "" {
+			return false
+		}
+		if firstArtist == "" {
+			firstArtist = artistName
+			continue
+		}
+		if !sameMetadataArtistName(artistName, firstArtist) {
+			return false
+		}
+	}
+	return firstArtist != ""
 }
 
 func sameMetadataArtistName(a, b string) bool {

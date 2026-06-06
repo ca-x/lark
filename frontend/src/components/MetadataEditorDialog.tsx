@@ -86,6 +86,7 @@ export function MetadataEditorDialog({
     coverURL.trim() !== "" ||
     Boolean(coverFile) ||
     pathAssist;
+  const canWrite = dirty || isAlbum;
 
   useEffect(() => {
     setTitle(initial.title);
@@ -164,7 +165,7 @@ export function MetadataEditorDialog({
 
   const writeMetadata = async () => {
     setError("");
-    if (!dirty || saving) return;
+    if (!canWrite || saving) return;
     setFinalConfirmOpen(false);
     const body = new FormData();
     body.set("title", title.trim());
@@ -197,7 +198,7 @@ export function MetadataEditorDialog({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    if (!dirty || saving) return;
+    if (!canWrite || saving) return;
     if (!confirmed) {
       setError(t("metadataConfirmRequired"));
       return;
@@ -420,7 +421,7 @@ export function MetadataEditorDialog({
             <button type="button" onClick={onClose} disabled={saving}>
               {t("close")}
             </button>
-            <button className="primary" type="submit" disabled={!dirty || !confirmed || saving}>
+            <button className="primary" type="submit" disabled={!canWrite || !confirmed || saving}>
               {saving ? <CircleNotch weight="bold" className="offline-cache-spinner" /> : <PencilSimple />}
               {saving ? t("loading") : t("metadataWriteToFiles")}
             </button>

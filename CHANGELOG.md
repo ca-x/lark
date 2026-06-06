@@ -5,6 +5,32 @@
 
 ---
 
+## 0.8.7 — 专辑歌手同步修复
+
+发布日期 / Released: 2026-06-06
+
+### 修复
+
+- **修复单艺人专辑的歌曲歌手同步。** 当专辑艺人已经改正确、但专辑内歌曲艺人仍统一停留在错误水印或旧值时，再次写入专辑元信息会同步修正每首歌的 `artist` 标签和歌曲行。
+- **允许专辑元信息按当前字段重新写入。** 专辑编辑弹窗在勾选确认后可以重新写入当前专辑字段，用于修复源文件或歌曲行与界面显示不一致的半同步状态。
+
+完整 diff：`git log v0.8.6..v0.8.7`
+
+---
+
+## v0.8.7 — Album artist sync fix
+
+Released: 2026-06-06
+
+### Fixes
+
+- **Fixed song artist sync for single-artist albums.** When the album artist is already correct but every song in the album still has the same wrong watermark or stale artist, writing album metadata now updates each file's `artist` tag and the song rows.
+- **Allowed album metadata to be rewritten with current fields.** The album metadata dialog can now write the current album fields after confirmation, which repairs half-synced source files or song rows.
+
+Full diff: `git log v0.8.6..v0.8.7`
+
+---
+
 ## 0.8.6 — 移动端播放体验与元信息写回修复
 
 发布日期 / Released: 2026-06-06
