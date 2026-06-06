@@ -4468,11 +4468,10 @@ export default function App() {
           progress={progress}
           duration={playableDuration}
           labels={{
-            previous: t("previous"),
-            next: t("next"),
             play: t("play"),
             pause: t("pause"),
             expand: t("expandPlayer"),
+            queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
           }}
           onToggle={() => setPlaying((value) => {
             playUISound(value ? "pause" : "play");
@@ -4482,8 +4481,7 @@ export default function App() {
             setLyricsFullScreen(false);
             setMobilePlayerExpanded(true);
           }}
-          onPrevious={() => next(-1)}
-          onNext={() => next(1)}
+          onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
         />
         <MobilePlayerDock
           theme={mobileHomePlayerStyle}

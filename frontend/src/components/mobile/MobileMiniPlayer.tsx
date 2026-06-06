@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { Pause, Play, Record, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { Pause, Play, Queue, Record } from "@phosphor-icons/react";
 
 import type { MobileHomePlayerStyle } from "../../types";
 
@@ -15,8 +15,7 @@ export function MobileMiniPlayer({
   labels,
   onToggle,
   onExpand,
-  onPrevious,
-  onNext,
+  onQueue,
 }: {
   theme: MobileHomePlayerStyle;
   cover?: string;
@@ -26,16 +25,14 @@ export function MobileMiniPlayer({
   progress: number;
   duration: number;
   labels: {
-    previous: string;
-    next: string;
     play: string;
     pause: string;
     expand: string;
+    queue: string;
   };
   onToggle: () => void;
   onExpand: () => void;
-  onPrevious?: () => void;
-  onNext?: () => void;
+  onQueue?: () => void;
 }) {
   const [failedCover, setFailedCover] = useState("");
   useEffect(() => {
@@ -48,30 +45,31 @@ export function MobileMiniPlayer({
     ...(displayCover ? { "--mobile-mini-cover": `url("${displayCover.replace(/"/g, "%22")}")` } : {}),
   } as CSSProperties;
 
+  const expandLabel = title ? `${labels.expand}: ${title}` : labels.expand;
+
   return (
     <div className="mobile-mini-player" data-mobile-theme={theme} data-playing={playing ? "true" : "false"} style={style}>
-      <button type="button" className="mobile-mini-art" aria-label={labels.expand} onClick={onExpand}>
-        {displayCover ? (
-          <img src={displayCover} alt="" loading="eager" decoding="async" onError={() => setFailedCover(displayCover)} />
-        ) : (
-          <Record weight="fill" />
-        )}
-      </button>
-      <div className="mobile-mini-info">
-        <div className="mobile-mini-meta">
-          <strong>{title}</strong>
-          <span>{artist}</span>
-        </div>
-        <span className="mobile-mini-progress" aria-hidden="true" />
-      </div>
-      <button type="button" className="mobile-mini-previous" aria-label={labels.previous} disabled={!onPrevious} onClick={onPrevious}>
-        <SkipBack weight="fill" />
+      <button type="button" className="mobile-mini-main" aria-label={expandLabel} onClick={onExpand}>
+        <span className="mobile-mini-art" aria-hidden="true">
+          {displayCover ? (
+            <img src={displayCover} alt="" loading="eager" decoding="async" onError={() => setFailedCover(displayCover)} />
+          ) : (
+            <Record weight="fill" />
+          )}
+        </span>
+        <span className="mobile-mini-info">
+          <span className="mobile-mini-meta">
+            <strong>{title}</strong>
+            <span>{artist}</span>
+          </span>
+          <span className="mobile-mini-progress" aria-hidden="true" />
+        </span>
       </button>
       <button type="button" className="mobile-mini-play" aria-label={playing ? labels.pause : labels.play} onClick={onToggle}>
         {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
       </button>
-      <button type="button" className="mobile-mini-next" aria-label={labels.next} disabled={!onNext} onClick={onNext}>
-        <SkipForward weight="fill" />
+      <button type="button" className="mobile-mini-queue" aria-label={labels.queue} disabled={!onQueue} onClick={onQueue}>
+        <Queue weight="bold" />
       </button>
     </div>
   );
