@@ -171,57 +171,66 @@ func songContentHash(artist, album, title string) string {
 	return fmt.Sprintf("%x", xxhash.Sum64String(strings.Join(parts, "|")))
 }
 func (s *Service) PlaybackSource(ctx context.Context, userID int) (*models.PlaybackSource, error) {
-	if s.cache == nil {
-		return nil, nil
-	}
-	key, err := s.playbackSourceKey(ctx, userID)
+	queue, err := s.PlaybackQueue(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	var source models.PlaybackSource
-	ok, err := s.cacheGetJSON(ctx, key, &source)
-	if err != nil || !ok {
+	if queue != nil && queue.Source != nil {
+		return queue.Source, nil
+	}
+	source, err := s.legacyPlaybackSource(ctx, userID)
+	if err != nil {
 		return nil, err
 	}
-	if source.SourceID <= 0 || (source.Type != "album" && source.Type != "artist" && source.Type != "playlist") {
-		_ = s.ClearPlaybackSource(ctx, userID)
-		return nil, nil
+	if source == nil {
+		return nil, err
 	}
-	return &source, nil
+	// Migrate the legacy source-only record into the playback session. The
+	// queue/session key is the single authority after this point.
+	_, _ = s.SavePlaybackQueueSession(ctx, userID, nil, 0, source, false)
+	_ = s.deleteLegacyPlaybackSource(ctx, userID)
+	return source, nil
 }
 func (s *Service) SavePlaybackSource(ctx context.Context, userID int, sourceType string, sourceID int) (models.PlaybackSource, error) {
 	sourceType = strings.ToLower(strings.TrimSpace(sourceType))
-	if sourceID <= 0 || (sourceType != "album" && sourceType != "artist" && sourceType != "playlist") {
-		return models.PlaybackSource{}, errors.New("playback source must be album, artist or playlist")
+	source := &models.PlaybackSource{Type: sourceType, SourceID: sourceID}
+	if err := s.validatePlaybackSource(ctx, userID, source); err != nil {
+		return models.PlaybackSource{}, err
 	}
-	switch sourceType {
-	case "album":
-		if _, err := s.client.Album.Get(ctx, sourceID); err != nil {
-			return models.PlaybackSource{}, err
-		}
-	case "artist":
-		if _, err := s.client.Artist.Get(ctx, sourceID); err != nil {
-			return models.PlaybackSource{}, err
-		}
-	case "playlist":
-		if _, err := s.client.Playlist.Query().Where(playlist.ID(sourceID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx); err != nil {
-			return models.PlaybackSource{}, err
-		}
-	}
-	source := models.PlaybackSource{Type: sourceType, SourceID: sourceID, UpdatedAt: time.Now()}
-	ttl := s.playbackSourceTTL(ctx)
-	key, err := s.playbackSourceKey(ctx, userID)
+	source.UpdatedAt = time.Now()
+	queue, err := s.loadPlaybackQueueSession(ctx, userID)
 	if err != nil {
 		return models.PlaybackSource{}, err
 	}
-	if err := s.cacheSetJSONWithTTL(ctx, key, source, ttl); err != nil {
+	if queue == nil {
+		queue = &models.PlaybackQueue{}
+	}
+	queue.Source = source
+	queue.UpdatedAt = source.UpdatedAt
+	if err := s.savePlaybackQueueSession(ctx, userID, *queue); err != nil {
 		return models.PlaybackSource{}, err
 	}
-	return source, nil
+	_ = s.deleteLegacyPlaybackSource(ctx, userID)
+	return *source, nil
 }
 func (s *Service) ClearPlaybackSource(ctx context.Context, userID int) error {
 	if s.cache == nil {
 		return nil
+	}
+	queue, err := s.PlaybackQueue(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if queue != nil {
+		queue.Source = nil
+		queue.UpdatedAt = time.Now()
+		if len(queue.SongIDs) == 0 {
+			if err := s.ClearPlaybackQueue(ctx, userID); err != nil {
+				return err
+			}
+		} else if err := s.savePlaybackQueueSession(ctx, userID, *queue); err != nil {
+			return err
+		}
 	}
 	key, err := s.playbackSourceKey(ctx, userID)
 	if err != nil {
@@ -233,6 +242,39 @@ func (s *Service) PlaybackQueue(ctx context.Context, userID int) (*models.Playba
 	if s.cache == nil {
 		return nil, nil
 	}
+	queue, err := s.loadPlaybackQueueSession(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if queue == nil {
+		if source, err := s.legacyPlaybackSource(ctx, userID); err != nil {
+			return nil, err
+		} else if source != nil {
+			migrated := models.PlaybackQueue{Source: source, UpdatedAt: source.UpdatedAt}
+			if migrated.UpdatedAt.IsZero() {
+				migrated.UpdatedAt = time.Now()
+			}
+			_ = s.savePlaybackQueueSession(ctx, userID, migrated)
+			_ = s.deleteLegacyPlaybackSource(ctx, userID)
+			return &migrated, nil
+		}
+		return nil, nil
+	}
+	if queue.Source == nil {
+		if source, err := s.legacyPlaybackSource(ctx, userID); err != nil {
+			return nil, err
+		} else if source != nil {
+			queue.Source = source
+			if queue.UpdatedAt.Before(source.UpdatedAt) {
+				queue.UpdatedAt = source.UpdatedAt
+			}
+			_ = s.savePlaybackQueueSession(ctx, userID, *queue)
+			_ = s.deleteLegacyPlaybackSource(ctx, userID)
+		}
+	}
+	return queue, nil
+}
+func (s *Service) loadPlaybackQueueSession(ctx context.Context, userID int) (*models.PlaybackQueue, error) {
 	key, err := s.playbackQueueKey(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -243,22 +285,58 @@ func (s *Service) PlaybackQueue(ctx context.Context, userID int) (*models.Playba
 		return nil, err
 	}
 	queue.SongIDs = normalizePlaybackQueueSongIDs(queue.SongIDs, queue.CurrentID)
-	if len(queue.SongIDs) == 0 {
+	if queue.Source != nil && !validPlaybackSourceShape(queue.Source) {
+		queue.Source = nil
+	}
+	if len(queue.SongIDs) == 0 && queue.Source == nil {
 		_ = s.ClearPlaybackQueue(ctx, userID)
 		return nil, nil
 	}
-	if queue.CurrentID <= 0 || !intSliceContains(queue.SongIDs, queue.CurrentID) {
+	if len(queue.SongIDs) > 0 && (queue.CurrentID <= 0 || !intSliceContains(queue.SongIDs, queue.CurrentID)) {
 		queue.CurrentID = queue.SongIDs[0]
+	}
+	if queue.UpdatedAt.IsZero() {
+		queue.UpdatedAt = time.Now()
 	}
 	return &queue, nil
 }
 func (s *Service) SavePlaybackQueue(ctx context.Context, userID int, songIDs []int, currentID int) (models.PlaybackQueue, error) {
+	return s.SavePlaybackQueueSession(ctx, userID, songIDs, currentID, nil, false)
+}
+func (s *Service) SavePlaybackQueueSession(ctx context.Context, userID int, songIDs []int, currentID int, source *models.PlaybackSource, clearSource bool) (models.PlaybackQueue, error) {
 	if s.cache == nil {
 		return models.PlaybackQueue{}, nil
 	}
+	if source != nil {
+		source.Type = strings.ToLower(strings.TrimSpace(source.Type))
+		if err := s.validatePlaybackSource(ctx, userID, source); err != nil {
+			return models.PlaybackQueue{}, err
+		}
+		source.UpdatedAt = time.Now()
+	}
+	existingSession, err := s.loadPlaybackQueueSession(ctx, userID)
+	if err != nil {
+		return models.PlaybackQueue{}, err
+	}
+	nextSource := (*models.PlaybackSource)(nil)
+	if existingSession != nil && existingSession.Source != nil && !clearSource {
+		copy := *existingSession.Source
+		nextSource = &copy
+	}
+	if clearSource {
+		nextSource = nil
+	}
+	if source != nil {
+		copy := *source
+		nextSource = &copy
+	}
 	ids := normalizePlaybackQueueSongIDs(songIDs, currentID)
 	if len(ids) == 0 {
-		return models.PlaybackQueue{}, s.ClearPlaybackQueue(ctx, userID)
+		if nextSource == nil {
+			return models.PlaybackQueue{}, s.ClearPlaybackQueue(ctx, userID)
+		}
+		queue := models.PlaybackQueue{Source: nextSource, UpdatedAt: time.Now()}
+		return queue, s.savePlaybackQueueSession(ctx, userID, queue)
 	}
 	existing, err := s.client.Song.Query().Where(song.IDIn(ids...)).Select(song.FieldID).All(ctx)
 	if err != nil {
@@ -275,20 +353,24 @@ func (s *Service) SavePlaybackQueue(ctx context.Context, userID int, songIDs []i
 		}
 	}
 	if len(filtered) == 0 {
-		return models.PlaybackQueue{}, s.ClearPlaybackQueue(ctx, userID)
+		if nextSource == nil {
+			return models.PlaybackQueue{}, s.ClearPlaybackQueue(ctx, userID)
+		}
+		queue := models.PlaybackQueue{Source: nextSource, UpdatedAt: time.Now()}
+		return queue, s.savePlaybackQueueSession(ctx, userID, queue)
 	}
 	if currentID <= 0 || !intSliceContains(filtered, currentID) {
 		currentID = filtered[0]
 	}
-	queue := models.PlaybackQueue{SongIDs: append([]int{}, filtered...), CurrentID: currentID, UpdatedAt: time.Now()}
+	queue := models.PlaybackQueue{SongIDs: append([]int{}, filtered...), CurrentID: currentID, Source: nextSource, UpdatedAt: time.Now()}
+	return queue, s.savePlaybackQueueSession(ctx, userID, queue)
+}
+func (s *Service) savePlaybackQueueSession(ctx context.Context, userID int, queue models.PlaybackQueue) error {
 	key, err := s.playbackQueueKey(ctx, userID)
 	if err != nil {
-		return models.PlaybackQueue{}, err
+		return err
 	}
-	if err := s.cacheSetJSONWithTTL(ctx, key, queue, s.playbackSourceTTL(ctx)); err != nil {
-		return models.PlaybackQueue{}, err
-	}
-	return queue, nil
+	return s.cacheSetJSONWithTTL(ctx, key, queue, s.playbackSourceTTL(ctx))
 }
 func (s *Service) ClearPlaybackQueue(ctx context.Context, userID int) error {
 	if s.cache == nil {
@@ -299,6 +381,60 @@ func (s *Service) ClearPlaybackQueue(ctx context.Context, userID int) error {
 		return err
 	}
 	return s.cache.Delete(ctx, key)
+}
+func (s *Service) legacyPlaybackSource(ctx context.Context, userID int) (*models.PlaybackSource, error) {
+	if s.cache == nil {
+		return nil, nil
+	}
+	key, err := s.playbackSourceKey(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	var source models.PlaybackSource
+	ok, err := s.cacheGetJSON(ctx, key, &source)
+	if err != nil || !ok {
+		return nil, err
+	}
+	source.Type = strings.ToLower(strings.TrimSpace(source.Type))
+	if !validPlaybackSourceShape(&source) {
+		_ = s.cache.Delete(ctx, key)
+		return nil, nil
+	}
+	return &source, nil
+}
+func (s *Service) deleteLegacyPlaybackSource(ctx context.Context, userID int) error {
+	if s.cache == nil {
+		return nil
+	}
+	key, err := s.playbackSourceKey(ctx, userID)
+	if err != nil {
+		return err
+	}
+	return s.cache.Delete(ctx, key)
+}
+func validPlaybackSourceShape(source *models.PlaybackSource) bool {
+	if source == nil || source.SourceID <= 0 {
+		return false
+	}
+	return source.Type == "album" || source.Type == "artist" || source.Type == "playlist"
+}
+func (s *Service) validatePlaybackSource(ctx context.Context, userID int, source *models.PlaybackSource) error {
+	if !validPlaybackSourceShape(source) {
+		return errors.New("playback source must be album, artist or playlist")
+	}
+	switch source.Type {
+	case "album":
+		_, err := s.client.Album.Get(ctx, source.SourceID)
+		return err
+	case "artist":
+		_, err := s.client.Artist.Get(ctx, source.SourceID)
+		return err
+	case "playlist":
+		_, err := s.client.Playlist.Query().Where(playlist.ID(source.SourceID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx)
+		return err
+	default:
+		return errors.New("playback source must be album, artist or playlist")
+	}
 }
 func (s *Service) playbackSourceTTL(ctx context.Context) time.Duration {
 	settings, err := s.GetSettings(ctx)
@@ -368,4 +504,13 @@ func normalizePlaybackSourceTTLHours(hours int) int {
 		return 720
 	}
 	return hours
+}
+func normalizePlaybackHistoryRetentionDays(days int) int {
+	if days <= 0 {
+		return defaultPlaybackHistoryRetentionDays
+	}
+	if days > 3650 {
+		return 3650
+	}
+	return days
 }

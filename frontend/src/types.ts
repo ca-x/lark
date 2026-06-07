@@ -42,10 +42,13 @@ export interface Song {
   netease_id: string;
   favorite: boolean;
   play_count: number;
+  last_played_at?: string | null;
   resume_position_seconds: number;
   has_lyrics: boolean;
   lyrics_source: string;
   cover_version?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 export interface SongPage {
   items: Song[];
@@ -276,11 +279,23 @@ export interface PlaybackSourceStatus {
 export interface PlaybackQueue {
   song_ids: number[];
   current_id: number;
+  source?: PlaybackSource | null;
   updated_at: string;
 }
 
 export interface PlaybackQueueStatus {
   queue?: PlaybackQueue | null;
+}
+
+export interface PlaybackHistoryEntry {
+  id: number;
+  song: Song;
+  played_at: string;
+  updated_at: string;
+  progress_seconds: number;
+  duration_seconds: number;
+  completed: boolean;
+  device_type: string;
 }
 
 export interface LibraryStats {
@@ -382,6 +397,7 @@ export interface Settings {
   registration_enabled: boolean;
   diagnostics_enabled: boolean;
   playback_source_ttl_hours: number;
+  playback_history_retention_days: number;
   web_font_family: string;
   web_font_url: string;
   lyrics_auto_save_to_song_dir: boolean;

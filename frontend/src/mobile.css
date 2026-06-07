@@ -107,6 +107,24 @@
   .mini-card { grid-template-columns:44px minmax(0,1fr) 38px; min-height:58px; }
   .mini-card-cover { width:44px; height:44px; min-width:44px; min-height:44px; }
   .mini-play { width:38px; height:38px; min-width:38px; min-height:38px; }
+  .history-view { gap:12px; }
+  .history-head { display:grid; grid-template-columns:1fr; gap:10px; }
+  .history-head-actions { display:grid; grid-template-columns:1fr 1fr; width:100%; gap:8px; }
+  .history-head-actions button { width:100%; min-height:44px; justify-content:center; }
+  .history-layout { grid-template-columns:1fr; gap:12px; }
+  .history-calendar-panel { position:relative; top:auto; padding:12px; border-radius:20px; gap:10px; }
+  .history-calendar-panel .react-calendar__tile { min-height:42px; border-radius:12px; }
+  .history-date-input { grid-template-columns:1fr; }
+  .history-timeline { gap:12px; }
+  .history-day { grid-template-columns:1fr; gap:8px; }
+  .history-day-marker { position:relative; top:auto; grid-template-columns:10px minmax(0,1fr); padding-left:2px; }
+  .history-day-list::before { left:6px; top:-8px; bottom:auto; height:8px; }
+  .history-entry { grid-template-columns:48px minmax(0,1fr); min-height:0; padding:9px; gap:8px; }
+  .history-entry > time { grid-column:1 / -1; }
+  .history-entry-cover { width:48px; height:48px; min-width:48px; min-height:48px; }
+  .history-entry-copy { align-self:center; }
+  .history-entry-actions { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; }
+  .history-entry-actions button { width:100%; min-width:0; min-height:44px; }
 }
 
 @media (max-width:720px) {
@@ -2629,7 +2647,7 @@
     grid-row:3;
     min-height:calc(var(--nav-h) + var(--safe-bottom));
     display:grid;
-    grid-template-columns:repeat(4, minmax(0, 1fr));
+    grid-template-columns:repeat(5, minmax(0, 1fr));
     align-items:center;
     gap:4px;
     padding:6px 8px calc(6px + var(--safe-bottom));
@@ -2648,13 +2666,13 @@
     display:grid;
     justify-items:center;
     align-content:center;
-    gap:4px;
-    padding:7px 2px;
-    border-radius:18px;
+    gap:3px;
+    padding:7px 1px;
+    border-radius:16px;
     color:inherit;
     background:transparent;
     border:1px solid transparent;
-    font-size:10px;
+    font-size:9.5px;
     line-height:1.05;
     touch-action:manipulation;
     transition:background .18s var(--ease), color .18s var(--ease), transform .12s var(--ease), border-color .18s var(--ease);

@@ -179,22 +179,23 @@ func (s *Service) SaveScrobblingSettings(ctx context.Context, userID int, settin
 }
 func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 	settings := models.Settings{
-		Language:                  "zh-CN",
-		Theme:                     "deep-space",
-		SleepTimerMins:            0,
-		LibraryPath:               s.libraryDir,
-		NeteaseFallback:           true,
-		RegistrationEnabled:       false,
-		PlaybackSourceTTLHours:    defaultPlaybackSourceTTLHours,
-		LyricsFontSize:            0,
-		MetadataGrouping:          false,
-		LibraryTagWriteback:       false,
-		LibraryPathMetadataAssist: false,
-		SmartPlaylistsEnabled:     false,
-		SharingEnabled:            false,
-		SubsonicServerEnabled:     false,
-		TranscodePolicy:           "auto",
-		TranscodeQualityKbps:      192,
+		Language:                     "zh-CN",
+		Theme:                        "deep-space",
+		SleepTimerMins:               0,
+		LibraryPath:                  s.libraryDir,
+		NeteaseFallback:              true,
+		RegistrationEnabled:          false,
+		PlaybackSourceTTLHours:       defaultPlaybackSourceTTLHours,
+		PlaybackHistoryRetentionDays: defaultPlaybackHistoryRetentionDays,
+		LyricsFontSize:               0,
+		MetadataGrouping:             false,
+		LibraryTagWriteback:          false,
+		LibraryPathMetadataAssist:    false,
+		SmartPlaylistsEnabled:        false,
+		SharingEnabled:               false,
+		SubsonicServerEnabled:        false,
+		TranscodePolicy:              "auto",
+		TranscodeQualityKbps:         192,
 	}
 	items, err := s.client.AppSetting.Query().All(ctx)
 	if err != nil {
@@ -216,6 +217,8 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.DiagnosticsEnabled = item.Value == "true"
 		case "playback_source_ttl_hours":
 			settings.PlaybackSourceTTLHours, _ = strconv.Atoi(item.Value)
+		case "playback_history_retention_days":
+			settings.PlaybackHistoryRetentionDays, _ = strconv.Atoi(item.Value)
 		case "web_font_family":
 			settings.WebFontFamily = item.Value
 		case "web_font_url":
@@ -247,6 +250,7 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 		}
 	}
 	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
+	settings.PlaybackHistoryRetentionDays = normalizePlaybackHistoryRetentionDays(settings.PlaybackHistoryRetentionDays)
 	settings.LyricsFontFamily = sanitizeFontFamily(settings.LyricsFontFamily)
 	settings.LyricsFontURL = sanitizeFontURL(settings.LyricsFontURL)
 	if settings.LyricsFontURL == "" {
@@ -273,30 +277,32 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 	}
 	settings.LyricsFontSize = normalizeLyricsFontSize(settings.LyricsFontSize)
 	settings.PlaybackSourceTTLHours = normalizePlaybackSourceTTLHours(settings.PlaybackSourceTTLHours)
+	settings.PlaybackHistoryRetentionDays = normalizePlaybackHistoryRetentionDays(settings.PlaybackHistoryRetentionDays)
 	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
 	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
 	pairs := map[string]string{
-		"language":                     settings.Language,
-		"theme":                        settings.Theme,
-		"sleep_timer_mins":             strconv.Itoa(settings.SleepTimerMins),
-		"netease_fallback":             strconv.FormatBool(settings.NeteaseFallback),
-		settingRegistrationEnabled:     strconv.FormatBool(settings.RegistrationEnabled),
-		"diagnostics_enabled":          strconv.FormatBool(settings.DiagnosticsEnabled),
-		"playback_source_ttl_hours":    strconv.Itoa(settings.PlaybackSourceTTLHours),
-		"web_font_family":              settings.WebFontFamily,
-		"web_font_url":                 settings.WebFontURL,
-		"lyrics_auto_save_to_song_dir": strconv.FormatBool(settings.LyricsAutoSaveToSongDir),
-		"lyrics_font_family":           settings.LyricsFontFamily,
-		"lyrics_font_url":              settings.LyricsFontURL,
-		"lyrics_font_size":             strconv.Itoa(settings.LyricsFontSize),
-		"metadata_grouping":            strconv.FormatBool(settings.MetadataGrouping),
-		"library_tag_writeback":        strconv.FormatBool(settings.LibraryTagWriteback),
-		"library_path_metadata_assist": strconv.FormatBool(settings.LibraryPathMetadataAssist),
-		"smart_playlists_enabled":      strconv.FormatBool(settings.SmartPlaylistsEnabled),
-		"sharing_enabled":              strconv.FormatBool(settings.SharingEnabled),
-		"subsonic_server_enabled":      strconv.FormatBool(settings.SubsonicServerEnabled),
-		"transcode_policy":             settings.TranscodePolicy,
-		"transcode_quality_kbps":       strconv.Itoa(settings.TranscodeQualityKbps),
+		"language":                        settings.Language,
+		"theme":                           settings.Theme,
+		"sleep_timer_mins":                strconv.Itoa(settings.SleepTimerMins),
+		"netease_fallback":                strconv.FormatBool(settings.NeteaseFallback),
+		settingRegistrationEnabled:        strconv.FormatBool(settings.RegistrationEnabled),
+		"diagnostics_enabled":             strconv.FormatBool(settings.DiagnosticsEnabled),
+		"playback_source_ttl_hours":       strconv.Itoa(settings.PlaybackSourceTTLHours),
+		"playback_history_retention_days": strconv.Itoa(settings.PlaybackHistoryRetentionDays),
+		"web_font_family":                 settings.WebFontFamily,
+		"web_font_url":                    settings.WebFontURL,
+		"lyrics_auto_save_to_song_dir":    strconv.FormatBool(settings.LyricsAutoSaveToSongDir),
+		"lyrics_font_family":              settings.LyricsFontFamily,
+		"lyrics_font_url":                 settings.LyricsFontURL,
+		"lyrics_font_size":                strconv.Itoa(settings.LyricsFontSize),
+		"metadata_grouping":               strconv.FormatBool(settings.MetadataGrouping),
+		"library_tag_writeback":           strconv.FormatBool(settings.LibraryTagWriteback),
+		"library_path_metadata_assist":    strconv.FormatBool(settings.LibraryPathMetadataAssist),
+		"smart_playlists_enabled":         strconv.FormatBool(settings.SmartPlaylistsEnabled),
+		"sharing_enabled":                 strconv.FormatBool(settings.SharingEnabled),
+		"subsonic_server_enabled":         strconv.FormatBool(settings.SubsonicServerEnabled),
+		"transcode_policy":                settings.TranscodePolicy,
+		"transcode_quality_kbps":          strconv.Itoa(settings.TranscodeQualityKbps),
 	}
 	for key, value := range pairs {
 		if err := s.setSetting(ctx, key, value); err != nil {

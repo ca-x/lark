@@ -46,15 +46,18 @@ func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
 	if err != nil {
 		return err
 	}
+	now := time.Now()
 	if _, err := s.client.PlayHistory.Create().
 		SetUserID(userID).
 		SetSongID(id).
+		SetPlayedAt(now).
+		SetUpdatedAt(now).
 		SetDurationSeconds(item.DurationSeconds).
 		SetDeviceType(playbackDeviceTypeFromContext(ctx)).
 		Save(ctx); err != nil {
 		return err
 	}
-	if err := s.client.Song.UpdateOneID(id).AddPlayCount(1).SetLastPlayedAt(time.Now()).Exec(ctx); err != nil {
+	if err := s.client.Song.UpdateOneID(id).AddPlayCount(1).SetLastPlayedAt(now).Exec(ctx); err != nil {
 		return err
 	}
 	// NOTE: intentionally NOT calling invalidateUserLibraryCache here.
@@ -63,7 +66,7 @@ func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
 	// user cache version would cold-miss every AlbumsPage/ArtistsPage/SongsPage
 	// cache entry, defeating the cache entirely during normal playback.
 	s.invalidateSongCatalog(ctx)
-	return nil
+	return s.cleanupPlaybackHistory(ctx, userID)
 }
 func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, progressSeconds, durationSeconds float64, completed bool) error {
 	item, err := s.client.Song.Get(ctx, id)
@@ -97,6 +100,7 @@ func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, prog
 			SetUserID(userID).
 			SetSongID(id).
 			SetPlayedAt(now).
+			SetUpdatedAt(now).
 			SetProgressSeconds(progressSeconds).
 			SetDurationSeconds(durationSeconds).
 			SetCompleted(completed).
@@ -107,18 +111,105 @@ func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, prog
 		// Invalidating the user cache on each progress save would cold-miss every
 		// cached page result, defeating the cache entirely. The play history data
 		// is fetched fresh when needed (e.g. RecentPlayedSongs).
-		return err
+		if err != nil {
+			return err
+		}
+		return s.cleanupPlaybackHistory(ctx, userID)
 	}
 	if err != nil {
 		return err
 	}
-	return s.client.PlayHistory.UpdateOneID(history.ID).
+	if err := s.client.PlayHistory.UpdateOneID(history.ID).
 		SetProgressSeconds(progressSeconds).
 		SetDurationSeconds(durationSeconds).
 		SetCompleted(completed).
 		SetDeviceType(deviceType).
 		SetUpdatedAt(now).
+		Exec(ctx); err != nil {
+		return err
+	}
+	return s.cleanupPlaybackHistory(ctx, userID)
+}
+
+func (s *Service) PlaybackHistory(ctx context.Context, userID, limit int) ([]models.PlaybackHistoryEntry, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	histories, err := s.client.PlayHistory.Query().
+		Where(playHistoryUserPredicates(userID, deviceScope)...).
+		WithSong(func(q *ent.SongQuery) {
+			q.Select(browseSongColumns...).WithArtist().WithAlbum()
+		}).
+		Order(ent.Desc(playhistory.FieldUpdatedAt), ent.Desc(playhistory.FieldPlayedAt), ent.Desc(playhistory.FieldID)).
+		Limit(limit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	songByID := make(map[int]models.Song, len(histories))
+	rawSongs := make([]*ent.Song, 0, len(histories))
+	seenSongs := map[int]bool{}
+	for _, history := range histories {
+		if history.Edges.Song == nil || seenSongs[history.Edges.Song.ID] {
+			continue
+		}
+		seenSongs[history.Edges.Song.ID] = true
+		rawSongs = append(rawSongs, history.Edges.Song)
+	}
+	songs, err := s.applySongUserStateWithDevice(ctx, userID, mapSongs(rawSongs), deviceScope)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range songs {
+		songByID[item.ID] = item
+	}
+	out := make([]models.PlaybackHistoryEntry, 0, len(histories))
+	for _, history := range histories {
+		if history.Edges.Song == nil {
+			continue
+		}
+		item, ok := songByID[history.Edges.Song.ID]
+		if !ok {
+			continue
+		}
+		out = append(out, models.PlaybackHistoryEntry{
+			ID:              history.ID,
+			Song:            item,
+			PlayedAt:        history.PlayedAt,
+			UpdatedAt:       history.UpdatedAt,
+			ProgressSeconds: history.ProgressSeconds,
+			DurationSeconds: history.DurationSeconds,
+			Completed:       history.Completed,
+			DeviceType:      history.DeviceType,
+		})
+	}
+	return out, nil
+}
+
+func (s *Service) cleanupPlaybackHistory(ctx context.Context, userID int) error {
+	if userID == 0 {
+		return nil
+	}
+	settings, err := s.GetSettings(ctx)
+	if err != nil {
+		return err
+	}
+	days := normalizePlaybackHistoryRetentionDays(settings.PlaybackHistoryRetentionDays)
+	if days <= 0 {
+		return nil
+	}
+	cutoff := time.Now().AddDate(0, 0, -days)
+	_, err = s.client.PlayHistory.Delete().
+		Where(playhistory.HasUserWith(user.ID(userID)), playhistory.UpdatedAtLT(cutoff)).
 		Exec(ctx)
+	return err
 }
 func (s *Service) applySongUserState(ctx context.Context, userID int, items []models.Song) ([]models.Song, error) {
 	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)

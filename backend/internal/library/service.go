@@ -1173,6 +1173,7 @@ const libraryWatcherImportQueueSize = 128
 const remoteAlbumSearchConcurrency = 3
 const maxPlaybackQueueSongs = 500
 const defaultPlaybackSourceTTLHours = 24
+const defaultPlaybackHistoryRetentionDays = 0
 const defaultUISoundVolume = 0.85
 const collectionCoverHitTTL = 30 * 24 * time.Hour
 const collectionCoverMissTTL = 6 * time.Hour

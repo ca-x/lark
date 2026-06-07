@@ -5,6 +5,7 @@ export const ADAPTIVE_STREAM_QUALITY = 128;
 export const AUTO_DOWNGRADE_STALL_MS = 1200;
 export const RADIO_STATION_LIMIT = 30;
 export const HOME_RECENT_LIMIT = 12;
+export const PLAYBACK_HISTORY_LIMIT = 200;
 export const DEFAULT_LIBRARY_PAGE_SIZE = 36;
 export const DEFAULT_GRID_PAGE_SIZE = 24;
 export const MIN_PAGE_SIZE = 10;

@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
 
 function currentDeviceType() {
   if (typeof navigator === 'undefined') return 'pc'
@@ -71,6 +71,7 @@ export const api = {
     return request<SongPage>(`/api/songs/page?${params.toString()}`)
   },
   recentPlayedSongs: (limit = 12) => request<Song[]>(`/api/songs/recent-played?limit=${limit}`),
+  playbackHistory: (limit = 100) => request<PlaybackHistoryEntry[]>(`/api/playback/history?limit=${limit}`),
   recentAddedSongs: (limit = 12) => request<Song[]>(`/api/songs/recent-added?limit=${limit}`),
   dailyMix: (limit = 24) => request<Song[]>(`/api/daily-mix?limit=${limit}`),
   smartPlaylists: () => request<SmartPlaylist[]>('/api/smart-playlists'),
@@ -82,7 +83,15 @@ export const api = {
   savePlaybackSource: (type: PlaybackSourceType, source_id: number) => request<PlaybackSourceStatus>('/api/playback/source', { method: 'PUT', body: JSON.stringify({ type, source_id }) }),
   clearPlaybackSource: () => request<void>('/api/playback/source', { method: 'DELETE' }),
   playbackQueue: () => request<PlaybackQueueStatus>('/api/playback/queue'),
-  savePlaybackQueue: (song_ids: number[], current_id: number) => request<PlaybackQueueStatus>('/api/playback/queue', { method: 'PUT', body: JSON.stringify({ song_ids, current_id }) }),
+  savePlaybackQueue: (song_ids: number[], current_id: number, source?: { type: PlaybackSourceType; source_id: number } | null) =>
+    request<PlaybackQueueStatus>('/api/playback/queue', {
+      method: 'PUT',
+      body: JSON.stringify({
+        song_ids,
+        current_id,
+        ...(source ? { source } : { clear_source: true }),
+      }),
+    }),
   clearPlaybackQueue: () => request<void>('/api/playback/queue', { method: 'DELETE' }),
   prepareOfflineSong: (id: number, quality = 192) => request<OfflineAudioStatus>(`/api/offline/songs/${id}/prepare?quality=${quality}`, { method: 'POST' }),
   offlineSongStatus: (id: number, quality = 192) => request<OfflineAudioStatus>(`/api/offline/songs/${id}/status?quality=${quality}`),

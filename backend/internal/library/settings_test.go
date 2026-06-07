@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"lark/backend/ent/enttest"
+	"lark/backend/ent/playhistory"
+	"lark/backend/ent/user"
 	"lark/backend/internal/kv"
 	"lark/backend/internal/models"
 
@@ -44,6 +46,9 @@ func TestSettingsPersistDiagnosticsEnabled(t *testing.T) {
 	if loaded.PlaybackSourceTTLHours != defaultPlaybackSourceTTLHours {
 		t.Fatalf("expected default playback source TTL %d, got %d", defaultPlaybackSourceTTLHours, loaded.PlaybackSourceTTLHours)
 	}
+	if loaded.PlaybackHistoryRetentionDays != defaultPlaybackHistoryRetentionDays {
+		t.Fatalf("expected default playback history retention %d, got %d", defaultPlaybackHistoryRetentionDays, loaded.PlaybackHistoryRetentionDays)
+	}
 }
 
 func TestSettingsPersistPlaybackSourceTTL(t *testing.T) {
@@ -70,6 +75,48 @@ func TestSettingsPersistPlaybackSourceTTL(t *testing.T) {
 	}
 	if loaded.PlaybackSourceTTLHours != 48 {
 		t.Fatalf("expected playback source TTL to persist, got %d", loaded.PlaybackSourceTTLHours)
+	}
+}
+
+func TestSettingsPersistPlaybackHistoryRetention(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	service := &Service{client: client}
+
+	saved, err := service.SaveSettings(ctx, models.Settings{
+		Language:                     "zh-CN",
+		Theme:                        "deep-space",
+		NeteaseFallback:              true,
+		PlaybackSourceTTLHours:       24,
+		PlaybackHistoryRetentionDays: 90,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.PlaybackHistoryRetentionDays != 90 {
+		t.Fatalf("expected saved playback history retention 90, got %d", saved.PlaybackHistoryRetentionDays)
+	}
+	loaded, err := service.GetSettings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.PlaybackHistoryRetentionDays != 90 {
+		t.Fatalf("expected playback history retention to persist, got %d", loaded.PlaybackHistoryRetentionDays)
+	}
+
+	forever, err := service.SaveSettings(ctx, models.Settings{
+		Language:                     "zh-CN",
+		Theme:                        "deep-space",
+		NeteaseFallback:              true,
+		PlaybackSourceTTLHours:       24,
+		PlaybackHistoryRetentionDays: 0,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if forever.PlaybackHistoryRetentionDays != 0 {
+		t.Fatalf("expected zero retention to mean forever, got %d", forever.PlaybackHistoryRetentionDays)
 	}
 }
 
@@ -322,6 +369,16 @@ func TestPlaybackSourceUsesKVRecordPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	song, err := client.Song.Create().
+		SetTitle("Song").
+		SetPath("/music/song.flac").
+		SetFileName("song.flac").
+		SetArtist(artist).
+		SetAlbum(album).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	saved, err := service.SavePlaybackSource(ctx, 7, "album", album.ID)
 	if err != nil {
@@ -337,6 +394,9 @@ func TestPlaybackSourceUsesKVRecordPerUser(t *testing.T) {
 	if loaded == nil || loaded.Type != "album" || loaded.SourceID != album.ID {
 		t.Fatalf("expected album playback source, got %+v", loaded)
 	}
+	if _, err := service.SavePlaybackQueue(ctx, 7, []int{song.ID}, song.ID); err != nil {
+		t.Fatal(err)
+	}
 
 	saved, err = service.SavePlaybackSource(ctx, 7, "artist", artist.ID)
 	if err != nil {
@@ -348,6 +408,13 @@ func TestPlaybackSourceUsesKVRecordPerUser(t *testing.T) {
 	}
 	if loaded == nil || loaded.Type != "artist" || loaded.SourceID != artist.ID || saved.SourceID != artist.ID {
 		t.Fatalf("expected artist playback source overwrite, got saved=%+v loaded=%+v", saved, loaded)
+	}
+	queue, err := service.PlaybackQueue(ctx, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queue == nil || queue.Source == nil || queue.Source.SourceID != artist.ID || !slices.Equal(queue.SongIDs, []int{song.ID}) || queue.CurrentID != song.ID {
+		t.Fatalf("expected source save to preserve playback queue session, got %+v", queue)
 	}
 
 	if err := service.ClearPlaybackSource(ctx, 7); err != nil {
@@ -386,6 +453,127 @@ func TestPlaybackSourceDropsInvalidKVRecord(t *testing.T) {
 	}
 	if _, ok, err := store.Get(ctx, key); err != nil || ok {
 		t.Fatalf("expected invalid playback source KV to be deleted, ok=%v err=%v", ok, err)
+	}
+}
+
+func TestPlaybackSourceMigratesLegacyKVIntoQueueSession(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	store := kv.NewMemoryStore()
+	defer store.Close()
+	service := &Service{client: client, cache: store}
+
+	userItem, err := client.User.Create().SetUsername("legacy-source-user").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artistItem, err := client.Artist.Create().SetName("Artist").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	albumItem, err := client.Album.Create().SetTitle("Album").SetAlbumArtist("Artist").SetArtist(artistItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	songItem, err := client.Song.Create().SetTitle("Song").SetPath("/music/song.flac").SetFileName("song.flac").SetArtist(artistItem).SetAlbum(albumItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := service.playbackSourceKey(ctx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.cacheSetJSONWithTTL(ctx, key, models.PlaybackSource{Type: "album", SourceID: albumItem.ID, UpdatedAt: time.Now().Add(-time.Hour)}, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+
+	queue, err := service.PlaybackQueue(ctx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queue == nil || queue.Source == nil || queue.Source.Type != "album" || queue.Source.SourceID != albumItem.ID {
+		t.Fatalf("expected legacy source to migrate into queue session, got %+v", queue)
+	}
+	if _, ok, err := store.Get(ctx, key); err != nil || ok {
+		t.Fatalf("expected legacy playback source key to be deleted after migration, ok=%v err=%v", ok, err)
+	}
+
+	if _, err := service.SavePlaybackQueue(ctx, userItem.ID, []int{songItem.ID}, songItem.ID); err != nil {
+		t.Fatal(err)
+	}
+	queue, err = service.PlaybackQueue(ctx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queue == nil || queue.Source == nil || queue.Source.SourceID != albumItem.ID || !slices.Equal(queue.SongIDs, []int{songItem.ID}) {
+		t.Fatalf("expected queue and source to share one session, got %+v", queue)
+	}
+}
+
+func TestPlaybackHistoryRetentionDeletesOldEntries(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	service := &Service{client: client}
+
+	userItem, err := client.User.Create().SetUsername("history-retention-user").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherUser, err := client.User.Create().SetUsername("other-history-user").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artistItem, err := client.Artist.Create().SetName("Artist").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	albumItem, err := client.Album.Create().SetTitle("Album").SetAlbumArtist("Artist").SetArtist(artistItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldSong, err := client.Song.Create().SetTitle("Old").SetPath("/music/old.flac").SetFileName("old.flac").SetArtist(artistItem).SetAlbum(albumItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newSong, err := client.Song.Create().SetTitle("New").SetPath("/music/new.flac").SetFileName("new.flac").SetArtist(artistItem).SetAlbum(albumItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldTime := time.Now().AddDate(0, 0, -3)
+	if _, err := client.PlayHistory.Create().SetUserID(userItem.ID).SetSongID(oldSong.ID).SetPlayedAt(oldTime).SetUpdatedAt(oldTime).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.PlayHistory.Create().SetUserID(otherUser.ID).SetSongID(oldSong.ID).SetPlayedAt(oldTime).SetUpdatedAt(oldTime).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.SaveSettings(ctx, models.Settings{
+		Language:                     "zh-CN",
+		Theme:                        "deep-space",
+		NeteaseFallback:              true,
+		PlaybackSourceTTLHours:       24,
+		PlaybackHistoryRetentionDays: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.MarkPlayed(ctx, userItem.ID, newSong.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	userCount, err := client.PlayHistory.Query().Where(playhistory.HasUserWith(user.ID(userItem.ID))).Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if userCount != 1 {
+		t.Fatalf("expected only recent user history to remain, got %d", userCount)
+	}
+	otherCount, err := client.PlayHistory.Query().Where(playhistory.HasUserWith(user.ID(otherUser.ID))).Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if otherCount != 1 {
+		t.Fatalf("expected other user's history to be untouched, got %d", otherCount)
 	}
 }
 

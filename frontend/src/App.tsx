@@ -1,7 +1,10 @@
 import type { ChangeEvent, ReactNode, UIEvent } from "react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
 import {
   ArrowClockwise,
+  ClockCounterClockwise,
   Disc,
   DotsThree,
   GearSix,
@@ -109,7 +112,9 @@ import type {
   SubsonicCredentialStatus,
   Theme,
   UISoundSettings,
+  PlaybackHistoryEntry,
   PlaybackHistorySettings,
+  PlaybackQueueStatus,
   User,
   UserPreferences,
   WebFont,
@@ -156,7 +161,7 @@ import type { View, PlayMode, ResumeMode, PlaybackStartMode, PlaybackSourceInput
 import { MOBILE_PLAYBACK_VIEWS } from "./types/app";
 import {
   themes,
-  AUTO_DOWNGRADE_STALL_MS, RADIO_STATION_LIMIT, HOME_RECENT_LIMIT,
+  AUTO_DOWNGRADE_STALL_MS, RADIO_STATION_LIMIT, HOME_RECENT_LIMIT, PLAYBACK_HISTORY_LIMIT,
   DEFAULT_LIBRARY_PAGE_SIZE, DEFAULT_GRID_PAGE_SIZE,
   MAX_GRID_PAGE_SIZE, STARTUP_FOLDER_LIMIT, MAX_PLAYBACK_QUEUE_SIZE, RESUME_SOURCE_QUEUE_LIMIT,
   FAVORITES_FETCH_LIMIT, COLLECTION_DETAIL_SONG_LIMIT, OFFLINE_STATUS_POLL_MS, OFFLINE_STATUS_MAX_POLLS,
@@ -226,6 +231,7 @@ const defaultSettings: Settings = {
   registration_enabled: false,
   diagnostics_enabled: false,
   playback_source_ttl_hours: 24,
+  playback_history_retention_days: 0,
   web_font_url: "",
   web_font_family: "",
   lyrics_auto_save_to_song_dir: false,
@@ -395,49 +401,6 @@ function storedPersistentQueueEnabled() {
 function rememberPersistentQueueEnabled(enabled: boolean) {
   try {
     window.localStorage.setItem(PERSISTENT_QUEUE_KEY, enabled ? "true" : "false");
-  } catch {
-    // localStorage can be unavailable in private/webview modes.
-  }
-}
-
-function persistentQueueStateKey(user: User) {
-  return `lark.persistent-queue.${user.id}`;
-}
-
-function readPersistentQueueIDs(user: User) {
-  try {
-    const raw = window.localStorage.getItem(persistentQueueStateKey(user));
-    if (!raw) return { ids: [] as number[], currentId: 0, updatedAt: 0 };
-    const parsed = JSON.parse(raw) as { ids?: number[]; currentId?: number; updatedAt?: number };
-    return {
-      ids: Array.isArray(parsed.ids) ? parsed.ids.filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE) : [],
-      currentId: Number.isInteger(parsed.currentId) ? Number(parsed.currentId) : 0,
-      updatedAt: Number.isFinite(parsed.updatedAt) ? Number(parsed.updatedAt) : 0,
-    };
-  } catch {
-    return { ids: [] as number[], currentId: 0, updatedAt: 0 };
-  }
-}
-
-function writePersistentQueue(user: User, queue: Song[], current: Song | null) {
-  try {
-    const ids = queue.map((song) => song.id).filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
-    if (!ids.length) {
-      window.localStorage.removeItem(persistentQueueStateKey(user));
-      return;
-    }
-    window.localStorage.setItem(
-      persistentQueueStateKey(user),
-      JSON.stringify({ ids, currentId: current?.id || ids[0], updatedAt: Date.now() }),
-    );
-  } catch {
-    // localStorage can be unavailable in private/webview modes.
-  }
-}
-
-function clearPersistentQueue(user: User) {
-  try {
-    window.localStorage.removeItem(persistentQueueStateKey(user));
   } catch {
     // localStorage can be unavailable in private/webview modes.
   }
@@ -833,6 +796,8 @@ export default function App() {
   const [route, setRoute] = useState(() => currentBrowserRoute());
   const [songs, setSongs] = useState<Song[]>([]);
   const [recentPlayedSongs, setRecentPlayedSongs] = useState<Song[]>([]);
+  const [historyEntries, setHistoryEntries] = useState<PlaybackHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [recentAddedSongs, setRecentAddedSongs] = useState<Song[]>([]);
   const [dailyMix, setDailyMix] = useState<Song[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -855,6 +820,7 @@ export default function App() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [smartPlaylists, setSmartPlaylists] = useState<SmartPlaylist[]>([]);
   const [queue, setQueue] = useState<Song[]>([]);
+  const [playbackSessionSource, setPlaybackSessionSource] = useState<PlaybackSourceInput | null>(null);
   const [collection, setCollection] = useState<Collection | null>(null);
   const [collectionBack, setCollectionBack] = useState<Collection | null>(null);
   const [current, setCurrent] = useState<Song | null>(null);
@@ -976,7 +942,6 @@ export default function App() {
   const recentPlayedRefreshRef = useRef(0);
   const lastProgressSyncRef = useRef({ songId: 0, at: 0, progress: 0 });
   const pendingAutoplayRef = useRef(false);
-  const playbackSourceMutationRef = useRef<Promise<void>>(Promise.resolve());
   const stallDowngradeTimerRef = useRef<number | null>(null);
   const currentRef = useRef<Song | null>(null);
   const currentRadioRef = useRef<RadioStation | null>(null);
@@ -1206,16 +1171,12 @@ export default function App() {
   useEffect(() => {
     if (!auth?.user || !queueSyncReady) return;
     const ids = queue.map((song) => song.id).filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
-    if (persistentQueueEnabled) {
-      writePersistentQueue(auth.user, queue, current);
-    } else {
-      clearPersistentQueue(auth.user);
-    }
-    if (!ids.length || !current) {
+    if (!persistentQueueEnabled || !ids.length || !current) {
+      void api.clearPlaybackQueue().catch(() => undefined);
       return;
     }
-    void api.savePlaybackQueue(ids, current.id).catch(() => undefined);
-  }, [auth?.user?.id, queueSyncReady, persistentQueueEnabled, queue, current?.id]);
+    void api.savePlaybackQueue(ids, current.id, playbackSessionSource).catch(() => undefined);
+  }, [auth?.user?.id, queueSyncReady, persistentQueueEnabled, queue, current?.id, playbackSessionSource]);
 
   useEffect(() => {
     const toneActive = Math.abs(bassGain) >= 0.1 || Math.abs(trebleGain) >= 0.1;
@@ -1301,6 +1262,16 @@ export default function App() {
   useEffect(() => {
     if (!settings.sharing_enabled && view === "shares") setView("home");
   }, [settings.sharing_enabled, view]);
+
+  useEffect(() => {
+    if (!auth?.user || view !== "history" || historyEntries.length || historyLoading) return;
+    setHistoryLoading(true);
+    void api
+      .playbackHistory(PLAYBACK_HISTORY_LIMIT)
+      .then(setHistoryEntries)
+      .catch(() => undefined)
+      .finally(() => setHistoryLoading(false));
+  }, [auth?.user?.id, view, historyEntries.length, historyLoading]);
 
   useEffect(() => {
     if (mobileViewport && !MOBILE_PLAYBACK_VIEWS.has(view)) {
@@ -2022,6 +1993,7 @@ export default function App() {
     lastSavedUserPreferencesRef.current = null;
     setQueueSyncReady(false);
     setSongs([]);
+    setHistoryEntries([]);
     setFavoriteSongs([]);
     setFavoriteAlbums([]);
     setFavoriteArtists([]);
@@ -2267,15 +2239,11 @@ export default function App() {
     let restoredQueue: Song[] = [];
     let restoredCurrent: Song | null = null;
     if (options.initializeQueue && auth?.user && persistentQueueEnabled) {
-      const saved = readPersistentQueueIDs(auth.user);
-      const serverQueue = playbackQueueItem?.queue;
-      const serverUpdatedAt = serverQueue?.updated_at ? new Date(serverQueue.updated_at).getTime() : 0;
-      const restoreIDs = serverQueue?.song_ids?.length && serverUpdatedAt > saved.updatedAt
-        ? serverQueue.song_ids
-        : saved.ids;
-      const restoreCurrentID = serverQueue?.song_ids?.length && serverUpdatedAt > saved.updatedAt
-        ? serverQueue.current_id
-        : saved.currentId;
+      const session = playbackQueueItem?.queue;
+      const restoreIDs = session?.song_ids?.filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE) ?? [];
+      const restoreCurrentID = session?.current_id ?? 0;
+      const source = session?.source ?? null;
+      setPlaybackSessionSource(source ? { type: source.type, source_id: source.source_id } : null);
       if (restoreIDs.length) {
         const localSongs = new Map([
           ...songItems,
@@ -2288,6 +2256,12 @@ export default function App() {
           .filter((song): song is Song => Boolean(song));
         restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
       }
+      if (!restoredQueue.length && source) {
+        restoredQueue = await songsForPlaybackSource(source, MAX_PLAYBACK_QUEUE_SIZE);
+        restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
+      }
+    } else if (options.initializeQueue) {
+      setPlaybackSessionSource(null);
     }
     if (isStale()) return;
     setQueue((old) => {
@@ -2469,11 +2443,39 @@ export default function App() {
     setRecentPlayedSongs(await api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => recentPlayedSongs));
   }
 
+  async function refreshPlaybackHistory() {
+    setHistoryLoading(true);
+    try {
+      setHistoryEntries(await api.playbackHistory(PLAYBACK_HISTORY_LIMIT));
+    } catch {
+      // Keep the existing timeline visible if the refresh fails.
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   // prependRecentPlayed optimistically moves the just-played song to the front so the
   // home "recently played" list updates instantly, without waiting for a server round
   // trip (the previous code blind-refetched on every play, causing visible lag).
   function prependRecentPlayed(song: Song) {
     setRecentPlayedSongs((old) => [song, ...old.filter((item) => item.id !== song.id)].slice(0, HOME_RECENT_LIMIT));
+    const now = new Date().toISOString();
+    setHistoryEntries((old) => {
+      if (!old.length) return old;
+      return [
+        {
+          id: -Date.now(),
+          song: { ...song, last_played_at: now },
+          played_at: now,
+          updated_at: now,
+          progress_seconds: 0,
+          duration_seconds: song.duration_seconds,
+          completed: false,
+          device_type: mobileViewport ? "mobile" : "pc",
+        },
+        ...old,
+      ].slice(0, PLAYBACK_HISTORY_LIMIT);
+    });
   }
 
   // scheduleRecentPlayedRefresh coalesces the server reconciliation so we don't fire a
@@ -2484,25 +2486,17 @@ export default function App() {
     if (now - recentPlayedRefreshRef.current < 10_000) return;
     recentPlayedRefreshRef.current = now;
     void refreshRecentPlayed();
-  }
-
-  function queuePlaybackSourceMutation(task: () => Promise<void>) {
-    playbackSourceMutationRef.current = playbackSourceMutationRef.current
-      .catch(() => undefined)
-      .then(task)
-      .catch(() => undefined);
+    if (view === "history" || historyEntries.length) void refreshPlaybackHistory();
   }
 
   function persistPlaybackSourceForPlay(options: PlaySongOptions) {
     const source = options.source;
     if (source) {
-      queuePlaybackSourceMutation(async () => {
-        await api.savePlaybackSource(source.type, source.source_id);
-      });
+      setPlaybackSessionSource(source);
       return;
     }
     if (!options.keepPlaybackSource) {
-      queuePlaybackSourceMutation(api.clearPlaybackSource);
+      setPlaybackSessionSource(null);
     }
   }
 
@@ -2519,22 +2513,31 @@ export default function App() {
       .filter((song): song is Song => Boolean(song));
   }
 
-  async function playFromStoredPlaybackQueue(song: Song) {
-    const status = await api.playbackQueue().catch(() => null);
+  async function songsForPlaybackSource(source: PlaybackSourceInput, limit = RESUME_SOURCE_QUEUE_LIMIT) {
+    return (
+      source.type === "album"
+        ? api.albumSongs(source.source_id, limit)
+        : source.type === "playlist"
+          ? api.playlistSongs(source.source_id, limit)
+          : api.artistSongs(source.source_id, limit)
+    ).catch(() => []);
+  }
+
+  async function playFromPlaybackQueueStatus(song: Song, status: PlaybackQueueStatus | null) {
     const ids = status?.queue?.song_ids?.filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE) ?? [];
     if (!ids.includes(song.id)) return false;
     const items = await songsForPlaybackQueueIDs(ids);
     const matched = items.find((item) => item.id === song.id);
     if (!matched) return false;
-    void playSong(matched, items, { startMode: "resume" });
+    void playSong(matched, items, { startMode: "resume", source: status?.queue?.source ?? undefined });
     return true;
   }
 
   async function resumePlayback(song: Song) {
-    const status = await api.playbackSource().catch(() => null);
-    const source = status?.source;
+    const status = await api.playbackQueue().catch(() => null);
+    if (await playFromPlaybackQueueStatus(song, status)) return;
+    const source = status?.queue?.source;
     if (!source) {
-      if (await playFromStoredPlaybackQueue(song)) return;
       void playSong(song, [song], { startMode: "resume" });
       return;
     }
@@ -2544,26 +2547,17 @@ export default function App() {
       (source.type === "artist" && song.artist_id === source.source_id) ||
       source.type === "playlist";
     if (!sourceMatchesSong) {
-      if (await playFromStoredPlaybackQueue(song)) return;
-      queuePlaybackSourceMutation(api.clearPlaybackSource);
       void playSong(song, [song], { startMode: "resume" });
       return;
     }
 
-    const items = await (
-      source.type === "album"
-        ? api.albumSongs(source.source_id, RESUME_SOURCE_QUEUE_LIMIT)
-        : source.type === "playlist"
-          ? api.playlistSongs(source.source_id, RESUME_SOURCE_QUEUE_LIMIT)
-        : api.artistSongs(source.source_id, RESUME_SOURCE_QUEUE_LIMIT)
-    ).catch(() => []);
+    const items = await songsForPlaybackSource(source, RESUME_SOURCE_QUEUE_LIMIT);
     const matched = items.find((item) => item.id === song.id);
     if (matched) {
-      void playSong(matched, items, { startMode: "resume", keepPlaybackSource: true });
+      void playSong(matched, items, { startMode: "resume", source });
       return;
     }
 
-    queuePlaybackSourceMutation(api.clearPlaybackSource);
     void playSong(song, [song], { startMode: "resume" });
   }
 
@@ -2616,7 +2610,7 @@ export default function App() {
   function playRadio(station: RadioStation, list?: RadioStation[]) {
     if (!station?.url) return;
     if (sleepTimerModeRef.current !== "time") clearSleepTimer();
-    queuePlaybackSourceMutation(api.clearPlaybackSource);
+    setPlaybackSessionSource(null);
     if (current) syncPlaybackProgress(false);
     const audio = audioRef.current;
     if (audio) {
@@ -2664,7 +2658,7 @@ export default function App() {
   function playNetworkTrack(track: NetworkTrack) {
     if (!track?.stream_url) return;
     if (sleepTimerModeRef.current !== "time") clearSleepTimer();
-    queuePlaybackSourceMutation(api.clearPlaybackSource);
+    setPlaybackSessionSource(null);
     if (current) syncPlaybackProgress(false);
     const audio = audioRef.current;
     if (audio) {
@@ -3700,6 +3694,7 @@ export default function App() {
 
   const playbackNav: { id: View; label: string; icon: ReactNode }[] = [
     { id: "home", label: t("home"), icon: <House /> },
+    { id: "history", label: t("history"), icon: <ClockCounterClockwise /> },
     { id: "favorites", label: t("favorites"), icon: <Heart /> },
     { id: "library", label: t("library"), icon: <MusicNotes /> },
     { id: "playlists", label: t("playlists"), icon: <PlaylistIcon /> },
@@ -3755,6 +3750,7 @@ export default function App() {
     (view === "collection" && collection?.type !== "playlist");
   const mobileBottomNavItems = [
     { key: "home", label: t("home"), icon: <House />, active: !mobilePlayerExpanded && view === "home", onSelect: () => openNavigationView("home") },
+    { key: "history", label: t("history"), icon: <ClockCounterClockwise />, active: !mobilePlayerExpanded && view === "history", onSelect: () => openNavigationView("history") },
     { key: "favorites", label: t("favorites"), icon: <Heart />, active: !mobilePlayerExpanded && view === "favorites", onSelect: () => openNavigationView("favorites") },
     { key: "library", label: t("library"), icon: <MusicNotes />, active: !mobilePlayerExpanded && mobileLibraryActive, onSelect: () => openNavigationView("library") },
     { key: "playlists", label: t("playlists"), icon: <PlaylistIcon />, active: !mobilePlayerExpanded && (view === "playlists" || (view === "collection" && collection?.type === "playlist")), onSelect: () => openNavigationView("playlists") },
@@ -3981,7 +3977,7 @@ export default function App() {
                   <h1>{screenTitle}</h1>
                 </div>
               ) : null}
-              {view !== "radio" && view !== "library" && !(mobileViewport && view === "settings") ? (
+              {view !== "radio" && view !== "library" && view !== "history" && !(mobileViewport && view === "settings") ? (
                 <SongSearchBox
                   t={t}
                   value={query}
@@ -4081,6 +4077,26 @@ export default function App() {
                   setView("radio");
                   if (!radioStations.length) void loadRadioStations();
                 }}
+              />
+            )}
+
+            {view === "history" && (
+              <HistoryView
+                entries={historyEntries}
+                loading={historyLoading}
+                current={current}
+                playing={playing}
+                t={t}
+                onRefresh={() => void refreshPlaybackHistory()}
+                onPlay={(song, list) => playSong(song, list)}
+                onResume={(song) => void resumePlayback(song)}
+                onFavorite={(song) => void toggleFavorite(song)}
+                onAdd={(song) => addToPlaylist(song)}
+                onInsertNext={(items) => insertNextBatch(items)}
+                offlineCache={offlineCacheControls}
+                onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
+                onOpenAlbum={(song) => void openSongAlbum(song)}
+                onOpenArtist={(song) => void openArtistById(song.artist_id, song.artist)}
               />
             )}
 
@@ -4983,6 +4999,35 @@ function LibrarySummaryStats({
       ))}
     </div>
   );
+}
+
+function localDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function historyEntryDate(entry: PlaybackHistoryEntry) {
+  const date = new Date(entry.updated_at || entry.played_at);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function formatHistoryDayLabel(key: string, t: ReturnType<typeof createT>) {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (key === localDateKey(today)) return t("historyToday");
+  if (key === localDateKey(yesterday)) return t("historyYesterday");
+  const date = new Date(`${key}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return key;
+  return date.toLocaleDateString(undefined, { month: "long", day: "numeric", weekday: "long" });
+}
+
+function formatHistoryTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
 function HomeView({
@@ -6245,6 +6290,234 @@ function CollectionView({
   );
 }
 
+function HistoryView({
+  entries,
+  loading,
+  current,
+  playing,
+  t,
+  onRefresh,
+  onPlay,
+  onResume,
+  onFavorite,
+  onAdd,
+  onInsertNext,
+  offlineCache,
+  onShareSong,
+  onOpenAlbum,
+  onOpenArtist,
+}: {
+  entries: PlaybackHistoryEntry[];
+  loading: boolean;
+  current: Song | null;
+  playing: boolean;
+  t: ReturnType<typeof createT>;
+  onRefresh: () => void;
+  onPlay: (song: Song, list: Song[]) => void;
+  onResume: (song: Song) => void;
+  onFavorite: (song: Song) => void;
+  onAdd: (song: Song) => void;
+  onInsertNext: (songs: Song[]) => void;
+  offlineCache: OfflineCacheControls;
+  onShareSong?: (song: Song) => void;
+  onOpenAlbum: (song: Song) => void;
+  onOpenArtist: (song: Song) => void;
+}) {
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const selectedKey = selectedDate ? localDateKey(selectedDate) : "";
+  const datesWithHistory = useMemo(
+    () => new Set(entries.map((entry) => localDateKey(historyEntryDate(entry)))),
+    [entries],
+  );
+  const filteredEntries = useMemo(
+    () => selectedKey
+      ? entries.filter((entry) => localDateKey(historyEntryDate(entry)) === selectedKey)
+      : entries,
+    [entries, selectedKey],
+  );
+  const filteredSongs = useMemo(
+    () => uniqueSongs(filteredEntries.map((entry) => entry.song), MAX_PLAYBACK_QUEUE_SIZE),
+    [filteredEntries],
+  );
+  const groups = useMemo(() => {
+    const grouped = new Map<string, PlaybackHistoryEntry[]>();
+    for (const entry of filteredEntries) {
+      const key = localDateKey(historyEntryDate(entry));
+      grouped.set(key, [...(grouped.get(key) ?? []), entry]);
+    }
+    return Array.from(grouped.entries()).map(([key, items]) => ({ key, items }));
+  }, [filteredEntries]);
+  const offlineButtonState = (song: Song): OfflineCacheButtonState => {
+    if (offlineCache.cachingSongIds.has(song.id)) return "caching";
+    if (offlineCache.cachedSongIds.has(song.id)) return "cached";
+    return "idle";
+  };
+  return (
+    <section className="history-view">
+      <div className="section-head history-head">
+        <div>
+          <h2>{t("history")}</h2>
+          <p className="section-subtitle">{t("historyHint")}</p>
+        </div>
+        <div className="history-head-actions">
+          {filteredSongs[0] ? (
+            <button onClick={() => onPlay(filteredSongs[0], filteredSongs)}>
+              <Play weight="fill" /> {t("playAll")}
+            </button>
+          ) : null}
+          <button onClick={onRefresh} disabled={loading}>
+            {loading ? <CircleNotch className="spin" /> : <ArrowClockwise />}
+            {t("refresh")}
+          </button>
+        </div>
+      </div>
+      <div className="history-layout">
+        <aside className="history-calendar-panel" aria-label={t("historyCalendar")}>
+          <div className="history-calendar-head">
+            <strong>{t("historyCalendar")}</strong>
+            <span>{entries.length} {t("historyEvents")}</span>
+          </div>
+          <Calendar
+            value={selectedDate}
+            maxDate={new Date()}
+            onChange={(value) => {
+              const next = Array.isArray(value) ? value[0] : value;
+              setSelectedDate(next instanceof Date ? next : null);
+            }}
+            tileClassName={({ date, view }) =>
+              view === "month" && datesWithHistory.has(localDateKey(date)) ? "has-history" : undefined
+            }
+            tileContent={({ date, view }) =>
+              view === "month" && datesWithHistory.has(localDateKey(date))
+                ? <span className="history-calendar-dot" aria-hidden="true" />
+                : null
+            }
+            prev2Label={null}
+            next2Label={null}
+          />
+          <label className="history-date-input">
+            <span>{t("historyDateFilter")}</span>
+            <input
+              type="date"
+              value={selectedKey}
+              max={localDateKey(new Date())}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSelectedDate(value ? new Date(`${value}T00:00:00`) : null);
+              }}
+            />
+          </label>
+          {selectedKey ? (
+            <button className="history-clear-date" onClick={() => setSelectedDate(null)}>
+              <X /> {t("clearDateFilter")}
+            </button>
+          ) : (
+            <span className="history-all-dates">{t("historyAllDates")}</span>
+          )}
+        </aside>
+
+        <div className="history-timeline" aria-label={t("historyTimeline")}>
+          {loading && !entries.length ? (
+            <SkeletonSongList count={6} />
+          ) : groups.length ? (
+            groups.map((group) => (
+              <section key={group.key} className="history-day">
+                <div className="history-day-marker">
+                  <span />
+                  <div>
+                    <strong>{formatHistoryDayLabel(group.key, t)}</strong>
+                    <small>{group.items.length} {t("historyEvents")}</small>
+                  </div>
+                </div>
+                <div className="history-day-list">
+                  {group.items.map((entry) => {
+                    const song = entry.song;
+                    const active = current?.id === song.id;
+                    const progress = resumePosition(song) || entry.progress_seconds || 0;
+                    const duration = entry.duration_seconds || song.duration_seconds || 0;
+                    return (
+                      <article key={entry.id} className={active ? "history-entry active" : "history-entry"}>
+                        <time dateTime={entry.updated_at || entry.played_at}>
+                          {formatHistoryTime(entry.updated_at || entry.played_at)}
+                        </time>
+                        <button className="history-entry-cover" onClick={() => onResume(song)} aria-label={t("resumeFromHistory")}>
+                          <MiniCover song={song} playing={playing && active} />
+                        </button>
+                        <div className="history-entry-copy">
+                          <button className="history-title-button" onClick={() => onResume(song)}>
+                            {song.title}
+                          </button>
+                          <div className="history-entry-links">
+                            {song.artist_id ? (
+                              <button className="artist-link" onClick={() => onOpenArtist(song)}>{song.artist}</button>
+                            ) : (
+                              <span>{song.artist}</span>
+                            )}
+                            <span aria-hidden="true">·</span>
+                            {song.album_id ? (
+                              <button className="artist-link" onClick={() => onOpenAlbum(song)}>{song.album}</button>
+                            ) : (
+                              <span>{song.album}</span>
+                            )}
+                          </div>
+                          <small>
+                            {[
+                              progress ? `${t("resumeFromHistory")} ${formatDuration(progress)}` : entry.completed ? t("historyCompleted") : "",
+                              duration ? formatDuration(duration) : "",
+                              entry.device_type,
+                            ].filter(Boolean).join(" · ")}
+                          </small>
+                        </div>
+                        <div className="history-entry-actions">
+                          <button onClick={() => onResume(song)} title={t("resumeFromHistory")} aria-label={t("resumeFromHistory")}>
+                            <Play weight="fill" />
+                          </button>
+                          <button onClick={() => onPlay(song, filteredSongs)} title={t("restartFromBeginning")} aria-label={t("restartFromBeginning")}>
+                            <ArrowClockwise />
+                          </button>
+                          <button onClick={() => onInsertNext([song])} title={t("playNext")} aria-label={t("playNext")}>
+                            <SkipForward />
+                          </button>
+                          <button onClick={() => onFavorite(song)} title={t("favorites")} aria-label={t("favorites")}>
+                            <Heart weight={song.favorite ? "fill" : "regular"} />
+                          </button>
+                          <OfflineCacheButton
+                            state={offlineButtonState(song)}
+                            labels={{
+                              cache: t("offlineCacheSong"),
+                              caching: t("offlineCachePreparingShort"),
+                              cached: t("offlineCacheReadyShort"),
+                            }}
+                            onClick={() => offlineCache.onCacheSong(song)}
+                          />
+                          <button onClick={() => onAdd(song)} title={t("addToPlaylist")} aria-label={t("addToPlaylist")}>
+                            <PlaylistIcon />
+                          </button>
+                          {onShareSong ? (
+                            <button onClick={() => onShareSong(song)} title={t("share")} aria-label={t("share")}>
+                              <ShareNetwork />
+                            </button>
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))
+          ) : (
+            <EmptyState
+              icon={<ClockCounterClockwise />}
+              title={t("historyEmpty")}
+              description={t("historyEmptyHint")}
+              variant="rich"
+            />
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function CollectionCover({ collection }: { collection: Collection }) {
   const firstSong = collection.songs[0];
@@ -8833,6 +9106,37 @@ function SettingsPanel({
                   }
                 />
                 <span>{t("hours")}</span>
+              </span>
+            </label>
+          ) : null}
+          {user.role === "admin" ? (
+            <label className="settings-number-row settings-wide-row">
+              <span className="settings-label-with-info">
+                <span>{t("playbackHistoryRetention")}</span>
+                <span
+                  className="settings-info-icon"
+                  role="img"
+                  aria-label={t("playbackHistoryRetentionHint")}
+                  title={t("playbackHistoryRetentionHint")}
+                >
+                  <Info />
+                </span>
+              </span>
+              <span className="settings-number-input">
+                <input
+                  type="number"
+                  min={0}
+                  max={3650}
+                  step={1}
+                  value={settings.playback_history_retention_days ?? 0}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      playback_history_retention_days: Math.max(0, Math.min(3650, Number(e.target.value) || 0)),
+                    })
+                  }
+                />
+                <span>{settings.playback_history_retention_days ? t("days") : t("forever")}</span>
               </span>
             </label>
           ) : null}

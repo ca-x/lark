@@ -5,6 +5,44 @@
 
 ---
 
+## 0.8.9 — 播放历史与队列体验重构
+
+发布日期 / Released: 2026-06-07
+
+### 新功能
+
+- **新增播放历史时间线。** 历史页按播放事件展示收听轨迹，支持日历和日期筛选，并适配移动端底部导航。
+- **新增播放历史保留天数设置。** 站点设置可以配置历史记录保留天数，`0` 表示永久保留。
+
+### 修复
+
+- **分离曲库与播放行为。** 曲库继续只表达歌曲来源和库存，最近播放不再作为曲库入口的隐式逻辑。
+- **统一播放队列与来源 session。** 队列、当前歌曲和专辑/歌手/歌单来源保存到同一个 session，旧 source 记录只用于迁移后删除，避免重启后只剩最近一首。
+- **保留真实用户队列。** 重启和从历史续播时优先恢复保存的 `song_ids/current_id`，source 只作为上下文和兜底重建依据。
+
+完整 diff：`git log v0.8.8..v0.8.9`
+
+---
+
+## v0.8.9 — Playback history and queue UX overhaul
+
+Released: 2026-06-07
+
+### Features
+
+- **Added a playback history timeline.** The History view now shows listening events with calendar and date filtering, including mobile bottom-nav support.
+- **Added playback history retention settings.** Site settings can retain history for a fixed number of days, with `0` meaning forever.
+
+### Fixes
+
+- **Separated library inventory from playback behavior.** The Library remains source and inventory management; recent plays no longer leak into library behavior.
+- **Unified playback queue and source session storage.** Queue, current song, and album/artist/playlist context now share one session; legacy source records are migration-only and then deleted.
+- **Preserved the real user queue.** Restart and history resume prefer saved `song_ids/current_id`; source context is only fallback reconstruction.
+
+Full diff: `git log v0.8.8..v0.8.9`
+
+---
+
 ## 0.8.7 — 专辑歌手同步修复
 
 发布日期 / Released: 2026-06-06
