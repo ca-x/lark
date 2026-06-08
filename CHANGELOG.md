@@ -5,6 +5,34 @@
 
 ---
 
+## 0.8.12 — 侧栏选中态流光增强
+
+发布日期 / Released: 2026-06-08
+
+### 修复
+
+- **增强侧栏当前页面动画的可见性。** 将上一版不明显的 1px 渐变位移改成沿主题边框环绕的流光高光。
+- **修复移动端仍引用旧动画名的问题。** 底部导航选中态现在和桌面侧栏使用同一套主题流光边框。
+- **继续遵循主题色与减少动态效果。** 高光颜色来自主题 token，系统减少动态效果开启时保持静态边框。
+
+完整 diff：`git log v0.8.11..v0.8.12`
+
+---
+
+## v0.8.12 — Stronger sidebar active-state motion
+
+Released: 2026-06-08
+
+### Fixes
+
+- **Made the sidebar active animation visibly perceptible.** The previous subtle 1px gradient shift is replaced with a theme-colored glint that travels around the active border.
+- **Fixed the mobile nav override still referencing the old animation name.** Mobile bottom navigation now shares the same themed active-border treatment.
+- **Kept theme and reduced-motion support.** The glint uses theme tokens, and reduced-motion mode keeps a static themed border.
+
+Full diff: `git log v0.8.11..v0.8.12`
+
+---
+
 ## 0.8.11 — 侧栏选中态动效优化
 
 发布日期 / Released: 2026-06-08

@@ -85,30 +85,61 @@ select:focus-visible,
 .brand { display:flex; align-items:center; gap:12px; font-size:28px; font-weight:900; letter-spacing:-.04em; }
 .brand img { width:64px; height:64px; border-radius:0; object-fit:contain; box-shadow:none; }
 nav { display:grid; gap:4px; }
+@property --nav-active-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0turn;
+}
 nav button {
   --nav-active-fill: color-mix(in srgb, var(--accent) 18%, var(--panel2));
+  --nav-active-border-size: 3px;
   --nav-active-border: linear-gradient(115deg,
     color-mix(in srgb, var(--accent) 88%, var(--panel)),
     color-mix(in srgb, var(--highlight) 86%, var(--accent)),
     color-mix(in srgb, var(--accent2) 78%, var(--highlight)),
     color-mix(in srgb, var(--accent) 88%, var(--panel))
   );
-  display:flex; align-items:center; gap:12px; width:100%; min-height:48px; color:var(--muted); text-align:left; padding:12px 14px; border:1px solid transparent; border-radius:16px; background:transparent; transition: background .18s var(--ease), color .18s var(--ease), transform .18s var(--ease), box-shadow .18s var(--ease);
+  --nav-active-glint: color-mix(in srgb, var(--panel) 82%, var(--highlight));
+  position:relative; isolation:isolate; overflow:hidden; display:flex; align-items:center; gap:12px; width:100%; min-height:48px; color:var(--muted); text-align:left; padding:12px 14px; border:1px solid transparent; border-radius:16px; background:transparent; transition: background .18s var(--ease), color .18s var(--ease), transform .18s var(--ease), box-shadow .18s var(--ease);
 }
-nav button svg { width:22px; height:22px; flex:0 0 auto; }
+nav button svg { width:22px; height:22px; flex:0 0 auto; position:relative; z-index:1; }
+nav button span { position:relative; z-index:1; }
 nav button.active, nav button:hover { color:var(--text); background:var(--nav-active-fill); }
 nav button.active {
-  background:
-    linear-gradient(var(--nav-active-fill), var(--nav-active-fill)) padding-box,
-    var(--nav-active-border) border-box;
-  background-size:100% 100%, 260% 100%;
-  animation:nav-active-border-flow 3.8s linear infinite;
+  background:var(--nav-active-fill);
   box-shadow:0 10px 24px color-mix(in srgb, var(--accent) 12%, transparent);
 }
+nav button.active::before,
+nav button.active::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  padding:var(--nav-active-border-size);
+  pointer-events:none;
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite:exclude;
+}
+nav button.active::before {
+  background:var(--nav-active-border);
+  z-index:0;
+}
+nav button.active::after {
+  background:conic-gradient(from var(--nav-active-angle),
+    transparent 0turn .48turn,
+    color-mix(in srgb, var(--accent2) 82%, transparent) .58turn,
+    var(--nav-active-glint) .67turn,
+    color-mix(in srgb, var(--highlight) 82%, transparent) .78turn,
+    transparent .9turn 1turn
+  );
+  animation:nav-active-border-glint 1.45s linear infinite;
+  z-index:0;
+}
 nav button:active, .media-card:active, .cover-button:active { transform:scale(.98); }
-@keyframes nav-active-border-flow {
-  from { background-position:0 0, 0% 50%; }
-  to { background-position:0 0, 260% 50%; }
+@keyframes nav-active-border-glint {
+  to { --nav-active-angle: 1turn; }
 }
 .nav-section-label { font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); padding:8px 14px 4px; }
 .nav-divider { border:0; border-top:1px solid var(--line); margin:8px 14px; }
@@ -693,7 +724,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; }
-  nav button.active { animation:none !important; background-position:0 0, 100% 50%; }
+  nav button.active::after { animation:none !important; opacity:0; }
   .song-row-eq i { animation:none !important; transform:none !important; }
 }
 
@@ -4195,12 +4226,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 :root[data-theme='smartisan-classic'] nav button {
   --nav-active-fill: var(--smartisan-control);
+  --nav-active-border-size: 3px;
   --nav-active-border: linear-gradient(115deg,
     color-mix(in srgb, var(--smartisan-red) 88%, var(--smartisan-control)),
     color-mix(in srgb, var(--smartisan-blue) 72%, var(--smartisan-red)),
     color-mix(in srgb, var(--smartisan-red-pressed) 82%, var(--smartisan-control)),
     color-mix(in srgb, var(--smartisan-red) 88%, var(--smartisan-control))
   );
+  --nav-active-glint: color-mix(in srgb, var(--smartisan-control) 72%, var(--smartisan-blue));
   min-height:52px;
   padding:0 22px;
   border-radius:0;
@@ -4223,12 +4256,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 :root[data-theme='smartisan-classic'] nav button.active {
-  background:
-    linear-gradient(var(--nav-active-fill), var(--nav-active-fill)) padding-box,
-    var(--nav-active-border) border-box;
-  background-size:100% 100%, 260% 100%;
+  background:var(--nav-active-fill);
   border-color:transparent;
-  animation:nav-active-border-flow 3.8s linear infinite;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.86), 0 8px 18px color-mix(in srgb, var(--smartisan-red) 16%, transparent);
 }
 
