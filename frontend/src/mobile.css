@@ -4996,30 +4996,33 @@
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] {
-    --mobile-lyrics-readable:rgba(255,255,255,.72);
-    --lyrics-active-text:rgb(255 255 255);
-    --lyrics-pending-text:rgba(255,255,255,.45);
-    --lyrics-cover-base:color-mix(in srgb, var(--lyrics-cover-tone, var(--mobile-lyrics-accent)) 30%, rgb(0 0 0) 70%);
+    --mobile-lyrics-readable:var(--lyrics-immersive-dim, color-mix(in srgb, var(--mobile-lyrics-live) 72%, transparent));
+    --lyrics-active-text:var(--lyrics-immersive-active, var(--mobile-lyrics-live));
+    --lyrics-pending-text:var(--lyrics-immersive-pending, color-mix(in srgb, var(--mobile-lyrics-live) 45%, transparent));
+    --lyrics-cover-base:var(--lyrics-immersive-cover-base, color-mix(in srgb, var(--lyrics-cover-tone, var(--mobile-lyrics-accent)) 30%, var(--bg) 70%));
+    --lyrics-live-start:var(--lyrics-immersive-live-start, var(--lyrics-active-text));
+    --lyrics-live-mid:var(--lyrics-immersive-live-mid, color-mix(in srgb, var(--mobile-lyrics-accent) 72%, var(--lyrics-active-text)));
+    --lyrics-live-end:var(--lyrics-immersive-live-end, color-mix(in srgb, var(--highlight) 62%, var(--lyrics-active-text)));
     border:1px solid color-mix(in srgb, var(--mobile-lyrics-live) 10%, transparent);
     background:
-      radial-gradient(circle at 22% 12%, color-mix(in srgb, var(--lyrics-cover-tone, var(--mobile-lyrics-accent)) 36%, transparent), transparent 40%),
-      linear-gradient(180deg, color-mix(in srgb, var(--lyrics-cover-base) 74%, rgb(0 0 0)), rgb(0 0 0));
+      radial-gradient(circle at 22% 12%, var(--lyrics-immersive-spot, color-mix(in srgb, var(--lyrics-cover-tone, var(--mobile-lyrics-accent)) 36%, transparent)), transparent 40%),
+      var(--lyrics-immersive-bg, linear-gradient(180deg, color-mix(in srgb, var(--lyrics-cover-base) 74%, var(--bg)), var(--bg)));
     background-size:cover;
     background-position:center;
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive']::before {
     inset:-18%;
-    filter:blur(36px) saturate(1.34) brightness(.72);
-    transform:scale(1.16);
-    opacity:.76;
+    filter:var(--lyrics-cover-filter, blur(16px) saturate(1.18) brightness(.92));
+    transform:scale(var(--lyrics-cover-scale, 1.07));
+    opacity:var(--lyrics-cover-opacity, .72);
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive']::after {
-    background:
-      radial-gradient(circle at 28% 34%, color-mix(in srgb, var(--lyrics-cover-base) 34%, transparent), color-mix(in srgb, rgb(0 0 0) 72%, transparent) 62%, color-mix(in srgb, rgb(0 0 0) 86%, transparent)),
-      linear-gradient(180deg, color-mix(in srgb, rgb(0 0 0) 64%, transparent), transparent 22%, color-mix(in srgb, rgb(0 0 0) 74%, transparent) 100%),
-      var(--mobile-lyrics-overlay);
+    background:var(--lyrics-immersive-overlay,
+      radial-gradient(circle at 28% 34%, color-mix(in srgb, var(--lyrics-cover-base) 34%, transparent), color-mix(in srgb, var(--bg) 68%, transparent) 62%, color-mix(in srgb, var(--bg) 82%, transparent)),
+      linear-gradient(180deg, color-mix(in srgb, var(--bg) 60%, transparent), transparent 22%, color-mix(in srgb, var(--bg) 66%, transparent) 100%),
+      var(--mobile-lyrics-overlay));
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-head {
@@ -5128,7 +5131,11 @@
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.live .lyric-line-text {
-    background:linear-gradient(90deg, var(--lyrics-active-text) 0 var(--lyric-progress, 100%), var(--lyrics-pending-text) var(--lyric-progress, 100%) 100%);
+    background:
+      linear-gradient(90deg, var(--lyrics-live-start), var(--lyrics-live-mid) 52%, var(--lyrics-live-end)),
+      linear-gradient(90deg, var(--lyrics-pending-text), var(--lyrics-pending-text));
+    background-size:var(--lyric-progress, 100%) 100%, 100% 100%;
+    background-repeat:no-repeat;
     -webkit-background-clip:text;
     background-clip:text;
     color:transparent;

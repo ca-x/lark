@@ -5,6 +5,34 @@
 
 ---
 
+## 0.8.16 — 浅色主题歌词沉浸效果修复
+
+发布日期 / Released: 2026-06-08
+
+### 修复
+
+- **修复浅色主题下沉浸歌词过暗的问题。** 沉浸歌词不再强制使用黑底白字，当前行、上下文歌词、背景和阴影都改为读取主题 token。
+- **当前歌词行改为主题渐变。** 已唱部分使用 `text -> accent -> highlight` 的主题渐变，未唱部分保留主题文字的低透明态。
+- **降低封面背景虚化强度。** 专辑封面层更清晰，仍保留柔和沉浸背景，不再糊成暗色块。
+
+完整 diff：`git log v0.8.15..v0.8.16`
+
+---
+
+## v0.8.16 — Light-theme immersive lyrics fix
+
+Released: 2026-06-08
+
+### Fixes
+
+- **Fixed immersive lyrics looking too dark in light themes.** Immersive lyrics no longer force a black-stage/white-text treatment; active text, surrounding lines, backdrop, and shadows now read from theme tokens.
+- **Changed the active lyric line to a themed gradient.** Sung text now uses a `text -> accent -> highlight` gradient, while unsung text keeps the theme text color at lower opacity.
+- **Reduced cover backdrop blur.** Album artwork remains more recognizable while still acting as a soft immersive backdrop.
+
+Full diff: `git log v0.8.15..v0.8.16`
+
+---
+
 ## 0.8.15 — Spotify 风格歌词滚动修正
 
 发布日期 / Released: 2026-06-08

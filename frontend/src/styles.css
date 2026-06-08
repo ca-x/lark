@@ -58,6 +58,35 @@ html, body, .app-shell, .song-row, .library-summary-stat, .album-card, .artist-c
 :root[data-theme='winamp-light'] { color-scheme:light; --bg:#D4D0C8; --panel:#C8C4BC; --panel2:#BCBAB2; --text:#000000; --muted:#444444; --accent:#2090C0; --accent2:#005080; --line:#AAAAAA; --track:#999999; --progress:#2090C0; --highlight:#1070A0; --hero:linear-gradient(135deg,#E8E4DC,#D4D0C8 70%); --cover:linear-gradient(135deg,#BCBAB2,#AAAAAA); --shadow:2px 2px 0px #888888; --vu-low:#00AA00; --vu-mid:#AAAA00; --vu-high:#CC3300; --hover-bg:rgba(0,0,0,.05); --active-bg:rgba(0,0,0,.10); --selected-bg:rgba(32,144,192,.15); --focus-ring:rgba(32,144,192,.40); --muted-strong:#000000; }
 :root[data-theme='foobar-light'] { color-scheme:light; --bg:#F3F3F3; --panel:#FFFFFF; --panel2:#F0F0F0; --text:#1E1E1E; --muted:#717171; --accent:#007ACC; --accent2:#004080; --line:#D4D4D4; --track:#D4D4D4; --progress:#007ACC; --highlight:#005FA3; --hero:radial-gradient(circle at 22% 20%,rgba(0,122,204,.13),transparent 34%),#FFFFFF; --cover:linear-gradient(135deg,#E8E8E8,#CCCCCC); --shadow:0 1px 6px rgba(0,0,0,.10); --vu-low:#2E9E6B; --vu-mid:#BB8A00; --vu-high:#DC3545; --hover-bg:rgba(0,0,0,.04); --active-bg:rgba(0,0,0,.07); --selected-bg:rgba(0,122,204,.10); --focus-ring:rgba(0,122,204,.35); --muted-strong:#1A1A1A; }
 
+:root[data-theme='milk-porcelain'],
+:root[data-theme='oat-latte'],
+:root[data-theme='mint-soda'],
+:root[data-theme='sakura-washi'],
+:root[data-theme='dusk-amber'],
+:root[data-theme='smartisan-classic'],
+:root[data-theme='apple-light'],
+:root[data-theme='spotify-light'],
+:root[data-theme='netease-light'],
+:root[data-theme='winamp-light'],
+:root[data-theme='foobar-light'] {
+  --lyrics-immersive-active:var(--text);
+  --lyrics-immersive-pending:color-mix(in srgb, var(--text) 44%, transparent);
+  --lyrics-immersive-dim:color-mix(in srgb, var(--text) 64%, transparent);
+  --lyrics-immersive-cover-base:color-mix(in srgb, var(--lyrics-cover-tone, var(--accent)) 16%, var(--panel) 84%);
+  --lyrics-immersive-depth-shadow:color-mix(in srgb, var(--accent) 28%, transparent);
+  --lyrics-immersive-spot:color-mix(in srgb, var(--lyrics-cover-tone, var(--accent)) 18%, transparent);
+  --lyrics-immersive-highlight-spot:color-mix(in srgb, var(--highlight) 20%, transparent);
+  --lyrics-immersive-bg:linear-gradient(145deg, color-mix(in srgb, var(--lyrics-cover-base) 88%, var(--panel)), color-mix(in srgb, var(--bg) 82%, var(--panel2)));
+  --lyrics-cover-layer:linear-gradient(90deg, color-mix(in srgb, var(--panel) 90%, transparent), color-mix(in srgb, var(--panel) 36%, transparent));
+  --lyrics-cover-filter:blur(12px) saturate(1.12) brightness(1.05);
+  --lyrics-cover-opacity:.54;
+  --lyrics-cover-scale:1.05;
+  --lyrics-immersive-overlay:
+    radial-gradient(circle at 32% 40%, color-mix(in srgb, var(--lyrics-cover-base) 44%, transparent), color-mix(in srgb, var(--panel) 68%, transparent) 62%, color-mix(in srgb, var(--bg) 82%, transparent)),
+    linear-gradient(180deg, color-mix(in srgb, var(--panel) 78%, transparent), transparent 28%, color-mix(in srgb, var(--bg) 82%, transparent) 100%),
+    linear-gradient(90deg, color-mix(in srgb, var(--panel) 42%, transparent), transparent 48%, color-mix(in srgb, var(--panel2) 34%, transparent));
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { min-height: 100%; background: var(--bg); }
 body { margin:0; min-width:0; overflow:hidden; background:var(--bg); }
@@ -582,33 +611,36 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .full-lyrics-lines p.live { color:var(--text); transform:translateX(18px) scale(1.03); text-shadow:0 10px 35px color-mix(in srgb, var(--accent) 35%, transparent); }
 .full-lyrics[data-display-style='immersive'] {
   --lyrics-depth-ease:cubic-bezier(.4, 0, .2, 1);
-  --lyrics-active-text:rgb(255 255 255);
-  --lyrics-pending-text:rgba(255,255,255,.45);
-  --lyrics-dim-text:rgba(255,255,255,.72);
-  --lyrics-cover-base:color-mix(in srgb, var(--lyrics-cover-tone, var(--accent)) 30%, rgb(0 0 0) 70%);
-  --lyrics-depth-shadow:color-mix(in srgb, var(--lyrics-cover-tone, var(--accent)) 42%, rgba(0,0,0,.62));
+  --lyrics-active-text:var(--lyrics-immersive-active, var(--text));
+  --lyrics-pending-text:var(--lyrics-immersive-pending, color-mix(in srgb, var(--text) 45%, transparent));
+  --lyrics-dim-text:var(--lyrics-immersive-dim, color-mix(in srgb, var(--text) 72%, transparent));
+  --lyrics-cover-base:var(--lyrics-immersive-cover-base, color-mix(in srgb, var(--lyrics-cover-tone, var(--accent)) 30%, var(--bg) 70%));
+  --lyrics-depth-shadow:var(--lyrics-immersive-depth-shadow, color-mix(in srgb, var(--lyrics-cover-tone, var(--accent)) 42%, transparent));
+  --lyrics-live-start:var(--lyrics-immersive-live-start, var(--lyrics-active-text));
+  --lyrics-live-mid:var(--lyrics-immersive-live-mid, color-mix(in srgb, var(--accent) 72%, var(--lyrics-active-text)));
+  --lyrics-live-end:var(--lyrics-immersive-live-end, color-mix(in srgb, var(--highlight) 62%, var(--lyrics-active-text)));
   border:1px solid color-mix(in srgb, var(--text) 10%, transparent);
   background:
-    radial-gradient(circle at 22% 18%, color-mix(in srgb, var(--lyrics-cover-tone, var(--accent)) 42%, transparent), transparent 42%),
-    radial-gradient(circle at 82% 72%, color-mix(in srgb, var(--highlight) 18%, transparent), transparent 44%),
-    linear-gradient(145deg, color-mix(in srgb, var(--lyrics-cover-base) 88%, rgb(0 0 0)), rgb(0 0 0));
+    radial-gradient(circle at 22% 18%, var(--lyrics-immersive-spot, color-mix(in srgb, var(--lyrics-cover-tone, var(--accent)) 42%, transparent)), transparent 42%),
+    radial-gradient(circle at 82% 72%, var(--lyrics-immersive-highlight-spot, color-mix(in srgb, var(--highlight) 18%, transparent)), transparent 44%),
+    var(--lyrics-immersive-bg, linear-gradient(145deg, color-mix(in srgb, var(--lyrics-cover-base) 88%, var(--bg)), var(--bg)));
 }
 .full-lyrics[data-display-style='immersive']::before {
   inset:-16%;
   background:
-    linear-gradient(90deg, color-mix(in srgb, rgb(0 0 0) 54%, transparent), color-mix(in srgb, rgb(0 0 0) 18%, transparent)),
+    var(--lyrics-cover-layer, linear-gradient(90deg, color-mix(in srgb, var(--bg) 54%, transparent), color-mix(in srgb, var(--bg) 18%, transparent))),
     var(--cover-url, var(--hero));
   background-size:cover;
   background-position:center;
-  filter:blur(40px) saturate(1.35) brightness(.72);
-  transform:scale(1.16);
-  opacity:.82;
+  filter:var(--lyrics-cover-filter, blur(18px) saturate(1.2) brightness(.9));
+  transform:scale(var(--lyrics-cover-scale, 1.08));
+  opacity:var(--lyrics-cover-opacity, .74);
 }
 .full-lyrics[data-display-style='immersive']::after {
-  background:
-    radial-gradient(circle at 32% 40%, color-mix(in srgb, var(--lyrics-cover-base) 34%, transparent), color-mix(in srgb, rgb(0 0 0) 74%, transparent) 62%, color-mix(in srgb, rgb(0 0 0) 88%, transparent)),
-    linear-gradient(180deg, color-mix(in srgb, rgb(0 0 0) 68%, transparent), transparent 24%, color-mix(in srgb, rgb(0 0 0) 70%, transparent) 100%),
-    linear-gradient(90deg, color-mix(in srgb, rgb(0 0 0) 28%, transparent), color-mix(in srgb, rgb(0 0 0) 8%, transparent) 45%, color-mix(in srgb, rgb(0 0 0) 32%, transparent));
+  background:var(--lyrics-immersive-overlay,
+    radial-gradient(circle at 32% 40%, color-mix(in srgb, var(--lyrics-cover-base) 34%, transparent), color-mix(in srgb, var(--bg) 68%, transparent) 62%, color-mix(in srgb, var(--bg) 82%, transparent)),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 60%, transparent), transparent 24%, color-mix(in srgb, var(--bg) 64%, transparent) 100%),
+    linear-gradient(90deg, color-mix(in srgb, var(--bg) 24%, transparent), color-mix(in srgb, var(--bg) 8%, transparent) 45%, color-mix(in srgb, var(--bg) 28%, transparent)));
 }
 .full-lyrics[data-display-style='immersive'] .full-lyrics-head {
   border-bottom:0;
@@ -636,7 +668,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   transform:translate3d(18px, 0, 0) scale(.96);
   transform-origin:left center;
   text-align:right;
-  text-shadow:0 12px 38px color-mix(in srgb, rgb(0 0 0) 36%, transparent);
+  text-shadow:0 12px 38px color-mix(in srgb, var(--accent) 24%, transparent);
   transition:
     color .6s var(--lyrics-depth-ease),
     font-size .6s var(--lyrics-depth-ease),
@@ -699,7 +731,11 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   text-shadow:0 18px 58px var(--lyrics-depth-shadow);
 }
 .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.live .lyric-line-text {
-  background:linear-gradient(90deg, var(--lyrics-active-text) 0 var(--lyric-progress, 100%), var(--lyrics-pending-text) var(--lyric-progress, 100%) 100%);
+  background:
+    linear-gradient(90deg, var(--lyrics-live-start), var(--lyrics-live-mid) 52%, var(--lyrics-live-end)),
+    linear-gradient(90deg, var(--lyrics-pending-text), var(--lyrics-pending-text));
+  background-size:var(--lyric-progress, 100%) 100%, 100% 100%;
+  background-repeat:no-repeat;
   -webkit-background-clip:text;
   background-clip:text;
   color:transparent;
