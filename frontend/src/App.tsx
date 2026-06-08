@@ -99,6 +99,7 @@ import type {
   HomePlayerStyle,
   Language,
   LyricCandidate,
+  LyricsDisplayStyle,
   Lyrics,
   MCPTokenStatus,
   MetadataWritebackResult,
@@ -328,11 +329,16 @@ function normalizeArtistAlbumDisplayStyle(value?: string | null): ArtistAlbumDis
   return value === "showcase" ? "showcase" : "classic";
 }
 
+function normalizeLyricsDisplayStyle(value?: string | null): LyricsDisplayStyle {
+  return value === "classic" ? "classic" : "immersive";
+}
+
 function normalizeUserPreferences(value?: Partial<UserPreferences> | null): UserPreferences {
   return {
     home_player_style: normalizeHomePlayerStyle(value?.home_player_style),
     mobile_home_player_style: normalizeMobileHomePlayerStyle(value?.mobile_home_player_style),
     artist_album_display_style: normalizeArtistAlbumDisplayStyle(value?.artist_album_display_style),
+    lyrics_display_style: normalizeLyricsDisplayStyle(value?.lyrics_display_style),
     lyrics_drag_seek_enabled: value?.lyrics_drag_seek_enabled ?? true,
   };
 }
@@ -342,6 +348,7 @@ function sameUserPreferences(left: UserPreferences | null, right: UserPreference
   return left.home_player_style === right.home_player_style &&
     left.mobile_home_player_style === right.mobile_home_player_style &&
     left.artist_album_display_style === right.artist_album_display_style &&
+    left.lyrics_display_style === right.lyrics_display_style &&
     left.lyrics_drag_seek_enabled === right.lyrics_drag_seek_enabled;
 }
 
@@ -877,6 +884,7 @@ export default function App() {
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
   const [mobileHomePlayerStyle, setMobileHomePlayerStyle] = useState<MobileHomePlayerStyle>(storedMobileHomePlayerStyle);
   const [artistAlbumDisplayStyle, setArtistAlbumDisplayStyle] = useState<ArtistAlbumDisplayStyle>(() => storedArtistAlbumDisplayStyle());
+  const [lyricsDisplayStyle, setLyricsDisplayStyle] = useState<LyricsDisplayStyle>("immersive");
   const [lyricsDragSeekEnabled, setLyricsDragSeekEnabled] = useState(true);
   const userPreferencesReadyRef = useRef(false);
   const lastSavedUserPreferencesRef = useRef<UserPreferences | null>(null);
@@ -1232,6 +1240,7 @@ export default function App() {
       home_player_style: homePlayerStyle,
       mobile_home_player_style: mobileHomePlayerStyle,
       artist_album_display_style: artistAlbumDisplayStyle,
+      lyrics_display_style: lyricsDisplayStyle,
       lyrics_drag_seek_enabled: lyricsDragSeekEnabled,
     });
     if (sameUserPreferences(lastSavedUserPreferencesRef.current, nextPreferences)) return;
@@ -1246,7 +1255,7 @@ export default function App() {
         })
         .catch(() => undefined);
     }, 250);
-  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, lyricsDragSeekEnabled, mobileHomePlayerStyle]);
+  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, lyricsDisplayStyle, lyricsDragSeekEnabled, mobileHomePlayerStyle]);
 
   useEffect(() => {
     return () => {
@@ -1962,6 +1971,7 @@ export default function App() {
       setHomePlayerStyle(normalized.home_player_style);
       setMobileHomePlayerStyle(normalized.mobile_home_player_style);
       setArtistAlbumDisplayStyle(normalized.artist_album_display_style);
+      setLyricsDisplayStyle(normalized.lyrics_display_style);
       setLyricsDragSeekEnabled(normalized.lyrics_drag_seek_enabled);
       rememberHomePlayerStyle(normalized.home_player_style);
       rememberMobileHomePlayerStyle(normalized.mobile_home_player_style);
@@ -3947,6 +3957,7 @@ export default function App() {
             lines={lyricLines}
             activeLyric={activeLyric}
             lyricsSource={lyrics?.source || current?.lyrics_source || ""}
+            lyricsDisplayStyle={lyricsDisplayStyle}
             lyrics={lyrics}
             loading={lyricsLoading}
             lyricOffsetMs={lyricOffsetMs}
@@ -4418,6 +4429,8 @@ export default function App() {
                 onMobileHomePlayerStyleChange={setMobileHomePlayerStyle}
                 artistAlbumDisplayStyle={artistAlbumDisplayStyle}
                 onArtistAlbumDisplayStyleChange={setArtistAlbumDisplayStyle}
+                lyricsDisplayStyle={lyricsDisplayStyle}
+                onLyricsDisplayStyleChange={setLyricsDisplayStyle}
                 lyricsDragSeekEnabled={lyricsDragSeekEnabled}
                 onLyricsDragSeekEnabledChange={setLyricsDragSeekEnabled}
                 persistentQueueEnabled={persistentQueueEnabled}
@@ -7388,6 +7401,7 @@ function FullLyrics({
   lines,
   activeLyric,
   lyricsSource,
+  lyricsDisplayStyle,
   lyrics,
   loading,
   lyricOffsetMs,
@@ -7414,6 +7428,7 @@ function FullLyrics({
   lines: ReturnType<typeof parseLyricLines>;
   activeLyric: string;
   lyricsSource: string;
+  lyricsDisplayStyle: LyricsDisplayStyle;
   lyrics: Lyrics | null;
   loading: boolean;
   lyricOffsetMs: number;
@@ -7498,7 +7513,7 @@ function FullLyrics({
     window.requestAnimationFrame(syncSeekTargetFromScroll);
   };
   return (
-    <section className="full-lyrics" style={backgroundStyle}>
+    <section className="full-lyrics" data-display-style={lyricsDisplayStyle} style={backgroundStyle}>
       <div className="full-lyrics-head">
         <button
           className="full-lyrics-cover-button"
@@ -8201,6 +8216,8 @@ function SettingsPanel({
   onMobileHomePlayerStyleChange,
   artistAlbumDisplayStyle,
   onArtistAlbumDisplayStyleChange,
+  lyricsDisplayStyle,
+  onLyricsDisplayStyleChange,
   lyricsDragSeekEnabled,
   onLyricsDragSeekEnabledChange,
   persistentQueueEnabled,
@@ -8237,6 +8254,8 @@ function SettingsPanel({
   onMobileHomePlayerStyleChange: (style: MobileHomePlayerStyle) => void;
   artistAlbumDisplayStyle: ArtistAlbumDisplayStyle;
   onArtistAlbumDisplayStyleChange: (style: ArtistAlbumDisplayStyle) => void;
+  lyricsDisplayStyle: LyricsDisplayStyle;
+  onLyricsDisplayStyleChange: (style: LyricsDisplayStyle) => void;
   lyricsDragSeekEnabled: boolean;
   onLyricsDragSeekEnabledChange: (enabled: boolean) => void;
   persistentQueueEnabled: boolean;
@@ -8726,6 +8745,28 @@ function SettingsPanel({
                 onClick={() => onArtistAlbumDisplayStyleChange("showcase")}
               >
                 {t("artistAlbumDisplayShowcase")}
+              </button>
+            </div>
+          </SettingsSection>
+          <SettingsSection
+            wideRow
+            title={t("lyricsDisplayStyle")}
+            description={t("lyricsDisplayStyleHint")}
+          >
+            <div className="segmented-control" role="group" aria-label={t("lyricsDisplayStyle")}>
+              <button
+                type="button"
+                className={lyricsDisplayStyle === "immersive" ? "active" : ""}
+                onClick={() => onLyricsDisplayStyleChange("immersive")}
+              >
+                {t("lyricsDisplayImmersive")}
+              </button>
+              <button
+                type="button"
+                className={lyricsDisplayStyle === "classic" ? "active" : ""}
+                onClick={() => onLyricsDisplayStyleChange("classic")}
+              >
+                {t("lyricsDisplayClassic")}
               </button>
             </div>
           </SettingsSection>

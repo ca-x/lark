@@ -245,10 +245,12 @@ export interface PlaybackHistorySettings {
 export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide" | "smartisan-turntable";
 export type MobileHomePlayerStyle = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "stage-glass" | "blue-halo" | "smartisan-classic";
 export type ArtistAlbumDisplayStyle = "classic" | "showcase";
+export type LyricsDisplayStyle = "immersive" | "classic";
 export interface UserPreferences {
   home_player_style: HomePlayerStyle;
   mobile_home_player_style: MobileHomePlayerStyle;
   artist_album_display_style: ArtistAlbumDisplayStyle;
+  lyrics_display_style: LyricsDisplayStyle;
   lyrics_drag_seek_enabled: boolean;
 }
 export interface HealthInfo {

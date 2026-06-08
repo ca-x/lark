@@ -580,6 +580,81 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .lyrics-cursor-play:hover { opacity:1; background:var(--text); }
 .lyrics-cursor-play:active { transform:translateY(-50%) scale(.94); }
 .full-lyrics-lines p.live { color:var(--text); transform:translateX(18px) scale(1.03); text-shadow:0 10px 35px color-mix(in srgb, var(--accent) 35%, transparent); }
+.full-lyrics[data-display-style='immersive'] {
+  --lyrics-depth-shadow:color-mix(in srgb, var(--accent) 34%, rgba(0,0,0,.46));
+  border:1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  background:
+    radial-gradient(circle at 24% 24%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 34%),
+    radial-gradient(circle at 78% 28%, color-mix(in srgb, var(--highlight) 16%, transparent), transparent 38%),
+    linear-gradient(135deg, color-mix(in srgb, var(--panel) 72%, var(--bg)), color-mix(in srgb, var(--bg) 88%, var(--panel)));
+}
+.full-lyrics[data-display-style='immersive']::before {
+  inset:-16%;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--bg) 38%, transparent), color-mix(in srgb, var(--bg) 10%, transparent)),
+    var(--cover-url, var(--hero));
+  background-size:cover;
+  background-position:center;
+  filter:blur(34px) saturate(1.28) brightness(.82);
+  transform:scale(1.14);
+  opacity:.9;
+}
+.full-lyrics[data-display-style='immersive']::after {
+  background:
+    radial-gradient(circle at 28% 48%, color-mix(in srgb, var(--bg) 18%, transparent), color-mix(in srgb, var(--bg) 68%, transparent) 58%, color-mix(in srgb, var(--bg) 82%, transparent)),
+    linear-gradient(90deg, color-mix(in srgb, var(--bg) 24%, transparent), color-mix(in srgb, var(--bg) 54%, transparent) 58%, color-mix(in srgb, var(--bg) 22%, transparent)),
+    linear-gradient(180deg, color-mix(in srgb, #000 34%, transparent), transparent 38%, color-mix(in srgb, #000 42%, transparent));
+}
+.full-lyrics[data-display-style='immersive'] .full-lyrics-head {
+  border-bottom:0;
+  padding-bottom:clamp(18px, 3vh, 40px);
+}
+.full-lyrics[data-display-style='immersive'] .full-lyrics-lines {
+  gap:clamp(18px, 2.8vh, 34px);
+  padding:max(34px, 15vh) min(8vw, 128px) max(64px, 38vh);
+  font-size:var(--lyrics-font-size, clamp(34px, 4.2vw, 64px));
+  line-height:1.14;
+  font-weight:900;
+  color:color-mix(in srgb, var(--text) 30%, transparent);
+  mask-image:linear-gradient(to bottom, transparent 0, #000 12%, #000 78%, transparent 100%);
+}
+.full-lyrics[data-display-style='immersive'] .full-lyrics-lines p {
+  max-width:min(980px, 88%);
+  font-size:.84em;
+  opacity:.34;
+  filter:blur(2.4px);
+  transform:scale(.965);
+  transform-origin:left center;
+  text-shadow:0 16px 48px color-mix(in srgb, #000 46%, transparent);
+  transition:color .2s var(--ease), filter .2s var(--ease), opacity .2s var(--ease), transform .2s var(--ease), text-shadow .2s var(--ease);
+}
+.full-lyrics[data-display-style='immersive'] .full-lyrics-lines[data-drag-seek='false'] p {
+  padding-right:64px;
+}
+.full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.live {
+  font-size:1em;
+  color:var(--text);
+  opacity:1;
+  filter:none;
+  transform:scale(1);
+  text-shadow:0 18px 58px var(--lyrics-depth-shadow);
+}
+.full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.seek-target:not(.live) {
+  opacity:.66;
+  filter:blur(.7px);
+}
+@media (min-width: 960px) {
+  .full-lyrics[data-display-style='immersive'] .full-lyrics-head {
+    width:min(520px, 42vw);
+  }
+  .full-lyrics[data-display-style='immersive'] .full-lyrics-lines {
+    padding-left:min(47vw, 720px);
+    padding-right:min(7vw, 110px);
+  }
+  .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p {
+    max-width:100%;
+  }
+}
 .full-lyrics-lines p.seek-target::after { content:''; position:absolute; left:0; right:0; bottom:-6px; height:2px; border-radius:999px; background:linear-gradient(90deg, var(--accent), transparent); box-shadow:0 0 12px color-mix(in srgb, var(--accent) 48%, transparent); }
 .lyrics-empty { margin-top:22px; display:grid; gap:8px; padding:18px; border:1px dashed var(--line); border-radius:18px; color:var(--muted); }
 .lyrics-empty strong { color:var(--text); }

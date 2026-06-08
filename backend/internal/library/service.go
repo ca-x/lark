@@ -1329,6 +1329,7 @@ func defaultUserPreferences() models.UserPreferences {
 		HomePlayerStyle:         "vinyl",
 		MobileHomePlayerStyle:   "neon-console",
 		ArtistAlbumDisplayStyle: "classic",
+		LyricsDisplayStyle:      "immersive",
 		LyricsDragSeekEnabled:   true,
 	}
 }
@@ -1338,8 +1339,16 @@ func normalizeUserPreferences(preferences models.UserPreferences) models.UserPre
 		HomePlayerStyle:         normalizeUserHomePlayerStyle(preferences.HomePlayerStyle),
 		MobileHomePlayerStyle:   normalizeUserMobileHomePlayerStyle(preferences.MobileHomePlayerStyle),
 		ArtistAlbumDisplayStyle: normalizeArtistAlbumDisplayStyle(preferences.ArtistAlbumDisplayStyle),
+		LyricsDisplayStyle:      normalizeLyricsDisplayStyle(preferences.LyricsDisplayStyle),
 		LyricsDragSeekEnabled:   preferences.LyricsDragSeekEnabled,
 	}
+}
+
+func normalizeLyricsDisplayStyle(value string) string {
+	if strings.TrimSpace(value) == "classic" {
+		return "classic"
+	}
+	return "immersive"
 }
 
 func normalizeUserHomePlayerStyle(value string) string {

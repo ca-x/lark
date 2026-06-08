@@ -204,10 +204,11 @@ type playbackHistorySettingsRequest struct {
 }
 
 type userPreferencesRequest struct {
-	HomePlayerStyle         string `json:"home_player_style"`
-	MobileHomePlayerStyle   string `json:"mobile_home_player_style"`
-	ArtistAlbumDisplayStyle string `json:"artist_album_display_style"`
-	LyricsDragSeekEnabled   *bool  `json:"lyrics_drag_seek_enabled"`
+	HomePlayerStyle         string  `json:"home_player_style"`
+	MobileHomePlayerStyle   string  `json:"mobile_home_player_style"`
+	ArtistAlbumDisplayStyle string  `json:"artist_album_display_style"`
+	LyricsDisplayStyle      *string `json:"lyrics_display_style"`
+	LyricsDragSeekEnabled   *bool   `json:"lyrics_drag_seek_enabled"`
 }
 
 type authUserResponse struct {
@@ -613,10 +614,15 @@ func (s *Server) handleSaveUserPreferences(c *echo.Context) error {
 	if req.LyricsDragSeekEnabled != nil {
 		lyricsDragSeekEnabled = *req.LyricsDragSeekEnabled
 	}
+	lyricsDisplayStyle := current.LyricsDisplayStyle
+	if req.LyricsDisplayStyle != nil {
+		lyricsDisplayStyle = *req.LyricsDisplayStyle
+	}
 	preferences, err := s.lib.SaveUserPreferences(c.Request().Context(), currentUserID(c), models.UserPreferences{
 		HomePlayerStyle:         req.HomePlayerStyle,
 		MobileHomePlayerStyle:   req.MobileHomePlayerStyle,
 		ArtistAlbumDisplayStyle: req.ArtistAlbumDisplayStyle,
+		LyricsDisplayStyle:      lyricsDisplayStyle,
 		LyricsDragSeekEnabled:   lyricsDragSeekEnabled,
 	})
 	if err != nil {

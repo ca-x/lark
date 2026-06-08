@@ -5,6 +5,34 @@
 
 ---
 
+## 0.8.13 — 沉浸式歌词显示
+
+发布日期 / Released: 2026-06-08
+
+### 新功能
+
+- **新增沉浸式歌词显示效果。** 全屏歌词页参考主流歌词应用，当前句清晰突出，上下文歌词以低透明度和虚化退后，背景继续使用封面与主题色承托。
+- **新增个人歌词显示选项。** 个人设置中可以在“沉浸景深”和“经典列表”之间切换，偏好按用户保存。
+- **保留歌词自由拖动交互。** 关闭“跟随歌词拖动播放”后仍可自由滚动阅读，只能通过居中行右侧按钮从该句播放；沉浸模式也为该按钮保留触控空间。
+
+完整 diff：`git log v0.8.12..v0.8.13`
+
+---
+
+## v0.8.13 — Immersive lyrics display
+
+Released: 2026-06-08
+
+### Features
+
+- **Added an immersive lyrics display.** The fullscreen lyrics view now follows mainstream lyrics-app treatment: the active line is crisp and prominent, surrounding lyrics recede with lower opacity and blur, and the cover/theme backdrop carries the mood.
+- **Added a personal lyrics display preference.** Each user can choose between “Immersive depth” and “Classic list” in Profile settings.
+- **Preserved free lyrics scrolling.** When “Follow playback while dragging lyrics” is disabled, users can still scroll freely and only the centered-line play button seeks; immersive mode reserves touch space for that button.
+
+Full diff: `git log v0.8.12..v0.8.13`
+
+---
+
 ## 0.8.12 — 侧栏选中态流光增强
 
 发布日期 / Released: 2026-06-08
