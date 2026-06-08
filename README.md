@@ -31,7 +31,13 @@ For release notes, see [CHANGELOG.md](CHANGELOG.md).
 - Playlists support creation, song insertion, and detail playback.
 - Smart playlists can surface recently played, recently added, favorites, unplayed tracks, Hi-Res tracks, and songs that still need lyrics.
 - Daily Mix uses favorites, listening history, and the current day seed.
-- Playback queue, recent source, resume position, and playback history can persist across sessions; history can also be separated by device.
+
+### Playback History And Resume
+
+- The History view shows listening events as a timeline, with calendar and date filters for jumping back to a specific day.
+- History retention is configurable in Site Settings; set retention to `0` to keep playback history permanently.
+- Playback queue, source context, resume position, and playback history can persist across sessions; history can also be separated by device, and cross-device continue restores the saved queue instead of only the last track.
+- Library inventory stays separate from playback behavior: recently played songs do not change the library's latest-added ordering.
 
 ### Lyrics And Metadata
 
