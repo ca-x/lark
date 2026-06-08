@@ -3817,6 +3817,7 @@ export default function App() {
     "my",
   ] as View[]).includes(view);
   const showTopbarScreenTitle = topbarHasScreenTitle && !(mobileViewport && view === "home");
+  const showUserMenu = view !== "settings" && !mobileViewport;
   const currentAlbum =
     current && current.album_id
       ? albums.find((item) => item.id === current.album_id)
@@ -4044,7 +4045,7 @@ export default function App() {
               {offlineMode || !networkReachable ? (
                 <span className="offline-status-pill">{t("offlineMode")}</span>
               ) : null}
-              {view !== "settings" ? (
+              {showUserMenu ? (
                 <UserMenu
                   user={auth.user}
                   t={t}

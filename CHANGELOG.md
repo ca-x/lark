@@ -5,6 +5,34 @@
 
 ---
 
+## 0.8.19 — 移动端导航与历史记录修复
+
+发布日期 / Released: 2026-06-09
+
+### 修复
+
+- **收敛移动端个人入口。** 移动端顶部不再在各页面显示账户菜单，个人相关入口统一放到「我的」页；桌面端顶部账户菜单保持不变。
+- **修复播放历史按钮换行。** 历史记录单曲条目的操作区从固定 4 列网格改为紧凑单行操作栏，播放、重播、下一首、收藏、离线、加入歌单和分享按钮不会再因为数量变化换行。
+- **增强移动端播放器主题可读性。** 精密音频的播放控制改为暖色高对比 token，独立蓝调的底部控制区改为更贴合蓝白主题的浅色面板。
+
+完整 diff：`git log v0.8.18..v0.8.19`
+
+---
+
+## v0.8.19 — Mobile navigation and history fixes
+
+Released: 2026-06-09
+
+### Fixes
+
+- **Consolidated mobile account entry points.** Mobile no longer shows the account menu in page headers; account-related actions live under the My page, while the desktop top-bar account menu is unchanged.
+- **Fixed playback-history action wrapping.** Single-track history entries now use a compact one-line action strip instead of a fixed four-column grid, so play, restart, play-next, favorite, offline, playlist, and share actions stay on one row.
+- **Improved mobile player theme readability.** Precision Audio playback controls now use warm high-contrast tokens, and Indiewave uses a lighter blue-white lower control panel that matches the theme.
+
+Full diff: `git log v0.8.18..v0.8.19`
+
+---
+
 ## 0.8.18 — 移动端播放器主题细节修复
 
 发布日期 / Released: 2026-06-09

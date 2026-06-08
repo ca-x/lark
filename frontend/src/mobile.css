@@ -123,8 +123,25 @@
   .history-entry > time { grid-column:1 / -1; }
   .history-entry-cover { width:48px; height:48px; min-width:48px; min-height:48px; }
   .history-entry-copy { align-self:center; }
-  .history-entry-actions { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; }
-  .history-entry-actions button { width:100%; min-width:0; min-height:44px; }
+  .history-entry-actions {
+    grid-column:1 / -1;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:4px;
+    min-width:0;
+    overflow-x:auto;
+    padding-top:2px;
+    scrollbar-width:none;
+  }
+  .history-entry-actions::-webkit-scrollbar { display:none; }
+  .history-entry-actions button {
+    flex:0 0 42px;
+    width:42px;
+    min-width:42px;
+    min-height:42px;
+    border-radius:12px;
+  }
 }
 
 @media (max-width:720px) {
@@ -7729,6 +7746,50 @@
     --mobile-player-control-bg:color-mix(in srgb, var(--panel) 78%, transparent);
     --mobile-player-action-bg:color-mix(in srgb, var(--panel) 62%, transparent);
     --mobile-player-active-bg:color-mix(in srgb, var(--accent) 18%, var(--panel));
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-neon-console {
+    --mobile-player-title:#fff1cf;
+    --mobile-player-secondary:rgba(255,241,207,.74);
+    --mobile-player-control:#fff6df;
+    --mobile-player-action:rgba(255,246,223,.82);
+    --mobile-player-control-bg:rgba(255,239,198,.13);
+    --mobile-player-action-bg:rgba(255,239,198,.09);
+    --mobile-player-active-bg:rgba(214,179,106,.18);
+    --mobile-player-hairline:rgba(255,239,198,.18);
+    --mobile-player-track:rgba(255,239,198,.18);
+    --mobile-player-volume-idle:rgba(255,239,198,.22);
+    --mobile-player-play-bg:linear-gradient(145deg, #6f4a16, #c5963b);
+    --mobile-player-play-fg:#fff8e8;
+    --mobile-player-progress-glow:rgba(214,179,106,.36);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-indiewave {
+    --mobile-player-title:#123f82;
+    --mobile-player-secondary:rgba(18,63,130,.72);
+    --mobile-player-control:#15478e;
+    --mobile-player-action:rgba(21,71,142,.76);
+    --mobile-player-control-bg:rgba(255,255,255,.78);
+    --mobile-player-action-bg:rgba(255,255,255,.58);
+    --mobile-player-active-bg:rgba(227,111,99,.13);
+    --mobile-player-hairline:rgba(21,71,142,.18);
+    --mobile-player-track:rgba(21,71,142,.16);
+    --mobile-player-volume-idle:rgba(21,71,142,.18);
+    --mobile-player-play-bg:linear-gradient(145deg, #ff968b, #e36f63);
+    --mobile-player-play-fg:#fffefa;
+    --mobile-player-progress-glow:rgba(227,111,99,.24);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-indiewave .mobile-art-bg {
+    opacity:1;
+    background:
+      radial-gradient(circle at 84% 18%, rgba(227,111,99,.12), transparent 30%),
+      linear-gradient(180deg, #fffefa 0 61%, #eef5ff 61% 100%);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-indiewave .mobile-art-blur-bg {
+    opacity:.12;
+    filter:blur(30px) saturate(1.02);
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player .mobile-art-phone {
