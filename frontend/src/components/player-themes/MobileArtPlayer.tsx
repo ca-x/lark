@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   CaretLeft,
   ChatText,
@@ -203,7 +203,21 @@ export function MobileArtPlayer({
         ) : variant === "indiewave" ? (
           <IndiewaveVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
         ) : variant === "editorial-pulse" ? (
-          <EditorialPulseVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} title={title} artist={artist} onCoverError={coverState.onCoverError} />
+          <EditorialPulseVisual
+            cover={coverState.displayUrl}
+            fallbackLabel={fallbackLabel}
+            playing={playing}
+            title={title}
+            artist={artist}
+            playModeIcon={modeIcon}
+            playModeLabel={playModeLabel}
+            labels={text}
+            onCoverError={coverState.onCoverError}
+            onToggle={onToggle}
+            onPrevious={onPrevious}
+            onNext={onNext}
+            onCyclePlayMode={onCyclePlayMode}
+          />
         ) : variant === "soft-vinyl" ? (
           <SoftVinylVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} onCoverError={coverState.onCoverError} />
         ) : variant === "stage-glass" ? (
@@ -381,11 +395,29 @@ function EditorialPulseVisual({
   playing,
   title,
   artist,
+  playModeIcon,
+  playModeLabel,
+  labels,
   onCoverError,
-}: CoverVisualProps & { playing: boolean; title: string; artist: string }) {
+  onToggle,
+  onPrevious,
+  onNext,
+  onCyclePlayMode,
+}: CoverVisualProps & {
+  playing: boolean;
+  title: string;
+  artist: string;
+  playModeIcon: ReactNode;
+  playModeLabel: string;
+  labels: typeof DEFAULT_LABELS;
+  onToggle?: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  onCyclePlayMode?: () => void;
+}) {
   return (
     <div className="mobile-editorial-visual" data-playing={playing ? "true" : "false"}>
-      <div className="mobile-editorial-ipod" aria-hidden="true">
+      <div className="mobile-editorial-ipod">
         <span className="mobile-editorial-ipod-port" />
         <span className="mobile-editorial-ipod-switch" />
         <div className="mobile-editorial-ipod-screen">
@@ -407,12 +439,30 @@ function EditorialPulseVisual({
             {Array.from({ length: 9 }, (_, index) => <i key={index} style={{ "--eq-delay": `${index * -68}ms` } as CSSProperties} />)}
           </div>
         </div>
-        <div className="mobile-editorial-wheel">
-          <span className="top">MENU</span>
-          <span className="left">PREV</span>
-          <span className="right">NEXT</span>
-          <span className="bottom">PLAY</span>
-          <i />
+        <div className="mobile-editorial-wheel" data-no-swipe="true">
+          <button
+            type="button"
+            className="mobile-editorial-wheel-button mobile-editorial-wheel-menu"
+            aria-label={playModeLabel}
+            title={playModeLabel}
+            disabled={!onCyclePlayMode}
+            onClick={onCyclePlayMode}
+          >
+            <span>MENU</span>
+            <em>{playModeIcon}</em>
+          </button>
+          <button type="button" className="mobile-editorial-wheel-button mobile-editorial-wheel-prev" aria-label={labels.previous} disabled={!onPrevious} onClick={onPrevious}>
+            <SkipBack weight="fill" />
+          </button>
+          <button type="button" className="mobile-editorial-wheel-button mobile-editorial-wheel-next" aria-label={labels.next} disabled={!onNext} onClick={onNext}>
+            <SkipForward weight="fill" />
+          </button>
+          <button type="button" className="mobile-editorial-wheel-button mobile-editorial-wheel-play" aria-label={playing ? labels.pause : labels.play} disabled={!onToggle} onClick={onToggle}>
+            {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
+          </button>
+          <button type="button" className="mobile-editorial-center-button" aria-label={playing ? labels.pause : labels.play} disabled={!onToggle} onClick={onToggle}>
+            <span />
+          </button>
         </div>
       </div>
     </div>

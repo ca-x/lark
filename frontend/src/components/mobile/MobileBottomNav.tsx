@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, type ReactNode } from "react";
+import { cloneElement, isValidElement, type CSSProperties, type ReactNode } from "react";
 
 export type MobileBottomNavItem = {
   key: string;
@@ -16,8 +16,10 @@ export function MobileBottomNav({
   items: MobileBottomNavItem[];
   label: string;
 }) {
+  const style = { "--mobile-bottom-nav-count": items.length } as CSSProperties;
+
   return (
-    <nav className="mobile-bottom-nav" aria-label={label}>
+    <nav className="mobile-bottom-nav" aria-label={label} style={style}>
       {items.map((item) => (
         <button
           key={item.key}

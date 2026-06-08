@@ -5,6 +5,36 @@
 
 ---
 
+## 0.8.18 — 移动端播放器主题细节修复
+
+发布日期 / Released: 2026-06-09
+
+### 修复
+
+- **统一移动端播放器主题配色。** 展开播放器的标题、作者/专辑、顶栏、操作按钮、播放控制、进度条和音量条统一读取移动端播放器可读性 token，浅色主题不再文字偏暗或控制按钮发灰。
+- **补齐各主题播放动效。** 精密音频加入 VU 脉冲，独立蓝调保留唱片旋转并加入封套轻微浮动，蓝色光盘/磁带加入磁带轮和 VU 动效，锤子主题唱片旋转在移动端播放态下稳定生效。
+- **收紧移动端布局细节。** 底部导航按实际 tab 数居中分配，曲库列表在移动端隐藏挤压的表头列，并在歌曲行补充 `艺术家 · 专辑` 信息。
+- **尊重系统减少动态效果。** 开启 reduced-motion 后，移动端播放器主视觉旋转、VU、EQ 和进度闪光都会关闭。
+
+完整 diff：`git log v0.8.17..v0.8.18`
+
+---
+
+## v0.8.18 — Mobile player theme polish
+
+Released: 2026-06-09
+
+### Fixes
+
+- **Unified expanded mobile player colors.** Titles, artist/album text, top bar, action buttons, playback controls, progress, and volume now read from a single mobile player readability token layer, so light themes no longer render controls or text too dim.
+- **Restored per-theme playing motion.** Precision Audio now has VU pulse, Indiewave keeps vinyl rotation with subtle sleeve float, Blue Halo/cassette gets reel and VU motion, and Smartisan Classic record rotation now stays active while playing on mobile.
+- **Tightened mobile layout details.** Bottom navigation columns follow the actual tab count, and the mobile library list hides cramped desktop headers while showing `artist · album` metadata inside each song row.
+- **Respected reduced-motion settings.** Mobile player rotations, VU/EQ animation, and progress glints are disabled when reduced motion is enabled.
+
+Full diff: `git log v0.8.17..v0.8.18`
+
+---
+
 ## 0.8.17 — 移动端播放器主题改造
 
 发布日期 / Released: 2026-06-09

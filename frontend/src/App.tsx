@@ -9895,6 +9895,9 @@ const SongRow = memo(function SongRow({
       </button>
       <div>
         <strong>{song.title}</strong>
+        <small className="song-mobile-meta">
+          {[song.artist, song.album].filter(Boolean).join(" · ")}
+        </small>
         {canOpenArtist && song.artist_id ? (
           <button className="artist-link" onClick={() => onOpenArtist(song)}>{song.artist}</button>
         ) : (

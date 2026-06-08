@@ -307,6 +307,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .song-row strong, .song-row small, .song-row > div { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .song-row strong { display:block; color:var(--text); font-weight:600; }
 .song-row small { display:block; color:var(--muted); font-size:13px; }
+.song-row .song-mobile-meta { display:none; }
 .song-row button { min-width:40px; min-height:40px; border-radius:999px; display:grid; place-items:center; color:var(--text); }
 .song-row button:hover { background:color-mix(in srgb, var(--accent) 14%, transparent); }
 .song-row-eq { display:flex; align-items:flex-end; justify-content:center; gap:2px; height:16px; color:var(--accent); }
