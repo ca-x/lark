@@ -5,6 +5,34 @@
 
 ---
 
+## 0.8.11 — 侧栏选中态动效优化
+
+发布日期 / Released: 2026-06-08
+
+### 优化
+
+- **侧栏当前页面标识升级为流动渐变边框。** 选中态不再使用静态高亮，改为跟随主题色的低强度滚动边框。
+- **保持主题色一致性。** 渐变颜色全部来自主题 token，并兼容 `smartisan-classic` 与移动端底部导航。
+- **支持减少动态效果。** 系统开启减少动态效果时，选中边框停止动画，保留静态主题边框。
+
+完整 diff：`git log v0.8.10..v0.8.11`
+
+---
+
+## v0.8.11 — Sidebar active-state motion polish
+
+Released: 2026-06-08
+
+### Improvements
+
+- **Upgraded the sidebar active indicator to a flowing gradient border.** The selected page now uses a subtle theme-aware animated border instead of a static highlight.
+- **Kept colors aligned with themes.** The gradient is driven by theme tokens and supports `smartisan-classic` plus the mobile bottom nav.
+- **Respects reduced motion.** When reduced motion is enabled, the active border stays static while preserving the themed treatment.
+
+Full diff: `git log v0.8.10..v0.8.11`
+
+---
+
 ## 0.8.10 — 跨设备继续收听与曲库最新修复
 
 发布日期 / Released: 2026-06-08

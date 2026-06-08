@@ -428,7 +428,15 @@
   }
   .sidebar nav::-webkit-scrollbar { display:none; }
   .sidebar nav button { flex:0 0 62px; min-height:54px; padding:6px 4px; border-radius:18px; scroll-snap-align:center; }
-  .sidebar nav button.active { color:var(--bg); background:var(--accent); box-shadow:0 10px 24px color-mix(in srgb, var(--accent) 26%, transparent); }
+  .sidebar nav button.active {
+    color:var(--bg);
+    background:
+      linear-gradient(var(--accent), var(--accent)) padding-box,
+      var(--nav-active-border) border-box;
+    background-size:100% 100%, 260% 100%;
+    animation:nav-active-border-flow 3.8s linear infinite;
+    box-shadow:0 10px 24px color-mix(in srgb, var(--accent) 26%, transparent);
+  }
   .sidebar nav button.active svg { color:var(--bg); }
   .queue-layer { z-index:1700; }
   .queue-layer .queue-panel,

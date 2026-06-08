@@ -85,11 +85,31 @@ select:focus-visible,
 .brand { display:flex; align-items:center; gap:12px; font-size:28px; font-weight:900; letter-spacing:-.04em; }
 .brand img { width:64px; height:64px; border-radius:0; object-fit:contain; box-shadow:none; }
 nav { display:grid; gap:4px; }
-nav button { display:flex; align-items:center; gap:12px; width:100%; min-height:48px; color:var(--muted); text-align:left; padding:12px 14px; border-radius:16px; background:transparent; transition: background .18s var(--ease), color .18s var(--ease), transform .18s var(--ease); }
+nav button {
+  --nav-active-fill: color-mix(in srgb, var(--accent) 18%, var(--panel2));
+  --nav-active-border: linear-gradient(115deg,
+    color-mix(in srgb, var(--accent) 88%, var(--panel)),
+    color-mix(in srgb, var(--highlight) 86%, var(--accent)),
+    color-mix(in srgb, var(--accent2) 78%, var(--highlight)),
+    color-mix(in srgb, var(--accent) 88%, var(--panel))
+  );
+  display:flex; align-items:center; gap:12px; width:100%; min-height:48px; color:var(--muted); text-align:left; padding:12px 14px; border:1px solid transparent; border-radius:16px; background:transparent; transition: background .18s var(--ease), color .18s var(--ease), transform .18s var(--ease), box-shadow .18s var(--ease);
+}
 nav button svg { width:22px; height:22px; flex:0 0 auto; }
-nav button.active, nav button:hover { color:var(--text); background:color-mix(in srgb, var(--accent) 18%, var(--panel2)); }
-nav button.active { box-shadow:inset 3px 0 0 var(--accent); }
+nav button.active, nav button:hover { color:var(--text); background:var(--nav-active-fill); }
+nav button.active {
+  background:
+    linear-gradient(var(--nav-active-fill), var(--nav-active-fill)) padding-box,
+    var(--nav-active-border) border-box;
+  background-size:100% 100%, 260% 100%;
+  animation:nav-active-border-flow 3.8s linear infinite;
+  box-shadow:0 10px 24px color-mix(in srgb, var(--accent) 12%, transparent);
+}
 nav button:active, .media-card:active, .cover-button:active { transform:scale(.98); }
+@keyframes nav-active-border-flow {
+  from { background-position:0 0, 0% 50%; }
+  to { background-position:0 0, 260% 50%; }
+}
 .nav-section-label { font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); padding:8px 14px 4px; }
 .nav-divider { border:0; border-top:1px solid var(--line); margin:8px 14px; }
 .main { grid-column:2; grid-row:1; overflow:auto; min-width:0; padding:24px; padding-bottom:max(24px, var(--main-pad-bottom)); scroll-padding-bottom:24px; }
@@ -621,7 +641,8 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 
 [data-theme='mint-soda'] { font-family:'DM Sans', Nunito, Inter, system-ui, sans-serif; }
 [data-theme='mint-soda'] nav, [data-theme='mint-soda'] .transport-controls { border-radius:99px; }
-[data-theme='mint-soda'] nav button.active, [data-theme='mint-soda'] nav button:hover { background:#1f8c5e; color:#fff; }
+[data-theme='mint-soda'] nav button:hover:not(.active) { background:var(--accent); color:var(--panel); }
+[data-theme='mint-soda'] nav button.active { color:var(--panel); }
 [data-theme='mint-soda'] .cover, [data-theme='mint-soda'] .mini-art, [data-theme='mint-soda'] .collection-cover { border-radius:24px; box-shadow:0 8px 32px rgba(31,140,94,.12); }
 [data-theme='mint-soda'] .cover::before, [data-theme='mint-soda'] .mini-art::before, [data-theme='mint-soda'] .collection-cover::before { content:''; position:absolute; left:-10%; right:-10%; bottom:-24%; height:50%; border-radius:50%; background:radial-gradient(ellipse,rgba(31,140,94,.12),transparent 70%); animation:mint-glow 2s ease-in-out infinite alternate; pointer-events:none; }
 [data-theme='mint-soda'] .play { width:52px; height:52px; background:#1f8c5e; color:#fff; box-shadow:0 4px 16px rgba(31,140,94,.25); }
@@ -672,6 +693,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; }
+  nav button.active { animation:none !important; background-position:0 0, 100% 50%; }
   .song-row-eq i { animation:none !important; transform:none !important; }
 }
 
@@ -4172,6 +4194,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 :root[data-theme='smartisan-classic'] nav button {
+  --nav-active-fill: var(--smartisan-control);
+  --nav-active-border: linear-gradient(115deg,
+    color-mix(in srgb, var(--smartisan-red) 88%, var(--smartisan-control)),
+    color-mix(in srgb, var(--smartisan-blue) 72%, var(--smartisan-red)),
+    color-mix(in srgb, var(--smartisan-red-pressed) 82%, var(--smartisan-control)),
+    color-mix(in srgb, var(--smartisan-red) 88%, var(--smartisan-control))
+  );
   min-height:52px;
   padding:0 22px;
   border-radius:0;
@@ -4187,10 +4216,20 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 :root[data-theme='smartisan-classic'] nav button.active,
 :root[data-theme='smartisan-classic'] nav button:hover {
   color:var(--smartisan-body-text);
-  background:linear-gradient(180deg,#f7f7f7 0%,#eeeeee 100%);
+  background:var(--smartisan-control);
   border-top-color:#e8e8e8;
   border-bottom-color:#dfdfdf;
-  box-shadow:inset 4px 0 0 var(--smartisan-red);
+  box-shadow:none;
+}
+
+:root[data-theme='smartisan-classic'] nav button.active {
+  background:
+    linear-gradient(var(--nav-active-fill), var(--nav-active-fill)) padding-box,
+    var(--nav-active-border) border-box;
+  background-size:100% 100%, 260% 100%;
+  border-color:transparent;
+  animation:nav-active-border-flow 3.8s linear infinite;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.86), 0 8px 18px color-mix(in srgb, var(--smartisan-red) 16%, transparent);
 }
 
 :root[data-theme='smartisan-classic'] nav button svg,
