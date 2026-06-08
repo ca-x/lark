@@ -220,6 +220,7 @@ const SLEEP_DURATION_PRESETS = [15, 30, 60, 90] as const;
 const SLEEP_SONG_PRESETS = [1, 3, 5] as const;
 const LYRIC_OFFSET_STEP_MS = [-500, -100, 100, 500] as const;
 const MAX_LYRIC_OFFSET_MS = 10_000;
+const LYRIC_ACTIVE_ANCHOR_RATIO = 0.38;
 
 type SleepTimerMode = "off" | "time" | "songs" | "album";
 
@@ -1742,7 +1743,9 @@ export default function App() {
     );
     if (!container || !active) return;
     const target =
-      active.offsetTop - container.clientHeight / 2 + active.clientHeight / 2;
+      active.offsetTop -
+      container.clientHeight * LYRIC_ACTIVE_ANCHOR_RATIO +
+      active.clientHeight / 2;
     container.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
   }, [activeLyric, lyricsFullScreen]);
 
@@ -3960,6 +3963,7 @@ export default function App() {
             lyricsDisplayStyle={lyricsDisplayStyle}
             lyrics={lyrics}
             loading={lyricsLoading}
+            progress={progress}
             lyricOffsetMs={lyricOffsetMs}
             onAdjustLyricOffset={adjustLyricOffset}
             onResetLyricOffset={() => setLyricOffsetMs(0)}
@@ -7396,6 +7400,21 @@ function FolderBrowser({
   );
 }
 
+function lyricLinePositionClass(
+  index: number,
+  activeIndex: number,
+  activeGroupKey?: string,
+  groupKey?: string,
+) {
+  if (activeIndex < 0) return "";
+  if (index === activeIndex) return "live";
+  if (activeGroupKey && groupKey === activeGroupKey) return "live-peer next next-1";
+  const delta = index - activeIndex;
+  if (delta < 0) return `past past-${Math.min(Math.abs(delta), 3)}`;
+  const depth = Math.min(delta, 3);
+  return `upcoming next next-${depth}${depth >= 2 ? " far-upcoming" : ""}`;
+}
+
 function FullLyrics({
   song,
   lines,
@@ -7404,6 +7423,7 @@ function FullLyrics({
   lyricsDisplayStyle,
   lyrics,
   loading,
+  progress,
   lyricOffsetMs,
   onAdjustLyricOffset,
   onResetLyricOffset,
@@ -7431,6 +7451,7 @@ function FullLyrics({
   lyricsDisplayStyle: LyricsDisplayStyle;
   lyrics: Lyrics | null;
   loading: boolean;
+  progress: number;
   lyricOffsetMs: number;
   onAdjustLyricOffset: (deltaMs: number) => void;
   onResetLyricOffset: () => void;
@@ -7459,9 +7480,78 @@ function FullLyrics({
   const matchConfidence = lyricsMatchConfidence(song, lyrics, lines);
   const showMatchWarning = onlineLyrics && matchConfidence === "low";
   const lyricOffsetSeconds = lyricOffsetMs / 1000;
-  const backgroundStyle = coverUrl(song)
-    ? ({ "--cover-url": `url(${coverUrl(song)})` } as React.CSSProperties)
-    : undefined;
+  const activeLyricIndex = useMemo(
+    () => lines.findIndex((line) => line.key === activeLyric),
+    [activeLyric, lines],
+  );
+  const activeLyricLine = activeLyricIndex >= 0 ? lines[activeLyricIndex] : null;
+  const songCoverUrl = coverUrl(song);
+  const [coverTone, setCoverTone] = useState("");
+  const backgroundStyle = useMemo(
+    () =>
+      ({
+        ...(songCoverUrl ? { "--cover-url": `url(${songCoverUrl})` } : {}),
+        ...(coverTone ? { "--lyrics-cover-tone": coverTone } : {}),
+      }) as React.CSSProperties,
+    [coverTone, songCoverUrl],
+  );
+  useEffect(() => {
+    if (!songCoverUrl || lyricsDisplayStyle !== "immersive") {
+      setCoverTone("");
+      return;
+    }
+    let cancelled = false;
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.decoding = "async";
+    image.onload = () => {
+      if (cancelled) return;
+      const canvas = document.createElement("canvas");
+      const size = 18;
+      canvas.width = size;
+      canvas.height = size;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return;
+      try {
+        context.drawImage(image, 0, 0, size, size);
+        const pixels = context.getImageData(0, 0, size, size).data;
+        let red = 0;
+        let green = 0;
+        let blue = 0;
+        let total = 0;
+        for (let index = 0; index < pixels.length; index += 4) {
+          const alpha = pixels[index + 3] / 255;
+          if (alpha < 0.45) continue;
+          const r = pixels[index];
+          const g = pixels[index + 1];
+          const b = pixels[index + 2];
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const saturation = (max - min) / 255;
+          const brightness = (r + g + b) / (255 * 3);
+          const weight = alpha * (0.45 + saturation) * (0.55 + Math.min(brightness, 0.82));
+          red += r * weight;
+          green += g * weight;
+          blue += b * weight;
+          total += weight;
+        }
+        if (!cancelled && total > 0) {
+          setCoverTone(
+            `rgb(${Math.round(red / total)} ${Math.round(green / total)} ${Math.round(blue / total)})`,
+          );
+        }
+      } catch {
+        if (!cancelled) setCoverTone("");
+      }
+    };
+    image.onerror = () => {
+      if (!cancelled) setCoverTone("");
+    };
+    image.src = songCoverUrl;
+    return () => {
+      cancelled = true;
+    };
+  }, [lyricsDisplayStyle, songCoverUrl]);
   useEffect(() => {
     return () => {
       if (seekTimer.current != null) window.clearTimeout(seekTimer.current);
@@ -7481,7 +7571,9 @@ function FullLyrics({
     const container = scrollRef.current;
     if (!container) return;
     if (lyricsDragSeekEnabled && Date.now() > userScrollUntil.current) return;
-    const center = container.getBoundingClientRect().top + container.clientHeight / 2;
+    const anchor =
+      container.getBoundingClientRect().top +
+      container.clientHeight * LYRIC_ACTIVE_ANCHOR_RATIO;
     const nodes = Array.from(
       container.querySelectorAll<HTMLElement>("[data-lyric-key]"),
     );
@@ -7490,7 +7582,7 @@ function FullLyrics({
       const at = Number(node.dataset.lyricAt);
       if (!Number.isFinite(at) || at < 0) continue;
       const rect = node.getBoundingClientRect();
-      const distance = Math.abs(rect.top + rect.height / 2 - center);
+      const distance = Math.abs(rect.top + rect.height / 2 - anchor);
       if (!best || distance < best.distance) {
         best = { key: node.dataset.lyricKey || "", at, distance };
       }
@@ -7647,17 +7739,32 @@ function FullLyrics({
         onTouchMove={markUserScroll}
       >
         {lines.length ? (
-          lines.map((line) => {
+          lines.map((line, index) => {
             const lyricTime = adjustedLyricTime(line, lyricOffsetSeconds);
             const showCursorPlay = !lyricsDragSeekEnabled && line.key === seekTargetKey && lyricTime >= 0;
+            const nextTimedLine = lines
+              .slice(index + 1)
+              .find((candidate) => adjustedLyricTime(candidate, lyricOffsetSeconds) > lyricTime);
+            const nextLyricTime = nextTimedLine
+              ? adjustedLyricTime(nextTimedLine, lyricOffsetSeconds)
+              : lyricTime + 4;
+            const isLive = line.key === activeLyric;
+            const lyricProgress =
+              isLive && lyricTime >= 0
+                ? Math.max(0, Math.min(1, (progress - lyricTime) / Math.max(1.2, nextLyricTime - lyricTime)))
+                : 0;
+            const lineStyle = isLive
+              ? ({ "--lyric-progress": `${Math.round(lyricProgress * 100)}%` } as React.CSSProperties)
+              : undefined;
             return (
               <p
                 key={line.key}
                 data-lyric-key={line.key}
                 data-lyric-at={lyricTime}
-                aria-current={line.key === activeLyric ? "true" : undefined}
+                aria-current={isLive ? "true" : undefined}
+                style={lineStyle}
                 className={[
-                  line.key === activeLyric ? "live" : "",
+                  lyricLinePositionClass(index, activeLyricIndex, activeLyricLine?.groupKey, line.groupKey),
                   line.key === seekTargetKey ? "seek-target" : "",
                   showCursorPlay ? "has-cursor-action" : "",
                 ]

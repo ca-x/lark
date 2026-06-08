@@ -5,6 +5,34 @@
 
 ---
 
+## 0.8.15 — Spotify 风格歌词滚动修正
+
+发布日期 / Released: 2026-06-08
+
+### 优化
+
+- **重做沉浸式歌词的行级层次。** 当前行锚定在视图约 38% 位置，上下文按距离切换字号、透明度和左右对齐，形成更接近 Spotify 的纵深滚动效果。
+- **增强当前歌词行的播放进度高亮。** 当前行使用白色/半透明分段渐变表现已唱与未唱部分；现有歌词源没有逐词时间时，按当前行到下一行的时间进度平滑过渡。
+- **优化封面背景取色与移动端适配。** 沉浸背景会从封面采样主色并混入深色层，手机端保留可读字号、渐变遮罩和自由拖动歌词交互。
+
+完整 diff：`git log v0.8.13..v0.8.15`
+
+---
+
+## v0.8.15 — Spotify-style lyrics scrolling fix
+
+Released: 2026-06-08
+
+### Improvements
+
+- **Reworked immersive lyrics line depth.** The active line is anchored around 38% of the view, while surrounding lines shift size, opacity, and alignment by distance for a Spotify-like scrolling depth.
+- **Enhanced active-line progress highlighting.** The active line now uses a white/translucent split gradient for sung versus upcoming text; when lyrics do not include word timing, Lark derives a smooth line-level progress from the next timed lyric.
+- **Improved cover-tinted backdrop and mobile fit.** Immersive mode samples the cover tone into a dark backdrop while keeping readable mobile typography, fade masks, and free lyrics dragging intact.
+
+Full diff: `git log v0.8.13..v0.8.15`
+
+---
+
 ## 0.8.13 — 沉浸式歌词显示
 
 发布日期 / Released: 2026-06-08
