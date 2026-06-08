@@ -5,6 +5,7 @@ export type MobileBottomNavItem = {
   label: string;
   icon: ReactNode;
   active?: boolean;
+  disabled?: boolean;
   onSelect: () => void;
 };
 
@@ -24,6 +25,7 @@ export function MobileBottomNav({
           className={item.active ? "active" : ""}
           aria-current={item.active ? "page" : undefined}
           aria-label={item.label}
+          disabled={item.disabled}
           title={item.label}
           onClick={item.onSelect}
         >

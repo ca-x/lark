@@ -42,6 +42,7 @@ import {
   SpeakerSimpleHigh,
   Timer,
   UploadSimple,
+  UserCircle,
   WarningCircle,
   X,
 } from "@phosphor-icons/react";
@@ -3769,20 +3770,40 @@ export default function App() {
     : "0%";
   const mobileLibraryActive =
     view === "library" ||
+    view === "playlists" ||
     view === "albums" ||
     view === "artists" ||
     view === "radio" ||
-    (view === "collection" && collection?.type !== "playlist");
+    view === "collection";
+  const mobilePlayerAvailable = Boolean(current || currentRadio || currentNetworkTrack);
+  const mobileMyActive =
+    view === "my" ||
+    view === "history" ||
+    view === "favorites" ||
+    view === "settings" ||
+    view === "about";
   const mobileBottomNavItems = [
     { key: "home", label: t("home"), icon: <House />, active: !mobilePlayerExpanded && view === "home", onSelect: () => openNavigationView("home") },
-    { key: "history", label: t("history"), icon: <ClockCounterClockwise />, active: !mobilePlayerExpanded && view === "history", onSelect: () => openNavigationView("history") },
-    { key: "favorites", label: t("favorites"), icon: <Heart />, active: !mobilePlayerExpanded && view === "favorites", onSelect: () => openNavigationView("favorites") },
     { key: "library", label: t("library"), icon: <MusicNotes />, active: !mobilePlayerExpanded && mobileLibraryActive, onSelect: () => openNavigationView("library") },
-    { key: "playlists", label: t("playlists"), icon: <PlaylistIcon />, active: !mobilePlayerExpanded && (view === "playlists" || (view === "collection" && collection?.type === "playlist")), onSelect: () => openNavigationView("playlists") },
+    {
+      key: "player",
+      label: t("playback"),
+      icon: <Play />,
+      active: mobilePlayerExpanded || lyricsFullScreen,
+      disabled: !mobilePlayerAvailable,
+      onSelect: () => {
+        if (!mobilePlayerAvailable) return;
+        setLyricsFullScreen(false);
+        setMobilePlayerExpanded(true);
+      },
+    },
+    { key: "my", label: t("my"), icon: <UserCircle />, active: !mobilePlayerExpanded && mobileMyActive, onSelect: () => openNavigationView("my") },
   ];
   const screenTitle =
     collection && view === "collection"
       ? collection.title
+      : view === "my"
+        ? t("my")
       : view === "settings"
         ? t("profileSettings")
         : (playbackNav.find((item) => item.id === view)?.label ?? t("brand"));
@@ -3793,6 +3814,7 @@ export default function App() {
     "albums",
     "artists",
     "collection",
+    "my",
   ] as View[]).includes(view);
   const showTopbarScreenTitle = topbarHasScreenTitle && !(mobileViewport && view === "home");
   const currentAlbum =
@@ -3910,6 +3932,7 @@ export default function App() {
   return (
     <div
       className={lyricsFullScreen ? "app-shell lyrics-mode" : "app-shell"}
+      data-view={view}
       data-mobile-player-expanded={mobilePlayerExpanded ? "true" : "false"}
       data-mobile-theme={mobileHomePlayerStyle}
     >
@@ -4004,7 +4027,7 @@ export default function App() {
                   <h1>{screenTitle}</h1>
                 </div>
               ) : null}
-              {view !== "radio" && view !== "library" && view !== "history" && !(mobileViewport && view === "settings") ? (
+              {view !== "radio" && view !== "library" && view !== "history" && view !== "my" && !(mobileViewport && view === "settings") ? (
                 <SongSearchBox
                   t={t}
                   value={query}
@@ -4104,6 +4127,20 @@ export default function App() {
                   setView("radio");
                   if (!radioStations.length) void loadRadioStations();
                 }}
+              />
+            )}
+
+            {view === "my" && (
+              <MobileMyView
+                user={auth.user}
+                stats={libraryStats}
+                queueCount={queuePanelMode === "radio" ? radioPanelStations.length : queue.length}
+                t={t}
+                onOpenFavorites={() => openNavigationView("favorites")}
+                onOpenHistory={() => openNavigationView("history")}
+                onOpenQueue={toggleQueuePanel}
+                onOpenSettings={() => openNavigationView("settings")}
+                onOpenAbout={() => openNavigationView("about")}
               />
             )}
 
@@ -5628,6 +5665,100 @@ function HomeView({
           ) : null}
         </section>
       ) : null}
+    </section>
+  );
+}
+
+function MobileMyView({
+  user,
+  stats,
+  queueCount,
+  t,
+  onOpenFavorites,
+  onOpenHistory,
+  onOpenQueue,
+  onOpenSettings,
+  onOpenAbout,
+}: {
+  user: User;
+  stats: LibraryStats | null;
+  queueCount: number;
+  t: ReturnType<typeof createT>;
+  onOpenFavorites: () => void;
+  onOpenHistory: () => void;
+  onOpenQueue: () => void;
+  onOpenSettings: () => void;
+  onOpenAbout: () => void;
+}) {
+  const librarySummary = stats
+    ? `${stats.songs} ${t("count")} · ${stats.albums} ${t("album")}`
+    : t("localLibrary");
+  const items = [
+    {
+      key: "favorites",
+      label: t("favorites"),
+      detail: t("favoritesHint"),
+      icon: <Heart weight="regular" />,
+      onClick: onOpenFavorites,
+    },
+    {
+      key: "history",
+      label: t("history"),
+      detail: t("historyTimeline"),
+      icon: <ClockCounterClockwise />,
+      onClick: onOpenHistory,
+    },
+    {
+      key: "queue",
+      label: t("queue"),
+      detail: queueCount ? `${queueCount} ${t("count")}` : t("emptyCollection"),
+      icon: <Queue />,
+      onClick: onOpenQueue,
+    },
+    {
+      key: "settings",
+      label: t("settings"),
+      detail: t("profileSettings"),
+      icon: <GearSix />,
+      onClick: onOpenSettings,
+    },
+    {
+      key: "about",
+      label: t("about"),
+      detail: t("brand"),
+      icon: <Info />,
+      onClick: onOpenAbout,
+    },
+  ];
+
+  return (
+    <section className="mobile-my-view" aria-label={t("my")}>
+      <div className="mobile-my-header">
+        <UserAvatar user={user} />
+        <div>
+          <strong>{user.nickname || user.username || t("brand")}</strong>
+          <span>{librarySummary}</span>
+        </div>
+      </div>
+      <div className="mobile-my-list">
+        {items.map((item, index) => (
+          <button
+            key={item.key}
+            type="button"
+            className={index === 3 ? "mobile-my-item mobile-my-item-separated" : "mobile-my-item"}
+            onClick={item.onClick}
+          >
+            <span className="mobile-my-icon" aria-hidden="true">
+              {item.icon}
+            </span>
+            <span className="mobile-my-copy">
+              <strong>{item.label}</strong>
+              <small>{item.detail}</small>
+            </span>
+            <CaretRight weight="bold" aria-hidden="true" />
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

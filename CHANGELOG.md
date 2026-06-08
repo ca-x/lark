@@ -5,6 +5,34 @@
 
 ---
 
+## 0.8.17 — 移动端播放器主题改造
+
+发布日期 / Released: 2026-06-09
+
+### 优化
+
+- **重做移动端播放器主题主视觉。** 独立蓝调还原 PC 端唱片封套 + 滑出黑胶效果，Ipod 移植 PC 端 iPod 视觉，蓝色光环改为 PC 端磁带卡座风格。
+- **保留并清理现有主题。** 柔光唱片、舞台玻璃和锤子经典保留原有方向；舞台玻璃移除左右声音图标和封面下方点阵，锤子经典移除顶部矩形条并稳定唱片旋转。
+- **统一移动端布局和交互验收。** 展开播放器在 390px 移动视口下无横向滚动，保留音量、进度、歌词、队列和返回交互，并让无封面/默认状态尽量使用黑胶唱片视觉。
+
+完整 diff：`git log v0.8.16..v0.8.17`
+
+---
+
+## v0.8.17 — Mobile player theme refresh
+
+Released: 2026-06-09
+
+### Improvements
+
+- **Reworked mobile player theme visuals.** Indiewave now restores the desktop album-sleeve plus sliding-vinyl treatment, Ipod ports the desktop iPod visual, and Blue halo moves to a cassette-deck style based on the desktop cassette player.
+- **Kept and cleaned existing themes.** Soft vinyl, Stage glass, and Smartisan classic keep their original direction; Stage glass drops the side speaker icons and lower dots, while Smartisan classic removes the top rectangle and stabilizes record rotation.
+- **Tightened mobile layout and interaction checks.** The expanded player avoids horizontal overflow at a 390px mobile viewport, keeps volume, progress, lyrics, queue, and back interactions, and uses a vinyl-oriented default/no-cover presentation where appropriate.
+
+Full diff: `git log v0.8.16..v0.8.17`
+
+---
+
 ## 0.8.16 — 浅色主题歌词沉浸效果修复
 
 发布日期 / Released: 2026-06-08

@@ -42,6 +42,7 @@ export function MobileMiniPlayer({
     if (cover !== failedCover) setFailedCover("");
   }, [cover, failedCover]);
   const displayCover = cover && cover !== failedCover ? cover : "";
+  const fallbackLabel = coverFallbackLabel(title, artist);
   const pct = duration > 0 ? Math.min(100, Math.max(0, (progress / duration) * 100)) : 0;
   const style = {
     "--mobile-mini-progress": `${pct.toFixed(2)}%`,
@@ -53,7 +54,7 @@ export function MobileMiniPlayer({
   return (
     <div className="mobile-mini-player" data-mobile-theme={theme} data-playing={playing ? "true" : "false"} style={style}>
       <button type="button" className="mobile-mini-main" aria-label={expandLabel} onClick={onExpand}>
-        <span className="mobile-mini-art" aria-hidden="true">
+        <span className="mobile-mini-art" data-has-cover={displayCover ? "true" : "false"} data-fallback-label={fallbackLabel} aria-hidden="true">
           {displayCover ? (
             <img src={displayCover} alt="" loading="eager" decoding="async" onError={() => setFailedCover(displayCover)} />
           ) : (
@@ -79,4 +80,16 @@ export function MobileMiniPlayer({
       <span className="mobile-mini-progress" aria-hidden="true" />
     </div>
   );
+}
+
+function coverFallbackLabel(title?: string, artist?: string) {
+  const raw = `${artist || ""} ${title || ""}`.trim() || title || artist || "L";
+  const parts = raw
+    .split(/[\s._\-·/]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const chars = (parts.length >= 2 ? [parts[0][0], parts[1][0]] : Array.from(raw).slice(0, 2))
+    .join("")
+    .toUpperCase();
+  return chars || "L";
 }

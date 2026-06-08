@@ -24,9 +24,16 @@ function MobileSongCover({ song, playing }: { song?: Song | null; playing: boole
     if (url !== failedUrl) setFailedUrl("");
   }, [failedUrl, url]);
   const displayUrl = url && url !== failedUrl ? url : "";
+  const fallbackLabel = coverFallbackLabel(song?.title, song?.artist);
   const style = displayUrl ? ({ "--cover-url": `url(${displayUrl})` } as CSSProperties) : undefined;
   return (
-    <div className="mini-art" data-playing={playing ? "true" : "false"} data-has-cover={displayUrl ? "true" : "false"} style={style}>
+    <div
+      className="mini-art"
+      data-playing={playing ? "true" : "false"}
+      data-has-cover={displayUrl ? "true" : "false"}
+      data-fallback-label={fallbackLabel}
+      style={style}
+    >
       {displayUrl ? (
         <img src={displayUrl} alt="" loading="eager" decoding="async" onError={() => setFailedUrl(displayUrl)} />
       ) : (
@@ -34,6 +41,18 @@ function MobileSongCover({ song, playing }: { song?: Song | null; playing: boole
       )}
     </div>
   );
+}
+
+function coverFallbackLabel(title?: string, artist?: string) {
+  const raw = `${artist || ""} ${title || ""}`.trim() || title || artist || "L";
+  const parts = raw
+    .split(/[\s._\-·/]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const chars = (parts.length >= 2 ? [parts[0][0], parts[1][0]] : Array.from(raw).slice(0, 2))
+    .join("")
+    .toUpperCase();
+  return chars || "L";
 }
 
 function MobileCollectionCover({
