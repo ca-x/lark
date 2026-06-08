@@ -857,7 +857,7 @@ func (s *Service) loadSongsPage(ctx context.Context, userID int, term string, fa
 	if err != nil {
 		return models.SongPage{}, err
 	}
-	query := s.client.Song.Query().Select(browseSongColumns...).WithArtist().WithAlbum().Order(ent.Desc(song.FieldUpdatedAt))
+	query := s.client.Song.Query().Select(browseSongColumns...).WithArtist().WithAlbum().Order(ent.Desc(song.FieldCreatedAt), ent.Desc(song.FieldID))
 	if len(predicates) > 0 {
 		query = query.Where(predicates...)
 	}

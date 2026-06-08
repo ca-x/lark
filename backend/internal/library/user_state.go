@@ -57,15 +57,12 @@ func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
 		Save(ctx); err != nil {
 		return err
 	}
-	if err := s.client.Song.UpdateOneID(id).AddPlayCount(1).SetLastPlayedAt(now).Exec(ctx); err != nil {
-		return err
-	}
 	// NOTE: intentionally NOT calling invalidateUserLibraryCache here.
-	// MarkPlayed only changes play_count/last_played_at on the song row itself;
-	// it does not alter album/artist lists, favorites, or playlists. Bumping the
-	// user cache version would cold-miss every AlbumsPage/ArtistsPage/SongsPage
-	// cache entry, defeating the cache entirely during normal playback.
-	s.invalidateSongCatalog(ctx)
+	// Playback state is stored in PlayHistory and overlaid on song responses.
+	// MarkPlayed must not mutate the Song inventory row, otherwise Ent's
+	// updated_at default makes recently played songs look newly added.
+	// Bumping the user cache version would also cold-miss every cached library
+	// page during normal playback.
 	return s.cleanupPlaybackHistory(ctx, userID)
 }
 func (s *Service) SavePlaybackProgress(ctx context.Context, userID, id int, progressSeconds, durationSeconds float64, completed bool) error {

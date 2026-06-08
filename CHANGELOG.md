@@ -5,6 +5,38 @@
 
 ---
 
+## 0.8.10 — 跨设备继续收听与曲库最新修复
+
+发布日期 / Released: 2026-06-08
+
+### 修复
+
+- **修复跨设备继续收听只剩单曲的问题。** PC B 即使没有开启本机“启动时恢复播放队列”，点击继续收听也会使用 PC A 最近保存的完整播放 session。
+- **空闲客户端不再清空服务器队列。** 未开始播放的设备启动时不会因为本机没有 current song 而删除其他设备保存的播放队列。
+- **修复 queue/source 同步竞态。** 播放专辑、歌手或歌单时会把完整队列和来源上下文同一拍写入 session，避免后续保存把 source 清掉。
+- **修复最近播放污染曲库最新的问题。** 播放状态不再刷新歌曲库存更新时间，曲库列表按入库时间排序，最近播放只进入播放历史。
+- **澄清设置文案。** “保留播放队列”改为“启动时恢复播放队列”，明确它只控制本机启动自动恢复，不影响跨设备继续收听。
+
+完整 diff：`git log v0.8.9..v0.8.10`
+
+---
+
+## v0.8.10 — Cross-device continue and library latest fixes
+
+Released: 2026-06-08
+
+### Fixes
+
+- **Fixed cross-device continue restoring only one track.** PC B now uses PC A's latest full playback session when clicking continue, even if local launch-time queue restore is disabled.
+- **Stopped idle clients from clearing the server queue.** A device with no current song no longer deletes another device's saved playback queue during startup.
+- **Fixed the queue/source sync race.** Album, artist, and playlist playback now saves the full queue and source context in the same action, preventing later saves from clearing the source.
+- **Fixed recently played songs leaking into library latest.** Playback state no longer refreshes song inventory timestamps, and the library list sorts by import time while recent playback stays in playback history.
+- **Clarified the setting copy.** “Keep playback queue” is now “Restore queue on launch,” making clear that it controls local startup behavior only.
+
+Full diff: `git log v0.8.9..v0.8.10`
+
+---
+
 ## 0.8.9 — 播放历史与队列体验重构
 
 发布日期 / Released: 2026-06-07

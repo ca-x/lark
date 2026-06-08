@@ -820,7 +820,7 @@ export default function App() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [smartPlaylists, setSmartPlaylists] = useState<SmartPlaylist[]>([]);
   const [queue, setQueue] = useState<Song[]>([]);
-  const [playbackSessionSource, setPlaybackSessionSource] = useState<PlaybackSourceInput | null>(null);
+  const playbackSessionSourceRef = useRef<PlaybackSourceInput | null>(null);
   const [collection, setCollection] = useState<Collection | null>(null);
   const [collectionBack, setCollectionBack] = useState<Collection | null>(null);
   const [current, setCurrent] = useState<Song | null>(null);
@@ -1169,14 +1169,11 @@ export default function App() {
   }, [bassGain, trebleGain]);
 
   useEffect(() => {
-    if (!auth?.user || !queueSyncReady) return;
+    if (!auth?.user || !queueSyncReady || !current) return;
     const ids = queue.map((song) => song.id).filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
-    if (!persistentQueueEnabled || !ids.length || !current) {
-      void api.clearPlaybackQueue().catch(() => undefined);
-      return;
-    }
-    void api.savePlaybackQueue(ids, current.id, playbackSessionSource).catch(() => undefined);
-  }, [auth?.user?.id, queueSyncReady, persistentQueueEnabled, queue, current?.id, playbackSessionSource]);
+    if (!ids.length) return;
+    void api.savePlaybackQueue(ids, current.id, playbackSessionSourceRef.current).catch(() => undefined);
+  }, [auth?.user?.id, queueSyncReady, queue, current?.id]);
 
   useEffect(() => {
     const toneActive = Math.abs(bassGain) >= 0.1 || Math.abs(trebleGain) >= 0.1;
@@ -1743,6 +1740,7 @@ export default function App() {
   function activateOfflineSession(index = readOfflineSongIndex()) {
     const cachedSongs = uniqueSongs(offlineSongEntries(index).map((entry) => entry.song), MAX_PLAYBACK_QUEUE_SIZE);
     if (!cachedSongs.length) return false;
+    setPlaybackSessionSource(null);
     setOfflineMode(true);
     setOfflineIndex(index);
     setSettings(defaultSettings);
@@ -2010,6 +2008,7 @@ export default function App() {
     setPlaylists([]);
     setSmartPlaylists([]);
     setScrobblingSettings(null);
+    setPlaybackSessionSource(null);
     setQueue([]);
     setCurrent(null);
     setPlaying(false);
@@ -2165,7 +2164,7 @@ export default function App() {
       api.songsPage(query, libraryPage, libraryPageSize),
       api.dailyMix(24).catch(() => []),
       api.libraryStats().catch(() => null),
-      options.initializeQueue && persistentQueueEnabled
+      options.initializeQueue
         ? api.playbackQueue().catch(() => null)
         : Promise.resolve(null),
     ]);
@@ -2260,8 +2259,6 @@ export default function App() {
         restoredQueue = await songsForPlaybackSource(source, MAX_PLAYBACK_QUEUE_SIZE);
         restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
       }
-    } else if (options.initializeQueue) {
-      setPlaybackSessionSource(null);
     }
     if (isStale()) return;
     setQueue((old) => {
@@ -2489,15 +2486,28 @@ export default function App() {
     if (view === "history" || historyEntries.length) void refreshPlaybackHistory();
   }
 
+  function setPlaybackSessionSource(source: PlaybackSourceInput | null) {
+    playbackSessionSourceRef.current = source;
+  }
+
   function persistPlaybackSourceForPlay(options: PlaySongOptions) {
     const source = options.source;
     if (source) {
       setPlaybackSessionSource(source);
-      return;
+      return source;
     }
     if (!options.keepPlaybackSource) {
       setPlaybackSessionSource(null);
+      return null;
     }
+    return playbackSessionSourceRef.current;
+  }
+
+  function savePlaybackQueueSession(items: Song[], song: Song, source: PlaybackSourceInput | null) {
+    if (!auth?.user) return;
+    const ids = items.map((item) => item.id).filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
+    if (!ids.length) return;
+    void api.savePlaybackQueue(ids, song.id, source).catch(() => undefined);
   }
 
   async function songsForPlaybackQueueIDs(ids: number[]) {
@@ -2586,7 +2596,8 @@ export default function App() {
     setRadioQueue([]);
     setCurrentNetworkTrack(null);
     setCurrent(song);
-    setQueue(queueWithCurrent(list.length ? list : [song], song));
+    const nextQueue = queueWithCurrent(list.length ? list : [song], song);
+    setQueue(nextQueue);
     setDuration((value) => value || song.duration_seconds || 0);
     if (sameSong && audioRef.current) {
       audioRef.current.currentTime = 0;
@@ -2601,7 +2612,8 @@ export default function App() {
     }
     setPlaying(true);
     playUISound("play");
-    persistPlaybackSourceForPlay(options);
+    const nextSource = persistPlaybackSourceForPlay(options);
+    savePlaybackQueueSession(nextQueue, song, nextSource);
     prependRecentPlayed(song); // optimistic; instant home update
     await api.markPlayed(song.id).catch(() => undefined);
     scheduleRecentPlayedRefresh(); // coalesced server reconciliation
