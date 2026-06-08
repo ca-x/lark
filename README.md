@@ -8,6 +8,10 @@ The backend is Go + Echo v5 + Ent ORM, with SQLite by default. The frontend is R
 
 For release notes, see [CHANGELOG.md](CHANGELOG.md).
 
+## Acknowledgements
+
+Thanks to the [LinuxDo Community](https://linux.do) for discussion and feedback.
+
 ---
 
 ## What Lark Does

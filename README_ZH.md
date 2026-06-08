@@ -8,6 +8,10 @@
 
 更新日志见 [CHANGELOG.md](CHANGELOG.md)。
 
+## 致谢
+
+感谢 [LinuxDo 社区](https://linux.do) 的讨论与反馈。
+
 ---
 
 ## 百灵能做什么
