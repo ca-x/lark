@@ -6056,34 +6056,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   border-radius:50%;
   background:
     radial-gradient(circle at 35% 30%, rgba(255,245,200,.74) 0%, rgba(255,245,200,0) 45%),
-    repeating-conic-gradient(var(--brass-mid) 0deg, var(--brass-dark) 1.5deg, var(--brass-mid) 3deg),
-    radial-gradient(ellipse at 40% 35%, var(--brass-bright) 0%, var(--brass-mid) 36%, var(--brass-dark) 70%, var(--brass-edge) 100%);
+    repeating-conic-gradient(var(--brass-mid) 0deg, var(--brass-dark) 2deg, var(--brass-mid) 4deg),
+    radial-gradient(ellipse at 40% 35%, var(--brass-bright) 0%, var(--brass-mid) 34%, var(--brass-dark) 68%, var(--brass-edge) 100%);
   border:1px solid rgba(74,53,4,.68);
   box-shadow:
+    0 0 0 7px rgba(38,22,10,.18),
     inset 0 2px 4px rgba(255,240,180,.4),
     inset 0 -2px 4px rgba(0,0,0,.55),
-    0 3px 10px rgba(0,0,0,.48),
-    0 0 0 4px rgba(255,241,207,.05);
-}
-
-.gramophone-arm::after {
-  content:'';
-  position:absolute;
-  right:28px;
-  top:9px;
-  width:22px;
-  height:22px;
-  border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, var(--brass-bright), var(--brass-dark) 66%, var(--brass-edge));
-  box-shadow:inset 0 1px 2px rgba(255,240,160,.35), 0 2px 7px rgba(0,0,0,.38);
+    0 3px 10px rgba(0,0,0,.48);
 }
 
 .gramophone-arm i {
   position:absolute;
-  right:16px;
-  top:34px;
+  right:17px;
+  top:36px;
   width:8px;
-  height:136px;
+  height:133px;
   border-radius:999px;
   overflow:hidden;
   background:linear-gradient(to right, var(--brass-edge) 0%, var(--brass-dark) 15%, var(--brass-mid) 34%, var(--brass-bright) 48%, var(--brass-bright) 52%, var(--brass-mid) 66%, var(--brass-dark) 85%, var(--brass-edge) 100%);
@@ -6156,9 +6144,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   width:100%;
   min-height:68px;
   display:grid;
-  grid-template-columns:88px minmax(0, 1fr) 14px 42px;
+  grid-template-columns:100px minmax(0, 1fr) 12px 34px;
   align-items:center;
-  gap:12px;
+  gap:10px;
   padding:11px 14px;
   border-radius:10px;
   background:
@@ -6197,14 +6185,39 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .gramophone-grille {
-  height:42px;
-  border-radius:8px;
+  position:relative;
+  height:36px;
+  overflow:hidden;
+  border-radius:7px;
   background:
-    repeating-linear-gradient(90deg, rgba(255,241,207,.28) 0 1px, transparent 1px 7px),
-    repeating-linear-gradient(0deg, rgba(0,0,0,.24) 0 1px, transparent 1px 9px),
-    linear-gradient(175deg, #1c1410 0%, #221810 50%, #180f08 100%);
-  border:1px solid rgba(160,120,40,.36);
-  box-shadow:inset 0 0 0 1px rgba(80,55,10,.42), inset 0 2px 6px rgba(0,0,0,.5);
+    linear-gradient(180deg, rgba(255,230,172,.08), transparent 18%),
+    linear-gradient(175deg, #17100c 0%, #21160f 50%, #0d0906 100%);
+  border:1px solid rgba(255,220,160,.14);
+  box-shadow:
+    inset 0 2px 5px rgba(0,0,0,.64),
+    inset 0 -1px 2px rgba(255,220,150,.08),
+    0 1px 0 rgba(255,220,160,.1);
+}
+
+.gramophone-grille::before,
+.gramophone-grille::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+
+.gramophone-grille::before {
+  inset:5px 8px;
+  border-radius:4px;
+  background:
+    repeating-linear-gradient(90deg, rgba(214,171,95,.28) 0 1px, transparent 1px 8px),
+    linear-gradient(90deg, rgba(0,0,0,.28), transparent 18% 82%, rgba(0,0,0,.32));
+}
+
+.gramophone-grille::after {
+  background:linear-gradient(115deg, transparent 16%, rgba(255,236,184,.12) 42%, transparent 68%);
+  opacity:.7;
 }
 
 .gramophone-nameplate {
@@ -6245,21 +6258,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 .gramophone-knob {
   position:relative;
-  width:32px;
-  height:32px;
+  width:26px;
+  height:26px;
   justify-self:end;
   border-radius:50%;
   background:
-    radial-gradient(circle at 35% 30%, rgba(255,245,200,.7) 0%, rgba(255,245,200,0) 45%),
-    repeating-conic-gradient(var(--brass-mid) 0deg, var(--brass-dark) 1.5deg, var(--brass-mid) 3deg),
+    radial-gradient(circle at 44% 42%, #ffe9b1 0 25%, transparent 27%),
+    radial-gradient(circle at 35% 30%, rgba(255,245,200,.64) 0%, rgba(255,245,200,0) 42%),
+    repeating-conic-gradient(var(--brass-mid) 0deg, var(--brass-dark) 2deg, var(--brass-mid) 4deg),
     radial-gradient(ellipse at 40% 35%, var(--brass-bright) 0%, var(--brass-mid) 35%, var(--brass-dark) 70%, var(--brass-edge) 100%);
   border:1.5px solid var(--brass-dark);
   box-shadow:
-    inset 0 2px 4px rgba(255,240,180,.4),
-    inset 0 -2px 4px rgba(0,0,0,.55),
-    inset 2px 0 3px rgba(255,240,180,.2),
-    0 3px 10px rgba(0,0,0,.55),
-    0 1px 3px rgba(0,0,0,.35);
+    0 0 0 5px rgba(44,25,12,.28),
+    0 0 0 6px rgba(255,220,160,.1),
+    inset 0 2px 4px rgba(255,240,180,.38),
+    inset 0 -2px 4px rgba(0,0,0,.52),
+    0 3px 8px rgba(0,0,0,.42);
 }
 
 .gramophone-knob::after {
@@ -6429,17 +6443,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 .gramophone-controls {
   display:grid;
-  grid-template-columns:46px 62px 46px 46px;
+  grid-template-columns:40px 54px 40px 40px;
   align-items:center;
   justify-content:start;
-  gap:10px;
+  gap:6px;
 }
 
 .gramophone-controls button {
-  width:46px;
-  min-width:46px;
-  height:46px;
-  min-height:46px;
+  width:40px;
+  min-width:40px;
+  height:40px;
+  min-height:40px;
   display:grid;
   place-items:center;
   padding:0;
@@ -6459,8 +6473,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .gramophone-controls button svg {
-  width:22px;
-  height:22px;
+  width:20px;
+  height:20px;
 }
 
 .gramophone-controls button:not(:disabled):hover {
@@ -6482,10 +6496,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .gramophone-controls .gramophone-play {
-  width:62px;
-  min-width:62px;
-  height:62px;
-  min-height:62px;
+  width:54px;
+  min-width:54px;
+  height:54px;
+  min-height:54px;
   color:#2b1a12;
   background:
     radial-gradient(circle at 38% 32%, rgba(255,250,210,.68) 0%, transparent 54%),
@@ -6498,8 +6512,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .gramophone-controls .gramophone-play svg {
-  width:25px;
-  height:25px;
+  width:23px;
+  height:23px;
 }
 
 .gramophone-controls button.active {
@@ -6667,14 +6681,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   }
 
   .gramophone-cabinet {
-    grid-template-columns:74px minmax(0, 1fr) 12px 34px;
-    gap:9px;
+    grid-template-columns:84px minmax(0, 1fr) 10px 28px;
+    gap:8px;
     min-height:60px;
     padding:9px 11px;
   }
 
   .gramophone-grille {
-    height:36px;
+    height:32px;
   }
 
   .gramophone-nameplate {
@@ -6683,8 +6697,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   }
 
   .gramophone-knob {
-    width:27px;
-    height:27px;
+    width:23px;
+    height:23px;
   }
 
   .gramophone-console {
@@ -6697,22 +6711,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   }
 
   .gramophone-controls {
-    grid-template-columns:42px 56px 42px 42px;
-    gap:8px;
+    grid-template-columns:36px 50px 36px 36px;
+    gap:5px;
   }
 
   .gramophone-controls button {
-    width:42px;
-    min-width:42px;
-    height:42px;
-    min-height:42px;
+    width:36px;
+    min-width:36px;
+    height:36px;
+    min-height:36px;
   }
 
   .gramophone-controls .gramophone-play {
-    width:56px;
-    min-width:56px;
-    height:56px;
-    min-height:56px;
+    width:50px;
+    min-width:50px;
+    height:50px;
+    min-height:50px;
   }
 }
 

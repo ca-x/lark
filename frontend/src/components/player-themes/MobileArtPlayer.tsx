@@ -118,7 +118,7 @@ export function MobileArtPlayer({
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
   const smartisanNeedleAngle = mobileSmartisanNeedleAngle(playing);
-  const precisionTonearmAngle = 15 + pct * 24;
+  const precisionTonearmAngle = mobilePrecisionTonearmAngle(pct, playing);
   const gramophoneTonearmAngle = mobileGramophoneTonearmAngle(pct, duration, playing);
   const fallbackLabel = coverFallbackLabel(title, artist);
   const style = {
@@ -225,7 +225,7 @@ export function MobileArtPlayer({
         ) : variant === "gramophone" ? (
           <GramophoneVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
         ) : variant === "stage-glass" ? (
-          <StageGlassVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} onCoverError={coverState.onCoverError} />
+          <StageGlassVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
         ) : variant === "smartisan-classic" ? (
           <SmartisanClassicVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
         ) : (
@@ -338,7 +338,7 @@ function PrecisionAudioVisual({ cover, fallbackLabel, playing, onCoverError }: C
   return (
     <div className="mobile-pa-visual">
       <div className="mobile-pa-art-stack">
-        <span className="mobile-pa-vinyl" aria-hidden="true"><i /></span>
+        <span className="mobile-pa-vinyl" data-has-cover={cover ? "true" : "false"} aria-hidden="true"><i>{cover ? null : fallbackLabel}</i></span>
         <div className="mobile-pa-cover" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
           {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : <MusicNotes weight="fill" />}
         </div>
@@ -365,7 +365,7 @@ function SoftVinylVisual({ cover, fallbackLabel, onCoverError }: CoverVisualProp
       <div className="mobile-soft-deck">
         <div className="mobile-soft-record" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
           {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
-          <span />
+          <span>{cover ? null : fallbackLabel}</span>
         </div>
         <div className="mobile-soft-arm" aria-hidden="true"><i /></div>
         <span aria-hidden="true" className="mobile-soft-cube"><span /></span>
@@ -381,7 +381,7 @@ function GramophoneVisual({ cover, fallbackLabel, playing, onCoverError }: Cover
       <div className="mobile-gramophone-platter">
         <div className="mobile-gramophone-record" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
           <span className="mobile-gramophone-groove" aria-hidden="true" />
-          <div className="mobile-gramophone-label">
+          <div className="mobile-gramophone-label" data-has-cover={cover ? "true" : "false"}>
             {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : <span>{fallbackLabel}</span>}
             <i aria-hidden="true" />
           </div>
@@ -408,14 +408,15 @@ function IndiewaveVisual({ cover, fallbackLabel, playing, onCoverError }: CoverV
     <div className="mobile-indie-visual">
       <div className="mobile-indie-stack" data-playing={playing ? "true" : "false"}>
         <div className="mobile-indie-vinyl-rail" aria-hidden="true">
-          <div className="mobile-indie-vinyl">
-            <span />
+          <div className="mobile-indie-vinyl" data-has-cover={cover ? "true" : "false"}>
+            <span>{cover ? null : fallbackLabel}</span>
           </div>
         </div>
         <div className="mobile-indie-cover" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
           {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
           <span aria-hidden="true" />
         </div>
+        <div className="mobile-indie-arm" aria-hidden="true"><span /><i /></div>
       </div>
     </div>
   );
@@ -501,13 +502,14 @@ function EditorialPulseVisual({
   );
 }
 
-function StageGlassVisual({ cover, fallbackLabel, onCoverError }: CoverVisualProps) {
+function StageGlassVisual({ cover, fallbackLabel, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
   return (
-    <div className="mobile-stage-visual">
+    <div className="mobile-stage-visual" data-playing={playing ? "true" : "false"}>
       <div className="mobile-stage-disc" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
         {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
         <i />
       </div>
+      <div className="mobile-stage-arm" aria-hidden="true"><span /><i /></div>
     </div>
   );
 }
@@ -595,7 +597,13 @@ function mobileSmartisanNeedleAngle(playing: boolean) {
   return playing ? 9 : -13;
 }
 
+function mobilePrecisionTonearmAngle(progressPct: number, playing: boolean) {
+  if (!playing) return -14;
+  return 15 + progressPct * 24;
+}
+
 function mobileGramophoneTonearmAngle(progressPct: number, duration: number, playing: boolean) {
-  if (!playing || duration <= 0) return -14;
+  if (!playing) return -14;
+  if (duration <= 0) return 17;
   return 17 + progressPct * 14;
 }

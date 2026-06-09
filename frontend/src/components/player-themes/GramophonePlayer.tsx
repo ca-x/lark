@@ -139,8 +139,9 @@ function initials(artist?: string, title?: string) {
 }
 
 function gramophoneArmAngle(progressPct: number, duration: number, playing: boolean) {
-  if (!playing || duration <= 0) return -14;
-  return 17 + progressPct * 15;
+  if (!playing) return -14;
+  if (duration <= 0) return 4;
+  return 4 + progressPct * 7.5;
 }
 
 function formatTime(seconds: number) {
