@@ -344,7 +344,7 @@ export function parseTimestamp(value: string) {
 
 export function adjustedLyricTime(line: LyricLine, offsetSeconds: number) {
   if (line.at < 0) return line.at;
-  return Math.max(0, line.at + offsetSeconds);
+  return line.at + offsetSeconds;
 }
 
 export function parseLyricLines(lyrics?: string): LyricLine[] {

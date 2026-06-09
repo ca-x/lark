@@ -335,6 +335,11 @@ function normalizeLyricsDisplayStyle(value?: string | null): LyricsDisplayStyle 
   return value === "classic" ? "classic" : "immersive";
 }
 
+function normalizeLyricOffsetMs(value?: number | null) {
+  const numeric = Math.round(Number(value) || 0);
+  return Math.max(-MAX_LYRIC_OFFSET_MS, Math.min(MAX_LYRIC_OFFSET_MS, numeric));
+}
+
 function normalizeUserPreferences(value?: Partial<UserPreferences> | null): UserPreferences {
   return {
     home_player_style: normalizeHomePlayerStyle(value?.home_player_style),
@@ -1000,7 +1005,7 @@ export default function App() {
     let activeIndex = -1;
     for (let i = 0; i < lyricLines.length; i += 1) {
       const adjustedAt = adjustedLyricTime(lyricLines[i], lyricOffsetSeconds);
-      if (adjustedAt >= 0 && adjustedAt <= progress + 0.08)
+      if (lyricLines[i].at >= 0 && adjustedAt <= progress + 0.08)
         activeIndex = i;
       if (adjustedAt > progress + 0.08) break;
     }
@@ -1361,7 +1366,6 @@ export default function App() {
     setLyrics(null);
     setLyricCandidates([]);
     setLyricCandidatesOpen(false);
-    setLyricOffsetMs(0);
     setLyricsLoading(true);
     void api
       .lyrics(current.id)
@@ -2980,9 +2984,7 @@ export default function App() {
   }
 
   function adjustLyricOffset(deltaMs: number) {
-    setLyricOffsetMs((value) =>
-      Math.max(-MAX_LYRIC_OFFSET_MS, Math.min(MAX_LYRIC_OFFSET_MS, value + deltaMs)),
-    );
+    setLyricOffsetMs((value) => normalizeLyricOffsetMs(value + deltaMs));
   }
 
   async function openLyricCandidates() {
@@ -3005,7 +3007,6 @@ export default function App() {
         candidate.source,
         candidate.id,
       );
-      setLyricOffsetMs(0);
       setLyrics(selected);
       setLyricCandidatesOpen(false);
       setProgress(0);
@@ -7605,6 +7606,7 @@ function FullLyrics({
   onEditMetadata: (song: Song) => void;
 }) {
   const [seekTargetKey, setSeekTargetKey] = useState("");
+  const [lyricsToolsTab, setLyricsToolsTab] = useState<"candidates" | "offset">("candidates");
   const userScrollUntil = useRef(0);
   const seekTimer = useRef<number | null>(null);
   const lyricsTitle = song?.title ?? `${t("brand")} Music`;
@@ -7712,7 +7714,7 @@ function FullLyrics({
     let best: { key: string; at: number; distance: number } | null = null;
     for (const node of nodes) {
       const at = Number(node.dataset.lyricAt);
-      if (!Number.isFinite(at) || at < 0) continue;
+      if (node.dataset.lyricTimed !== "true" || !Number.isFinite(at)) continue;
       const rect = node.getBoundingClientRect();
       const distance = Math.abs(rect.top + rect.height / 2 - anchor);
       if (!best || distance < best.distance) {
@@ -7735,6 +7737,10 @@ function FullLyrics({
     userScrollUntil.current = Date.now() + 900;
     onUserScroll();
     window.requestAnimationFrame(syncSeekTargetFromScroll);
+  };
+  const openLyricsTools = () => {
+    setLyricsToolsTab("candidates");
+    onOpenCandidates();
   };
   return (
     <section className="full-lyrics" data-display-style={lyricsDisplayStyle} style={backgroundStyle}>
@@ -7784,7 +7790,7 @@ function FullLyrics({
             </button>
             <button
               className={onlineLyrics ? "lyrics-pick icon-only has-source" : "lyrics-pick icon-only"}
-              onClick={onOpenCandidates}
+              onClick={openLyricsTools}
               title={t("chooseLyrics")}
               aria-label={t("chooseLyrics")}
             >
@@ -7807,58 +7813,92 @@ function FullLyrics({
             </button>
           </div>
         ) : null}
-        <div className="lyrics-offset-panel" aria-label={t("lyricsOffset")}>
-          <div>
-            <span>{t("lyricsOffset")}</span>
-            <strong>{formatLyricOffset(lyricOffsetMs)}</strong>
-          </div>
-          <div className="lyrics-offset-actions">
-            {LYRIC_OFFSET_STEP_MS.map((step) => (
-              <button
-                key={step}
-                type="button"
-                onClick={() => onAdjustLyricOffset(step)}
-                aria-label={`${step > 0 ? "+" : ""}${step} ms`}
-              >
-                {step < 0 ? <Minus /> : <Plus />}
-                <span>{step > 0 ? `+${step}` : step}ms</span>
-              </button>
-            ))}
-            <button
-              type="button"
-              className="lyrics-offset-reset"
-              onClick={onResetLyricOffset}
-              disabled={lyricOffsetMs === 0}
-            >
-              <ArrowClockwise />
-              <span>{t("lyricsOffsetReset")}</span>
-            </button>
-          </div>
-        </div>
       </div>
       {candidatesOpen ? (
-        <div className="lyrics-candidates">
-          <div>
+        <div className="lyrics-candidates lyrics-tools">
+          <div className="lyrics-tools-head">
             <strong>{t("chooseLyrics")}</strong>
             <button onClick={onCloseCandidates}>{t("close")}</button>
           </div>
-          {candidatesLoading ? (
-            <p>{t("matchingLyrics")}</p>
-          ) : candidates.length ? (
-            candidates.map((candidate, index) => (
-              <button
-                key={`${candidate.source}-${candidate.id}`}
-                onClick={() => onSelectCandidate(candidate)}
-              >
-                <strong>{candidate.title}</strong>
-                <span>{candidate.artist || t("artist")}</span>
-                <em>
-                  {t("candidate")} {index + 1}
-                </em>
-              </button>
-            ))
+          <div className="lyrics-tools-tabs" role="tablist" aria-label={t("chooseLyrics")}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lyricsToolsTab === "candidates"}
+              aria-controls="lyrics-candidates-panel"
+              className={lyricsToolsTab === "candidates" ? "active" : ""}
+              onClick={() => setLyricsToolsTab("candidates")}
+            >
+              {t("chooseLyrics")}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lyricsToolsTab === "offset"}
+              aria-controls="lyrics-offset-panel"
+              className={lyricsToolsTab === "offset" ? "active" : ""}
+              onClick={() => setLyricsToolsTab("offset")}
+            >
+              <span>{t("lyricsOffset")}</span>
+              <strong>{formatLyricOffset(lyricOffsetMs)}</strong>
+            </button>
+          </div>
+          {lyricsToolsTab === "candidates" ? (
+            <div id="lyrics-candidates-panel" className="lyrics-candidates-list" role="tabpanel">
+              {candidatesLoading ? (
+                <p>{t("matchingLyrics")}</p>
+              ) : candidates.length ? (
+                candidates.map((candidate, index) => (
+                  <button
+                    key={`${candidate.source}-${candidate.id}`}
+                    className="lyrics-candidate-item"
+                    onClick={() => onSelectCandidate(candidate)}
+                  >
+                    <strong>{candidate.title}</strong>
+                    <span>{candidate.artist || t("artist")}</span>
+                    <em>
+                      {t("candidate")} {index + 1}
+                    </em>
+                  </button>
+                ))
+              ) : (
+                <p>{t("noLyricsTitle")}</p>
+              )}
+            </div>
           ) : (
-            <p>{t("noLyricsTitle")}</p>
+            <div
+              id="lyrics-offset-panel"
+              className="lyrics-offset-panel lyrics-offset-panel--embedded"
+              role="tabpanel"
+              aria-label={t("lyricsOffset")}
+            >
+              <div>
+                <span>{t("lyricsOffset")}</span>
+                <strong>{formatLyricOffset(lyricOffsetMs)}</strong>
+              </div>
+              <div className="lyrics-offset-actions">
+                {LYRIC_OFFSET_STEP_MS.map((step) => (
+                  <button
+                    key={step}
+                    type="button"
+                    onClick={() => onAdjustLyricOffset(step)}
+                    aria-label={`${step > 0 ? "+" : ""}${step} ms`}
+                  >
+                    {step < 0 ? <Minus /> : <Plus />}
+                    <span>{step > 0 ? `+${step}` : step}ms</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="lyrics-offset-reset"
+                  onClick={onResetLyricOffset}
+                  disabled={lyricOffsetMs === 0}
+                >
+                  <ArrowClockwise />
+                  <span>{t("lyricsOffsetReset")}</span>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       ) : null}
@@ -7873,16 +7913,16 @@ function FullLyrics({
         {lines.length ? (
           lines.map((line, index) => {
             const lyricTime = adjustedLyricTime(line, lyricOffsetSeconds);
-            const showCursorPlay = !lyricsDragSeekEnabled && line.key === seekTargetKey && lyricTime >= 0;
+            const showCursorPlay = !lyricsDragSeekEnabled && line.key === seekTargetKey && line.at >= 0;
             const nextTimedLine = lines
               .slice(index + 1)
-              .find((candidate) => adjustedLyricTime(candidate, lyricOffsetSeconds) > lyricTime);
+              .find((candidate) => candidate.at >= 0 && adjustedLyricTime(candidate, lyricOffsetSeconds) > lyricTime);
             const nextLyricTime = nextTimedLine
               ? adjustedLyricTime(nextTimedLine, lyricOffsetSeconds)
               : lyricTime + 4;
             const isLive = line.key === activeLyric;
             const lyricProgress =
-              isLive && lyricTime >= 0
+              isLive && line.at >= 0
                 ? Math.max(0, Math.min(1, (progress - lyricTime) / Math.max(1.2, nextLyricTime - lyricTime)))
                 : 0;
             const lineStyle = isLive
@@ -7893,6 +7933,7 @@ function FullLyrics({
                 key={line.key}
                 data-lyric-key={line.key}
                 data-lyric-at={lyricTime}
+                data-lyric-timed={line.at >= 0 ? "true" : "false"}
                 aria-current={isLive ? "true" : undefined}
                 style={lineStyle}
                 className={[

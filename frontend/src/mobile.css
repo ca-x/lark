@@ -4806,6 +4806,17 @@
   50% { box-shadow:0 14px 38px color-mix(in srgb, var(--mobile-lyrics-accent) 18%, transparent); }
 }
 
+@keyframes mobile-lyrics-vertical-focus {
+  0%, 100% {
+    transform:translate3d(0, 0, 0) scale(1);
+    text-shadow:0 16px 44px var(--mobile-lyrics-shadow);
+  }
+  50% {
+    transform:translate3d(0, 0, 0) scale(1.012);
+    text-shadow:0 20px 56px var(--mobile-lyrics-shadow);
+  }
+}
+
 @media (max-width:720px) {
   .app-shell.lyrics-mode[data-mobile-theme] {
     --mobile-lyrics-rest:color-mix(in srgb, var(--text) 72%, transparent);
@@ -5077,17 +5088,18 @@
     border-radius:0;
     color:var(--mobile-lyrics-readable);
     background:transparent;
-    font-size:.66em;
-    opacity:.15;
+    font-size:.62em;
+    opacity:.12;
     filter:none;
-    transform:translate3d(14px, 0, 0) scale(.96);
+    transform:translate3d(0, 0, 0) scale(.96);
     transform-origin:left center;
-    text-align:right;
-    text-shadow:0 12px 34px var(--mobile-lyrics-shadow);
+    text-align:left;
+    text-shadow:0 10px 28px var(--mobile-lyrics-shadow);
     transition:
       color .6s cubic-bezier(.4, 0, .2, 1),
       font-size .6s cubic-bezier(.4, 0, .2, 1),
       opacity .6s cubic-bezier(.4, 0, .2, 1),
+      filter .6s cubic-bezier(.4, 0, .2, 1),
       transform .6s cubic-bezier(.4, 0, .2, 1),
       text-shadow .6s cubic-bezier(.4, 0, .2, 1);
   }
@@ -5101,42 +5113,48 @@
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.past-1 {
-    font-size:.82em;
-    opacity:.35;
-    transform:translate3d(-6px, 0, 0) scale(.985);
+    font-size:.86em;
+    opacity:.48;
+    filter:blur(.08px);
+    transform:translate3d(0, 0, 0) scale(.985);
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.past-2 {
-    font-size:.72em;
-    opacity:.2;
-    transform:translate3d(-10px, 0, 0) scale(.965);
+    font-size:.74em;
+    opacity:.26;
+    filter:blur(.16px);
+    transform:translate3d(0, 0, 0) scale(.965);
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.past-3 {
-    font-size:.64em;
-    opacity:.1;
-    transform:translate3d(-14px, 0, 0) scale(.945);
+    font-size:.62em;
+    opacity:.12;
+    filter:blur(.24px);
+    transform:translate3d(0, 0, 0) scale(.945);
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.next-1 {
-    font-size:.82em;
-    opacity:.4;
+    font-size:.86em;
+    opacity:.48;
+    filter:blur(.08px);
     text-align:left;
     transform:translate3d(0, 0, 0) scale(.985);
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.next-2 {
     font-size:.74em;
-    opacity:.28;
-    text-align:right;
-    transform:translate3d(8px, 0, 0) scale(.965);
+    opacity:.26;
+    filter:blur(.16px);
+    text-align:left;
+    transform:translate3d(0, 0, 0) scale(.965);
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.next-3 {
-    font-size:.66em;
-    opacity:.15;
-    text-align:right;
-    transform:translate3d(14px, 0, 0) scale(.945);
+    font-size:.62em;
+    opacity:.12;
+    filter:blur(.24px);
+    text-align:left;
+    transform:translate3d(0, 0, 0) scale(.945);
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.live-peer {
@@ -5148,14 +5166,14 @@
     color:var(--lyrics-active-text);
     background:transparent;
     border-left-color:transparent;
-    font-size:1em;
+    font-size:1.08em;
     font-weight:700;
     opacity:1;
     filter:none;
     text-align:left;
     transform:translate3d(0, 0, 0) scale(1);
     text-shadow:0 18px 54px var(--mobile-lyrics-shadow);
-    animation:none;
+    animation:mobile-lyrics-vertical-focus 4.2s cubic-bezier(.4, 0, .2, 1) infinite;
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.live .lyric-line-text {
@@ -7913,9 +7931,277 @@
   }
 }
 
+/* v0.9.0 mobile player theme DNA correction.
+   Keep controls tied to each mobile theme, not the global light/dark shell. */
+@media (max-width:720px) {
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-neon-console {
+    --mobile-player-control:#fff2c9;
+    --mobile-player-action:rgba(255,242,201,.82);
+    --mobile-player-control-bg:rgba(255,242,201,.12);
+    --mobile-player-action-bg:rgba(255,242,201,.08);
+    --mobile-player-play-bg:linear-gradient(145deg, #d6b36a, #8a601e);
+    --mobile-player-play-fg:#19140b;
+    --mobile-player-hairline:rgba(255,242,201,.2);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-stage-glass {
+    --mobile-player-title:#fff7db;
+    --mobile-player-secondary:rgba(245,238,255,.68);
+    --mobile-player-control:#fff0c4;
+    --mobile-player-action:rgba(255,240,196,.78);
+    --mobile-player-control-bg:rgba(255,255,255,.105);
+    --mobile-player-action-bg:rgba(255,255,255,.075);
+    --mobile-player-active-bg:rgba(240,215,135,.18);
+    --mobile-player-play-bg:linear-gradient(145deg, #f7de8c, #caa44f);
+    --mobile-player-play-fg:#211b10;
+    --mobile-player-hairline:rgba(255,240,196,.2);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-soft-vinyl {
+    --mobile-player-control:#21324f;
+    --mobile-player-action:rgba(33,50,79,.76);
+    --mobile-player-control-bg:rgba(74,111,165,.14);
+    --mobile-player-action-bg:rgba(74,111,165,.1);
+    --mobile-player-active-bg:rgba(74,111,165,.18);
+    --mobile-player-play-bg:var(--mobile-art-accent);
+    --mobile-player-play-fg:#fffaf3;
+    --mobile-player-hairline:rgba(74,111,165,.24);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-editorial-pulse {
+    --mobile-player-control:#050505;
+    --mobile-player-action:rgba(5,5,5,.72);
+    --mobile-player-control-bg:rgba(5,5,5,.08);
+    --mobile-player-action-bg:rgba(5,5,5,.06);
+    --mobile-player-active-bg:rgba(232,41,41,.12);
+    --mobile-player-play-bg:#050505;
+    --mobile-player-play-fg:#ffb313;
+    --mobile-player-hairline:rgba(5,5,5,.14);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-blue-halo {
+    --mobile-player-title:#172635;
+    --mobile-player-secondary:rgba(23,38,53,.68);
+    --mobile-player-control:#172635;
+    --mobile-player-action:rgba(23,38,53,.74);
+    --mobile-player-control-bg:rgba(23,38,53,.12);
+    --mobile-player-action-bg:rgba(23,38,53,.09);
+    --mobile-player-active-bg:color-mix(in srgb, var(--mobile-art-accent) 18%, transparent);
+    --mobile-player-play-bg:linear-gradient(145deg, #172635, #2d5d76);
+    --mobile-player-play-fg:#eaffff;
+    --mobile-player-hairline:rgba(23,38,53,.18);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic {
+    --mobile-player-title:rgba(0,0,0,.62);
+    --mobile-player-secondary:rgba(0,0,0,.42);
+    --mobile-player-control:rgba(0,0,0,.58);
+    --mobile-player-action:rgba(0,0,0,.52);
+    --mobile-player-control-bg:#f7f7f7;
+    --mobile-player-action-bg:#f7f7f7;
+    --mobile-player-active-bg:#fff1f0;
+    --mobile-player-hairline:rgba(0,0,0,.14);
+    --mobile-player-track:rgba(0,0,0,.14);
+    --mobile-player-volume-idle:rgba(0,0,0,.16);
+    --mobile-player-play-bg:#d94a43;
+    --mobile-player-play-fg:#ffffff;
+    --mobile-player-progress-glow:rgba(217,74,67,.18);
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'][data-mobile-player-expanded='true']:not(.lyrics-mode) .player {
+    background:#ececec;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-phone {
+    background:
+      url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+      #ececec;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-bg {
+    opacity:0;
+    background:transparent;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-neon-console .mobile-pa-tonearm {
+    display:block !important;
+    top:5%;
+    right:8%;
+    width:70px;
+    height:158px;
+    filter:drop-shadow(0 8px 14px rgba(0,0,0,.3));
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-neon-console .mobile-pa-status {
+    display:grid !important;
+    right:1%;
+    bottom:3%;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-pa-cover[data-has-cover='false'] {
+    animation:mobile-art-spin 10s linear infinite;
+  }
+}
+
+/* Lyrics tools live inside the candidate popover; keep offset controls out of the
+   lyrics header on mobile so they do not cover the active lyric line. */
+@media (max-width:720px) {
+  .app-shell.lyrics-mode .lyrics-candidates.lyrics-tools {
+    position:relative;
+    inset:auto;
+    justify-self:stretch;
+    width:100%;
+    max-height:min(44dvh, 380px);
+    margin:10px 0 0;
+    padding:10px;
+    gap:10px;
+    border-radius:18px;
+    color:var(--mobile-lyrics-live);
+    background:var(--mobile-lyrics-chip-bg);
+    border-color:var(--mobile-lyrics-border);
+    box-shadow:0 14px 34px var(--mobile-lyrics-shadow);
+  }
+
+  .app-shell.lyrics-mode .lyrics-tools-head {
+    min-width:0;
+  }
+
+  .app-shell.lyrics-mode .lyrics-tools-head button {
+    color:var(--mobile-lyrics-muted);
+  }
+
+  .app-shell.lyrics-mode .lyrics-tools-tabs {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:3px;
+    min-width:0;
+    padding:3px;
+    border-radius:999px;
+    background:color-mix(in srgb, var(--mobile-lyrics-muted) 10%, transparent);
+    border:1px solid var(--mobile-lyrics-border);
+  }
+
+  .app-shell.lyrics-mode .lyrics-tools-tabs button {
+    min-width:0;
+    min-height:40px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    padding:6px 8px;
+    border-radius:999px;
+    color:var(--mobile-lyrics-muted);
+    background:transparent;
+    border:0;
+    box-shadow:none;
+    font-size:12px;
+    white-space:nowrap;
+  }
+
+  .app-shell.lyrics-mode .lyrics-tools-tabs button.active {
+    color:var(--mobile-lyrics-live);
+    background:var(--mobile-lyrics-live-bg);
+  }
+
+  .app-shell.lyrics-mode .lyrics-tools-tabs button strong {
+    color:inherit;
+    font-size:11px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .app-shell.lyrics-mode .lyrics-candidates-list {
+    display:grid;
+    gap:8px;
+    min-width:0;
+  }
+
+  .app-shell.lyrics-mode .lyrics-candidates-list > p {
+    margin:4px 2px;
+    color:var(--mobile-lyrics-muted);
+  }
+
+  .app-shell.lyrics-mode .lyrics-candidate-item {
+    min-width:0;
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    gap:2px 10px;
+    padding:10px 11px;
+    border-radius:14px;
+    color:var(--mobile-lyrics-live);
+    background:var(--mobile-lyrics-chip-bg);
+    border:1px solid var(--mobile-lyrics-border);
+  }
+
+  .app-shell.lyrics-mode .lyrics-candidate-item span {
+    color:var(--mobile-lyrics-muted);
+  }
+
+  .app-shell.lyrics-mode .lyrics-candidate-item em {
+    color:var(--mobile-lyrics-accent);
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded {
+    grid-column:auto;
+    width:100%;
+    max-width:100%;
+    margin:0;
+    display:grid;
+    grid-template-columns:1fr;
+    gap:8px;
+    overflow:visible;
+    scrollbar-width:auto;
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded > div:first-child {
+    width:100%;
+    min-height:38px;
+    justify-content:space-between;
+    padding:7px 11px;
+    border-radius:14px;
+    color:var(--mobile-lyrics-muted);
+    background:var(--mobile-lyrics-chip-bg);
+    border-color:var(--mobile-lyrics-border);
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded > div:first-child strong {
+    color:var(--mobile-lyrics-live);
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-actions {
+    width:100%;
+    min-width:0;
+    display:grid;
+    grid-template-columns:repeat(4, minmax(0, 1fr)) 42px;
+    gap:6px;
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-actions button {
+    min-width:0;
+    min-height:42px;
+    padding:0 4px;
+    border-radius:13px;
+    color:var(--mobile-lyrics-live);
+    background:var(--mobile-lyrics-chip-bg);
+    border-color:var(--mobile-lyrics-border);
+    box-shadow:none;
+    font-size:11px;
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-actions button:not(.lyrics-offset-reset) svg,
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-reset span {
+    display:none;
+  }
+
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-reset {
+    width:42px;
+    min-width:42px;
+  }
+}
+
 @media (max-width:720px) and (prefers-reduced-motion:reduce) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-vu i,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-cover[data-has-cover='false'],
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-record,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-record::after,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-disc,

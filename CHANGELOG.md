@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.0 — 移动端播放器与歌词体验升级
+
+发布日期 / Released: 2026-06-09
+
+### 新增与优化
+
+- **重构移动端播放器主题体验。** 精密音频、柔光唱片、独立蓝调、iPod、舞台玻璃、蓝色光盘和锤子主题统一补齐移动端播放视觉、动效和控制栏可读性，浅色/深色主题的播放按钮不再反色失衡。
+- **优化歌词偏移入口。** 歌词偏移不再写入数据库，也不再常驻遮挡歌词区；现在与歌词候选放在同一个歌词工具面板中，通过「选择歌词 / 歌词偏移」tab 切换，PC 和移动端一致。
+- **收敛沉浸式歌词阅读轴。** 取消 upcoming 歌词从右侧进入再切到左侧的横向漂移，改为常规音乐播放器的单一左侧阅读轴，保留当前行渐变、纵深透明度和滚动锚点。
+- **修复歌词偏移生效问题。** 负偏移不再被截断到 0，换歌或切换歌词候选也不会自动清空偏移，当前会话内调整会持续生效。
+
+完整 diff：`git log v0.8.19..v0.9.0`
+
+---
+
+## v0.9.0 — Mobile player and lyrics experience upgrade
+
+Released: 2026-06-09
+
+### Added and Improved
+
+- **Reworked mobile player theme UX.** Precision Audio, Soft Vinyl, Indiewave, iPod, Stage Glass, Blue Halo, and Smartisan themes now share clearer mobile playback visuals, motion, and control contrast across light and dark themes.
+- **Moved lyrics offset into the lyrics tools panel.** Lyrics offset is no longer stored in the database and no longer stays pinned over the lyrics area; it now lives next to lyric candidates behind Candidates / Offset tabs on both desktop and mobile.
+- **Stabilized immersive lyrics reading.** Upcoming lines no longer shift from right-aligned depth into left-aligned active text. Immersive lyrics now use a single left reading axis while keeping active-line gradients, depth opacity, and scroll anchoring.
+- **Fixed lyrics offset behavior.** Negative offsets are no longer clamped back to zero, and changing songs or lyric candidates no longer clears the current session offset.
+
+Full diff: `git log v0.8.19..v0.9.0`
+
+---
+
 ## 0.8.19 — 移动端导航与历史记录修复
 
 发布日期 / Released: 2026-06-09
