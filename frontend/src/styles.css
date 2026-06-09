@@ -955,7 +955,10 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .section-head.compact h2 { font-size:clamp(20px,2vw,28px); }
 .section-head.compact button { min-height:38px; padding:8px 12px; }
 .library-summary-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(132px,100%),1fr)); gap:8px; }
-.library-summary-stat { min-width:0; min-height:82px; padding:12px; border-radius:18px; background:var(--panel2); border:1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); display:grid; align-content:center; gap:4px; text-align:left; }
+.library-summary-stat { appearance:none; width:100%; min-width:0; min-height:82px; padding:12px; border-radius:18px; background:var(--panel2); border:1px solid color-mix(in srgb, var(--accent) 14%, var(--line)); display:grid; align-content:center; gap:4px; text-align:left; color:var(--text); font:inherit; cursor:pointer; transition:background .18s var(--ease), border-color .18s var(--ease), box-shadow .18s var(--ease), transform .18s var(--ease); }
+.library-summary-stat:hover,
+.library-summary-stat:focus-visible { border-color:color-mix(in srgb, var(--accent) 34%, var(--line)); background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); box-shadow:0 12px 26px color-mix(in srgb, var(--accent) 12%, transparent); transform:translateY(-1px); }
+.library-summary-stat:active { transform:translateY(0); }
 .library-summary-stat strong { min-width:0; max-width:100%; overflow:visible; white-space:nowrap; font-size:clamp(22px, min(8vw, 3rem), 38px); line-height:1; letter-spacing:0; font-variant-numeric:tabular-nums; }
 .library-summary-stat span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); font-size:12px; }
 .summary-panel p { margin:12px 0 0; color:var(--muted); line-height:1.5; }

@@ -4122,7 +4122,10 @@ export default function App() {
                 onOpenArtist={openArtistById}
                 onPlayPlaylist={playPlaylist}
                 onOpenPlaylist={openPlaylist}
-                onOpenLibrary={() => openNavigationView("library")}
+                onOpenLibrary={() => {
+                  rememberLibraryTab("songs");
+                  openNavigationView("library");
+                }}
                 onOpenFavorites={() => openNavigationView("favorites")}
                 onOpenAlbums={() => {
                   setView("albums");
@@ -5060,23 +5063,37 @@ export default function App() {
 function LibrarySummaryStats({
   t,
   stats,
+  onOpenSongs,
+  onOpenAlbums,
+  onOpenArtists,
+  onOpenPlaylists,
 }: {
   t: ReturnType<typeof createT>;
   stats: LibraryStats;
+  onOpenSongs: () => void;
+  onOpenAlbums: () => void;
+  onOpenArtists: () => void;
+  onOpenPlaylists: () => void;
 }) {
   const items = [
-    { key: "songs", value: stats.songs, label: t("count") },
-    { key: "albums", value: stats.albums, label: t("albums") },
-    { key: "artists", value: stats.artists, label: t("artists") },
-    { key: "playlists", value: stats.playlists, label: t("playlists") },
+    { key: "songs", value: stats.songs, label: t("count"), onOpen: onOpenSongs },
+    { key: "albums", value: stats.albums, label: t("albums"), onOpen: onOpenAlbums },
+    { key: "artists", value: stats.artists, label: t("artists"), onOpen: onOpenArtists },
+    { key: "playlists", value: stats.playlists, label: t("playlists"), onOpen: onOpenPlaylists },
   ];
   return (
     <div className="library-summary-stats" aria-label={t("librarySummary")}>
       {items.map((item) => (
-        <article className="library-summary-stat" key={item.key}>
+        <button
+          className="library-summary-stat"
+          key={item.key}
+          type="button"
+          aria-label={`${item.value} ${item.label}`}
+          onClick={item.onOpen}
+        >
           <strong title={String(item.value)}>{compactLibraryCount(item.value)}</strong>
           <span>{item.label}</span>
-        </article>
+        </button>
       ))}
     </div>
   );
@@ -5152,6 +5169,7 @@ function HomeView({
   onOpenArtist,
   onPlayPlaylist,
   onOpenPlaylist,
+  onOpenLibrary,
   onOpenAlbums,
   onOpenArtists,
   onOpenPlaylists,
@@ -5445,6 +5463,10 @@ function HomeView({
               artists: artists.length,
               playlists: playlists.length,
             }}
+            onOpenSongs={onOpenLibrary}
+            onOpenAlbums={onOpenAlbums}
+            onOpenArtists={onOpenArtists}
+            onOpenPlaylists={onOpenPlaylists}
           />
         </section>
 

@@ -1608,27 +1608,60 @@
   transform:rotate(var(--mobile-pa-tonearm, 15deg));
   transform-origin:50% 18px;
   transition:transform .42s cubic-bezier(0.32,0.72,0,1);
+  pointer-events:none;
+  z-index:6;
 }
 .mobile-pa-tonearm span {
   position:absolute;
   top:0;
   left:50%;
-  width:30px;
-  height:30px;
+  width:32px;
+  height:32px;
   border-radius:50%;
-  background:linear-gradient(145deg, #3c4147, #111418);
+  background:
+    radial-gradient(circle at 36% 30%, rgba(255,247,221,.35), transparent 34%),
+    linear-gradient(145deg, #3c4147, #111418);
   border:1px solid rgba(242,238,230,.14);
   transform:translateX(-50%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 8px 18px rgba(0,0,0,.28);
 }
 .mobile-pa-tonearm i {
   position:absolute;
-  top:26px;
+  top:28px;
   left:50%;
-  width:7px;
-  height:122px;
+  width:8px;
+  height:136px;
   border-radius:999px;
-  background:linear-gradient(90deg, #F2EEE6, #777065);
+  background:linear-gradient(90deg, #fff5d8 0%, #c9a86a 42%, #5e5d5c 100%);
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.32), 0 5px 12px rgba(0,0,0,.22);
   transform:translateX(-50%);
+}
+.mobile-pa-tonearm i::before {
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:-10px;
+  width:28px;
+  height:16px;
+  border-radius:6px 6px 8px 8px;
+  background:
+    linear-gradient(180deg, rgba(255,246,218,.3), transparent 48%),
+    linear-gradient(145deg, #2b3035, #0d0f12);
+  border:1px solid rgba(255,238,190,.18);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 6px 14px rgba(0,0,0,.28);
+  transform:translateX(-50%) rotate(-8deg);
+}
+.mobile-pa-tonearm i::after {
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:-21px;
+  width:3px;
+  height:15px;
+  border-radius:2px;
+  background:linear-gradient(180deg, #f6d58f, #18100a 72%);
+  box-shadow:0 2px 5px rgba(0,0,0,.4);
+  transform:translateX(-50%) rotate(-8deg);
 }
 .mobile-pa-status {
   position:absolute;
@@ -9863,5 +9896,44 @@
 
   .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-progress::before {
     background:var(--mobile-ui-accent) !important;
+  }
+}
+
+/* Precision Audio mobile turntable: keep the needle anchored to the centered
+   record in the expanded player, with a visible cartridge and stylus tip. */
+@media (max-width:720px) {
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-neon-console .mobile-pa-tonearm {
+    top:calc(50% - 154px) !important;
+    right:calc(50% - 168px) !important;
+    width:96px !important;
+    height:226px !important;
+    transform-origin:50% 28px;
+    filter:drop-shadow(0 10px 16px rgba(0,0,0,.34));
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-neon-console .mobile-pa-tonearm span {
+    width:38px !important;
+    height:38px !important;
+    border:1px solid rgba(255,239,198,.2);
+    background:
+      radial-gradient(circle at 34% 28%, rgba(255,247,221,.42), transparent 34%),
+      linear-gradient(145deg, #454a50, #101317 70%);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-neon-console .mobile-pa-tonearm i {
+    top:34px !important;
+    width:8px;
+    height:176px !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-neon-console .mobile-pa-tonearm i::before {
+    bottom:-11px;
+    width:30px;
+    height:17px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-neon-console .mobile-pa-tonearm i::after {
+    bottom:-23px;
+    height:17px;
   }
 }
