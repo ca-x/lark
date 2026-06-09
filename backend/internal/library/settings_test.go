@@ -270,8 +270,8 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	}
 
 	saved, err := service.SaveUserPreferences(ctx, 7, models.UserPreferences{
-		HomePlayerStyle:         "album-slide",
-		MobileHomePlayerStyle:   "indiewave",
+		HomePlayerStyle:         "gramophone",
+		MobileHomePlayerStyle:   "smartisan-classic",
 		ArtistAlbumDisplayStyle: "showcase",
 		LyricsDisplayStyle:      "classic",
 		LyricsDragSeekEnabled:   false,
@@ -279,14 +279,14 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.HomePlayerStyle != "album-slide" || saved.MobileHomePlayerStyle != "indiewave" || saved.ArtistAlbumDisplayStyle != "showcase" || saved.LyricsDisplayStyle != "classic" || saved.LyricsDragSeekEnabled {
+	if saved.HomePlayerStyle != "gramophone" || saved.MobileHomePlayerStyle != "smartisan-classic" || saved.ArtistAlbumDisplayStyle != "showcase" || saved.LyricsDisplayStyle != "classic" || saved.LyricsDragSeekEnabled {
 		t.Fatalf("expected saved user preferences to persist, got %#v", saved)
 	}
 	loaded, err := service.GetUserPreferences(ctx, 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.HomePlayerStyle != "album-slide" || loaded.MobileHomePlayerStyle != "indiewave" || loaded.ArtistAlbumDisplayStyle != "showcase" || loaded.LyricsDisplayStyle != "classic" || loaded.LyricsDragSeekEnabled {
+	if loaded.HomePlayerStyle != "gramophone" || loaded.MobileHomePlayerStyle != "smartisan-classic" || loaded.ArtistAlbumDisplayStyle != "showcase" || loaded.LyricsDisplayStyle != "classic" || loaded.LyricsDragSeekEnabled {
 		t.Fatalf("expected user preferences to load from database, got %#v", loaded)
 	}
 

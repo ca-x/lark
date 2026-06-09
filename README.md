@@ -55,8 +55,8 @@ Thanks to the [LinuxDo Community](https://linux.do) for discussion and feedback.
 
 ### Playback Experience
 
-- Desktop home player styles include vinyl deck, cassette deck, iPod, audio scope, album sleeve, and Smartisan deck.
-- Mobile player styles include Precision Audio, indiewave, music editor, soft vinyl, stage glass, blue halo, and Smartisan classic.
+- Desktop home player styles include vinyl deck, cassette deck, iPod, audio scope, album sleeve, Smartisan deck, and Gramophone.
+- Mobile player styles include Precision Audio, Gramophone, indiewave, iPod, soft vinyl, stage glass, blue halo, and Smartisan classic.
 - The bottom player exposes queue, play mode, volume, progress, favorites, sleep timer, and fullscreen lyrics.
 - Sleep timer can stop by duration, after a number of songs, or at the end of the current album.
 - Equalizer presets apply to local music, network tracks, and radio playback.

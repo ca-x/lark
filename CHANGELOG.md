@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.2 — 移动端黑胶主题细节修复
+
+发布日期 / Released: 2026-06-09
+
+### 新增与修复
+
+- **新增移动端「复古唱机」播放主题。** 参考移动端主流音乐播放器的黑胶唱机表达，加入大黑胶、唱针、木纹箱体、扬声器网罩、铭牌、旋钮、指示灯和脚垫细节；无封面歌曲也会显示唱片中心标签。
+- **新增 PC 端「复古唱机」首页播放样式。** 复刻移动端复古唱机的唱片、唱针、木纹箱体、扬声器格栅、铭牌、旋钮和指示灯细节，并接入同一套用户偏好保存逻辑。
+- **统一移动端 mini 播放按钮形态。** 播放按钮恢复为 46×46 正圆，并保持图标居中、触控区域稳定和各主题专属对比度。
+- **统一移动端黑胶/唱片动效。** 精密音频、柔光唱片、复古唱机、独立蓝调、舞台玻璃、锤子主题以及磁带转盘统一使用连续线性旋转，避免播放中短暂停顿或不同主题动效不一致。
+
+完整 diff：`git log v0.9.1..v0.9.2`
+
+---
+
+## v0.9.2 — Mobile vinyl theme detail fixes
+
+Released: 2026-06-09
+
+### Added and Fixed
+
+- **Added a mobile Gramophone player theme.** The new theme builds a richer vinyl deck with a large record, tonearm, wood cabinet, speaker grille, nameplate, knob, status light, and feet; tracks without covers still get a record-center label.
+- **Added a desktop Gramophone home player style.** The desktop style carries over the record, tonearm, wood cabinet, speaker grille, nameplate, knob, and status light details, and persists through the same user preference path.
+- **Unified the mobile mini-player play button shape.** The play button is back to a centered 46×46 circular control while keeping each theme's contrast tokens.
+- **Unified mobile vinyl and record motion.** Precision Audio, Soft Vinyl, Gramophone, Indiewave, Stage Glass, Smartisan, and cassette reels now use the same continuous linear spin guard to avoid stutter and theme-by-theme motion drift.
+
+Full diff: `git log v0.9.1..v0.9.2`
+
+---
+
 ## 0.9.1 — 移动端播放控制修复
 
 发布日期 / Released: 2026-06-09

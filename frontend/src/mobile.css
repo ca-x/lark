@@ -1512,6 +1512,7 @@
 }
 .mobile-pa-visual,
 .mobile-soft-stage,
+.mobile-gramophone-stage,
 .mobile-stage-visual,
 .mobile-blue-visual,
 .mobile-indie-visual,
@@ -2246,6 +2247,363 @@
   min-width:38px;
   height:38px;
   min-height:38px;
+}
+.mobile-art-gramophone {
+  --mobile-art-phone-bg:#8f7968;
+  --mobile-art-phone-bg-2:#2c201b;
+  --mobile-art-panel:rgba(255,244,224,.14);
+  --mobile-art-panel-strong:rgba(255,244,224,.22);
+  --mobile-art-text:#fff2dd;
+  --mobile-art-muted:rgba(255,242,221,.66);
+  --mobile-art-accent:#e7b778;
+  --mobile-art-glow:rgba(231,183,120,.34);
+}
+.mobile-art-gramophone .mobile-art-phone {
+  background:
+    radial-gradient(circle at 52% 20%, rgba(255,224,166,.18), transparent 34%),
+    linear-gradient(180deg, rgba(255,244,224,.1), transparent 42%),
+    linear-gradient(165deg, #8f7968 0%, #5e4132 45%, #2c201b 100%);
+  border-color:rgba(255,244,224,.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.22),
+    inset 0 -26px 58px rgba(32,18,13,.32),
+    0 26px 74px rgba(31,18,12,.46);
+}
+.mobile-art-gramophone .mobile-art-bg {
+  opacity:.42;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,244,224,.055) 0 1px, transparent 1px 16px),
+    radial-gradient(circle at 50% 18%, rgba(231,183,120,.22), transparent 38%),
+    linear-gradient(180deg, transparent 0 62%, rgba(48,28,17,.28) 100%);
+}
+.mobile-art-gramophone .mobile-art-topbar,
+.mobile-art-gramophone .mobile-art-time,
+.mobile-art-gramophone .mobile-art-meta span,
+.mobile-art-gramophone .mobile-art-meta em {
+  color:rgba(255,242,221,.68);
+}
+.mobile-art-gramophone .mobile-art-topbar-icon {
+  color:#fff2dd;
+  background:rgba(255,244,224,.08);
+}
+.mobile-art-gramophone .mobile-art-volume-icon,
+.mobile-art-gramophone .mobile-art-actions button,
+.mobile-art-gramophone .mobile-art-controls button {
+  color:#fff2dd;
+  background:rgba(255,244,224,.13);
+  border-color:rgba(255,244,224,.18);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13), 0 10px 24px rgba(31,18,12,.22);
+}
+.mobile-art-gramophone .mobile-art-actions button.active,
+.mobile-art-gramophone .mobile-art-controls button.active {
+  color:#e7b778;
+  background:rgba(255,244,224,.2);
+  border-color:rgba(231,183,120,.44);
+}
+.mobile-art-gramophone .mobile-art-controls .mobile-art-play {
+  color:#2c201b;
+  background:linear-gradient(145deg, #ffe2a6, #d08b47);
+  border-color:rgba(255,226,166,.52);
+  box-shadow:0 0 0 8px rgba(231,183,120,.12), 0 18px 38px rgba(231,183,120,.3);
+}
+.mobile-art-gramophone .mobile-art-progress-rail > span {
+  background:rgba(255,244,224,.14);
+}
+.mobile-art-gramophone .mobile-art-progress-rail i {
+  background:linear-gradient(90deg, #d08b47, #ffe2a6);
+  box-shadow:0 0 18px rgba(231,183,120,.3);
+}
+.mobile-art-gramophone .mobile-art-volume-bars i {
+  background:rgba(255,244,224,.2);
+}
+.mobile-art-gramophone .mobile-art-volume-bars i.active {
+  background:#e7b778;
+  box-shadow:0 0 14px rgba(231,183,120,.32);
+}
+.mobile-gramophone-stage {
+  align-self:stretch;
+  min-height:292px;
+  display:grid;
+  grid-template-rows:minmax(218px, 1fr) 70px;
+  place-items:center;
+  padding:4px 0 0;
+}
+.mobile-gramophone-platter {
+  position:relative;
+  width:min(292px, 78vw, 40dvh);
+  aspect-ratio:1;
+  display:grid;
+  place-items:center;
+}
+.mobile-gramophone-platter::before {
+  content:'';
+  position:absolute;
+  inset:7%;
+  z-index:0;
+  border-radius:50%;
+  background:rgba(255,244,224,.12);
+  border:1px solid rgba(255,244,224,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 18px 36px rgba(31,18,12,.28);
+}
+.mobile-gramophone-platter::after {
+  content:'';
+  position:absolute;
+  left:9%;
+  top:11%;
+  z-index:0;
+  width:13px;
+  height:13px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #fff3d6, #8b6b48 58%, #2e2118 100%);
+  box-shadow:
+    205px 9px 0 -2px #7a5a3a,
+    12px 202px 0 -2px #7a5a3a;
+}
+.mobile-gramophone-record {
+  position:relative;
+  z-index:1;
+  width:82%;
+  aspect-ratio:1;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 50% 50%, #d6a061 0 7%, #2d221d 7.5% 13%, transparent 13.5%),
+    conic-gradient(from 22deg, rgba(255,255,255,.14), transparent 24deg 120deg, rgba(255,255,255,.08) 134deg, transparent 164deg 360deg),
+    repeating-radial-gradient(circle, rgba(255,255,255,.075) 0 1px, transparent 1px 7px),
+    radial-gradient(circle at 48% 42%, #3e3b38 0%, #151515 54%, #060606 100%);
+  border:1px solid rgba(255,244,224,.18);
+  box-shadow:
+    0 0 0 8px rgba(255,244,224,.1),
+    0 24px 48px rgba(17,10,8,.36),
+    inset 0 0 0 1px rgba(255,255,255,.07);
+  animation:mobile-art-spin 11s linear infinite paused;
+}
+.mobile-gramophone-record::before,
+.mobile-gramophone-record::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  pointer-events:none;
+}
+.mobile-gramophone-record::before {
+  z-index:2;
+  background:
+    linear-gradient(110deg, transparent 34%, rgba(255,255,255,.2), transparent 58%),
+    radial-gradient(circle at 50% 50%, transparent 0 65%, rgba(0,0,0,.16) 66% 100%);
+}
+.mobile-gramophone-record::after {
+  z-index:2;
+  background:
+    repeating-conic-gradient(from 4deg, transparent 0 9deg, rgba(255,244,224,.045) 9deg 10deg, transparent 10deg 18deg),
+    repeating-radial-gradient(circle, transparent 0 10px, rgba(255,255,255,.04) 10px 11px, transparent 11px 18px);
+  opacity:.72;
+  mix-blend-mode:screen;
+}
+.mobile-gramophone-groove {
+  position:absolute;
+  inset:11%;
+  z-index:2;
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 24%, rgba(255,255,255,.04) 24.5% 25%, transparent 25.5%),
+    repeating-radial-gradient(circle, transparent 0 5px, rgba(255,255,255,.035) 5px 6px, transparent 6px 11px);
+  opacity:.88;
+  pointer-events:none;
+}
+.mobile-gramophone-label {
+  position:relative;
+  z-index:3;
+  width:34%;
+  aspect-ratio:1;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border-radius:50%;
+  color:#fff2dd;
+  background:radial-gradient(circle at 50% 42%, #8b2c21 0 58%, #d6a061 59% 100%);
+  border:5px solid rgba(27,21,18,.88);
+  box-shadow:0 0 0 2px rgba(255,244,224,.16), 0 8px 18px rgba(0,0,0,.28);
+}
+.mobile-gramophone-label img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.mobile-gramophone-label span {
+  max-width:72%;
+  overflow:hidden;
+  text-align:center;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:20px;
+  font-weight:850;
+  line-height:1;
+}
+.mobile-gramophone-label i {
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:#f9e0b0;
+  transform:translate(-50%, -50%);
+  box-shadow:0 0 0 4px rgba(27,21,18,.82);
+}
+.mobile-gramophone-arm {
+  position:absolute;
+  z-index:4;
+  right:8%;
+  top:4%;
+  width:76px;
+  height:164px;
+  transform:rotate(15deg);
+  transform-origin:54px 20px;
+  filter:drop-shadow(0 8px 12px rgba(0,0,0,.34));
+  transition:transform .4s cubic-bezier(.2,.8,.2,1);
+}
+.mobile-gramophone-stage[data-playing='true'] .mobile-gramophone-arm {
+  transform:rotate(26deg);
+}
+.mobile-gramophone-arm span {
+  position:absolute;
+  right:0;
+  top:0;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #ffe8bb, #9e6e39 62%, #3d2b20);
+  border:1px solid rgba(255,244,224,.28);
+}
+.mobile-gramophone-arm i {
+  position:absolute;
+  right:13px;
+  top:28px;
+  width:8px;
+  height:118px;
+  border-radius:999px;
+  background:linear-gradient(90deg, #fff0c8, #8a623d);
+}
+.mobile-gramophone-arm i::after {
+  content:'';
+  position:absolute;
+  left:-10px;
+  bottom:-13px;
+  width:26px;
+  height:30px;
+  border-radius:8px;
+  background:linear-gradient(145deg, #fff1d2, #8a623d);
+  transform:rotate(-18deg);
+}
+.mobile-gramophone-base {
+  position:relative;
+  z-index:2;
+  width:min(286px, 80vw);
+  height:58px;
+  margin-top:-20px;
+  display:grid;
+  grid-template-columns:62px 1fr 42px;
+  align-items:center;
+  gap:12px;
+  padding:9px 14px;
+  border-radius:10px;
+  background:
+    linear-gradient(180deg, rgba(255,244,224,.26), rgba(255,244,224,.08)),
+    repeating-linear-gradient(90deg, rgba(70,37,20,.24) 0 10px, rgba(118,70,36,.28) 10px 20px),
+    linear-gradient(145deg, #8a542d, #4a2c1b);
+  border:1px solid rgba(255,244,224,.26);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22), 0 16px 32px rgba(31,18,12,.28);
+}
+.mobile-gramophone-base::before,
+.mobile-gramophone-base::after {
+  content:'';
+  position:absolute;
+  top:8px;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #fff1d0, #7c4c2b 62%, #26170f);
+  box-shadow:0 1px 2px rgba(0,0,0,.24);
+}
+.mobile-gramophone-base::before {
+  left:8px;
+}
+.mobile-gramophone-base::after {
+  right:8px;
+}
+.mobile-gramophone-grille {
+  height:28px;
+  border-radius:7px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,244,224,.28) 0 1px, transparent 1px 6px),
+    rgba(34,20,15,.48);
+  border:1px solid rgba(255,244,224,.18);
+}
+.mobile-gramophone-base strong {
+  min-width:0;
+  justify-self:center;
+  padding:4px 9px;
+  border-radius:999px;
+  color:rgba(255,244,224,.72);
+  background:rgba(34,20,15,.28);
+  border:1px solid rgba(255,244,224,.16);
+  font-size:10px;
+  font-weight:900;
+  line-height:1;
+  letter-spacing:1.6px;
+}
+.mobile-gramophone-knob {
+  width:18px;
+  height:18px;
+  justify-self:end;
+  border-radius:50%;
+  background:radial-gradient(circle, #fff1d0 0 28%, #d08b47 30% 60%, #4a2c1b 62%);
+  box-shadow:0 0 0 4px rgba(255,244,224,.1);
+}
+.mobile-gramophone-led {
+  position:absolute;
+  right:48px;
+  bottom:12px;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#e7b778;
+  box-shadow:0 0 10px rgba(231,183,120,.68);
+}
+.mobile-gramophone-stage[data-playing='false'] .mobile-gramophone-led {
+  opacity:.42;
+  box-shadow:none;
+}
+.mobile-gramophone-stage[data-playing='true'] .mobile-gramophone-led {
+  animation:mobile-gramophone-led-pulse 1.6s ease-in-out infinite;
+}
+@keyframes mobile-gramophone-led-pulse {
+  0%, 100% {
+    opacity:.72;
+    box-shadow:0 0 7px rgba(231,183,120,.44);
+  }
+  50% {
+    opacity:1;
+    box-shadow:0 0 14px rgba(231,183,120,.72);
+  }
+}
+.mobile-gramophone-foot {
+  position:absolute;
+  bottom:-7px;
+  width:44px;
+  height:10px;
+  border-radius:0 0 12px 12px;
+  background:linear-gradient(180deg, rgba(38,23,15,.74), rgba(12,8,6,.88));
+  box-shadow:0 6px 12px rgba(0,0,0,.22);
+}
+.mobile-gramophone-foot.left {
+  left:34px;
+}
+.mobile-gramophone-foot.right {
+  right:34px;
 }
 .mobile-art-stage-glass {
   --mobile-art-phone-bg:#282944;
@@ -3558,10 +3916,16 @@
     min-width:48px;
     height:48px;
     min-height:48px;
+    display:grid;
+    place-items:center;
+    padding:0;
+    border:1px solid var(--mobile-mini-play-border, transparent);
+    border-radius:999px;
     color:var(--mobile-mini-play-fg, var(--mobile-active-text));
     background:var(--mobile-mini-play-bg, var(--accent));
     border-color:var(--mobile-mini-play-border, transparent);
     box-shadow:var(--mobile-mini-play-shadow, 0 12px 22px color-mix(in srgb, var(--accent) 20%, transparent));
+    touch-action:manipulation;
   }
   .mobile-mini-player .mobile-mini-next {
     width:44px;
@@ -4252,6 +4616,7 @@
 
 @media (prefers-reduced-motion:reduce) {
   .mobile-soft-record::after,
+  .mobile-gramophone-record,
   .mobile-blue-art::before,
   .mobile-editorial-record,
   .mobile-editorial-cover,
@@ -4328,6 +4693,28 @@
     --mobile-mini-control-border:rgba(74,111,165,.20);
     --mobile-mini-play-bg:#3f679b;
     --mobile-mini-play-fg:#ffffff;
+  }
+
+  .app-shell[data-mobile-theme='gramophone'] {
+    color-scheme:dark;
+    --bg:#2c201b;
+    --panel:#4a2c1b;
+    --panel2:#5e4132;
+    --text:#fff2dd;
+    --muted:rgba(255,242,221,.66);
+    --accent:#e7b778;
+    --accent2:#b55a38;
+    --line:rgba(255,244,224,.18);
+    --highlight:#ffe2a6;
+    --hero:radial-gradient(circle at 50% 10%, rgba(231,183,120,.22), transparent 36%), linear-gradient(165deg, #8f7968 0%, #5e4132 45%, #2c201b 100%);
+    --mobile-active-text:#2c201b;
+    --mobile-mini-control:#fff2dd;
+    --mobile-mini-control-bg:rgba(255,244,224,.13);
+    --mobile-mini-control-border:rgba(255,244,224,.18);
+    --mobile-mini-play-bg:linear-gradient(145deg, #ffe2a6, #d08b47);
+    --mobile-mini-play-fg:#2c201b;
+    --mobile-mini-play-border:rgba(255,226,166,.52);
+    --mobile-mini-play-shadow:0 10px 24px rgba(231,183,120,.24);
   }
 
   .app-shell[data-mobile-theme='indiewave'] {
@@ -4900,6 +5287,20 @@
     --mobile-lyrics-overlay:
       radial-gradient(circle at 20% 12%, rgba(74,111,165,.14), transparent 32%),
       linear-gradient(180deg, rgba(255,250,242,.9), rgba(245,240,232,.7) 42%, #f5f0e8 100%);
+  }
+
+  .app-shell.lyrics-mode[data-mobile-theme='gramophone'] {
+    --mobile-lyrics-rest:rgba(255,242,221,.72);
+    --mobile-lyrics-muted:rgba(255,242,221,.68);
+    --mobile-lyrics-live:#fff2dd;
+    --mobile-lyrics-accent:#e7b778;
+    --mobile-lyrics-live-bg:rgba(231,183,120,.16);
+    --mobile-lyrics-chip-bg:rgba(74,44,27,.72);
+    --mobile-lyrics-border:rgba(231,183,120,.42);
+    --mobile-lyrics-shadow:rgba(31,18,12,.42);
+    --mobile-lyrics-overlay:
+      radial-gradient(circle at 50% 12%, rgba(231,183,120,.22), transparent 34%),
+      linear-gradient(180deg, rgba(44,32,27,.9), rgba(74,44,27,.66) 40%, #2c201b 100%);
   }
 
   .app-shell.lyrics-mode[data-mobile-theme='indiewave'] {
@@ -5985,9 +6386,15 @@
     min-width:46px;
     height:46px;
     min-height:46px;
+    display:grid;
+    place-items:center;
+    padding:0;
+    border:1px solid var(--mobile-mini-play-border, transparent);
+    border-radius:999px;
     color:var(--mobile-active-text);
     background:var(--mobile-ui-accent);
     box-shadow:none;
+    touch-action:manipulation;
   }
 
   .mobile-mini-progress {
@@ -7779,6 +8186,7 @@
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-soft-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-gramophone,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-indiewave,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-editorial-pulse,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-blue-halo,
@@ -7825,6 +8233,22 @@
     --mobile-player-play-bg:linear-gradient(145deg, #6f4a16, #c5963b);
     --mobile-player-play-fg:#fff8e8;
     --mobile-player-progress-glow:rgba(214,179,106,.36);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-gramophone {
+    --mobile-player-title:#fff2dd;
+    --mobile-player-secondary:rgba(255,242,221,.7);
+    --mobile-player-control:#fff2dd;
+    --mobile-player-action:rgba(255,242,221,.78);
+    --mobile-player-control-bg:rgba(255,244,224,.13);
+    --mobile-player-action-bg:rgba(255,244,224,.1);
+    --mobile-player-active-bg:rgba(231,183,120,.18);
+    --mobile-player-hairline:rgba(255,244,224,.18);
+    --mobile-player-track:rgba(255,244,224,.14);
+    --mobile-player-volume-idle:rgba(255,244,224,.2);
+    --mobile-player-play-bg:linear-gradient(145deg, #ffe2a6, #d08b47);
+    --mobile-player-play-fg:#2c201b;
+    --mobile-player-progress-glow:rgba(231,183,120,.34);
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-indiewave {
@@ -8254,10 +8678,21 @@
   }
 
   .app-shell[data-mobile-theme] .mobile-mini-player .mobile-mini-play {
+    width:46px !important;
+    min-width:46px !important;
+    height:46px !important;
+    min-height:46px !important;
+    display:grid !important;
+    place-items:center !important;
+    padding:0 !important;
+    border-style:solid !important;
+    border-width:1px !important;
+    border-radius:999px !important;
     color:var(--mobile-mini-play-fg) !important;
     background:var(--mobile-mini-play-bg) !important;
     border-color:var(--mobile-mini-play-border) !important;
     box-shadow:var(--mobile-mini-play-shadow) !important;
+    touch-action:manipulation !important;
   }
 
   .app-shell[data-mobile-theme] .mobile-mini-player .mobile-mini-play svg,
@@ -8273,7 +8708,9 @@
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-cover[data-has-cover='false'],
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-gramophone-record,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-disc,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-vinyl,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-visual::before,
@@ -8289,13 +8726,19 @@
     backface-visibility:hidden;
   }
 
-  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-vinyl {
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-cover[data-has-cover='false'] {
     --mobile-record-spin-duration:10s;
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-gramophone-record,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-disc {
     --mobile-record-spin-duration:9s;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-gramophone-record {
+    --mobile-record-spin-duration:11s;
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-vinyl,
@@ -8312,13 +8755,22 @@
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-pa-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-pa-cover[data-has-cover='false'],
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-soft-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-gramophone-record,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-stage-disc,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-indie-visual::before,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-smartisan-record,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-blue-visual[data-playing='true'] .mobile-blue-cassette-window .reel,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-stack[data-playing='true'] .mobile-indie-vinyl {
     animation-play-state:running !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player.mobile-art-smartisan-classic .mobile-smartisan-record {
+    animation-name:mobile-art-spin-smooth !important;
+    animation-duration:var(--mobile-record-spin-duration, 15.5s) !important;
+    animation-timing-function:linear !important;
+    animation-iteration-count:infinite !important;
   }
 }
 
@@ -8328,6 +8780,7 @@
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-cover[data-has-cover='false'],
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-record,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-record::after,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-gramophone-record,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-disc,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-vinyl,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-cover,

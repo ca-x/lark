@@ -139,7 +139,7 @@ import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
 import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
-import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, IpodPlayer, SmartisanTurntable, VinylTurntable } from "./components/player-themes";
+import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, SmartisanTurntable, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -288,7 +288,7 @@ function offlineUser(): User {
 
 function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
   if (value === "smartisan-turntable" || value === "smartisan" || value === "smartisan-classic") return "smartisan-turntable";
-  return value === "cassette" || value === "ipod" || value === "audio-scope" || value === "album-slide" ? value : "vinyl";
+  return value === "cassette" || value === "ipod" || value === "audio-scope" || value === "album-slide" || value === "gramophone" ? value : "vinyl";
 }
 
 function storedHomePlayerStyle(): HomePlayerStyle {
@@ -308,7 +308,15 @@ function rememberHomePlayerStyle(style: HomePlayerStyle) {
 }
 
 function normalizeMobileHomePlayerStyle(value?: string | null): MobileHomePlayerStyle {
-  return value === "indiewave" || value === "editorial-pulse" || value === "soft-vinyl" || value === "stage-glass" || value === "blue-halo" || value === "smartisan-classic" ? value : "neon-console";
+  return value === "indiewave" ||
+    value === "editorial-pulse" ||
+    value === "soft-vinyl" ||
+    value === "gramophone" ||
+    value === "stage-glass" ||
+    value === "blue-halo" ||
+    value === "smartisan-classic"
+    ? value
+    : "neon-console";
 }
 
 function storedMobileHomePlayerStyle(): MobileHomePlayerStyle {
@@ -4825,7 +4833,6 @@ export default function App() {
             min="0"
             max="1"
             step="0.01"
-            defaultValue="0.85"
             value={volume}
             onChange={(e) => {
               updateVolume(Number(e.target.value));
@@ -5243,7 +5250,7 @@ function HomeView({
 
   return (
     <section className="home-view">
-      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : "hero"}>
+      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : "hero"}>
         {currentRadio ? (
           <RadioReceiver
             title={currentRadio.name || t("onlineRadio")}
@@ -5324,6 +5331,23 @@ function HomeView({
             duration={heroActive ? duration : displaySong?.duration_seconds || 0}
             title={displaySong?.title}
             artist={displaySong?.artist}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
+            onCyclePlayMode={onCyclePlayMode}
+            onSeek={heroActive ? onSeek : undefined}
+          />
+        ) : homePlayerStyle === "gramophone" ? (
+          <GramophonePlayer
+            cover={coverUrl(displaySong)}
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
+            album={displaySong?.album}
             playMode={playMode}
             playModeLabel={playModeLabel}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
@@ -8944,6 +8968,13 @@ function SettingsPanel({
               >
                 {t("homePlayerSmartisanTurntable")}
               </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "gramophone" ? "active" : ""}
+                onClick={() => onHomePlayerStyleChange("gramophone")}
+              >
+                {t("homePlayerGramophone")}
+              </button>
             </div>
           </SettingsSection>
           ) : null}
@@ -8967,6 +8998,13 @@ function SettingsPanel({
                 onClick={() => onMobileHomePlayerStyleChange("soft-vinyl")}
               >
                 {t("mobileHomePlayerSoftVinyl")}
+              </button>
+              <button
+                type="button"
+                className={mobileHomePlayerStyle === "gramophone" ? "active" : ""}
+                onClick={() => onMobileHomePlayerStyleChange("gramophone")}
+              >
+                {t("mobileHomePlayerGramophone")}
               </button>
               <button
                 type="button"

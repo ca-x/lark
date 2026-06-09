@@ -220,6 +220,8 @@ export function MobileArtPlayer({
           />
         ) : variant === "soft-vinyl" ? (
           <SoftVinylVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} onCoverError={coverState.onCoverError} />
+        ) : variant === "gramophone" ? (
+          <GramophoneVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
         ) : variant === "stage-glass" ? (
           <StageGlassVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} onCoverError={coverState.onCoverError} />
         ) : variant === "smartisan-classic" ? (
@@ -366,6 +368,34 @@ function SoftVinylVisual({ cover, fallbackLabel, onCoverError }: CoverVisualProp
         <div className="mobile-soft-arm" aria-hidden="true"><i /></div>
         <span aria-hidden="true" className="mobile-soft-cube"><span /></span>
         <span aria-hidden="true" className="mobile-soft-knob" />
+      </div>
+    </div>
+  );
+}
+
+function GramophoneVisual({ cover, fallbackLabel, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
+  return (
+    <div className="mobile-gramophone-stage" data-playing={playing ? "true" : "false"}>
+      <div className="mobile-gramophone-platter">
+        <div className="mobile-gramophone-record" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
+          <span className="mobile-gramophone-groove" aria-hidden="true" />
+          <div className="mobile-gramophone-label">
+            {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : <span>{fallbackLabel}</span>}
+            <i aria-hidden="true" />
+          </div>
+        </div>
+        <div className="mobile-gramophone-arm" aria-hidden="true">
+          <span />
+          <i />
+        </div>
+      </div>
+      <div className="mobile-gramophone-base" aria-hidden="true">
+        <span className="mobile-gramophone-grille" />
+        <strong>LARK</strong>
+        <i className="mobile-gramophone-knob" />
+        <em className="mobile-gramophone-led" />
+        <b className="mobile-gramophone-foot left" />
+        <b className="mobile-gramophone-foot right" />
       </div>
     </div>
   );

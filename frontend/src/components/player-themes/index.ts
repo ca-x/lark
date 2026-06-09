@@ -1,6 +1,7 @@
 export { AlbumSlidePlayer } from "./AlbumSlidePlayer";
 export { AudioScopePlayer } from "./AudioScopePlayer";
 export { CassetteDeck } from "./CassetteDeck";
+export { GramophonePlayer } from "./GramophonePlayer";
 export { IpodPlayer } from "./IpodPlayer";
 export { MiniCoverArt } from "./MiniCoverArt";
 export { MobileArtPlayer } from "./MobileArtPlayer";
