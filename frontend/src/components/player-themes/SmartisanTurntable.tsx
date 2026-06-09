@@ -40,7 +40,7 @@ export function SmartisanTurntable({
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
   const fallbackLabel = smartisanFallbackLabel(title, artist);
-  const needleAngle = smartisanNeedleAngle(pct, duration);
+  const needleAngle = smartisanNeedleAngle(pct, duration, playing);
   const playerStyle = {
     "--smartisan-turntable-progress": `${(pct * 100).toFixed(2)}%`,
     "--smartisan-turntable-needle": `${needleAngle.toFixed(2)}deg`,
@@ -136,7 +136,8 @@ function formatTime(seconds: number) {
   return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
-function smartisanNeedleAngle(progressPct: number, duration: number) {
-  if (duration <= 0) return 0;
+function smartisanNeedleAngle(progressPct: number, duration: number, playing: boolean) {
+  if (!playing) return 0;
+  if (duration <= 0) return 12;
   return 12 + progressPct * 22.3;
 }

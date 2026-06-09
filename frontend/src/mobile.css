@@ -9120,34 +9120,6 @@
     place-items:center;
   }
 
-  .mobile-smartisan-more {
-    position:absolute;
-    left:2%;
-    top:18%;
-    z-index:8;
-    width:44px;
-    min-width:44px;
-    height:44px;
-    min-height:44px;
-    display:grid;
-    grid-template-columns:repeat(3, 5px);
-    place-content:center;
-    gap:4px;
-    padding:0;
-    border-radius:50%;
-    color:rgba(0,0,0,.34);
-    background:linear-gradient(180deg,#fff,#f8f8f8);
-    border:1px solid rgba(0,0,0,.08);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.96), 0 2px 5px rgba(0,0,0,.08);
-  }
-
-  .mobile-smartisan-more i {
-    width:5px;
-    height:5px;
-    border-radius:50%;
-    background:currentColor;
-  }
-
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-record {
     width:var(--mobile-smartisan-deck-size);
     aspect-ratio:1080 / 1070;
@@ -9221,11 +9193,8 @@
 
   .mobile-smartisan-needle {
     position:absolute;
-    right:calc(var(--mobile-smartisan-deck-size) * -.005);
-    top:calc(var(--mobile-smartisan-deck-size) * .015);
+    inset:0;
     z-index:7;
-    width:calc(var(--mobile-smartisan-deck-size) * .206);
-    height:calc(var(--mobile-smartisan-deck-size) * .626);
     pointer-events:none;
   }
 
@@ -9238,44 +9207,56 @@
   }
 
   .mobile-smartisan-needle-base {
-    right:8%;
-    top:0;
+    right:calc(var(--mobile-smartisan-deck-size) * .0069);
+    top:calc(var(--mobile-smartisan-deck-size) * .0708);
     z-index:1;
-    width:70%;
-    height:26%;
-    background-image:url('/smartisan/playing-stylus-lp-bg-original.png');
+    width:calc(var(--mobile-smartisan-deck-size) * .2036);
+    height:calc(var(--mobile-smartisan-deck-size) * .8611);
+    background-image:url('/smartisan/playing-stylus-lp-bg.png');
+    background-position:right top;
+    background-size:100% auto;
     filter:drop-shadow(0 8px 13px rgba(0,0,0,.16));
   }
 
   .mobile-smartisan-needle-shadow {
-    inset:0;
+    right:calc(var(--mobile-smartisan-deck-size) * .0056);
+    top:calc(var(--mobile-smartisan-deck-size) * .0708);
     z-index:2;
+    width:calc(var(--mobile-smartisan-deck-size) * .2036);
+    height:calc(var(--mobile-smartisan-deck-size) * .8611);
     background-image:url('/smartisan/needle-shadow2.png');
-    background-size:44% 62%;
-    background-position:70% 20%;
+    background-size:100% 100%;
+    background-position:right top;
     opacity:.32;
-    transform-origin:65% 9%;
+    transform-origin:65.5% 9.03%;
     transform:rotate(calc(var(--mobile-smartisan-needle, 0deg) - 4deg));
     transition:transform 220ms ease;
   }
 
   .mobile-smartisan-needle-arm {
-    inset:0;
+    right:calc(var(--mobile-smartisan-deck-size) * .0069);
+    top:calc(var(--mobile-smartisan-deck-size) * .0708);
     z-index:3;
-    background-image:url('/smartisan/playing-stylus-lp-original.png');
-    transform-origin:65% 9%;
+    width:calc(var(--mobile-smartisan-deck-size) * .2036);
+    height:calc(var(--mobile-smartisan-deck-size) * .8611);
+    background-image:url('/smartisan/playing-stylus-lp.png');
+    background-position:right top;
+    background-size:100% 100%;
+    transform-origin:65.5% 9.03%;
     transform:rotate(var(--mobile-smartisan-needle, 0deg));
     filter:drop-shadow(0 5px 7px rgba(0,0,0,.18));
     transition:transform 220ms ease;
   }
 
   .mobile-smartisan-needle-top {
-    right:20%;
-    top:5.5%;
+    right:calc(var(--mobile-smartisan-deck-size) * .0069);
+    top:calc(var(--mobile-smartisan-deck-size) * .0708);
     z-index:4;
-    width:55.5%;
-    height:24%;
-    background-image:url('/smartisan/playing-stylus-lp-top-original.png');
+    width:calc(var(--mobile-smartisan-deck-size) * .1139);
+    height:calc(var(--mobile-smartisan-deck-size) * .8611);
+    background-image:url('/smartisan/playing-stylus-lp-top.png');
+    background-position:right top;
+    background-size:100% auto;
     filter:drop-shadow(0 7px 11px rgba(0,0,0,.14));
   }
 
@@ -9369,14 +9350,6 @@
 @media (max-width:390px) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-deck {
     --mobile-smartisan-deck-size:min(376px, 106vw, 46dvh);
-  }
-
-  .mobile-smartisan-more {
-    left:0;
-    width:40px;
-    min-width:40px;
-    height:40px;
-    min-height:40px;
   }
 }
 
@@ -9769,5 +9742,126 @@
     background-image:
       url('/smartisan/titlebar-bg.png'),
       linear-gradient(180deg,#fff 0%,#f7f7f7 50%,#ededed 100%) !important;
+  }
+}
+
+/* Mobile theme isolation: desktop Smartisan rules also match the same DOM when
+   the desktop theme is Smartisan. Non-Smartisan mobile themes must win here. */
+@media (max-width:720px) {
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .settings-page {
+    margin:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    color:var(--mobile-ui-text) !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .settings-tabs,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .segmented-control,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-theme-picker {
+    color:var(--mobile-ui-text) !important;
+    background:color-mix(in srgb, var(--mobile-ui-surface) 88%, var(--mobile-ui-bg)) !important;
+    border:1px solid var(--mobile-ui-border) !important;
+    border-radius:18px !important;
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .settings-tabs button,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .segmented-control button,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-theme-picker button {
+    color:var(--mobile-ui-muted) !important;
+    background:transparent !important;
+    border-color:transparent !important;
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .settings-tabs button.active,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .segmented-control button.active,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-theme-picker button.active {
+    color:var(--mobile-active-text) !important;
+    background:var(--mobile-ui-accent) !important;
+    border-color:transparent !important;
+    box-shadow:0 10px 24px color-mix(in srgb, var(--mobile-ui-accent) 22%, transparent) !important;
+    text-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .settings-tabs button.active::before,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .segmented-control button.active::before,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-theme-picker button.active::before {
+    content:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .settings-page > .settings-tab-panel,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .profile-settings-card,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .font-settings-card,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .feature-settings-card,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .resume-settings-card,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .offline-settings-card,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .settings-card {
+    color:var(--mobile-ui-text) !important;
+    background:color-mix(in srgb, var(--mobile-ui-surface) 90%, var(--mobile-ui-bg)) !important;
+    border:1px solid var(--mobile-ui-border) !important;
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) input,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) select,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) textarea {
+    color:var(--mobile-ui-text) !important;
+    background:color-mix(in srgb, var(--mobile-ui-surface) 86%, var(--mobile-ui-bg)) !important;
+    border-color:var(--mobile-ui-border) !important;
+    text-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player {
+    color:var(--mobile-ui-text) !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player::before {
+    background:color-mix(in srgb, var(--mobile-ui-surface) 94%, var(--mobile-ui-bg)) !important;
+    border:1px solid var(--mobile-ui-border) !important;
+    box-shadow:0 8px 22px color-mix(in srgb, #000 16%, transparent) !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player > button:not(.mobile-mini-main):not(.mobile-mini-play),
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-next,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-queue {
+    border-radius:999px !important;
+    color:var(--mobile-mini-control) !important;
+    background:var(--mobile-mini-control-bg) !important;
+    border:1px solid var(--mobile-mini-control-border) !important;
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-play {
+    border-radius:999px !important;
+    color:var(--mobile-mini-play-fg) !important;
+    background:var(--mobile-mini-play-bg) !important;
+    border:1px solid var(--mobile-mini-play-border) !important;
+    box-shadow:var(--mobile-mini-play-shadow) !important;
+    text-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-play svg,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-next svg,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-queue svg {
+    display:block !important;
+    color:currentColor !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-progress {
+    background:color-mix(in srgb, var(--mobile-ui-text) 12%, transparent) !important;
+    border:0 !important;
+    box-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-progress::before {
+    background:var(--mobile-ui-accent) !important;
   }
 }

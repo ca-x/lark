@@ -131,7 +131,7 @@ export function MobileArtPlayer({
   const volumePct = Math.min(1, Math.max(0, volume));
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
-  const smartisanNeedleAngle = mobileSmartisanNeedleAngle(displayPct, duration);
+  const smartisanNeedleAngle = mobileSmartisanNeedleAngle(displayPct, duration, playing);
   const precisionTonearmAngle = mobilePrecisionTonearmAngle(pct, playing);
   const gramophoneTonearmAngle = mobileGramophoneTonearmAngle(pct, duration, playing);
   const fallbackLabel = coverFallbackLabel(title, artist);
@@ -581,11 +581,6 @@ function SmartisanClassicVisual({
   return (
     <div className="mobile-smartisan-stage">
       <div className="mobile-smartisan-deck">
-        <button className="mobile-smartisan-more" type="button" aria-label="More" data-no-swipe="true">
-          <i />
-          <i />
-          <i />
-        </button>
         <div className="mobile-smartisan-record" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel} data-no-swipe="true" {...scratchProps}>
           <div className="mobile-smartisan-rotor" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
             {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
@@ -624,8 +619,9 @@ function coverFallbackLabel(title?: string, artist?: string) {
   return chars || "L";
 }
 
-function mobileSmartisanNeedleAngle(progressPct: number, duration: number) {
-  if (duration <= 0) return 0;
+function mobileSmartisanNeedleAngle(progressPct: number, duration: number, playing: boolean) {
+  if (!playing) return 0;
+  if (duration <= 0) return 12;
   return 12 + progressPct * 22.3;
 }
 
