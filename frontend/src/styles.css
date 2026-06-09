@@ -5810,25 +5810,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   border-radius:24px;
   color:var(--gramophone-cream);
   background:
-    radial-gradient(circle at 24% 14%, rgba(255,231,183,.16), transparent 30%),
-    radial-gradient(circle at 88% 96%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 34%),
-    repeating-linear-gradient(90deg, rgba(255,228,180,.05) 0 1px, transparent 1px 18px),
-    linear-gradient(145deg, var(--wood-base) 0%, var(--wood-dark) 58%, #170e0a 100%);
-  border:1px solid rgba(255,231,183,.18);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 26px 64px rgba(0,0,0,.32);
+    radial-gradient(circle at 20% 18%, rgba(255,231,183,.1), transparent 30%),
+    radial-gradient(circle at 82% 90%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 34%),
+    linear-gradient(145deg, rgba(44,26,18,.42), rgba(18,11,8,.18) 60%, rgba(10,6,4,.3));
+  border:1px solid rgba(255,231,183,.1);
+  box-shadow:0 22px 58px rgba(0,0,0,.22);
   isolation:isolate;
-  overflow:hidden;
+  overflow:visible;
 }
 
 .gramophone-player::before {
-  content:'';
-  position:absolute;
-  inset:0;
-  z-index:-1;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255,231,183,.14), transparent 32%),
-    radial-gradient(circle at 90% 100%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 34%);
-  pointer-events:none;
+  content:none;
 }
 
 .gramophone-stage {
@@ -5849,26 +5841,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .gramophone-plinth::before {
-  content:'';
-  position:absolute;
-  left:10px;
-  right:10px;
-  bottom:52px;
-  height:44px;
-  border-radius:22px 22px 10px 10px;
-  background:
-    radial-gradient(ellipse 90% 80% at 50% 50%, transparent 55%, var(--wood-edge-vign) 100%),
-    repeating-linear-gradient(180deg, transparent 0 18px, var(--wood-grain-1) 19px, transparent 20px 38px, var(--wood-grain-2) 39px, transparent 41px),
-    repeating-linear-gradient(92deg, var(--wood-mid) 0%, var(--wood-light) 8%, var(--wood-base) 15%, var(--wood-highlight) 22%, var(--wood-base) 30%, var(--wood-dark) 38%, var(--wood-mid) 45%),
-    linear-gradient(180deg, var(--wood-light) 0%, var(--wood-base) 50%, var(--wood-dark) 100%);
-  border:1px solid rgba(255,231,183,.22);
-  box-shadow:
-    inset 0 2px 6px rgba(255,220,160,.18),
-    inset 0 -5px 12px rgba(0,0,0,.45),
-    inset 2px 0 6px rgba(0,0,0,.2),
-    inset -2px 0 6px rgba(0,0,0,.2),
-    0 20px 38px rgba(0,0,0,.34),
-    0 2px 6px rgba(0,0,0,.28);
+  content:none;
 }
 
 .gramophone-platter {
@@ -6142,26 +6115,28 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   position:relative;
   z-index:3;
   width:100%;
-  min-height:68px;
+  min-height:74px;
   display:grid;
   grid-template-columns:100px minmax(0, 1fr) 12px 34px;
   align-items:center;
   gap:10px;
-  padding:11px 14px;
-  border-radius:10px;
+  padding:12px 15px;
+  border-radius:12px;
   background:
-    radial-gradient(ellipse 90% 80% at 50% 50%, transparent 55%, var(--wood-edge-vign) 100%),
-    repeating-linear-gradient(180deg, transparent 0 18px, var(--wood-grain-1) 19px, transparent 20px 38px, var(--wood-grain-2) 39px, transparent 41px),
+    linear-gradient(180deg, rgba(255,238,190,.24), rgba(255,238,190,.04) 18%, transparent 28%),
+    radial-gradient(ellipse 88% 82% at 50% 50%, transparent 58%, rgba(0,0,0,.34) 100%),
+    repeating-linear-gradient(90deg, rgba(70,37,20,.18) 0 10px, rgba(156,106,66,.16) 10px 20px),
     repeating-linear-gradient(92deg, var(--wood-mid) 0%, var(--wood-light) 8%, var(--wood-base) 15%, var(--wood-highlight) 22%, var(--wood-base) 30%, var(--wood-dark) 38%, var(--wood-mid) 45%),
-    linear-gradient(180deg, var(--wood-light) 0%, var(--wood-base) 50%, var(--wood-dark) 100%);
+    linear-gradient(145deg, var(--wood-light) 0%, var(--wood-base) 46%, var(--wood-dark) 100%);
   border:1px solid rgba(255,231,183,.24);
   box-shadow:
-    inset 0 2px 6px rgba(255,220,160,.18),
-    inset 0 -4px 10px rgba(0,0,0,.4),
-    inset 2px 0 6px rgba(0,0,0,.2),
-    inset -2px 0 6px rgba(0,0,0,.2),
-    0 8px 24px rgba(0,0,0,.45),
-    0 2px 6px rgba(0,0,0,.35);
+    inset 0 1px 0 rgba(255,244,214,.28),
+    inset 0 8px 18px rgba(255,220,160,.08),
+    inset 0 -9px 18px rgba(0,0,0,.42),
+    inset 2px 0 7px rgba(0,0,0,.18),
+    inset -2px 0 7px rgba(0,0,0,.18),
+    0 18px 34px rgba(0,0,0,.34),
+    0 4px 8px rgba(0,0,0,.28);
 }
 
 .gramophone-cabinet::before,

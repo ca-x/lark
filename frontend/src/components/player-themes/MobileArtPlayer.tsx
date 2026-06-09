@@ -416,7 +416,6 @@ function IndiewaveVisual({ cover, fallbackLabel, playing, onCoverError }: CoverV
           {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
           <span aria-hidden="true" />
         </div>
-        <div className="mobile-indie-arm" aria-hidden="true"><span /><i /></div>
       </div>
     </div>
   );
