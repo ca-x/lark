@@ -119,11 +119,13 @@ export function MobileArtPlayer({
   const coverState = useCoverFallback(cover);
   const smartisanNeedleAngle = mobileSmartisanNeedleAngle(playing);
   const precisionTonearmAngle = 15 + pct * 24;
+  const gramophoneTonearmAngle = mobileGramophoneTonearmAngle(pct, duration, playing);
   const fallbackLabel = coverFallbackLabel(title, artist);
   const style = {
     "--mobile-art-progress-pct": `${(pct * 100).toFixed(2)}%`,
     "--mobile-smartisan-needle": `${smartisanNeedleAngle.toFixed(2)}deg`,
     "--mobile-pa-tonearm": `${precisionTonearmAngle.toFixed(2)}deg`,
+    "--mobile-gramophone-arm-angle": `${gramophoneTonearmAngle.toFixed(2)}deg`,
     ...(coverState.coverImage ? { "--mobile-art-cover-image": coverState.coverImage } : {}),
   } as CSSProperties;
   const [swipeY, setSwipeY] = useState(0);
@@ -591,4 +593,9 @@ function coverFallbackLabel(title?: string, artist?: string) {
 
 function mobileSmartisanNeedleAngle(playing: boolean) {
   return playing ? 9 : -13;
+}
+
+function mobileGramophoneTonearmAngle(progressPct: number, duration: number, playing: boolean) {
+  if (!playing || duration <= 0) return -14;
+  return 17 + progressPct * 14;
 }

@@ -39,8 +39,10 @@ export function GramophonePlayer({
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
   const fallbackLabel = initials(artist, title);
+  const armAngle = gramophoneArmAngle(pct, duration, playing);
   const playerStyle = {
     "--gramophone-progress": `${(pct * 100).toFixed(2)}%`,
+    "--gramophone-arm-angle": `${armAngle.toFixed(2)}deg`,
     ...(coverState.coverImage ? { "--gramophone-cover": coverState.coverImage } : {}),
   } as CSSProperties;
   const playModeIcon =
@@ -134,6 +136,11 @@ function initials(artist?: string, title?: string) {
     .join("")
     .toUpperCase();
   return value.slice(0, 2) || "L";
+}
+
+function gramophoneArmAngle(progressPct: number, duration: number, playing: boolean) {
+  if (!playing || duration <= 0) return -14;
+  return 17 + progressPct * 15;
 }
 
 function formatTime(seconds: number) {

@@ -5676,6 +5676,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 24px 80px rgba(18,11,8,.38);
 }
 
+:root[data-theme] .hero.gramophone-hero {
+  margin:0;
+  color:#f7e6c8;
+  background:
+    radial-gradient(circle at 76% 12%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+    radial-gradient(circle at 10% 8%, rgba(255,231,183,.16), transparent 30%),
+    linear-gradient(145deg, #3a2318 0%, #21140f 54%, #120b08 100%);
+  border:1px solid rgba(255,231,183,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 24px 80px rgba(18,11,8,.38);
+}
+
 .hero.gramophone-hero::after {
   display:none;
 }
@@ -5697,10 +5708,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   text-shadow:0 12px 32px rgba(0,0,0,.22);
 }
 
+:root[data-theme] .hero.gramophone-hero h1 {
+  color:#f8e8c9;
+  text-shadow:0 12px 32px rgba(0,0,0,.22);
+}
+
 .hero.gramophone-hero h2,
 .hero.gramophone-hero p,
 .hero.gramophone-hero .home-hero-meta span {
   color:rgba(248,232,201,.7);
+}
+
+:root[data-theme] .hero.gramophone-hero h2,
+:root[data-theme] .hero.gramophone-hero p,
+:root[data-theme] .hero.gramophone-hero .home-hero-meta span {
+  color:rgba(248,232,201,.72);
+  text-shadow:none;
 }
 
 .hero.gramophone-hero .hero-meta-link {
@@ -5720,11 +5743,33 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   box-shadow:0 14px 30px rgba(215,146,75,.24), inset 0 1px 0 rgba(255,255,255,.45);
 }
 
+:root[data-theme] .hero.gramophone-hero .primary {
+  color:#2b1a12;
+  background:linear-gradient(145deg, #ffe6b8, #d7924b);
+  border-color:rgba(255,231,183,.46);
+  box-shadow:0 14px 30px rgba(215,146,75,.24), inset 0 1px 0 rgba(255,255,255,.45);
+  text-shadow:none;
+}
+
 .hero.gramophone-hero .primary:disabled {
   color:rgba(248,232,201,.42);
   background:rgba(255,231,183,.08);
   border-color:rgba(255,231,183,.16);
   box-shadow:none;
+}
+
+:root[data-theme] .hero.gramophone-hero .gramophone-console h2 {
+  color:var(--gramophone-cream);
+  text-shadow:none;
+}
+
+:root[data-theme] .hero.gramophone-hero .gramophone-meta span {
+  color:rgba(255,241,207,.84);
+}
+
+:root[data-theme] .hero.gramophone-hero .gramophone-meta em,
+:root[data-theme] .hero.gramophone-hero .gramophone-progress time {
+  color:rgba(255,241,207,.58);
 }
 
 .gramophone-player {
@@ -5738,6 +5783,21 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   --gramophone-ink:#171311;
   --gramophone-muted:rgba(255,241,207,.66);
   --gramophone-disc:min(286px, 27vw);
+  --wood-base:#5c3a1e;
+  --wood-mid:#7a4e2d;
+  --wood-light:#9c6a42;
+  --wood-highlight:#b8844f;
+  --wood-dark:#3d2410;
+  --wood-grain-1:rgba(0,0,0,.1);
+  --wood-grain-2:rgba(255,200,140,.07);
+  --wood-edge-vign:rgba(0,0,0,.45);
+  --brass-base:#b5860d;
+  --brass-bright:#e8c55a;
+  --brass-mid:#c9a535;
+  --brass-dark:#7a5808;
+  --brass-edge:#4a3504;
+  --brass-sheen:rgba(255,235,160,.55);
+  --brass-shadow:rgba(60,35,0,.6);
   position:relative;
   z-index:1;
   width:min(640px, 100%);
@@ -5750,9 +5810,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   border-radius:24px;
   color:var(--gramophone-cream);
   background:
-    linear-gradient(180deg, rgba(255,241,207,.08), rgba(255,241,207,.02)),
-    repeating-linear-gradient(90deg, rgba(255,228,180,.055) 0 1px, transparent 1px 18px),
-    linear-gradient(145deg, #5b3927 0%, #301d15 56%, #170e0a 100%);
+    radial-gradient(circle at 24% 14%, rgba(255,231,183,.16), transparent 30%),
+    radial-gradient(circle at 88% 96%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 34%),
+    repeating-linear-gradient(90deg, rgba(255,228,180,.05) 0 1px, transparent 1px 18px),
+    linear-gradient(145deg, var(--wood-base) 0%, var(--wood-dark) 58%, #170e0a 100%);
   border:1px solid rgba(255,231,183,.18);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 26px 64px rgba(0,0,0,.32);
   isolation:isolate;
@@ -5782,7 +5843,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   min-width:0;
   min-height:386px;
   display:grid;
-  grid-template-rows:minmax(0, 1fr) 88px;
+  grid-template-rows:minmax(0, 1fr) 76px;
   align-items:end;
   padding:18px 14px 0;
 }
@@ -5790,17 +5851,24 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 .gramophone-plinth::before {
   content:'';
   position:absolute;
-  left:0;
-  right:0;
-  bottom:58px;
-  height:48px;
-  border-radius:24px 24px 10px 10px;
+  left:10px;
+  right:10px;
+  bottom:52px;
+  height:44px;
+  border-radius:22px 22px 10px 10px;
   background:
-    linear-gradient(180deg, rgba(255,241,207,.18), rgba(255,241,207,.03)),
-    repeating-linear-gradient(90deg, rgba(94,54,31,.34) 0 14px, rgba(146,88,47,.28) 14px 28px),
-    linear-gradient(145deg, var(--gramophone-wood-a), var(--gramophone-wood-b));
+    radial-gradient(ellipse 90% 80% at 50% 50%, transparent 55%, var(--wood-edge-vign) 100%),
+    repeating-linear-gradient(180deg, transparent 0 18px, var(--wood-grain-1) 19px, transparent 20px 38px, var(--wood-grain-2) 39px, transparent 41px),
+    repeating-linear-gradient(92deg, var(--wood-mid) 0%, var(--wood-light) 8%, var(--wood-base) 15%, var(--wood-highlight) 22%, var(--wood-base) 30%, var(--wood-dark) 38%, var(--wood-mid) 45%),
+    linear-gradient(180deg, var(--wood-light) 0%, var(--wood-base) 50%, var(--wood-dark) 100%);
   border:1px solid rgba(255,231,183,.22);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.2), 0 18px 34px rgba(0,0,0,.24);
+  box-shadow:
+    inset 0 2px 6px rgba(255,220,160,.18),
+    inset 0 -5px 12px rgba(0,0,0,.45),
+    inset 2px 0 6px rgba(0,0,0,.2),
+    inset -2px 0 6px rgba(0,0,0,.2),
+    0 20px 38px rgba(0,0,0,.34),
+    0 2px 6px rgba(0,0,0,.28);
 }
 
 .gramophone-platter {
@@ -5848,11 +5916,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   border-radius:50%;
   color:var(--gramophone-cream);
   background:
-    radial-gradient(circle at 50% 50%, var(--gramophone-gold) 0 6%, #2d221d 6.5% 13%, transparent 13.5%),
-    conic-gradient(from 22deg, rgba(255,255,255,.14), transparent 24deg 120deg, rgba(255,255,255,.08) 134deg, transparent 164deg 360deg),
-    repeating-radial-gradient(circle, rgba(255,255,255,.07) 0 1px, transparent 1px 7px),
-    radial-gradient(circle at 48% 42%, #3e3b38 0%, #141414 56%, #050505 100%);
-  box-shadow:0 0 0 10px rgba(255,241,207,.08), 0 26px 52px rgba(0,0,0,.38), inset 0 0 0 1px rgba(255,255,255,.07);
+    linear-gradient(125deg, transparent 30%, rgba(255,255,255,.07) 48%, rgba(255,255,255,.1) 50%, rgba(255,255,255,.07) 52%, transparent 70%),
+    radial-gradient(circle at 50% 50%, var(--brass-mid) 0 5.5%, #2d221d 6% 13%, transparent 13.5%),
+    conic-gradient(from 22deg, rgba(255,255,255,.12), transparent 24deg 120deg, rgba(255,255,255,.07) 134deg, transparent 164deg 360deg),
+    repeating-radial-gradient(circle at 50% 50%, #0a0a0a 0 1.5px, #111 1.5px 3px, #0d0d0d 3px 4.5px, #090909 4.5px 6px, #121212 6px 7.5px),
+    radial-gradient(circle at 48% 42%, #3f3c39 0%, #141414 56%, #050505 100%);
+  box-shadow:0 0 0 10px rgba(255,241,207,.08), 0 26px 52px rgba(0,0,0,.44), inset 0 0 30px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.07);
   cursor:pointer;
   animation:gramophone-record-spin 11s linear infinite paused;
   transform-origin:50% 50%;
@@ -5891,7 +5960,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 .gramophone-record-sheen {
   z-index:3;
   background:
-    linear-gradient(110deg, transparent 34%, rgba(255,255,255,.2), transparent 58%),
+    linear-gradient(125deg, transparent 30%, rgba(255,255,255,.07) 48%, rgba(255,255,255,.14) 50%, rgba(255,255,255,.07) 52%, transparent 70%),
     repeating-conic-gradient(from 4deg, transparent 0 9deg, rgba(255,241,207,.045) 9deg 10deg, transparent 10deg 18deg),
     radial-gradient(circle at 50% 50%, transparent 0 65%, rgba(0,0,0,.18) 66% 100%);
   mix-blend-mode:screen;
@@ -5908,14 +5977,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   overflow:hidden;
   border:5px solid rgba(20,16,14,.9);
   border-radius:50%;
-  background:radial-gradient(circle at 50% 42%, var(--gramophone-red) 0 58%, var(--gramophone-gold) 59% 100%);
-  box-shadow:0 0 0 2px rgba(255,241,207,.16), 0 8px 18px rgba(0,0,0,.28);
+  background:
+    radial-gradient(circle at 42% 35%, rgba(255,235,180,.22), transparent 36%),
+    repeating-radial-gradient(circle, rgba(0,0,0,.08) 0 1px, transparent 1px 8px),
+    radial-gradient(circle at 50% 42%, var(--gramophone-red) 0 58%, var(--brass-mid) 59% 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(0,0,0,.3),
+    inset 0 0 8px rgba(0,0,0,.35),
+    0 0 0 1.5px rgba(200,160,60,.45),
+    0 2px 8px rgba(0,0,0,.5);
 }
 
 .gramophone-label img {
   width:100%;
   height:100%;
   object-fit:cover;
+  filter:saturate(.8) brightness(.88) contrast(.95);
 }
 
 .gramophone-label strong {
@@ -5942,16 +6019,16 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 .gramophone-label i {
   width:12px;
   height:12px;
-  background:#f9e0b0;
-  box-shadow:0 0 0 4px rgba(20,16,14,.82);
+  background:radial-gradient(circle at 35% 25%, var(--brass-bright) 0%, var(--brass-mid) 44%, var(--brass-dark) 82%, var(--brass-edge) 100%);
+  box-shadow:0 0 0 4px rgba(20,16,14,.82), inset 0 1px 2px rgba(255,240,160,.38);
 }
 
 .gramophone-spindle {
   z-index:5;
   width:18px;
   height:18px;
-  background:radial-gradient(circle at 36% 30%, #fff1d0, #9d7145 54%, #26170f 100%);
-  box-shadow:0 2px 5px rgba(0,0,0,.28);
+  background:radial-gradient(ellipse at 35% 25%, var(--brass-bright) 0%, var(--brass-mid) 40%, var(--brass-dark) 80%, var(--brass-edge) 100%);
+  box-shadow:0 2px 6px rgba(0,0,0,.5), inset 0 1px 2px rgba(255,240,160,.4);
   pointer-events:none;
 }
 
@@ -5962,15 +6039,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   z-index:6;
   width:88px;
   height:194px;
-  transform:rotate(13deg);
+  transform:rotate(var(--gramophone-arm-angle, 2deg));
   transform-origin:62px 24px;
-  filter:drop-shadow(0 9px 12px rgba(0,0,0,.34));
+  filter:drop-shadow(7px 10px 12px rgba(0,0,0,.38));
   transition:transform .42s cubic-bezier(.2,.8,.2,1);
   pointer-events:none;
-}
-
-.gramophone-player[data-playing='true'] .gramophone-arm {
-  transform:rotate(25deg);
 }
 
 .gramophone-arm::before {
@@ -5981,9 +6054,28 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   width:40px;
   height:40px;
   border-radius:50%;
-  background:radial-gradient(circle at 35% 35%, #ffe8bb, #9e6e39 62%, #3d2b20);
-  border:1px solid rgba(255,241,207,.28);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.2);
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,245,200,.74) 0%, rgba(255,245,200,0) 45%),
+    repeating-conic-gradient(var(--brass-mid) 0deg, var(--brass-dark) 1.5deg, var(--brass-mid) 3deg),
+    radial-gradient(ellipse at 40% 35%, var(--brass-bright) 0%, var(--brass-mid) 36%, var(--brass-dark) 70%, var(--brass-edge) 100%);
+  border:1px solid rgba(74,53,4,.68);
+  box-shadow:
+    inset 0 2px 4px rgba(255,240,180,.4),
+    inset 0 -2px 4px rgba(0,0,0,.55),
+    0 3px 10px rgba(0,0,0,.48),
+    0 0 0 4px rgba(255,241,207,.05);
+}
+
+.gramophone-arm::after {
+  content:'';
+  position:absolute;
+  right:28px;
+  top:9px;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, var(--brass-bright), var(--brass-dark) 66%, var(--brass-edge));
+  box-shadow:inset 0 1px 2px rgba(255,240,160,.35), 0 2px 7px rgba(0,0,0,.38);
 }
 
 .gramophone-arm i {
@@ -5993,7 +6085,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   width:8px;
   height:136px;
   border-radius:999px;
-  background:linear-gradient(90deg, #fff0c8, #8a623d);
+  overflow:hidden;
+  background:linear-gradient(to right, var(--brass-edge) 0%, var(--brass-dark) 15%, var(--brass-mid) 34%, var(--brass-bright) 48%, var(--brass-bright) 52%, var(--brass-mid) 66%, var(--brass-dark) 85%, var(--brass-edge) 100%);
+  box-shadow:inset 0 1px 2px var(--brass-sheen), inset 0 -1px 2px var(--brass-shadow), 0 2px 8px rgba(0,0,0,.4);
+}
+
+.gramophone-arm i::before {
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(to right, transparent 0%, rgba(255,240,160,.12) 30%, rgba(255,240,160,.24) 50%, rgba(255,240,160,.12) 70%, transparent 100%);
+  pointer-events:none;
 }
 
 .gramophone-arm b {
@@ -6003,8 +6105,37 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   width:30px;
   height:34px;
   border-radius:8px;
-  background:linear-gradient(145deg, #fff1d2, #8a623d);
+  background:
+    linear-gradient(135deg, rgba(255,245,200,.36), transparent 42%),
+    linear-gradient(145deg, var(--brass-bright) 0%, var(--brass-mid) 36%, var(--brass-dark) 78%, var(--brass-edge) 100%);
+  box-shadow:inset 0 1px 2px rgba(255,240,180,.4), inset 0 -2px 3px rgba(0,0,0,.4), 0 4px 10px rgba(0,0,0,.38);
   transform:rotate(-18deg);
+}
+
+.gramophone-arm b::before {
+  content:'';
+  position:absolute;
+  left:8px;
+  top:7px;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:rgba(40,24,10,.62);
+  box-shadow:10px 0 0 rgba(40,24,10,.46), inset 0 1px 1px rgba(255,245,200,.26);
+}
+
+.gramophone-arm b::after {
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:-14px;
+  width:3px;
+  height:17px;
+  border-radius:999px;
+  background:linear-gradient(to bottom, var(--brass-bright), #28180c 68%, #080604);
+  box-shadow:0 1px 3px rgba(0,0,0,.5);
+  transform:translateX(-50%) rotate(10deg);
+  transform-origin:50% 0;
 }
 
 .gramophone-strobe {
@@ -6015,7 +6146,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   width:13px;
   height:13px;
   border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, #fff3d6, #8b6b48 58%, #2e2118 100%);
+  background:radial-gradient(circle at 35% 30%, #fff3d6, var(--brass-mid) 58%, var(--brass-edge) 100%);
   box-shadow:0 1px 2px rgba(0,0,0,.24), 230px 18px 0 -3px rgba(122,90,58,.82), 15px 230px 0 -3px rgba(122,90,58,.82);
 }
 
@@ -6023,19 +6154,26 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   position:relative;
   z-index:3;
   width:100%;
-  min-height:84px;
+  min-height:68px;
   display:grid;
-  grid-template-columns:92px minmax(0, 1fr) 16px 50px;
+  grid-template-columns:88px minmax(0, 1fr) 14px 42px;
   align-items:center;
-  gap:14px;
-  padding:14px 18px;
-  border-radius:14px;
+  gap:12px;
+  padding:11px 14px;
+  border-radius:10px;
   background:
-    linear-gradient(180deg, rgba(255,241,207,.22), rgba(255,241,207,.06)),
-    repeating-linear-gradient(90deg, rgba(70,37,20,.28) 0 11px, rgba(126,76,40,.26) 11px 22px),
-    linear-gradient(145deg, var(--gramophone-wood-a), var(--gramophone-wood-b));
+    radial-gradient(ellipse 90% 80% at 50% 50%, transparent 55%, var(--wood-edge-vign) 100%),
+    repeating-linear-gradient(180deg, transparent 0 18px, var(--wood-grain-1) 19px, transparent 20px 38px, var(--wood-grain-2) 39px, transparent 41px),
+    repeating-linear-gradient(92deg, var(--wood-mid) 0%, var(--wood-light) 8%, var(--wood-base) 15%, var(--wood-highlight) 22%, var(--wood-base) 30%, var(--wood-dark) 38%, var(--wood-mid) 45%),
+    linear-gradient(180deg, var(--wood-light) 0%, var(--wood-base) 50%, var(--wood-dark) 100%);
   border:1px solid rgba(255,231,183,.24);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.22), 0 16px 32px rgba(0,0,0,.28);
+  box-shadow:
+    inset 0 2px 6px rgba(255,220,160,.18),
+    inset 0 -4px 10px rgba(0,0,0,.4),
+    inset 2px 0 6px rgba(0,0,0,.2),
+    inset -2px 0 6px rgba(0,0,0,.2),
+    0 8px 24px rgba(0,0,0,.45),
+    0 2px 6px rgba(0,0,0,.35);
 }
 
 .gramophone-cabinet::before,
@@ -6059,30 +6197,34 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .gramophone-grille {
-  height:48px;
-  border-radius:10px;
+  height:42px;
+  border-radius:8px;
   background:
-    repeating-linear-gradient(90deg, rgba(255,241,207,.3) 0 1px, transparent 1px 7px),
-    repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 9px),
-    rgba(34,20,15,.52);
-  border:1px solid rgba(255,241,207,.18);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+    repeating-linear-gradient(90deg, rgba(255,241,207,.28) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.24) 0 1px, transparent 1px 9px),
+    linear-gradient(175deg, #1c1410 0%, #221810 50%, #180f08 100%);
+  border:1px solid rgba(160,120,40,.36);
+  box-shadow:inset 0 0 0 1px rgba(80,55,10,.42), inset 0 2px 6px rgba(0,0,0,.5);
 }
 
 .gramophone-nameplate {
+  position:relative;
   justify-self:center;
   max-width:100%;
   min-width:0;
   padding:7px 14px;
   overflow:hidden;
   border-radius:999px;
-  color:rgba(255,241,207,.78);
-  background:rgba(34,20,15,.3);
-  border:1px solid rgba(255,241,207,.16);
+  color:#3d2410;
+  background:
+    linear-gradient(90deg, var(--brass-edge) 0%, var(--brass-dark) 15%, var(--brass-mid) 34%, var(--brass-bright) 48%, var(--brass-mid) 66%, var(--brass-dark) 85%, var(--brass-edge) 100%);
+  border:1px solid rgba(74,53,4,.68);
+  box-shadow:inset 0 1px 2px rgba(255,240,180,.4), inset 0 -1px 2px rgba(60,35,0,.5), 0 2px 7px rgba(0,0,0,.28);
   font-size:12px;
   font-weight:900;
   letter-spacing:1.6px;
   line-height:1;
+  text-shadow:0 1px 0 rgba(255,241,207,.28);
   text-overflow:ellipsis;
   white-space:nowrap;
 }
@@ -6102,14 +6244,34 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .gramophone-knob {
-  width:34px;
-  height:34px;
+  position:relative;
+  width:32px;
+  height:32px;
   justify-self:end;
   border-radius:50%;
   background:
-    radial-gradient(circle, #fff1d0 0 24%, var(--gramophone-copper) 25% 60%, #4a2c1b 62%),
-    var(--gramophone-copper);
-  box-shadow:0 0 0 5px rgba(255,241,207,.09), inset 0 1px 0 rgba(255,255,255,.28), 0 8px 16px rgba(0,0,0,.22);
+    radial-gradient(circle at 35% 30%, rgba(255,245,200,.7) 0%, rgba(255,245,200,0) 45%),
+    repeating-conic-gradient(var(--brass-mid) 0deg, var(--brass-dark) 1.5deg, var(--brass-mid) 3deg),
+    radial-gradient(ellipse at 40% 35%, var(--brass-bright) 0%, var(--brass-mid) 35%, var(--brass-dark) 70%, var(--brass-edge) 100%);
+  border:1.5px solid var(--brass-dark);
+  box-shadow:
+    inset 0 2px 4px rgba(255,240,180,.4),
+    inset 0 -2px 4px rgba(0,0,0,.55),
+    inset 2px 0 3px rgba(255,240,180,.2),
+    0 3px 10px rgba(0,0,0,.55),
+    0 1px 3px rgba(0,0,0,.35);
+}
+
+.gramophone-knob::after {
+  content:'';
+  position:absolute;
+  top:8%;
+  left:50%;
+  width:2px;
+  height:22%;
+  border-radius:1px;
+  background:linear-gradient(to bottom, rgba(255,255,220,.9), rgba(255,255,220,.3));
+  transform:translateX(-50%);
 }
 
 .gramophone-console {
@@ -6120,12 +6282,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   justify-content:flex-start;
   gap:14px;
   padding:46px 18px 22px;
-  border-radius:20px;
+  border-radius:12px;
   background:
-    linear-gradient(180deg, rgba(255,241,207,.12), rgba(255,241,207,.035)),
-    rgba(17,13,11,.42);
-  border:1px solid rgba(255,231,183,.16);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
+    linear-gradient(to bottom, rgba(255,255,255,.06) 0, rgba(255,255,255,.02) 3px, transparent 3px),
+    linear-gradient(175deg, #1c1410 0%, #221810 50%, #180f08 100%);
+  border:1px solid rgba(100,70,15,.5);
+  box-shadow:
+    inset 0 0 0 1px rgba(160,120,40,.55),
+    inset 0 0 0 2px rgba(80,55,10,.7),
+    inset 0 3px 8px rgba(0,0,0,.55),
+    inset 0 -2px 5px rgba(0,0,0,.4),
+    0 4px 16px rgba(0,0,0,.5);
 }
 
 .gramophone-kicker {
@@ -6277,10 +6444,17 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   place-items:center;
   padding:0;
   border-radius:50%;
-  color:rgba(255,241,207,.86);
-  background:rgba(255,241,207,.1);
-  border:1px solid rgba(255,241,207,.16);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.1), 0 10px 24px rgba(0,0,0,.18);
+  color:rgba(255,241,207,.9);
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255,240,180,.3) 0%, transparent 55%),
+    linear-gradient(145deg, #2e2010 0%, #1a1008 60%, #0e0905 100%);
+  border:0;
+  box-shadow:
+    inset 0 1px 3px rgba(255,220,100,.15),
+    inset 0 -2px 4px rgba(0,0,0,.7),
+    0 3px 8px rgba(0,0,0,.6),
+    0 1px 2px rgba(0,0,0,.4),
+    0 0 0 1px rgba(140,100,20,.4);
   transition:transform .18s var(--ease), color .18s var(--ease), background .18s var(--ease), border-color .18s var(--ease), box-shadow .18s var(--ease);
 }
 
@@ -6291,12 +6465,20 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 .gramophone-controls button:not(:disabled):hover {
   color:var(--gramophone-cream);
-  background:rgba(255,241,207,.16);
-  border-color:rgba(255,241,207,.26);
+  box-shadow:
+    inset 0 1px 3px rgba(255,220,100,.22),
+    inset 0 -2px 4px rgba(0,0,0,.7),
+    0 5px 12px rgba(0,0,0,.6),
+    0 0 0 1px rgba(190,145,40,.5);
 }
 
 .gramophone-controls button:not(:disabled):active {
-  transform:scale(.94);
+  transform:translateY(1px) scale(.97);
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,.7),
+    inset 0 -1px 2px rgba(255,220,100,.08),
+    0 1px 3px rgba(0,0,0,.55),
+    0 0 0 1px rgba(140,100,20,.4);
 }
 
 .gramophone-controls .gramophone-play {
@@ -6305,9 +6487,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   height:62px;
   min-height:62px;
   color:#2b1a12;
-  background:linear-gradient(145deg, #ffe6b8, #d7924b);
-  border-color:rgba(255,231,183,.5);
-  box-shadow:0 0 0 8px rgba(231,183,120,.1), 0 18px 34px rgba(215,146,75,.26), inset 0 1px 0 rgba(255,255,255,.45);
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255,250,210,.68) 0%, transparent 54%),
+    linear-gradient(145deg, var(--brass-bright) 0%, var(--brass-mid) 50%, var(--brass-dark) 100%);
+  box-shadow:
+    0 0 0 8px rgba(231,183,120,.1),
+    0 18px 34px rgba(215,146,75,.26),
+    inset 0 2px 4px rgba(255,240,180,.5),
+    inset 0 -3px 5px rgba(74,53,4,.48);
 }
 
 .gramophone-controls .gramophone-play svg {
@@ -6317,8 +6504,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 .gramophone-controls button.active {
   color:var(--gramophone-gold);
-  background:rgba(255,241,207,.18);
-  border-color:rgba(231,183,120,.44);
+  box-shadow:
+    inset 0 1px 3px rgba(255,220,100,.22),
+    inset 0 -2px 4px rgba(0,0,0,.68),
+    0 0 0 1px rgba(200,160,40,.58),
+    0 0 14px rgba(200,160,40,.16);
 }
 
 .gramophone-controls button:disabled {
@@ -6326,8 +6516,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .gramophone-controls button:focus-visible {
-  outline:2px solid color-mix(in srgb, var(--accent) 52%, var(--gramophone-gold));
-  outline-offset:3px;
+  outline:none;
+  box-shadow:
+    inset 0 1px 3px rgba(255,220,100,.15),
+    inset 0 -2px 4px rgba(0,0,0,.7),
+    0 0 0 3px rgba(200,160,40,.55);
 }
 
 @keyframes gramophone-record-spin {
@@ -6430,6 +6623,96 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   .gramophone-knob {
     width:28px;
     height:28px;
+  }
+}
+
+@media (min-width:721px) and (max-height:700px) {
+  .hero.gramophone-hero {
+    min-height:min(430px, calc(100dvh - var(--player-h) - 56px));
+    gap:22px;
+    padding:18px;
+  }
+
+  .hero.gramophone-hero h1 {
+    font-size:clamp(32px, 3.6vw, 48px);
+  }
+
+  .gramophone-player {
+    --gramophone-disc:min(230px, 23vw);
+    width:min(580px, 100%);
+    grid-template-columns:minmax(260px, 1fr) minmax(190px, 210px);
+    align-items:start;
+    gap:14px;
+    padding:14px;
+    border-radius:20px;
+  }
+
+  .gramophone-stage,
+  .gramophone-console {
+    align-self:start;
+  }
+
+  .gramophone-plinth {
+    width:min(292px, 100%);
+    min-height:330px;
+    grid-template-rows:minmax(0, 1fr) 64px;
+    padding:10px 10px 0;
+  }
+
+  .gramophone-plinth::before {
+    left:8px;
+    right:8px;
+    bottom:44px;
+    height:36px;
+  }
+
+  .gramophone-cabinet {
+    grid-template-columns:74px minmax(0, 1fr) 12px 34px;
+    gap:9px;
+    min-height:60px;
+    padding:9px 11px;
+  }
+
+  .gramophone-grille {
+    height:36px;
+  }
+
+  .gramophone-nameplate {
+    padding:6px 10px;
+    font-size:10px;
+  }
+
+  .gramophone-knob {
+    width:27px;
+    height:27px;
+  }
+
+  .gramophone-console {
+    gap:12px;
+    padding:36px 16px 18px;
+  }
+
+  .gramophone-console h2 {
+    font-size:clamp(22px, 2.4vw, 30px);
+  }
+
+  .gramophone-controls {
+    grid-template-columns:42px 56px 42px 42px;
+    gap:8px;
+  }
+
+  .gramophone-controls button {
+    width:42px;
+    min-width:42px;
+    height:42px;
+    min-height:42px;
+  }
+
+  .gramophone-controls .gramophone-play {
+    width:56px;
+    min-width:56px;
+    height:56px;
+    min-height:56px;
   }
 }
 
