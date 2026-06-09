@@ -2624,7 +2624,8 @@
   box-shadow:0 0 0 5px rgba(230,92,83,.12),0 0 14px rgba(230,92,83,.62);
 }
 
-@keyframes mobile-art-spin { to { transform:rotate(360deg); } }
+@keyframes mobile-art-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+@keyframes mobile-art-spin-smooth { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 
 @media (min-width:721px) {
   .mobile-bottom-nav,
@@ -3531,7 +3532,7 @@
     font-size:12px;
     line-height:1.1;
   }
-  .mobile-mini-player > button:not(.mobile-mini-main) {
+  .mobile-mini-player > button:not(.mobile-mini-main):not(.mobile-mini-play) {
     width:44px;
     min-width:44px;
     height:44px;
@@ -3540,9 +3541,9 @@
     place-items:center;
     padding:0;
     border-radius:999px;
-    color:var(--text);
-    background:color-mix(in srgb, var(--panel2) 84%, transparent);
-    border:1px solid color-mix(in srgb, var(--line) 86%, transparent);
+    color:var(--mobile-mini-control, var(--text));
+    background:var(--mobile-mini-control-bg, color-mix(in srgb, var(--panel2) 84%, transparent));
+    border:1px solid var(--mobile-mini-control-border, color-mix(in srgb, var(--line) 86%, transparent));
     touch-action:manipulation;
   }
   .mobile-mini-player > button.active {
@@ -3557,10 +3558,10 @@
     min-width:48px;
     height:48px;
     min-height:48px;
-    color:var(--mobile-active-text);
-    background:var(--accent);
-    border-color:transparent;
-    box-shadow:0 12px 22px color-mix(in srgb, var(--accent) 20%, transparent);
+    color:var(--mobile-mini-play-fg, var(--mobile-active-text));
+    background:var(--mobile-mini-play-bg, var(--accent));
+    border-color:var(--mobile-mini-play-border, transparent);
+    box-shadow:var(--mobile-mini-play-shadow, 0 12px 22px color-mix(in srgb, var(--accent) 20%, transparent));
   }
   .mobile-mini-player .mobile-mini-next {
     width:44px;
@@ -3571,9 +3572,9 @@
     place-items:center;
     padding:0;
     border-radius:999px;
-    color:var(--text);
-    background:color-mix(in srgb, var(--panel2) 84%, transparent);
-    border:1px solid color-mix(in srgb, var(--line) 86%, transparent);
+    color:var(--mobile-mini-control, var(--text));
+    background:var(--mobile-mini-control-bg, color-mix(in srgb, var(--panel2) 84%, transparent));
+    border:1px solid var(--mobile-mini-control-border, color-mix(in srgb, var(--line) 86%, transparent));
     touch-action:manipulation;
   }
   .mobile-mini-player[data-mobile-theme='neon-console'] .mobile-mini-queue {
@@ -3609,12 +3610,12 @@
   .mobile-mini-player[data-mobile-theme='indiewave'] .mobile-mini-meta,
   .mobile-mini-player[data-mobile-theme='indiewave'] .mobile-mini-info,
   .mobile-mini-player[data-mobile-theme='indiewave'] > button:not(.mobile-mini-play) {
-    color:#15478e;
+    color:var(--mobile-mini-control, #15478e);
   }
   .mobile-mini-player[data-mobile-theme='indiewave'] .mobile-mini-play,
   .mobile-mini-player[data-mobile-theme='indiewave'] .mobile-mini-progress::before {
-    color:#fff;
-    background:#e36f63;
+    color:var(--mobile-mini-play-fg, #fff);
+    background:var(--mobile-mini-play-bg, #e36f63);
   }
   .mobile-mini-player[data-mobile-theme='smartisan-classic'] {
     color:rgba(0,0,0,.60);
@@ -3627,14 +3628,14 @@
   .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-meta,
   .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-info,
   .mobile-mini-player[data-mobile-theme='smartisan-classic'] > button:not(.mobile-mini-play) {
-    color:rgba(0,0,0,.60);
+    color:var(--mobile-mini-control, rgba(0,0,0,.60));
     text-shadow:0 1px 0 rgba(255,255,255,.76);
   }
   .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-play {
-    color:#fff;
-    background:linear-gradient(180deg,#e86a61,#d84b43);
-    border-color:#c84840;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.16);
+    color:var(--mobile-mini-play-fg, #fff);
+    background:var(--mobile-mini-play-bg, linear-gradient(180deg,#e86a61,#d84b43));
+    border-color:var(--mobile-mini-play-border, #c84840);
+    box-shadow:var(--mobile-mini-play-shadow, inset 0 1px 0 rgba(255,255,255,.28),0 1px 2px rgba(0,0,0,.16));
   }
   .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-progress::before {
     background:#e65c53;
@@ -4275,6 +4276,13 @@
   .app-shell[data-mobile-theme] {
     --mobile-shell-x:8px;
     --mobile-active-text:var(--bg);
+    --mobile-mini-control:var(--text);
+    --mobile-mini-control-bg:color-mix(in srgb, var(--text) 9%, var(--panel));
+    --mobile-mini-control-border:color-mix(in srgb, var(--text) 14%, transparent);
+    --mobile-mini-play-bg:var(--accent);
+    --mobile-mini-play-fg:var(--mobile-active-text);
+    --mobile-mini-play-border:color-mix(in srgb, var(--accent) 34%, transparent);
+    --mobile-mini-play-shadow:0 10px 24px color-mix(in srgb, var(--accent) 24%, transparent);
     background:
       radial-gradient(circle at 50% -14%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 34%),
       var(--bg);
@@ -4295,6 +4303,11 @@
     --hero:radial-gradient(circle at 50% -18%, rgba(214,179,106,.18), transparent 36%), linear-gradient(180deg, #12161B 0%, #0B0D10 82%);
     --mobile-active-text:#0B0D10;
     --mobile-pa-inner:inset 0 1px 0 rgba(255,255,255,.08);
+    --mobile-mini-control:#fff2c9;
+    --mobile-mini-control-bg:rgba(255,242,201,.10);
+    --mobile-mini-control-border:rgba(255,242,201,.16);
+    --mobile-mini-play-bg:#d6b36a;
+    --mobile-mini-play-fg:#0B0D10;
   }
 
   .app-shell[data-mobile-theme='soft-vinyl'] {
@@ -4310,6 +4323,11 @@
     --highlight:#304e78;
     --hero:radial-gradient(circle at 18% 12%, rgba(74,111,165,.15), transparent 34%), linear-gradient(145deg, #fffaf2 0%, #e6dfd2 100%);
     --mobile-active-text:#ffffff;
+    --mobile-mini-control:#21324f;
+    --mobile-mini-control-bg:rgba(74,111,165,.12);
+    --mobile-mini-control-border:rgba(74,111,165,.20);
+    --mobile-mini-play-bg:#3f679b;
+    --mobile-mini-play-fg:#ffffff;
   }
 
   .app-shell[data-mobile-theme='indiewave'] {
@@ -4325,6 +4343,11 @@
     --highlight:#0f3977;
     --hero:radial-gradient(circle at 82% 16%, rgba(227,111,99,.18), transparent 30%), linear-gradient(145deg, #fffefa 0%, #dce8ff 100%);
     --mobile-active-text:#ffffff;
+    --mobile-mini-control:#15478e;
+    --mobile-mini-control-bg:rgba(21,71,142,.10);
+    --mobile-mini-control-border:rgba(21,71,142,.18);
+    --mobile-mini-play-bg:#d85f55;
+    --mobile-mini-play-fg:#ffffff;
   }
 
   .app-shell[data-mobile-theme='editorial-pulse'] {
@@ -4340,6 +4363,11 @@
     --highlight:#050505;
     --hero:radial-gradient(circle at 82% 16%, rgba(217,52,63,.16), transparent 30%), linear-gradient(145deg, #fff9e8 0%, #ffd35c 100%);
     --mobile-active-text:#ffffff;
+    --mobile-mini-control:#050505;
+    --mobile-mini-control-bg:rgba(5,5,5,.07);
+    --mobile-mini-control-border:rgba(5,5,5,.14);
+    --mobile-mini-play-bg:#050505;
+    --mobile-mini-play-fg:#ffb313;
   }
 
   .app-shell[data-mobile-theme='stage-glass'] {
@@ -4355,6 +4383,11 @@
     --highlight:#f1d9ff;
     --hero:radial-gradient(circle at 22% 12%, rgba(200,156,255,.2), transparent 34%), linear-gradient(145deg, #202140 0%, #15162b 78%);
     --mobile-active-text:#15162b;
+    --mobile-mini-control:#fff0c4;
+    --mobile-mini-control-bg:rgba(255,255,255,.10);
+    --mobile-mini-control-border:rgba(255,240,196,.16);
+    --mobile-mini-play-bg:#f7de8c;
+    --mobile-mini-play-fg:#15162b;
   }
 
   .app-shell[data-mobile-theme='blue-halo'] {
@@ -4370,6 +4403,11 @@
     --highlight:#214f72;
     --hero:radial-gradient(circle at 80% 12%, rgba(63,111,148,.14), transparent 34%), linear-gradient(145deg, #f8fbfd 0%, #d4dde5 100%);
     --mobile-active-text:#ffffff;
+    --mobile-mini-control:#172635;
+    --mobile-mini-control-bg:rgba(23,38,53,.09);
+    --mobile-mini-control-border:rgba(23,38,53,.16);
+    --mobile-mini-play-bg:#2f6688;
+    --mobile-mini-play-fg:#ffffff;
   }
 
   .app-shell[data-mobile-theme='smartisan-classic'] {
@@ -4386,6 +4424,13 @@
     --hero:url('/smartisan/album-crosstexture-bg.png') center top / cover no-repeat, linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%);
     --mobile-active-text:#ffffff;
     --mobile-shell-x:0px;
+    --mobile-mini-control:rgba(0,0,0,.62);
+    --mobile-mini-control-bg:#f7f7f7;
+    --mobile-mini-control-border:rgba(0,0,0,.12);
+    --mobile-mini-play-bg:linear-gradient(180deg,#e86a61,#d84b43);
+    --mobile-mini-play-fg:#ffffff;
+    --mobile-mini-play-border:#c84840;
+    --mobile-mini-play-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 1px 2px rgba(0,0,0,.16);
   }
 
   .app-shell[data-mobile-theme='soft-vinyl'] .mobile-art-soft-vinyl {
@@ -5924,7 +5969,7 @@
     color:var(--mobile-active-text);
   }
 
-  .mobile-mini-player > button:not(.mobile-mini-main),
+  .mobile-mini-player > button:not(.mobile-mini-main):not(.mobile-mini-play),
   .mobile-mini-player .mobile-mini-next {
     width:42px;
     min-width:42px;
@@ -8195,6 +8240,85 @@
   .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-reset {
     width:42px;
     min-width:42px;
+  }
+}
+
+/* Mobile control contrast and record motion guard.
+   Earlier theme blocks own the visual mood; this final layer keeps critical
+   playback controls readable and keeps vinyl rotation on one continuous clock. */
+@media (max-width:720px) {
+  .app-shell[data-mobile-theme] .mobile-mini-player > button:not(.mobile-mini-main):not(.mobile-mini-play) {
+    color:var(--mobile-mini-control) !important;
+    background:var(--mobile-mini-control-bg) !important;
+    border:1px solid var(--mobile-mini-control-border) !important;
+  }
+
+  .app-shell[data-mobile-theme] .mobile-mini-player .mobile-mini-play {
+    color:var(--mobile-mini-play-fg) !important;
+    background:var(--mobile-mini-play-bg) !important;
+    border-color:var(--mobile-mini-play-border) !important;
+    box-shadow:var(--mobile-mini-play-shadow) !important;
+  }
+
+  .app-shell[data-mobile-theme] .mobile-mini-player .mobile-mini-play svg,
+  .app-shell[data-mobile-theme] .mobile-mini-player .mobile-mini-next svg,
+  .app-shell[data-mobile-theme] .mobile-mini-player .mobile-mini-queue svg {
+    color:currentColor;
+    opacity:1;
+    filter:none;
+  }
+
+  .app-shell[data-mobile-theme] .mobile-mini-player > button:disabled {
+    opacity:.5;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-disc,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-visual::before,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-smartisan-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-blue-cassette-window .reel {
+    animation-name:mobile-art-spin-smooth !important;
+    animation-duration:var(--mobile-record-spin-duration, 9s) !important;
+    animation-timing-function:linear !important;
+    animation-iteration-count:infinite !important;
+    animation-play-state:paused !important;
+    transform-origin:50% 50%;
+    will-change:transform;
+    backface-visibility:hidden;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-vinyl {
+    --mobile-record-spin-duration:10s;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-disc {
+    --mobile-record-spin-duration:9s;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-visual::before {
+    --mobile-record-spin-duration:9.5s;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-smartisan-record {
+    --mobile-record-spin-duration:15.5s;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-blue-cassette-window .reel {
+    --mobile-record-spin-duration:1.8s;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-pa-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-soft-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-stage-disc,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-indie-visual::before,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-smartisan-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-blue-visual[data-playing='true'] .mobile-blue-cassette-window .reel,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-stack[data-playing='true'] .mobile-indie-vinyl {
+    animation-play-state:running !important;
   }
 }
 

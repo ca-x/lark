@@ -5,6 +5,32 @@
 
 ---
 
+## 0.9.1 — 移动端播放控制修复
+
+发布日期 / Released: 2026-06-09
+
+### 修复
+
+- **修复移动端 mini 播放器按钮对比度。** 播放、下一首和队列按钮改用移动端专用控制 token，浅色和暗色主题下都能保持清晰可见。
+- **修复移动端黑胶旋转卡顿。** 黑胶、唱片和磁带转盘统一使用连续线性旋转动画，播放时不再反复重建动画时间轴导致短暂停顿。
+
+完整 diff：`git log v0.9.0..v0.9.1`
+
+---
+
+## v0.9.1 — Mobile playback control fixes
+
+Released: 2026-06-09
+
+### Fixed
+
+- **Fixed mobile mini-player control contrast.** Play, next, and queue controls now use dedicated mobile control tokens so they stay visible in both light and dark themes.
+- **Fixed mobile vinyl rotation stutter.** Vinyl, record, and cassette reel visuals now share a continuous linear spin animation instead of repeatedly rebuilding the animation timeline while playing.
+
+Full diff: `git log v0.9.0..v0.9.1`
+
+---
+
 ## 0.9.0 — 移动端播放器与歌词体验升级
 
 发布日期 / Released: 2026-06-09
