@@ -9071,3 +9071,703 @@
     transform:none !important;
   }
 }
+
+/* Smartisan mobile fidelity pass.
+   The player surface now follows the reference: one large LP, optional left
+   more button, and a fixed layered pivot with only the slim needle rotating. */
+@media (max-width:720px) {
+  .app-shell[data-mobile-theme='smartisan-classic'][data-mobile-player-expanded='true']:not(.lyrics-mode) .player {
+    background:#f7f7f5;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic {
+    --mobile-player-title:rgba(0,0,0,.66);
+    --mobile-player-secondary:rgba(0,0,0,.46);
+    --mobile-player-control:rgba(0,0,0,.58);
+    --mobile-player-action:rgba(0,0,0,.50);
+    --mobile-player-control-bg:#f8f8f8;
+    --mobile-player-action-bg:#f8f8f8;
+    --mobile-player-active-bg:#fff1f0;
+    --mobile-player-hairline:rgba(0,0,0,.12);
+    --mobile-player-track:rgba(0,0,0,.14);
+    --mobile-player-volume-idle:rgba(0,0,0,.16);
+    --mobile-player-play-bg:#d94a43;
+    --mobile-player-play-fg:#ffffff;
+    --mobile-player-progress-glow:rgba(217,74,67,.18);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-phone {
+    background:
+      url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+      #f7f7f5;
+  }
+
+  .mobile-art-smartisan-classic .mobile-smartisan-titlebar {
+    display:none !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-stage {
+    min-height:clamp(310px, 48dvh, 430px);
+    align-content:center;
+    padding:0;
+    transform:translateY(-4px);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-deck {
+    --mobile-smartisan-deck-size:min(405px, 105vw, 48dvh);
+    height:calc(var(--mobile-smartisan-deck-size) * .88);
+    overflow:visible;
+    place-items:center;
+  }
+
+  .mobile-smartisan-more {
+    position:absolute;
+    left:2%;
+    top:18%;
+    z-index:8;
+    width:44px;
+    min-width:44px;
+    height:44px;
+    min-height:44px;
+    display:grid;
+    grid-template-columns:repeat(3, 5px);
+    place-content:center;
+    gap:4px;
+    padding:0;
+    border-radius:50%;
+    color:rgba(0,0,0,.34);
+    background:linear-gradient(180deg,#fff,#f8f8f8);
+    border:1px solid rgba(0,0,0,.08);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.96), 0 2px 5px rgba(0,0,0,.08);
+  }
+
+  .mobile-smartisan-more i {
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:currentColor;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-record {
+    width:var(--mobile-smartisan-deck-size);
+    aspect-ratio:1080 / 1070;
+    overflow:visible;
+    touch-action:none;
+    background:
+      url('/smartisan/playing-cover-lp.png') center / contain no-repeat,
+      url('/smartisan/playing-lp.png') center / contain no-repeat;
+    box-shadow:0 18px 38px rgba(0,0,0,.18);
+    cursor:grab;
+    animation:mobile-art-spin-smooth var(--mobile-record-spin-duration, 15.5s) linear infinite paused !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-record[data-scratching='true'] {
+    cursor:grabbing;
+    animation-play-state:paused !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-rotor {
+    position:absolute;
+    inset:0;
+    overflow:visible;
+    background:transparent !important;
+    box-shadow:none;
+    animation:none !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-rotor img {
+    width:37.5%;
+    height:37.8%;
+    border:0;
+    box-shadow:0 0 0 4px rgba(0,0,0,.88), 0 1px 5px rgba(0,0,0,.28);
+  }
+
+  .mobile-smartisan-paper-label {
+    position:relative;
+    z-index:2;
+    width:37.5%;
+    height:37.8%;
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    border-radius:50%;
+    color:rgba(0,0,0,.54);
+    background:
+      repeating-linear-gradient(90deg, #f8f7f2 0 4px, #171717 4px 6px, #f8f7f2 6px 10px),
+      #f8f7f2;
+    box-shadow:0 0 0 4px rgba(0,0,0,.88), inset 0 0 15px rgba(0,0,0,.13);
+    font-size:clamp(22px, 10vw, 42px);
+    font-weight:900;
+    letter-spacing:0;
+    text-shadow:0 1px 0 rgba(255,255,255,.72);
+  }
+
+  .mobile-smartisan-spindle {
+    position:absolute !important;
+    left:50%;
+    top:50%;
+    z-index:4 !important;
+    width:6.4% !important;
+    aspect-ratio:1;
+    transform:translate(-50%, -50%);
+    border-radius:50%;
+    background:radial-gradient(circle at 36% 30%,#f2f2f2 0 17%,#7b7b7b 39%,#252525 66%,#070707 100%) !important;
+    box-shadow:0 0 0 4px rgba(0,0,0,.66),0 1px 3px rgba(0,0,0,.34) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-arm {
+    display:none !important;
+  }
+
+  .mobile-smartisan-needle {
+    position:absolute;
+    right:calc(var(--mobile-smartisan-deck-size) * -.005);
+    top:calc(var(--mobile-smartisan-deck-size) * .015);
+    z-index:7;
+    width:calc(var(--mobile-smartisan-deck-size) * .206);
+    height:calc(var(--mobile-smartisan-deck-size) * .626);
+    pointer-events:none;
+  }
+
+  .mobile-smartisan-needle i {
+    position:absolute;
+    display:block;
+    background-repeat:no-repeat;
+    background-position:center top;
+    background-size:contain;
+  }
+
+  .mobile-smartisan-needle-base {
+    right:8%;
+    top:0;
+    z-index:1;
+    width:70%;
+    height:26%;
+    background-image:url('/smartisan/playing-stylus-lp-bg-original.png');
+    filter:drop-shadow(0 8px 13px rgba(0,0,0,.16));
+  }
+
+  .mobile-smartisan-needle-shadow {
+    inset:0;
+    z-index:2;
+    background-image:url('/smartisan/needle-shadow2.png');
+    background-size:44% 62%;
+    background-position:70% 20%;
+    opacity:.32;
+    transform-origin:65% 9%;
+    transform:rotate(calc(var(--mobile-smartisan-needle, 0deg) - 4deg));
+    transition:transform 220ms ease;
+  }
+
+  .mobile-smartisan-needle-arm {
+    inset:0;
+    z-index:3;
+    background-image:url('/smartisan/playing-stylus-lp-original.png');
+    transform-origin:65% 9%;
+    transform:rotate(var(--mobile-smartisan-needle, 0deg));
+    filter:drop-shadow(0 5px 7px rgba(0,0,0,.18));
+    transition:transform 220ms ease;
+  }
+
+  .mobile-smartisan-needle-top {
+    right:20%;
+    top:5.5%;
+    z-index:4;
+    width:55.5%;
+    height:24%;
+    background-image:url('/smartisan/playing-stylus-lp-top-original.png');
+    filter:drop-shadow(0 7px 11px rgba(0,0,0,.14));
+  }
+
+  .mobile-smartisan-led {
+    display:none !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-topbar-icon,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-volume-icon,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-actions button,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button {
+    background:linear-gradient(180deg,#fff,#f1f1f1);
+    border-color:rgba(0,0,0,.12);
+    box-shadow:inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.08);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-progress {
+    gap:4px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-progress-rail {
+    height:42px;
+    padding:0 4px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-progress-rail > span {
+    height:8px;
+    border-radius:999px;
+    background:linear-gradient(180deg,#d4d4d4,#eeeeee);
+    border:1px solid rgba(0,0,0,.10);
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.16),0 1px 0 rgba(255,255,255,.88);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-progress-rail i {
+    height:100%;
+    border-radius:inherit;
+    background:#bbbbbb;
+    box-shadow:none;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-progress-rail::after {
+    content:'';
+    position:absolute;
+    left:var(--mobile-art-progress-pct, 0%);
+    top:50%;
+    z-index:2;
+    width:22px;
+    height:40px;
+    transform:translate(-50%, -50%);
+    background:url('/smartisan/playing-control-time.png') center / contain no-repeat;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.22));
+    pointer-events:none;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume {
+    min-height:48px;
+    padding:0 4px;
+    border-radius:6px;
+    background:rgba(255,255,255,.58);
+    border:1px solid rgba(0,0,0,.06);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.86);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume-ticks {
+    height:34px;
+    border-radius:4px;
+    background:linear-gradient(180deg,#fdfdfd,#eeeeee);
+    border:1px solid rgba(0,0,0,.08);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.88);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume-bars {
+    align-items:center;
+    padding:0 8px;
+    gap:2px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume-bars i {
+    height:6px;
+    border-radius:1px;
+    background:linear-gradient(180deg,#d8d8d8,#bbbbbb);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.48);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume-bars i.active {
+    background:linear-gradient(180deg,#b8b8b8,#8f8f8f);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.38);
+  }
+}
+
+@media (max-width:390px) {
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-deck {
+    --mobile-smartisan-deck-size:min(376px, 106vw, 46dvh);
+  }
+
+  .mobile-smartisan-more {
+    left:0;
+    width:40px;
+    min-width:40px;
+    height:40px;
+    min-height:40px;
+  }
+}
+
+@media (max-width:720px) and (prefers-reduced-motion:reduce) {
+  .mobile-smartisan-needle-arm,
+  .mobile-smartisan-needle-shadow {
+    transition:none !important;
+  }
+}
+
+/* Smartisan mobile chrome fidelity: tabbar and mini player use the same
+   white/gray pressed-button vocabulary as the reference app screens. */
+@media (max-width:720px) {
+  .app-shell[data-mobile-theme='smartisan-classic']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player {
+    background:
+      url('/smartisan/titlebar-bg.png') center / 100% 100%,
+      linear-gradient(180deg,#fbfbfb 0%,#f2f2f2 58%,#e8e8e8 100%);
+    border-top:1px solid #cfcfcf;
+    box-shadow:0 -17px 0 -16px rgba(0,0,0,.18);
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .mobile-bottom-nav {
+    background:
+      url('/smartisan/titlebar-bg.png') center / 100% 100%,
+      linear-gradient(180deg,#fbfbfb 0%,#f1f1f1 58%,#e6e6e6 100%);
+    border-top:1px solid rgba(169,169,169,.44);
+    box-shadow:0 -17px 0 -16px rgba(0,0,0,.18);
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav {
+    grid-template-columns:repeat(var(--mobile-bottom-nav-count), minmax(0, 1fr));
+    gap:0;
+    padding:4px max(6px, var(--mobile-shell-x)) calc(4px + var(--safe-bottom));
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button,
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button.active {
+    min-height:54px;
+    color:rgba(0,0,0,.48);
+    background:transparent;
+    border:0;
+    border-left:1px solid rgba(255,255,255,.82);
+    border-right:1px solid rgba(0,0,0,.06);
+    border-radius:0;
+    box-shadow:none;
+    text-shadow:0 1px 0 rgba(255,255,255,.82);
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button:first-child {
+    border-left:0;
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button:last-child {
+    border-right:0;
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button.active {
+    color:#d94a43;
+    background:linear-gradient(180deg,#fff8f8 0%,#f9eeee 100%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.96), inset 0 -1px 0 rgba(217,74,67,.10);
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button::after {
+    content:none !important;
+  }
+
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button:active {
+    background:linear-gradient(180deg,#e9e9e9 0%,#f9f9f9 100%);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.10), inset 0 -1px 0 rgba(255,255,255,.72);
+    transform:none;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] {
+    color:rgba(0,0,0,.62);
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic']::before {
+    inset:-5px;
+    border-radius:8px;
+    background:
+      url('/smartisan/titlebar-bg.png') center / 100% 100%,
+      linear-gradient(180deg,#fff 0%,#f6f6f6 54%,#ececec 100%);
+    border:1px solid rgba(0,0,0,.12);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.96),0 1px 2px rgba(0,0,0,.12);
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-art {
+    width:46px;
+    min-width:46px;
+    height:46px;
+    min-height:46px;
+    border-radius:4px;
+    background:var(--mobile-mini-cover, linear-gradient(180deg,#f8f8f8,#dcdcdc));
+    background-size:cover;
+    background-position:center;
+    border:1px solid rgba(0,0,0,.14);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.66),0 1px 2px rgba(0,0,0,.12);
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-art[data-has-cover='false'] svg {
+    display:none;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-art[data-has-cover='false']::after {
+    content:attr(data-fallback-label);
+    position:absolute;
+    inset:0;
+    display:grid;
+    place-items:center;
+    color:rgba(0,0,0,.56);
+    font-size:18px;
+    font-weight:850;
+    letter-spacing:0;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] > button:not(.mobile-mini-main):not(.mobile-mini-play),
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-next {
+    color:rgba(0,0,0,.54);
+    background:
+      url('/smartisan/titlebar-bg.png') center / 100% 100%,
+      linear-gradient(180deg,#fff 0%,#f7f7f7 50%,#ededed 100%);
+    border:1px solid #c9c9c9;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.96), 0 1px 1px rgba(0,0,0,.06);
+    text-shadow:0 1px 0 rgba(255,255,255,.82);
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-play {
+    color:#fff;
+    background:linear-gradient(180deg,#e96c64,#d84b43);
+    border-color:#c84840;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 1px 2px rgba(0,0,0,.16);
+    text-shadow:0 -1px 0 rgba(0,0,0,.22);
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-progress {
+    left:10px;
+    right:10px;
+    bottom:-1px;
+    height:4px;
+    border-radius:999px;
+    background:linear-gradient(180deg,#d4d4d4,#eeeeee);
+    border:1px solid rgba(0,0,0,.08);
+    box-shadow:inset 0 1px 1px rgba(0,0,0,.12),0 1px 0 rgba(255,255,255,.88);
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-progress::before {
+    background:#bbbbbb;
+    box-shadow:none;
+  }
+}
+
+/* Final Smartisan mobile control pass: gray mechanical rails, a stamped thumb,
+   and circular transport buttons across the expanded player and mini bar. */
+@media (max-width:720px) {
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-actions button,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-volume-icon {
+    border-radius:999px !important;
+    color:rgba(0,0,0,.56) !important;
+    background:
+      url('/smartisan/titlebar-bg.png') center / 100% 100%,
+      linear-gradient(180deg,#fff 0%,#f7f7f7 50%,#ededed 100%) !important;
+    border:1px solid #c9c9c9 !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.96), 0 1px 1px rgba(0,0,0,.06) !important;
+    text-shadow:0 1px 0 rgba(255,255,255,.82);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-actions button.active,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button.active {
+    color:#d94a43 !important;
+    background:linear-gradient(180deg,#fff8f8 0%,#f9eeee 100%) !important;
+    border-color:#e8c3c0 !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls .mobile-art-play {
+    width:64px !important;
+    min-width:64px !important;
+    height:64px !important;
+    min-height:64px !important;
+    border-radius:999px !important;
+    color:#fff !important;
+    background:linear-gradient(180deg,#e96c64,#d84b43) !important;
+    border-color:#c84840 !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.32), 0 1px 2px rgba(0,0,0,.16), 0 0 0 8px rgba(217,74,67,.10) !important;
+    text-shadow:0 -1px 0 rgba(0,0,0,.22);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-progress-rail > span {
+    height:8px !important;
+    background:linear-gradient(180deg,#f8f8f8,#ececec) !important;
+    border:1px solid rgba(0,0,0,.10) !important;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.16), 0 1px 0 rgba(255,255,255,.88) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-progress-rail i {
+    background:linear-gradient(180deg,#afafaf,#969696) !important;
+    box-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-progress-rail i::after,
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-progress::after {
+    content:none !important;
+    animation:none !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-progress-rail::after {
+    width:22px !important;
+    height:40px !important;
+    background:url('/smartisan/playing-control-time.png') center / contain no-repeat !important;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.22)) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume {
+    color:rgba(0,0,0,.48);
+    background:rgba(255,255,255,.66) !important;
+    border:1px solid rgba(0,0,0,.08) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume-ticks {
+    background:linear-gradient(180deg,#f8f8f8,#ececec) !important;
+    border:1px solid rgba(0,0,0,.10) !important;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.10), 0 1px 0 rgba(255,255,255,.88) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume-bars i {
+    background:linear-gradient(180deg,#dedede,#c9c9c9) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.48) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume-bars i.active {
+    background:linear-gradient(180deg,#afafaf,#969696) !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-play {
+    width:46px !important;
+    min-width:46px !important;
+    height:46px !important;
+    min-height:46px !important;
+    border-radius:999px !important;
+    color:#fff !important;
+    background:linear-gradient(180deg,#e96c64,#d84b43) !important;
+    border:1px solid #c84840 !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.32), 0 1px 2px rgba(0,0,0,.16) !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-progress {
+    height:6px !important;
+    background:linear-gradient(180deg,#f8f8f8,#ececec) !important;
+    border:1px solid rgba(0,0,0,.10) !important;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.14), 0 1px 0 rgba(255,255,255,.88) !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-progress::before {
+    background:linear-gradient(180deg,#afafaf,#969696) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls {
+    gap:2px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button:nth-child(1),
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button:nth-child(3),
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls .mobile-art-play {
+    width:72px !important;
+    min-width:72px !important;
+    height:72px !important;
+    min-height:72px !important;
+    padding:0 !important;
+    border:0 !important;
+    border-radius:0 !important;
+    color:transparent !important;
+    background-color:transparent !important;
+    background-repeat:no-repeat !important;
+    background-position:center !important;
+    background-size:contain !important;
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button:nth-child(1) svg,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button:nth-child(3) svg,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls .mobile-art-play svg {
+    display:none;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button:nth-child(1) {
+    background-image:url('/smartisan/btn-playing-prev.png') !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button:nth-child(1):not(:disabled):active {
+    background-image:url('/smartisan/btn-playing-prev-down.png') !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic[data-playing='false'] .mobile-art-controls .mobile-art-play {
+    background-image:url('/smartisan/btn-playing-play.png') !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic[data-playing='false'] .mobile-art-controls .mobile-art-play:not(:disabled):active {
+    background-image:url('/smartisan/btn-playing-play-down.png') !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic[data-playing='true'] .mobile-art-controls .mobile-art-play {
+    background-image:url('/smartisan/btn-playing-pause.png') !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic[data-playing='true'] .mobile-art-controls .mobile-art-play:not(:disabled):active {
+    background-image:url('/smartisan/btn-playing-pause-down.png') !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button:nth-child(3) {
+    background-image:url('/smartisan/btn-playing-next.png') !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button:nth-child(3):not(:disabled):active {
+    background-image:url('/smartisan/btn-playing-next-down.png') !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-play,
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-next {
+    color:transparent !important;
+    background-color:transparent !important;
+    background-repeat:no-repeat !important;
+    background-position:center !important;
+    background-size:contain !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-play svg,
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-next svg {
+    display:none;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'][data-playing='false'] .mobile-mini-play {
+    background-image:url('/smartisan/floatplay_btn_play.png') !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'][data-playing='false'] .mobile-mini-play:not(:disabled):active {
+    background-image:url('/smartisan/floatplay_btn_play_down.png') !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'][data-playing='true'] .mobile-mini-play {
+    background-image:url('/smartisan/floatplay_btn_pause.png') !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'][data-playing='true'] .mobile-mini-play:not(:disabled):active {
+    background-image:url('/smartisan/floatplay_btn_pause_down.png') !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-next {
+    background-image:url('/smartisan/floatplay_btn_next.png') !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-next:not(:disabled):active {
+    background-image:url('/smartisan/floatplay_btn_next_down.png') !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-play {
+    border-radius:999px !important;
+    color:#fff !important;
+    background:
+      linear-gradient(180deg,#e96c64,#d84b43) !important;
+    border:1px solid #c84840 !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.32), 0 1px 2px rgba(0,0,0,.16) !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-next {
+    border-radius:999px !important;
+    color:rgba(0,0,0,.54) !important;
+    background:
+      url('/smartisan/titlebar-bg.png') center / 100% 100%,
+      linear-gradient(180deg,#fff 0%,#f7f7f7 50%,#ededed 100%) !important;
+    border:1px solid #c9c9c9 !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.96), 0 1px 1px rgba(0,0,0,.06) !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-play svg,
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-next svg {
+    display:block;
+    color:currentColor;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'][data-playing] .mobile-mini-play {
+    background-image:linear-gradient(180deg,#e96c64,#d84b43) !important;
+  }
+
+  .mobile-mini-player[data-mobile-theme='smartisan-classic'][data-playing] .mobile-mini-next {
+    background-image:
+      url('/smartisan/titlebar-bg.png'),
+      linear-gradient(180deg,#fff 0%,#f7f7f7 50%,#ededed 100%) !important;
+  }
+}

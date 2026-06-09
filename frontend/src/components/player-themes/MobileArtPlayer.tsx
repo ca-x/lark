@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import {
   CaretLeft,
   ChatText,
@@ -19,6 +19,7 @@ import {
 
 import type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode } from "./types";
 import { useCoverFallback } from "./useCoverFallback";
+import { useDiscScratchSeek } from "./useDiscScratchSeek";
 
 const DEFAULT_LABELS = {
   nowPlaying: "Now playing",
@@ -45,6 +46,11 @@ type CoverVisualProps = {
   cover?: string;
   fallbackLabel: string;
   onCoverError?: () => void;
+};
+
+type DivScratchProps = HTMLAttributes<HTMLDivElement> & {
+  "data-scratch-enabled"?: string;
+  "data-scratching"?: string;
 };
 
 function isSwipeIgnoredTarget(target: EventTarget | null) {
@@ -114,15 +120,23 @@ export function MobileArtPlayer({
 }) {
   const text = { ...DEFAULT_LABELS, ...labels };
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
+  const smartisanScratch = useDiscScratchSeek({
+    duration,
+    progress,
+    onSeek,
+    disabled: variant !== "smartisan-classic",
+  });
+  const displayProgress = variant === "smartisan-classic" ? smartisanScratch.progress : progress;
+  const displayPct = variant === "smartisan-classic" ? smartisanScratch.pct : pct;
   const volumePct = Math.min(1, Math.max(0, volume));
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
-  const smartisanNeedleAngle = mobileSmartisanNeedleAngle(playing);
+  const smartisanNeedleAngle = mobileSmartisanNeedleAngle(displayPct, duration);
   const precisionTonearmAngle = mobilePrecisionTonearmAngle(pct, playing);
   const gramophoneTonearmAngle = mobileGramophoneTonearmAngle(pct, duration, playing);
   const fallbackLabel = coverFallbackLabel(title, artist);
   const style = {
-    "--mobile-art-progress-pct": `${(pct * 100).toFixed(2)}%`,
+    "--mobile-art-progress-pct": `${(displayPct * 100).toFixed(2)}%`,
     "--mobile-smartisan-needle": `${smartisanNeedleAngle.toFixed(2)}deg`,
     "--mobile-pa-tonearm": `${precisionTonearmAngle.toFixed(2)}deg`,
     "--mobile-gramophone-arm-angle": `${gramophoneTonearmAngle.toFixed(2)}deg`,
@@ -227,7 +241,13 @@ export function MobileArtPlayer({
         ) : variant === "stage-glass" ? (
           <StageGlassVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
         ) : variant === "smartisan-classic" ? (
-          <SmartisanClassicVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
+          <SmartisanClassicVisual
+            cover={coverState.displayUrl}
+            fallbackLabel={fallbackLabel}
+            playing={playing}
+            scratchProps={smartisanScratch.scratchProps}
+            onCoverError={coverState.onCoverError}
+          />
         ) : (
           <BlueHaloVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} title={title} artist={artist} onCoverError={coverState.onCoverError} />
         )}
@@ -267,13 +287,13 @@ export function MobileArtPlayer({
               min="0"
               max={Math.max(0, duration || 0)}
               step="0.01"
-              value={Math.min(progress, duration || progress || 0)}
+              value={Math.min(displayProgress, duration || displayProgress || 0)}
               disabled={!canSeek}
               onChange={(event) => onSeek?.(Number(event.target.value))}
             />
           </div>
           <div className="mobile-art-time">
-            <time>{formatThemeTime(progress)}</time>
+            <time>{formatThemeTime(displayProgress)}</time>
             <time>{formatThemeTime(duration || 0)}</time>
           </div>
         </div>
@@ -551,22 +571,34 @@ function BlueHaloVisual({
   );
 }
 
-function SmartisanClassicVisual({ cover, fallbackLabel, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
+function SmartisanClassicVisual({
+  cover,
+  fallbackLabel,
+  playing,
+  scratchProps,
+  onCoverError,
+}: CoverVisualProps & { playing: boolean; scratchProps?: DivScratchProps }) {
   return (
     <div className="mobile-smartisan-stage">
-      <div className="mobile-smartisan-titlebar" aria-hidden="true">
-        <span />
-        <i />
-        <span />
-      </div>
       <div className="mobile-smartisan-deck">
-        <div className="mobile-smartisan-record" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
+        <button className="mobile-smartisan-more" type="button" aria-label="More" data-no-swipe="true">
+          <i />
+          <i />
+          <i />
+        </button>
+        <div className="mobile-smartisan-record" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel} data-no-swipe="true" {...scratchProps}>
           <div className="mobile-smartisan-rotor" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
             {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
-            <span />
+            {cover ? null : <span className="mobile-smartisan-paper-label">{fallbackLabel}</span>}
+            <span className="mobile-smartisan-spindle" />
           </div>
         </div>
-        <div className="mobile-smartisan-arm" aria-hidden="true"><i /></div>
+        <div className="mobile-smartisan-needle" aria-hidden="true">
+          <i className="mobile-smartisan-needle-base" />
+          <i className="mobile-smartisan-needle-shadow" />
+          <i className="mobile-smartisan-needle-arm" />
+          <i className="mobile-smartisan-needle-top" />
+        </div>
         <span className={playing ? "mobile-smartisan-led on" : "mobile-smartisan-led"} aria-hidden="true" />
       </div>
     </div>
@@ -592,8 +624,9 @@ function coverFallbackLabel(title?: string, artist?: string) {
   return chars || "L";
 }
 
-function mobileSmartisanNeedleAngle(playing: boolean) {
-  return playing ? 9 : -13;
+function mobileSmartisanNeedleAngle(progressPct: number, duration: number) {
+  if (duration <= 0) return 0;
+  return 12 + progressPct * 22.3;
 }
 
 function mobilePrecisionTonearmAngle(progressPct: number, playing: boolean) {

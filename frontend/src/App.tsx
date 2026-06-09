@@ -3915,6 +3915,9 @@ export default function App() {
     "--played": playedPercent,
     "--buffered": bufferedPercent,
   } as React.CSSProperties;
+  const volumeStyle = {
+    "--volume-level": `${Math.round(Math.max(0, Math.min(1, volume)) * 100)}%`,
+  } as React.CSSProperties;
   const publicShareToken = publicShareTokenFromRoute(route);
 
   if (publicShareToken) {
@@ -4712,6 +4715,7 @@ export default function App() {
           </span>
           <button
             className="player-favorite"
+            data-active={(currentRadio?.favorite || current?.favorite) ? "true" : "false"}
             disabled={!canFavoriteCurrent}
             onClick={toggleCurrentFavorite}
           >
@@ -4727,6 +4731,7 @@ export default function App() {
               </button>
               <button
                 className="play"
+                data-playing={playing ? "true" : "false"}
                 aria-label={playing ? t("pause") : t("play")}
                 disabled={!current && !currentRadio && !currentNetworkTrack}
                 onClick={() => setPlaying((value) => {
@@ -4834,6 +4839,7 @@ export default function App() {
             max="1"
             step="0.01"
             value={volume}
+            style={volumeStyle}
             onChange={(e) => {
               updateVolume(Number(e.target.value));
             }}

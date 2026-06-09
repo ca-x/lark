@@ -4783,6 +4783,55 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   accent-color:var(--smartisan-red);
 }
 
+:root[data-theme='smartisan-classic'] .progress,
+:root[data-theme='smartisan-classic'] .player input[type='range'],
+:root[data-theme='smartisan-classic'] .volume input[type='range'] {
+  accent-color:#bbbbbb;
+}
+
+:root[data-theme='smartisan-classic'] .player input[type='range']::-webkit-slider-runnable-track,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-webkit-slider-runnable-track {
+  height:8px;
+  border-radius:999px;
+  background:linear-gradient(180deg,#d4d4d4,#eeeeee);
+  border:1px solid rgba(0,0,0,.10);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.16),0 1px 0 rgba(255,255,255,.88);
+}
+
+:root[data-theme='smartisan-classic'] .player input[type='range']::-webkit-slider-thumb,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance:none;
+  width:20px;
+  height:24px;
+  margin-top:-9px;
+  border-radius:5px;
+  background:
+    url('/smartisan/playing-control-time.png') center / contain no-repeat,
+    linear-gradient(180deg,#fff,#eeeeee);
+  border:0;
+  box-shadow:0 1px 3px rgba(0,0,0,.20);
+}
+
+:root[data-theme='smartisan-classic'] .player input[type='range']::-moz-range-track,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-moz-range-track {
+  height:8px;
+  border-radius:999px;
+  background:linear-gradient(180deg,#d4d4d4,#eeeeee);
+  border:1px solid rgba(0,0,0,.10);
+}
+
+:root[data-theme='smartisan-classic'] .player input[type='range']::-moz-range-thumb,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-moz-range-thumb {
+  width:20px;
+  height:24px;
+  border:0;
+  border-radius:5px;
+  background:
+    url('/smartisan/playing-control-time.png') center / contain no-repeat,
+    linear-gradient(180deg,#fff,#eeeeee);
+  box-shadow:0 1px 3px rgba(0,0,0,.20);
+}
+
 :root[data-theme='smartisan-classic'] .queue-panel,
 :root[data-theme='smartisan-classic'] .song-search-options,
 :root[data-theme='smartisan-classic'] .artist-filter-options,
@@ -6712,4 +6761,508 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
     animation:none !important;
     transition:none !important;
   }
+}
+
+/* Smartisan turntable fidelity pass.
+   Matches the legacy playback visual: oversized black LP, fixed white pivot,
+   rotating slim metal arm, and a paper center label when artwork is missing. */
+.smartisan-turntable-player {
+  --smartisan-turntable-disc:min(520px, calc(100vw - 180px));
+  width:min(680px, 100%);
+  gap:14px;
+  padding:18px 18px 24px;
+  overflow:visible;
+  color:rgba(0,0,0,.62);
+  background:
+    url('/smartisan/album-crosstexture-bg.png') center top / 1080px 419px repeat-x,
+    #f7f7f5;
+  border:1px solid rgba(0,0,0,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.94), 0 18px 48px rgba(0,0,0,.10);
+}
+
+.smartisan-turntable-titlebar {
+  display:none;
+}
+
+.smartisan-turntable-stage {
+  height:calc(var(--smartisan-turntable-disc) * .94);
+  overflow:visible;
+  margin-top:2px;
+}
+
+.smartisan-turntable-stage::before {
+  content:'';
+  position:absolute;
+  left:18px;
+  top:16%;
+  z-index:5;
+  width:52px;
+  aspect-ratio:1;
+  border-radius:50%;
+  background:linear-gradient(180deg,#fff,#f7f7f7);
+  border:1px solid rgba(0,0,0,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.96), 0 2px 5px rgba(0,0,0,.08);
+}
+
+.smartisan-turntable-stage::after {
+  content:'•••';
+  position:absolute;
+  left:18px;
+  top:16%;
+  z-index:6;
+  width:52px;
+  aspect-ratio:1;
+  display:grid;
+  place-items:center;
+  color:rgba(0,0,0,.36);
+  font-size:24px;
+  letter-spacing:2px;
+  transform:translateY(-1px);
+  pointer-events:none;
+}
+
+.smartisan-turntable-record {
+  width:var(--smartisan-turntable-disc);
+  overflow:visible;
+  touch-action:none;
+  background:
+    url('/smartisan/playing-cover-lp.png') center / contain no-repeat,
+    url('/smartisan/playing-lp.png') center / contain no-repeat;
+  box-shadow:0 18px 38px rgba(0,0,0,.18);
+  cursor:grab;
+}
+
+.smartisan-turntable-record[data-scratch-enabled='false'] {
+  cursor:pointer;
+}
+
+.smartisan-turntable-record[data-scratching='true'] {
+  cursor:grabbing;
+  animation-play-state:paused !important;
+}
+
+.smartisan-turntable-record .smartisan-turntable-paper-label {
+  position:relative;
+  z-index:2;
+  width:37.5%;
+  height:37.8%;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border-radius:50%;
+  color:rgba(0,0,0,.54);
+  background:
+    repeating-linear-gradient(90deg, #f8f7f2 0 5px, #171717 5px 8px, #f8f7f2 8px 13px),
+    #f8f7f2;
+  border:0;
+  box-shadow:0 0 0 4px rgba(0,0,0,.88), inset 0 0 18px rgba(0,0,0,.14);
+  font-size:clamp(18px, 4.4vw, 44px);
+  font-weight:900;
+  letter-spacing:0;
+  text-shadow:0 1px 0 rgba(255,255,255,.72);
+}
+
+.smartisan-turntable-record .smartisan-turntable-spindle {
+  position:absolute;
+  left:50%;
+  top:50%;
+  z-index:4;
+  width:6.4%;
+  aspect-ratio:1;
+  transform:translate(-50%, -50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 36% 30%,#f2f2f2 0 17%,#7b7b7b 39%,#252525 66%,#070707 100%);
+  box-shadow:0 0 0 4px rgba(0,0,0,.66),0 1px 3px rgba(0,0,0,.34);
+}
+
+.smartisan-turntable-record img {
+  width:37.5%;
+  height:37.8%;
+  border:0;
+  box-shadow:0 0 0 4px rgba(0,0,0,.88), 0 1px 5px rgba(0,0,0,.28);
+}
+
+.smartisan-turntable-needle {
+  position:absolute;
+  right:calc(var(--smartisan-turntable-disc) * -.005);
+  top:calc(var(--smartisan-turntable-disc) * .015);
+  z-index:6;
+  width:calc(var(--smartisan-turntable-disc) * .206);
+  height:calc(var(--smartisan-turntable-disc) * .626);
+  pointer-events:none;
+}
+
+.smartisan-turntable-needle i {
+  position:absolute;
+  display:block;
+  background-repeat:no-repeat;
+  background-position:center top;
+  background-size:contain;
+}
+
+.smartisan-turntable-needle-base {
+  right:8%;
+  top:0;
+  z-index:1;
+  width:70%;
+  height:26%;
+  background-image:url('/smartisan/playing-stylus-lp-bg-original.png');
+  filter:drop-shadow(0 8px 13px rgba(0,0,0,.16));
+}
+
+.smartisan-turntable-needle-shadow {
+  inset:0;
+  z-index:2;
+  background-image:url('/smartisan/needle-shadow2.png');
+  background-size:44% 62%;
+  background-position:70% 20%;
+  opacity:.32;
+  transform-origin:65% 9%;
+  transform:rotate(calc(var(--smartisan-turntable-needle, 0deg) - 4deg));
+  transition:transform 220ms ease;
+}
+
+.smartisan-turntable-needle-arm {
+  inset:0;
+  z-index:3;
+  background-image:url('/smartisan/playing-stylus-lp-original.png');
+  transform-origin:65% 9%;
+  transform:rotate(var(--smartisan-turntable-needle, 0deg));
+  filter:drop-shadow(0 5px 7px rgba(0,0,0,.18));
+  transition:transform 220ms ease;
+}
+
+.smartisan-turntable-needle-top {
+  right:20%;
+  top:5.5%;
+  z-index:4;
+  width:55.5%;
+  height:24%;
+  background-image:url('/smartisan/playing-stylus-lp-top-original.png');
+  filter:drop-shadow(0 7px 11px rgba(0,0,0,.14));
+}
+
+.smartisan-turntable-led {
+  display:none;
+}
+
+.smartisan-turntable-readout {
+  padding-top:4px;
+}
+
+.smartisan-turntable-timeline {
+  border-top:1px solid rgba(0,0,0,.04);
+  border-bottom:0;
+}
+
+.smartisan-turntable-controls {
+  min-height:94px;
+}
+
+@media (max-width:980px) {
+  .smartisan-turntable-player {
+    --smartisan-turntable-disc:min(430px, calc(100vw - 96px));
+  }
+
+  .smartisan-turntable-stage::before,
+  .smartisan-turntable-stage::after {
+    left:8px;
+    top:14%;
+    width:46px;
+  }
+}
+
+@media (max-width:520px) {
+  .smartisan-turntable-player {
+    --smartisan-turntable-disc:min(330px, calc(100vw - 48px));
+    padding:12px 10px 18px;
+  }
+
+  .smartisan-turntable-stage {
+    height:calc(var(--smartisan-turntable-disc) * 1.02);
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .smartisan-turntable-needle-arm,
+  .smartisan-turntable-needle-shadow {
+    transition:none !important;
+  }
+}
+
+/* Smartisan shell controls: align the rest of the theme with the playback skin. */
+:root[data-theme='smartisan-classic'] nav button {
+  --nav-active-border-size:0px;
+  --nav-active-border:none;
+  --nav-active-fill:transparent;
+  --nav-active-glint:transparent;
+}
+
+:root[data-theme='smartisan-classic'] nav button::before,
+:root[data-theme='smartisan-classic'] nav button::after {
+  content:none !important;
+}
+
+:root[data-theme='smartisan-classic'] nav button.active,
+:root[data-theme='smartisan-classic'] nav button:hover {
+  color:rgba(0,0,0,.62);
+  background:
+    url('/smartisan/titlebar-bg.png') center / 100% 100%,
+    linear-gradient(180deg,#fff 0%,#f7f7f7 47%,#ececec 100%);
+  border-top-color:#f2f2f2;
+  border-bottom-color:#dcdcdc;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.96);
+}
+
+:root[data-theme='smartisan-classic'] nav button:active,
+:root[data-theme='smartisan-classic'] .card-play:active,
+:root[data-theme='smartisan-classic'] .card-favorite:active,
+:root[data-theme='smartisan-classic'] .song-row button:active,
+:root[data-theme='smartisan-classic'] .icon-button:active,
+:root[data-theme='smartisan-classic'] .topbar button:active,
+:root[data-theme='smartisan-classic'] .section-head button:active,
+:root[data-theme='smartisan-classic'] .library-actions button:active,
+:root[data-theme='smartisan-classic'] .pagination-controls button:active {
+  background:linear-gradient(180deg,#e9e9e9 0%,#f9f9f9 100%);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.10), inset 0 -1px 0 rgba(255,255,255,.72);
+  transform:none;
+}
+
+:root[data-theme='smartisan-classic'] .card-play,
+:root[data-theme='smartisan-classic'] .card-favorite,
+:root[data-theme='smartisan-classic'] .song-row button,
+:root[data-theme='smartisan-classic'] .icon-button,
+:root[data-theme='smartisan-classic'] .topbar button,
+:root[data-theme='smartisan-classic'] .section-head button,
+:root[data-theme='smartisan-classic'] .library-actions button,
+:root[data-theme='smartisan-classic'] .library-actions .upload,
+:root[data-theme='smartisan-classic'] .upload,
+:root[data-theme='smartisan-classic'] .pagination-controls button,
+:root[data-theme='smartisan-classic'] .transport button,
+:root[data-theme='smartisan-classic'] .volume button {
+  color:rgba(0,0,0,.58);
+  background:
+    url('/smartisan/titlebar-bg.png') center / 100% 100%,
+    linear-gradient(180deg,#fff 0%,#f7f7f7 50%,#ededed 100%);
+  border:1px solid #c9c9c9;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.96), 0 1px 1px rgba(0,0,0,.06);
+  text-shadow:0 1px 0 rgba(255,255,255,.82);
+}
+
+:root[data-theme='smartisan-classic'] .player {
+  background:
+    url('/smartisan/titlebar-bg.png') center / 100% 100%,
+    linear-gradient(180deg,#fbfbfb 0%,#f2f2f2 58%,#e8e8e8 100%);
+  border-top:1px solid #cfcfcf;
+}
+
+:root[data-theme='smartisan-classic'] .player-mood,
+:root[data-theme='smartisan-classic'] .now,
+:root[data-theme='smartisan-classic'] .transport,
+:root[data-theme='smartisan-classic'] .volume {
+  text-shadow:0 1px 0 rgba(255,255,255,.82);
+}
+
+:root[data-theme='smartisan-classic'] .play {
+  color:#fff;
+  background:linear-gradient(180deg,#e96c64,#d84b43);
+  border-color:#c84840;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.32),0 1px 2px rgba(0,0,0,.16);
+  text-shadow:0 -1px 0 rgba(0,0,0,.22);
+}
+
+/* Final Smartisan control pass: keep progress and volume in the legacy gray
+   control language instead of the generic accent-colored range styling. */
+:root[data-theme='smartisan-classic'] .transport input[type='range'],
+:root[data-theme='smartisan-classic'] .volume input[type='range'] {
+  height:26px;
+  accent-color:#9d9d9d;
+}
+
+:root[data-theme='smartisan-classic'] .transport input[type='range']::-webkit-slider-runnable-track,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-webkit-slider-runnable-track {
+  height:8px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.10);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.16), 0 1px 0 rgba(255,255,255,.88);
+}
+
+:root[data-theme='smartisan-classic'] .transport input[type='range']::-webkit-slider-runnable-track {
+  background:
+    linear-gradient(
+      90deg,
+      #afafaf 0 var(--played, 0%),
+      #d0d0d0 var(--played, 0%) var(--buffered, var(--played, 0%)),
+      #f8f8f8 var(--buffered, var(--played, 0%)) 100%
+    );
+}
+
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-webkit-slider-runnable-track {
+  background:
+    linear-gradient(
+      90deg,
+      #afafaf 0 var(--volume-level, 0%),
+      #f8f8f8 var(--volume-level, 0%) 100%
+    );
+}
+
+:root[data-theme='smartisan-classic'] .transport input[type='range']::-moz-range-track,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-moz-range-track {
+  height:8px;
+  border-radius:999px;
+  background:#f8f8f8;
+  border:1px solid rgba(0,0,0,.10);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.16);
+}
+
+:root[data-theme='smartisan-classic'] .transport input[type='range']::-moz-range-progress,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-moz-range-progress {
+  height:8px;
+  border-radius:999px;
+  background:linear-gradient(180deg,#afafaf,#969696);
+}
+
+:root[data-theme='smartisan-classic'] .transport input[type='range']::-webkit-slider-thumb,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-webkit-slider-thumb,
+:root[data-theme='smartisan-classic'] .transport input[type='range']::-moz-range-thumb,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-moz-range-thumb {
+  width:22px;
+  height:40px;
+  border:0;
+  border-radius:5px;
+  background:
+    url('/smartisan/playing-control-time.png') center / contain no-repeat,
+    linear-gradient(180deg,#fff,#eeeeee);
+  box-shadow:0 1px 3px rgba(0,0,0,.20);
+}
+
+:root[data-theme='smartisan-classic'] .transport input[type='range']::-webkit-slider-thumb,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance:none;
+  margin-top:-17px;
+}
+
+:root[data-theme='smartisan-classic'] .transport input[type='range']:disabled::-webkit-slider-thumb {
+  opacity:.55;
+}
+
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-webkit-slider-thumb,
+:root[data-theme='smartisan-classic'] .volume input[type='range']::-moz-range-thumb {
+  width:22px;
+  height:42px;
+  background:
+    url('/smartisan/playing_control_volume.png') center / contain no-repeat,
+    linear-gradient(180deg,#fff,#eeeeee);
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons {
+  gap:6px;
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons button,
+:root[data-theme='smartisan-classic'] .playback-buttons button:hover,
+:root[data-theme='smartisan-classic'] .playback-buttons button:active,
+:root[data-theme='smartisan-classic'] .playback-buttons .play,
+:root[data-theme='smartisan-classic'] .playback-buttons .play:hover {
+  width:52px;
+  min-width:52px;
+  height:52px;
+  min-height:52px;
+  padding:0;
+  border:0;
+  border-radius:0;
+  color:transparent;
+  background-color:transparent;
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:contain;
+  box-shadow:none;
+  text-shadow:none;
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons button svg {
+  display:none;
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons button:nth-child(1) {
+  background-image:url('/smartisan/thumbnail_floatplay_btn_prev.png');
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons button:nth-child(1):not(:disabled):active {
+  background-image:url('/smartisan/thumbnail_floatplay_btn_prev_down.png');
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons button:nth-child(3) {
+  background-image:url('/smartisan/floatplay_btn_next.png');
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons button:nth-child(3):not(:disabled):active {
+  background-image:url('/smartisan/floatplay_btn_next_down.png');
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons .play[data-playing='false'] {
+  background-image:url('/smartisan/floatplay_btn_play.png');
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons .play[data-playing='false']:not(:disabled):active {
+  background-image:url('/smartisan/floatplay_btn_play_down.png');
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons .play[data-playing='true'] {
+  background-image:url('/smartisan/floatplay_btn_pause.png');
+}
+
+:root[data-theme='smartisan-classic'] .playback-buttons .play[data-playing='true']:not(:disabled):active {
+  background-image:url('/smartisan/floatplay_btn_pause_down.png');
+}
+
+:root[data-theme='smartisan-classic'] .player-favorite,
+:root[data-theme='smartisan-classic'] .player-favorite:hover,
+:root[data-theme='smartisan-classic'] .player-favorite:active {
+  width:58px !important;
+  min-width:58px !important;
+  height:58px !important;
+  min-height:58px !important;
+  border:0 !important;
+  border-radius:0 !important;
+  color:transparent !important;
+  background-color:transparent !important;
+  background-repeat:no-repeat !important;
+  background-position:center !important;
+  background-size:contain !important;
+  box-shadow:none !important;
+}
+
+:root[data-theme='smartisan-classic'] .player-favorite svg {
+  display:none;
+}
+
+:root[data-theme='smartisan-classic'] .player-favorite[data-active='false'] {
+  background-image:url('/smartisan/floatplay_btn_favorite_add.png') !important;
+}
+
+:root[data-theme='smartisan-classic'] .player-favorite[data-active='false']:not(:disabled):active {
+  background-image:url('/smartisan/floatplay_btn_favorite_add_down.png') !important;
+}
+
+:root[data-theme='smartisan-classic'] .player-favorite[data-active='true'] {
+  background-image:url('/smartisan/floatplay_btn_favorite_cancel.png') !important;
+}
+
+:root[data-theme='smartisan-classic'] .player-favorite[data-active='true']:not(:disabled):active {
+  background-image:url('/smartisan/floatplay_btn_favorite_cancel_down.png') !important;
+}
+
+.smartisan-turntable-progress-track {
+  background:linear-gradient(180deg,#f8f8f8,#ececec);
+  border:1px solid rgba(0,0,0,.10);
+}
+
+.smartisan-turntable-progress-track span {
+  background:linear-gradient(180deg,#afafaf,#969696);
+}
+
+.smartisan-turntable-progress::after {
+  width:22px;
+  height:40px;
 }

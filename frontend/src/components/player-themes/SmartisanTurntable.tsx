@@ -1,8 +1,9 @@
 import type { CSSProperties } from "react";
-import { Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
+import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
 import { useCoverFallback } from "./useCoverFallback";
+import { useDiscScratchSeek } from "./useDiscScratchSeek";
 
 export function SmartisanTurntable({
   cover,
@@ -33,10 +34,13 @@ export function SmartisanTurntable({
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
-  const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
+  const scratchSeek = useDiscScratchSeek({ duration, progress, onSeek });
+  const displayProgress = scratchSeek.progress;
+  const pct = scratchSeek.pct;
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
-  const needleAngle = smartisanNeedleAngle(pct, duration, playing);
+  const fallbackLabel = smartisanFallbackLabel(title, artist);
+  const needleAngle = smartisanNeedleAngle(pct, duration);
   const playerStyle = {
     "--smartisan-turntable-progress": `${(pct * 100).toFixed(2)}%`,
     "--smartisan-turntable-needle": `${needleAngle.toFixed(2)}deg`,
@@ -58,18 +62,25 @@ export function SmartisanTurntable({
           type="button"
           className="smartisan-turntable-record"
           data-has-cover={coverState.hasCover ? "true" : "false"}
+          data-fallback-label={fallbackLabel}
           aria-label={playing ? "Pause" : "Play"}
-          disabled={!onToggle}
+          disabled={!onToggle && !onSeek}
           onClick={onToggle}
+          {...scratchSeek.scratchProps}
         >
           {coverState.displayUrl ? (
             <img src={coverState.displayUrl} alt="" loading="eager" decoding="async" onError={coverState.onCoverError} />
           ) : (
-            <Record weight="fill" />
+            <span className="smartisan-turntable-paper-label">{fallbackLabel}</span>
           )}
-          <span />
+          <span className="smartisan-turntable-spindle" />
         </button>
-        <span className="smartisan-turntable-arm" aria-hidden="true" />
+        <span className="smartisan-turntable-needle" aria-hidden="true">
+          <i className="smartisan-turntable-needle-base" />
+          <i className="smartisan-turntable-needle-shadow" />
+          <i className="smartisan-turntable-needle-arm" />
+          <i className="smartisan-turntable-needle-top" />
+        </span>
         <span className={playing ? "smartisan-turntable-led on" : "smartisan-turntable-led"} aria-hidden="true" />
       </div>
 
@@ -79,7 +90,7 @@ export function SmartisanTurntable({
       </div>
 
       <div className="smartisan-turntable-timeline">
-        <time>{formatTime(progress)}</time>
+        <time>{formatTime(displayProgress)}</time>
         <div className="smartisan-turntable-progress">
           <span className="smartisan-turntable-progress-track" aria-hidden="true"><span /></span>
           <input
@@ -88,12 +99,12 @@ export function SmartisanTurntable({
             min="0"
             max={Math.max(0, duration || 0)}
             step="0.01"
-            value={Math.min(progress, duration || progress || 0)}
+            value={Math.min(displayProgress, duration || displayProgress || 0)}
             disabled={!canSeek}
             onChange={(event) => onSeek?.(Number(event.target.value))}
           />
         </div>
-        <time>-{formatTime(Math.max(0, (duration || 0) - progress))}</time>
+        <time>-{formatTime(Math.max(0, (duration || 0) - displayProgress))}</time>
       </div>
 
       <div className="smartisan-turntable-controls">
@@ -110,6 +121,14 @@ export function SmartisanTurntable({
   );
 }
 
+function smartisanFallbackLabel(title?: string, artist?: string) {
+  return [artist?.trim()[0], title?.trim()[0]]
+    .filter(Boolean)
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "L";
+}
+
 function formatTime(seconds: number) {
   const total = Math.max(0, Math.floor(seconds || 0));
   const mins = Math.floor(total / 60);
@@ -117,7 +136,7 @@ function formatTime(seconds: number) {
   return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
-function smartisanNeedleAngle(progressPct: number, duration: number, playing: boolean) {
-  if (!playing || duration <= 0) return 0;
+function smartisanNeedleAngle(progressPct: number, duration: number) {
+  if (duration <= 0) return 0;
   return 12 + progressPct * 22.3;
 }
