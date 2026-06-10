@@ -246,12 +246,14 @@ export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "a
 export type MobileHomePlayerStyle = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic";
 export type ArtistAlbumDisplayStyle = "classic" | "showcase";
 export type LyricsDisplayStyle = "immersive" | "classic";
+export type TerminalShellTheme = "operator" | "dusk" | "phosphor" | "ashgray" | "embers";
 export interface UserPreferences {
   home_player_style: HomePlayerStyle;
   mobile_home_player_style: MobileHomePlayerStyle;
   artist_album_display_style: ArtistAlbumDisplayStyle;
   lyrics_display_style: LyricsDisplayStyle;
   lyrics_drag_seek_enabled: boolean;
+  terminal_shell_theme: TerminalShellTheme;
 }
 export interface HealthInfo {
   status: string;

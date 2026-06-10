@@ -156,6 +156,7 @@ type UserPreferences struct {
 	ArtistAlbumDisplayStyle string `json:"artist_album_display_style"`
 	LyricsDisplayStyle      string `json:"lyrics_display_style"`
 	LyricsDragSeekEnabled   bool   `json:"lyrics_drag_seek_enabled"`
+	TerminalShellTheme      string `json:"terminal_shell_theme"`
 }
 
 type Playlist struct {

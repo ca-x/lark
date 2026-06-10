@@ -265,7 +265,7 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if defaults.HomePlayerStyle != "vinyl" || defaults.MobileHomePlayerStyle != "neon-console" || defaults.ArtistAlbumDisplayStyle != "classic" || defaults.LyricsDisplayStyle != "immersive" || !defaults.LyricsDragSeekEnabled {
+	if defaults.HomePlayerStyle != "vinyl" || defaults.MobileHomePlayerStyle != "neon-console" || defaults.ArtistAlbumDisplayStyle != "classic" || defaults.LyricsDisplayStyle != "immersive" || !defaults.LyricsDragSeekEnabled || defaults.TerminalShellTheme != "operator" {
 		t.Fatalf("expected default user preferences, got %#v", defaults)
 	}
 
@@ -275,18 +275,19 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 		ArtistAlbumDisplayStyle: "showcase",
 		LyricsDisplayStyle:      "classic",
 		LyricsDragSeekEnabled:   false,
+		TerminalShellTheme:      "dusk",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.HomePlayerStyle != "gramophone" || saved.MobileHomePlayerStyle != "smartisan-classic" || saved.ArtistAlbumDisplayStyle != "showcase" || saved.LyricsDisplayStyle != "classic" || saved.LyricsDragSeekEnabled {
+	if saved.HomePlayerStyle != "gramophone" || saved.MobileHomePlayerStyle != "smartisan-classic" || saved.ArtistAlbumDisplayStyle != "showcase" || saved.LyricsDisplayStyle != "classic" || saved.LyricsDragSeekEnabled || saved.TerminalShellTheme != "dusk" {
 		t.Fatalf("expected saved user preferences to persist, got %#v", saved)
 	}
 	loaded, err := service.GetUserPreferences(ctx, 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.HomePlayerStyle != "gramophone" || loaded.MobileHomePlayerStyle != "smartisan-classic" || loaded.ArtistAlbumDisplayStyle != "showcase" || loaded.LyricsDisplayStyle != "classic" || loaded.LyricsDragSeekEnabled {
+	if loaded.HomePlayerStyle != "gramophone" || loaded.MobileHomePlayerStyle != "smartisan-classic" || loaded.ArtistAlbumDisplayStyle != "showcase" || loaded.LyricsDisplayStyle != "classic" || loaded.LyricsDragSeekEnabled || loaded.TerminalShellTheme != "dusk" {
 		t.Fatalf("expected user preferences to load from database, got %#v", loaded)
 	}
 
@@ -294,7 +295,7 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if otherUser.HomePlayerStyle != "vinyl" || otherUser.MobileHomePlayerStyle != "neon-console" || otherUser.ArtistAlbumDisplayStyle != "classic" || otherUser.LyricsDisplayStyle != "immersive" || !otherUser.LyricsDragSeekEnabled {
+	if otherUser.HomePlayerStyle != "vinyl" || otherUser.MobileHomePlayerStyle != "neon-console" || otherUser.ArtistAlbumDisplayStyle != "classic" || otherUser.LyricsDisplayStyle != "immersive" || !otherUser.LyricsDragSeekEnabled || otherUser.TerminalShellTheme != "operator" {
 		t.Fatalf("expected user preferences to be scoped per user, got %#v", otherUser)
 	}
 
@@ -305,7 +306,7 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if legacy.HomePlayerStyle != "cassette" || legacy.MobileHomePlayerStyle != "soft-vinyl" || legacy.ArtistAlbumDisplayStyle != "showcase" || legacy.LyricsDisplayStyle != "immersive" || !legacy.LyricsDragSeekEnabled {
+	if legacy.HomePlayerStyle != "cassette" || legacy.MobileHomePlayerStyle != "soft-vinyl" || legacy.ArtistAlbumDisplayStyle != "showcase" || legacy.LyricsDisplayStyle != "immersive" || !legacy.LyricsDragSeekEnabled || legacy.TerminalShellTheme != "operator" {
 		t.Fatalf("expected legacy user preferences to keep lyrics display default and drag seek enabled, got %#v", legacy)
 	}
 
@@ -313,11 +314,12 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 		HomePlayerStyle:         "bad-value",
 		MobileHomePlayerStyle:   "bad-value",
 		ArtistAlbumDisplayStyle: "bad-value",
+		TerminalShellTheme:      "bad-value",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if normalized.HomePlayerStyle != "vinyl" || normalized.MobileHomePlayerStyle != "neon-console" || normalized.ArtistAlbumDisplayStyle != "classic" || normalized.LyricsDisplayStyle != "immersive" || normalized.LyricsDragSeekEnabled {
+	if normalized.HomePlayerStyle != "vinyl" || normalized.MobileHomePlayerStyle != "neon-console" || normalized.ArtistAlbumDisplayStyle != "classic" || normalized.LyricsDisplayStyle != "immersive" || normalized.LyricsDragSeekEnabled || normalized.TerminalShellTheme != "operator" {
 		t.Fatalf("expected invalid user preferences to normalize, got %#v", normalized)
 	}
 }

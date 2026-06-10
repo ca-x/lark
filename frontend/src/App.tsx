@@ -112,6 +112,7 @@ import type {
   Song,
   SongPage,
   SubsonicCredentialStatus,
+  TerminalShellTheme,
   Theme,
   UISoundSettings,
   PlaybackHistoryEntry,
@@ -152,6 +153,7 @@ import { CardGrid } from "./components/CardGrid";
 import { LazyCoverImage } from "./components/LazyCoverImage";
 import { PaginationControls, type PageLike } from "./components/PaginationControls";
 import { UserAvatar, UserMenu } from "./components/UserMenu";
+import { TerminalShell } from "./components/terminal/TerminalShell";
 import { AuthView } from "./components/AuthView";
 import { AddToPlaylistDialog, PlaylistDialog } from "./components/PlaylistDialogs";
 import { MetadataEditorDialog, type MetadataEditorTarget } from "./components/MetadataEditorDialog";
@@ -222,8 +224,11 @@ const SLEEP_SONG_PRESETS = [1, 3, 5] as const;
 const LYRIC_OFFSET_STEP_MS = [-500, -100, 100, 500] as const;
 const MAX_LYRIC_OFFSET_MS = 10_000;
 const LYRIC_ACTIVE_ANCHOR_RATIO = 0.38;
+const INTERFACE_MODE_KEY = "lark.interface-mode";
+const TERMINAL_SHELL_THEME_KEY = "lark.shell-theme";
 
 type SleepTimerMode = "off" | "time" | "songs" | "album";
+type InterfaceMode = "standard" | "shell";
 
 const defaultSettings: Settings = {
   language: "zh-CN",
@@ -343,6 +348,10 @@ function normalizeLyricsDisplayStyle(value?: string | null): LyricsDisplayStyle 
   return value === "classic" ? "classic" : "immersive";
 }
 
+function normalizeTerminalShellTheme(value?: string | null): TerminalShellTheme {
+  return value === "dusk" || value === "phosphor" || value === "ashgray" || value === "embers" ? value : "operator";
+}
+
 function normalizeLyricOffsetMs(value?: number | null) {
   const numeric = Math.round(Number(value) || 0);
   return Math.max(-MAX_LYRIC_OFFSET_MS, Math.min(MAX_LYRIC_OFFSET_MS, numeric));
@@ -355,6 +364,7 @@ function normalizeUserPreferences(value?: Partial<UserPreferences> | null): User
     artist_album_display_style: normalizeArtistAlbumDisplayStyle(value?.artist_album_display_style),
     lyrics_display_style: normalizeLyricsDisplayStyle(value?.lyrics_display_style),
     lyrics_drag_seek_enabled: value?.lyrics_drag_seek_enabled ?? true,
+    terminal_shell_theme: normalizeTerminalShellTheme(value?.terminal_shell_theme),
   };
 }
 
@@ -364,7 +374,24 @@ function sameUserPreferences(left: UserPreferences | null, right: UserPreference
     left.mobile_home_player_style === right.mobile_home_player_style &&
     left.artist_album_display_style === right.artist_album_display_style &&
     left.lyrics_display_style === right.lyrics_display_style &&
-    left.lyrics_drag_seek_enabled === right.lyrics_drag_seek_enabled;
+    left.lyrics_drag_seek_enabled === right.lyrics_drag_seek_enabled &&
+    left.terminal_shell_theme === right.terminal_shell_theme;
+}
+
+function storedTerminalShellTheme(): TerminalShellTheme {
+  try {
+    return normalizeTerminalShellTheme(window.localStorage.getItem(TERMINAL_SHELL_THEME_KEY));
+  } catch {
+    return "operator";
+  }
+}
+
+function rememberTerminalShellTheme(theme: TerminalShellTheme) {
+  try {
+    window.localStorage.setItem(TERMINAL_SHELL_THEME_KEY, theme);
+  } catch {
+    // localStorage can be unavailable in private/webview modes; operator remains default.
+  }
 }
 
 function artistAlbumDisplayStyleKey(user?: User | null) {
@@ -425,6 +452,22 @@ function rememberPersistentQueueEnabled(enabled: boolean) {
     window.localStorage.setItem(PERSISTENT_QUEUE_KEY, enabled ? "true" : "false");
   } catch {
     // localStorage can be unavailable in private/webview modes.
+  }
+}
+
+function storedInterfaceMode(): InterfaceMode {
+  try {
+    return window.localStorage.getItem(INTERFACE_MODE_KEY) === "shell" ? "shell" : "standard";
+  } catch {
+    return "standard";
+  }
+}
+
+function rememberInterfaceMode(mode: InterfaceMode) {
+  try {
+    window.localStorage.setItem(INTERFACE_MODE_KEY, mode);
+  } catch {
+    // localStorage can be unavailable in private/webview modes; standard remains default.
   }
 }
 
@@ -849,6 +892,7 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [playMode, setPlayMode] = useState<PlayMode>("sequence");
   const [view, setView] = useState<View>("home");
+  const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>(storedInterfaceMode);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
   const [query, setQuery] = useState("");
   const [albumArtistFilter, setAlbumArtistFilter] = useState(0);
@@ -901,6 +945,7 @@ export default function App() {
   const [artistAlbumDisplayStyle, setArtistAlbumDisplayStyle] = useState<ArtistAlbumDisplayStyle>(() => storedArtistAlbumDisplayStyle());
   const [lyricsDisplayStyle, setLyricsDisplayStyle] = useState<LyricsDisplayStyle>("immersive");
   const [lyricsDragSeekEnabled, setLyricsDragSeekEnabled] = useState(true);
+  const [terminalShellTheme, setTerminalShellTheme] = useState<TerminalShellTheme>(storedTerminalShellTheme);
   const userPreferencesReadyRef = useRef(false);
   const lastSavedUserPreferencesRef = useRef<UserPreferences | null>(null);
   const userPreferencesSaveTimerRef = useRef<number | null>(null);
@@ -1250,6 +1295,10 @@ export default function App() {
   }, [artistAlbumDisplayStyle, auth?.user?.id]);
 
   useEffect(() => {
+    rememberTerminalShellTheme(terminalShellTheme);
+  }, [terminalShellTheme]);
+
+  useEffect(() => {
     if (!auth?.user || !userPreferencesReadyRef.current) return;
     const nextPreferences = normalizeUserPreferences({
       home_player_style: homePlayerStyle,
@@ -1257,6 +1306,7 @@ export default function App() {
       artist_album_display_style: artistAlbumDisplayStyle,
       lyrics_display_style: lyricsDisplayStyle,
       lyrics_drag_seek_enabled: lyricsDragSeekEnabled,
+      terminal_shell_theme: terminalShellTheme,
     });
     if (sameUserPreferences(lastSavedUserPreferencesRef.current, nextPreferences)) return;
     if (userPreferencesSaveTimerRef.current != null) {
@@ -1270,7 +1320,7 @@ export default function App() {
         })
         .catch(() => undefined);
     }, 250);
-  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, lyricsDisplayStyle, lyricsDragSeekEnabled, mobileHomePlayerStyle]);
+  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, lyricsDisplayStyle, lyricsDragSeekEnabled, mobileHomePlayerStyle, terminalShellTheme]);
 
   useEffect(() => {
     return () => {
@@ -1989,9 +2039,11 @@ export default function App() {
       setArtistAlbumDisplayStyle(normalized.artist_album_display_style);
       setLyricsDisplayStyle(normalized.lyrics_display_style);
       setLyricsDragSeekEnabled(normalized.lyrics_drag_seek_enabled);
+      setTerminalShellTheme(normalized.terminal_shell_theme);
       rememberHomePlayerStyle(normalized.home_player_style);
       rememberMobileHomePlayerStyle(normalized.mobile_home_player_style);
       rememberArtistAlbumDisplayStyle(normalized.artist_album_display_style, user);
+      rememberTerminalShellTheme(normalized.terminal_shell_theme);
       userPreferencesReadyRef.current = true;
     } else {
       lastSavedUserPreferencesRef.current = null;
@@ -3919,6 +3971,23 @@ export default function App() {
     "--volume-level": `${Math.round(Math.max(0, Math.min(1, volume)) * 100)}%`,
   } as React.CSSProperties;
   const publicShareToken = publicShareTokenFromRoute(route);
+  const effectiveInterfaceMode: InterfaceMode = mobileViewport ? "standard" : interfaceMode;
+
+  function enterShellMode() {
+    if (mobileViewport) return;
+    setLyricsFullScreen(false);
+    setMobilePlayerExpanded(false);
+    setQueueOpen(false);
+    setEqPanelOpen(false);
+    setInterfaceMode("shell");
+    rememberInterfaceMode("shell");
+  }
+
+  function exitShellMode() {
+    setLyricsFullScreen(false);
+    setInterfaceMode("standard");
+    rememberInterfaceMode("standard");
+  }
 
   if (publicShareToken) {
     return <PublicShareView token={publicShareToken} settings={settings} t={t} />;
@@ -3943,11 +4012,14 @@ export default function App() {
   }
 
   return (
+    <>
     <div
       className={lyricsFullScreen ? "app-shell lyrics-mode" : "app-shell"}
+      data-interface-mode={effectiveInterfaceMode}
       data-view={view}
       data-mobile-player-expanded={mobilePlayerExpanded ? "true" : "false"}
       data-mobile-theme={mobileHomePlayerStyle}
+      aria-hidden={effectiveInterfaceMode === "shell" ? "true" : undefined}
     >
       <a className="skip-link" href="#main-content">
         {t("skipToContent")}
@@ -4067,6 +4139,7 @@ export default function App() {
                     setSettingsTab("profile");
                     setView("settings");
                   }}
+                  onOpenShellMode={enterShellMode}
                   onLogout={() => void logout()}
                 />
               ) : null}
@@ -5057,6 +5130,58 @@ export default function App() {
         </div>
       ) : null}
     </div>
+    {effectiveInterfaceMode === "shell" ? (
+      <TerminalShell
+        user={auth.user}
+        settings={settings}
+        health={health}
+        libraryStats={libraryStats}
+        networkReachable={networkReachable}
+        offlineMode={offlineMode}
+        songs={songs}
+        librarySongPage={librarySongPage}
+        libraryPageLoading={libraryPageLoading}
+        albums={albums}
+        albumPage={albumPageData}
+        albumPageLoading={albumPageLoading}
+        favoriteSongs={favoriteSongs}
+        favoriteAlbums={favoriteAlbums}
+        recentPlayedSongs={recentPlayedSongs}
+        dailyMix={dailyMix}
+        queue={queue}
+        current={current}
+        currentRadio={currentRadio}
+        currentNetworkTrack={currentNetworkTrack}
+        playing={playing}
+        progress={progress}
+        duration={playableDuration}
+        volume={volume}
+        playModeLabel={playModeLabel}
+        lyricLines={lyricLines}
+        activeLyric={activeLyric}
+        lyricsLoading={lyricsLoading}
+        shellTheme={terminalShellTheme}
+        t={t}
+        onShellThemeChange={setTerminalShellTheme}
+        onExit={exitShellMode}
+        onPlaySong={(song, list) => void playSong(song, list)}
+        onPlayQueueSong={(song) => void playSong(song, queue, { keepPlaybackSource: true })}
+        onPlayAlbum={(album) => void playAlbum(album)}
+        onFavoriteSong={(song) => void toggleFavorite(song)}
+        onFavoriteAlbum={(album) => void toggleAlbumFavorite(album)}
+        onTogglePlayback={() => setPlaying((value) => {
+          playUISound(value ? "pause" : "play");
+          return !value;
+        })}
+        onPrevious={() => next(-1)}
+        onNext={() => next(1)}
+        onSeek={seekTo}
+        onVolume={updateVolume}
+        onLoadLibrarySongsPage={(page, search) => void loadLibrarySongsPage(page, search)}
+        onLoadAlbumPage={(page) => void loadAlbumPage(page)}
+      />
+    ) : null}
+    </>
   );
 }
 

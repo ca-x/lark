@@ -1331,6 +1331,7 @@ func defaultUserPreferences() models.UserPreferences {
 		ArtistAlbumDisplayStyle: "classic",
 		LyricsDisplayStyle:      "immersive",
 		LyricsDragSeekEnabled:   true,
+		TerminalShellTheme:      "operator",
 	}
 }
 
@@ -1341,6 +1342,16 @@ func normalizeUserPreferences(preferences models.UserPreferences) models.UserPre
 		ArtistAlbumDisplayStyle: normalizeArtistAlbumDisplayStyle(preferences.ArtistAlbumDisplayStyle),
 		LyricsDisplayStyle:      normalizeLyricsDisplayStyle(preferences.LyricsDisplayStyle),
 		LyricsDragSeekEnabled:   preferences.LyricsDragSeekEnabled,
+		TerminalShellTheme:      normalizeTerminalShellTheme(preferences.TerminalShellTheme),
+	}
+}
+
+func normalizeTerminalShellTheme(value string) string {
+	switch strings.TrimSpace(value) {
+	case "operator", "dusk", "phosphor", "ashgray", "embers":
+		return strings.TrimSpace(value)
+	default:
+		return "operator"
 	}
 }
 

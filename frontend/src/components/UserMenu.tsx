@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CaretDown, SignOut, UserCircle } from "@phosphor-icons/react";
+import { CaretDown, SignOut, Terminal, UserCircle } from "@phosphor-icons/react";
 import type { createT } from "../i18n";
 import type { User } from "../types";
 
@@ -20,12 +20,14 @@ export function UserMenu({
   t,
   profileEnabled = true,
   onOpenProfile,
+  onOpenShellMode,
   onLogout,
 }: {
   user: User;
   t: ReturnType<typeof createT>;
   profileEnabled?: boolean;
   onOpenProfile: () => void;
+  onOpenShellMode?: () => void;
   onLogout: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -73,6 +75,18 @@ export function UserMenu({
               }}
             >
               <UserCircle /> {t("profileSettings")}
+            </button>
+          ) : null}
+          {onOpenShellMode ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onOpenShellMode();
+              }}
+            >
+              <Terminal /> {t("shellMode")}
             </button>
           ) : null}
           <button

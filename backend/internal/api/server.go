@@ -209,6 +209,7 @@ type userPreferencesRequest struct {
 	ArtistAlbumDisplayStyle string  `json:"artist_album_display_style"`
 	LyricsDisplayStyle      *string `json:"lyrics_display_style"`
 	LyricsDragSeekEnabled   *bool   `json:"lyrics_drag_seek_enabled"`
+	TerminalShellTheme      *string `json:"terminal_shell_theme"`
 }
 
 type authUserResponse struct {
@@ -618,12 +619,17 @@ func (s *Server) handleSaveUserPreferences(c *echo.Context) error {
 	if req.LyricsDisplayStyle != nil {
 		lyricsDisplayStyle = *req.LyricsDisplayStyle
 	}
+	terminalShellTheme := current.TerminalShellTheme
+	if req.TerminalShellTheme != nil {
+		terminalShellTheme = *req.TerminalShellTheme
+	}
 	preferences, err := s.lib.SaveUserPreferences(c.Request().Context(), currentUserID(c), models.UserPreferences{
 		HomePlayerStyle:         req.HomePlayerStyle,
 		MobileHomePlayerStyle:   req.MobileHomePlayerStyle,
 		ArtistAlbumDisplayStyle: req.ArtistAlbumDisplayStyle,
 		LyricsDisplayStyle:      lyricsDisplayStyle,
 		LyricsDragSeekEnabled:   lyricsDragSeekEnabled,
+		TerminalShellTheme:      terminalShellTheme,
 	})
 	if err != nil {
 		return mapError(err)
