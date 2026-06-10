@@ -2,9 +2,11 @@
 
 [中文说明](README_ZH.md)
 
-Lark is a self-hosted web music player for personal music libraries. It focuses on local, high-resolution collections first, then adds practical extras around lyrics, metadata repair, offline playback, public sharing, online radio, network libraries, and third-party clients.
+Lark is a self-hosted web music player for people who keep their own music library. Point it at music on a NAS, home server, desktop, or container volume, then use a browser to scan, browse, fix, play, cache, and share that collection.
 
-The backend is Go + Echo v5 + Ent ORM, with SQLite by default. The frontend is React + TypeScript + Vite, and the production web build is embedded into the Go server so the app can run as a single service.
+It is designed for large local libraries first: FLAC/WAV/Hi-Res albums, CUE sheets, uneven tags, missing lyrics, album art problems, and folders collected over time. It also covers the listening habits around that library: mobile playback, browser-side offline cache, radio, Subsonic-compatible clients, ListenBrainz/Last.fm scrobbling, and public share links.
+
+The backend is Go + Echo v5 + Ent ORM, with SQLite by default. The frontend is React + TypeScript + Vite. The production web build is embedded into the Go server, so Lark can run as one service.
 
 For release notes, see [CHANGELOG.md](CHANGELOG.md).
 
@@ -14,74 +16,99 @@ Thanks to the [LinuxDo Community](https://linux.do) for discussion and feedback.
 
 ---
 
-## What Lark Does
+## Use Lark When
 
-### Local Library And Playback
+- You have a local music collection that has outgrown file browsers and shared folders.
+- You want a private music site for a NAS, home server, VPS, or always-on desktop.
+- You keep FLAC/WAV/Hi-Res albums, CUE rips, and older formats that need a careful playback path.
+- Your tags, covers, artists, or lyrics are inconsistent and you want to repair them from the same interface you use to listen.
+- You listen from desktop and mobile browsers, sometimes offline, sometimes through Subsonic/Navidrome-compatible clients.
+- You want to share a song, album, artist, or playlist with someone without creating an account for them.
 
-- Scan one or more local music directories, upload audio files, and browse the library by songs, albums, artists, playlists, folders, and sources.
-- Stream browser-friendly formats directly, including MP3, FLAC, WAV, M4A/AAC, OGG/Vorbis, and OPUS.
-- Keep AIFF, APE, DSF, DFF, DST, and other less browser-friendly formats in the library; when direct playback is unreliable, optional `ffmpeg` can transcode them on demand.
-- Use HTTP Range streaming for smooth seeking in the browser.
-- Read tags and embedded artwork with `github.com/dhowden/tag`, with optional `ffprobe` for richer duration, sample-rate, bit-depth, and lyric detection.
-- Parse CUE sheets for image-based albums and skip malformed non-audio CUE data without blocking the real audio files.
-- Normalize noisy artist names, keep artist initials, and filter artists by A-Z / #.
+## Quick Start
 
-### Library Organization
+The fastest way to try Lark is Docker:
 
-- Paginated song, album, artist, and playlist views are built for large libraries.
+```bash
+docker compose up -d
+```
+
+Then open:
+
+```text
+http://localhost:8080
+```
+
+On first launch, create an admin account in the web UI. For unattended setup, pass the first admin account before the first start:
+
+```bash
+LARK_ADMIN_USERNAME=admin \
+LARK_ADMIN_PASSWORD='change-me-now' \
+LARK_ADMIN_NICKNAME='Lark Admin' \
+docker compose up -d
+```
+
+By default, Lark stores app data and uploaded music in the `lark_data` Docker volume. If your music already exists inside the container, set `LARK_LIBRARY_DIR` to that path, then scan it from the web UI.
+
+## Common Workflows
+
+### Put A Local Library On The Web
+
+- Scan one or more local directories, upload audio files, and browse by songs, albums, artists, playlists, folders, and sources.
+- Paginated library views, album artist filtering, artist initials, folder browsing, and source tabs help with large or uneven collections.
 - Album, artist, and playlist detail pages can start playback in one click.
-- Album artist filtering, artist initial filtering, folder browsing, and library-source tabs help navigate messy collections.
-- Favorites are user-scoped and cover songs, albums, artists, and radio stations.
-- Playlists support creation, song insertion, and detail playback.
-- Smart playlists can surface recently played, recently added, favorites, unplayed tracks, Hi-Res tracks, and songs that still need lyrics.
-- Daily Mix uses favorites, listening history, and the current day seed.
+- Browser-friendly formats stream directly, including MP3, FLAC, WAV, M4A/AAC, OGG/Vorbis, and OPUS.
+- AIFF, APE, DSF, DFF, DST, and other less browser-friendly formats can stay in the library. When direct playback is unreliable, optional `ffmpeg` can transcode on demand.
+- HTTP Range streaming keeps seeking stable in the browser.
 
-### Playback History And Resume
+### Clean Up Tags, Covers, And Lyrics
 
-- The History view shows listening events as a timeline, with calendar and date filters for jumping back to a specific day.
-- History retention is configurable in Site Settings; set retention to `0` to keep playback history permanently.
-- Playback queue, source context, resume position, and playback history can persist across sessions; history can also be separated by device, and cross-device continue restores the saved queue instead of only the last track.
-- Library inventory stays separate from playback behavior: recently played songs do not change the library's latest-added ordering.
-
-### Lyrics And Metadata
-
-- Lark prefers embedded lyrics and falls back to online lyric matching when embedded lyrics are missing.
-- Users can choose from lyric candidates when the automatic match is wrong.
+- Lark reads tags and embedded artwork with `github.com/dhowden/tag`. Optional `ffprobe` adds richer duration, sample-rate, bit-depth, and lyric detection.
+- CUE sheets are parsed for image-based albums, and malformed non-audio CUE data is skipped without blocking the real audio files.
+- Noisy artist names can be normalized, artist initials are saved, and A-Z / # filters make large artist lists easier to browse.
+- Embedded lyrics are preferred. When they are missing, Lark can search online lyrics and let you choose a better candidate.
 - LRC parsing supports offset tags, multiple timestamps on one line, millisecond precision, and original/translation grouping at the same timestamp.
-- Lyrics can be shifted with an offset and, when enabled, saved automatically as a same-name `.lrc` file next to the song.
-- Song and album metadata editors can use online candidates, file-path candidates, manual input, cover URLs, and uploaded covers.
-- Supported source files can be updated directly with corrected tags and artwork; Lark shows per-file writeback results and uses a confirmation flow before touching audio files.
-- Path-assisted metadata can repair bad tags during scans without immediately writing back unless tag writeback is enabled.
+- Lyrics can be shifted with an offset and saved automatically as a same-name `.lrc` file when that option is enabled.
+- Song and album editors support online candidates, file-path candidates, manual input, cover URLs, and uploaded covers.
+- Supported source files can be updated with corrected tags and artwork after confirmation. Lark shows per-file writeback results before you move on.
+- Path-assisted metadata can repair bad tags during scans without writing back to source files unless tag writeback is enabled.
 
-### Playback Experience
+### Listen Across Devices
 
 - Desktop home player styles include vinyl deck, cassette deck, iPod, audio scope, album sleeve, Smartisan deck, and Gramophone.
 - Mobile player styles include Precision Audio, Gramophone, indiewave, iPod, soft vinyl, stage glass, blue halo, and Smartisan classic.
 - The bottom player exposes queue, play mode, volume, progress, favorites, sleep timer, and fullscreen lyrics.
 - Sleep timer can stop by duration, after a number of songs, or at the end of the current album.
-- Equalizer presets apply to local music, network tracks, and radio playback.
-- Optional interface sounds add light feedback for playback, favorites, and sharing actions.
+- Playback queue, source context, resume position, and history can persist across sessions. Cross-device continue restores the saved queue, not only the last track.
+- History can be separated by device when you want each phone, tablet, or browser to keep its own playback trail.
+- Equalizer presets apply to local music, network tracks, and radio playback. Optional interface sounds add light feedback for playback, favorites, and sharing actions.
 - The layout adapts across desktop sidebar, tablet icon rail, and mobile bottom navigation.
+- Songs can be prepared for browser-side offline playback with visible cache status and storage use. Played songs can also be cached automatically, and offline mode prefers cached audio when the network is unavailable.
 
-### Offline, Radio, And Network Sources
+### Build Daily Listening Habits
 
-- Songs can be prepared for browser-side offline playback; Lark tracks cache status and storage use.
-- Played songs can be cached automatically, and offline mode prefers cached audio when the network is unavailable.
+- Favorites are user-scoped and cover songs, albums, artists, and radio stations.
+- Playlists support creation, song insertion, and detail playback.
+- Smart playlists surface recently played, recently added, favorites, unplayed tracks, Hi-Res tracks, and songs that still need lyrics.
+- Daily Mix uses favorites, listening history, and the current day seed.
+- The History view shows listening events as a timeline, with calendar and date filters for jumping back to a specific day.
+- History retention is configurable in Site Settings. Set retention to `0` to keep playback history permanently.
+- Library inventory stays separate from playback behavior: recently played songs do not change the library's latest-added ordering.
+
+### Add Radio, Network Libraries, And External Clients
+
 - Online radio includes the built-in cliamp source, custom playlist sources, Radio Browser top/search, and radio favorites.
 - Network library sources can connect to Navidrome/Subsonic, Jellyfin, and Plex for search and streaming.
 - Streaming quality and transcode policy can be tuned for local network, mobile data, or constrained devices.
-
-### Sharing And External Clients
-
 - Public share links can expose songs, albums, artists, or playlists on a playback page without sign-in.
-- Share links can be permanent or expire after a selected duration, and users can manage links they created.
+- Share links can be permanent or expire after 1 hour, 1 day, 7 days, or 30 days, and users can manage links they created.
 - The optional Subsonic-compatible `/rest/*.view` service lets Subsonic/Navidrome clients connect with separate Subsonic credentials.
-- Lark exposes an MCP SSE endpoint for AI clients. Available tools include listing artists and albums, searching songs, reading favorites, toggling favorites, fetching lyrics, and preparing playback URLs.
+- Lark exposes an MCP SSE endpoint for AI clients, with tools for listing artists and albums, searching songs, reading favorites, toggling favorites, fetching lyrics, and preparing playback URLs.
 - Played tracks can be scrobbled to ListenBrainz or Last.fm with configurable thresholds.
 
-### Administration And Personalization
+### Administer A Private Music Service
 
-- First-run setup creates the first admin account; admins can also enable registration.
+- First-run setup creates the first admin account. Admins can also enable registration.
 - Settings cover language, theme, library paths, directory status, directory watch, diagnostics, font uploads, lyrics font, and transcode policy.
 - Lark supports Simplified Chinese and English. The app name appears as **百灵** in Chinese and **Lark** in English.
 - The theme system includes 21 schemes: original dark and light themes, Apple Music / Spotify / NetEase / Winamp / Foobar2000 inspired dark and light themes, and a Smartisan Music classic theme.
@@ -190,18 +217,7 @@ go run ./cmd/server
 
 ## Docker
 
-```bash
-docker compose up -d
-```
-
-For unattended first-run setup, pass the initial admin variables before the first start:
-
-```bash
-LARK_ADMIN_USERNAME=admin \
-LARK_ADMIN_PASSWORD='change-me-now' \
-LARK_ADMIN_NICKNAME='Lark Admin' \
-docker compose up -d
-```
+Use the Quick Start command above for a basic deployment. This section covers the Docker defaults you usually change after the first run: where music lives, database tuning, and optional Redis.
 
 The default compose file stores app data and uploaded music in the `lark_data` volume. If your runtime already exposes a music directory inside the container, set `LARK_LIBRARY_DIR` to that in-container path; otherwise leave it as `/app/data/music` and use uploads/scans within the app data volume. The published Docker image already includes `ffmpeg`/`ffprobe`; no extra compose environment is required for the default transcoding and metadata probe paths. Recursive scans skip the platform bookkeeping directory named `.shared-center`, then continue scanning sibling directories while keeping the configured library root unchanged.
 
