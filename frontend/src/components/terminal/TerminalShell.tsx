@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { createT } from "../../i18n";
 import { api } from "../../services/api";
 import type {
@@ -31,7 +31,33 @@ const shellDict = {
     queueTab: "队列",
     consoleTab: "控制台",
     shellContent: "跳到 Shell 内容",
-    shellTabs: "Shell 标签",
+    shellTabs: "终端标签",
+    playbackStatusCommand: "$ 当前播放",
+    unavailable: "无",
+    standardUIShort: "界面",
+    shortcutsHelp: "快捷键帮助",
+    openShortcuts: "打开快捷键帮助",
+    closeShortcuts: "关闭快捷键帮助",
+    shortcutGlobal: "全局",
+    shortcutNavigation: "导航",
+    shortcutPlayback: "播放",
+    shortcutList: "列表",
+    shortcutExit: "退出终端模式",
+    shortcutTabSwitch: "切换标签",
+    shortcutSearch: "聚焦搜索",
+    shortcutHelp: "打开帮助",
+    shortcutSubtabs: "切换子标签",
+    shortcutPage: "上一页 / 下一页",
+    shortcutPlayPause: "播放 / 暂停",
+    shortcutSeek: "快退/快进 5 秒",
+    shortcutSeekLong: "快退/快进 30 秒",
+    shortcutVolume: "调整音量",
+    shortcutPrevNext: "上一首 / 下一首",
+    shortcutLyrics: "歌词覆盖层",
+    shortcutMoveRows: "移动选中行",
+    shortcutOpenRow: "播放选中项",
+    shortcutFavorite: "收藏选中项",
+    shortcutCloseOverlay: "关闭覆盖层/取消焦点",
     connected: "已连接",
     offline: "离线",
     limited: "弱连接",
@@ -67,6 +93,8 @@ const shellDict = {
     standby: "待机",
     user: "用户",
     role: "角色",
+    adminRole: "管理员",
+    userRole: "用户",
     network: "网络",
     library: "曲库",
     songs: "歌曲",
@@ -102,7 +130,7 @@ const shellDict = {
     year: "年份",
     format: "格式",
     time: "时长",
-    shellTheme: "Shell 主题",
+    shellTheme: "终端主题",
     shellThemeHint: "只影响终端模式，不会修改标准界面的站点主题。",
     operatorTheme: "控制台操作员",
     operatorThemeHint: "默认主题，适合专业曲库管理和长时间浏览。",
@@ -124,6 +152,32 @@ const shellDict = {
     consoleTab: "Console",
     shellContent: "Skip to shell content",
     shellTabs: "Shell tabs",
+    playbackStatusCommand: "$ playback.status",
+    unavailable: "n/a",
+    standardUIShort: "UI",
+    shortcutsHelp: "Keyboard shortcuts",
+    openShortcuts: "Open keyboard shortcuts",
+    closeShortcuts: "Close keyboard shortcuts",
+    shortcutGlobal: "Global",
+    shortcutNavigation: "Navigation",
+    shortcutPlayback: "Playback",
+    shortcutList: "List",
+    shortcutExit: "Exit terminal mode",
+    shortcutTabSwitch: "Switch tabs",
+    shortcutSearch: "Focus search",
+    shortcutHelp: "Open help",
+    shortcutSubtabs: "Switch subtabs",
+    shortcutPage: "Previous / next page",
+    shortcutPlayPause: "Play / pause",
+    shortcutSeek: "Seek backward / forward 5 seconds",
+    shortcutSeekLong: "Seek backward / forward 30 seconds",
+    shortcutVolume: "Adjust volume",
+    shortcutPrevNext: "Previous / next track",
+    shortcutLyrics: "Lyrics overlay",
+    shortcutMoveRows: "Move selected row",
+    shortcutOpenRow: "Play selected item",
+    shortcutFavorite: "Favorite selected item",
+    shortcutCloseOverlay: "Close overlay / blur input",
     connected: "connected",
     offline: "offline",
     limited: "limited",
@@ -159,6 +213,8 @@ const shellDict = {
     standby: "standby",
     user: "user",
     role: "role",
+    adminRole: "admin",
+    userRole: "user",
     network: "network",
     library: "library",
     songs: "songs",
@@ -237,6 +293,43 @@ const SHELL_THEMES: ShellThemePreset[] = [
   { id: "phosphor", labelKey: "phosphorTheme", hintKey: "phosphorThemeHint", sample: "#070b07 / #9ede9e", progressFilled: "█", progressEmpty: "░", volumeFilled: "|", volumeEmpty: "." },
   { id: "ashgray", labelKey: "ashgrayTheme", hintKey: "ashgrayThemeHint", sample: "#111213 / #7ab3c2", progressFilled: "▬", progressEmpty: "─", volumeFilled: "▪", volumeEmpty: "·" },
   { id: "embers", labelKey: "embersTheme", hintKey: "embersThemeHint", sample: "#0e0b09 / #c8914a", progressFilled: "█", progressEmpty: "░", volumeFilled: "▪", volumeEmpty: "·" },
+];
+
+const EMPTY_SONGS: Song[] = [];
+const EMPTY_ALBUMS: Album[] = [];
+
+const SHORTCUT_GROUPS: { titleKey: ShellTextKey; rows: { keys: string; keysZh?: string; labelKey: ShellTextKey }[] }[] = [
+  {
+    titleKey: "shortcutNavigation",
+    rows: [
+      { keys: "1-6", labelKey: "shortcutTabSwitch" },
+      { keys: "/", labelKey: "shortcutSearch" },
+      { keys: "?", labelKey: "shortcutHelp" },
+      { keys: "[ / ]", labelKey: "shortcutSubtabs" },
+      { keys: "PageUp / PageDown", labelKey: "shortcutPage" },
+      { keys: "Esc", labelKey: "shortcutCloseOverlay" },
+      { keys: "Shift+Esc", labelKey: "shortcutExit" },
+    ],
+  },
+  {
+    titleKey: "shortcutPlayback",
+    rows: [
+      { keys: "Space", keysZh: "空格", labelKey: "shortcutPlayPause" },
+      { keys: "← / →", labelKey: "shortcutSeek" },
+      { keys: "Shift+←/→", labelKey: "shortcutSeekLong" },
+      { keys: "↑ / ↓", labelKey: "shortcutVolume" },
+      { keys: "P / N", labelKey: "shortcutPrevNext" },
+      { keys: "L", labelKey: "shortcutLyrics" },
+    ],
+  },
+  {
+    titleKey: "shortcutList",
+    rows: [
+      { keys: "j / k", labelKey: "shortcutMoveRows" },
+      { keys: "Enter", keysZh: "回车", labelKey: "shortcutOpenRow" },
+      { keys: "F", labelKey: "shortcutFavorite" },
+    ],
+  },
 ];
 
 function createShellT(language: Settings["language"]) {
@@ -336,6 +429,11 @@ function volumeBar(volume: number, theme: ShellThemePreset, width = 5) {
   return `${theme.volumeFilled.repeat(filled)}${theme.volumeEmpty.repeat(Math.max(0, width - filled))}`;
 }
 
+function shellRangeStyle(value: number, max: number): CSSProperties {
+  const percent = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  return { "--ts-range-progress": `${percent}%` } as CSSProperties;
+}
+
 function songDetail(song: Song) {
   return [song.artist, song.album, formatQuality(song)].filter(Boolean).join(" · ");
 }
@@ -354,6 +452,16 @@ function activeSubtitle(
   if (networkTrack) return [networkTrack.artist, networkTrack.album, networkTrack.provider].filter(Boolean).join(" · ");
   if (radio) return [radio.country, radio.codec || radio.tags, radio.bitrate ? `${radio.bitrate}kbps` : ""].filter(Boolean).join(" · ");
   return s("idle");
+}
+
+function roleLabel(role: string, s: ReturnType<typeof createShellT>) {
+  if (role === "admin") return s("adminRole");
+  if (role === "user") return s("userRole");
+  return role || s("unavailable");
+}
+
+function shortcutKeys(row: { keys: string; keysZh?: string }, language: Settings["language"]) {
+  return language === "zh-CN" && row.keysZh ? row.keysZh : row.keys;
 }
 
 function activeLyrics(lines: LyricLine[], activeKey: string) {
@@ -414,6 +522,7 @@ export function TerminalShell({
   const [favoriteSection, setFavoriteSection] = useState<FavoriteSection>("songs");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [lyricsOpen, setLyricsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchPage, setSearchPage] = useState<SongPage | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -440,17 +549,22 @@ export function TerminalShell({
     onShellThemeChange(theme);
   }, [onShellThemeChange]);
 
+  const openHelp = useCallback(() => {
+    setLyricsOpen(false);
+    setHelpOpen(true);
+  }, []);
+
   useEffect(() => {
     shellMainRef.current?.focus();
   }, []);
 
-  const activeRows = useMemo(() => {
+  const activeSongs = useMemo(() => {
     if (activeTab === "search") return searchPage?.items ?? [];
     if (activeTab === "library" && librarySection === "songs") return libraryRows;
     if (activeTab === "favorites" && favoriteSection === "songs") return favoriteSongs;
     if (activeTab === "queue") return queue;
     if (activeTab === "home") return recentPlayedSongs.length ? recentPlayedSongs : recommendedRows;
-    return [];
+    return EMPTY_SONGS;
   }, [
     activeTab,
     favoriteSection,
@@ -463,6 +577,15 @@ export function TerminalShell({
     searchPage,
   ]);
 
+  const activeAlbums = useMemo(() => {
+    if (activeTab === "library" && librarySection === "albums") return albums;
+    if (activeTab === "favorites" && favoriteSection === "albums") return favoriteAlbums;
+    return EMPTY_ALBUMS;
+  }, [activeTab, albums, favoriteAlbums, favoriteSection, librarySection]);
+
+  const consoleActionCount = activeTab === "console" ? SHELL_THEMES.length + 1 : 0;
+  const selectableCount = activeSongs.length || activeAlbums.length || consoleActionCount;
+
   useEffect(() => {
     setSelectedIndex(0);
   }, [
@@ -472,6 +595,7 @@ export function TerminalShell({
     searchPage?.page,
     librarySongPage?.page,
     albumPage?.page,
+    albums.length,
     favoriteSongs.length,
     favoriteAlbums.length,
     queue.length,
@@ -505,6 +629,13 @@ export function TerminalShell({
         onExit();
         return;
       }
+      if (helpOpen) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setHelpOpen(false);
+        }
+        return;
+      }
       if (lyricsOpen && event.key === "Escape") {
         event.preventDefault();
         setLyricsOpen(false);
@@ -534,6 +665,45 @@ export function TerminalShell({
         setActiveTab("search");
         window.setTimeout(() => searchInputRef.current?.focus(), 0);
         return;
+      }
+      if (event.key === "?") {
+        event.preventDefault();
+        openHelp();
+        return;
+      }
+      if (event.key === "[" || event.key === "]") {
+        const nextSection = event.key === "]" ? "albums" : "songs";
+        if (activeTab === "library") {
+          event.preventDefault();
+          setLibrarySection(nextSection);
+          return;
+        }
+        if (activeTab === "favorites") {
+          event.preventDefault();
+          setFavoriteSection(nextSection);
+          return;
+        }
+      }
+      if (event.key === "PageUp" || event.key === "PageDown") {
+        const direction = event.key === "PageDown" ? 1 : -1;
+        if (activeTab === "search" && searchPage && !searchLoading) {
+          event.preventDefault();
+          const nextPage = clampIndex(searchPage.page - 1 + direction, pageCount(searchPage)) + 1;
+          if (nextPage !== searchPage.page) void runSearch(nextPage);
+          return;
+        }
+        if (activeTab === "library" && librarySection === "songs" && librarySongPage && !libraryPageLoading) {
+          event.preventDefault();
+          const nextPage = clampIndex(librarySongPage.page - 1 + direction, pageCount(librarySongPage)) + 1;
+          if (nextPage !== librarySongPage.page) onLoadLibrarySongsPage(nextPage);
+          return;
+        }
+        if (activeTab === "library" && librarySection === "albums" && albumPage && !albumPageLoading) {
+          event.preventDefault();
+          const nextPage = clampIndex(albumPage.page - 1 + direction, pageCount(albumPage)) + 1;
+          if (nextPage !== albumPage.page) onLoadAlbumPage(nextPage);
+          return;
+        }
       }
       if (event.key === " ") {
         event.preventDefault();
@@ -576,35 +746,56 @@ export function TerminalShell({
         return;
       }
       if (key === "f") {
-        const song = activeRows[selectedIndex] || current;
-        if (!song) return;
+        const song = activeSongs[selectedIndex];
+        const album = activeAlbums[selectedIndex];
+        if (!song && !album && !current) return;
         event.preventDefault();
-        onFavoriteSong(song);
+        if (song) onFavoriteSong(song);
+        else if (album) onFavoriteAlbum(album);
+        else if (current) onFavoriteSong(current);
         return;
       }
       if (key === "j" || key === "k") {
+        if (!selectableCount) return;
         event.preventDefault();
-        setSelectedIndex((index) => clampIndex(index + (key === "j" ? 1 : -1), activeRows.length));
+        setSelectedIndex((index) => clampIndex(index + (key === "j" ? 1 : -1), selectableCount));
         return;
       }
       if (event.key === "Enter") {
-        const song = activeRows[selectedIndex];
-        if (!song) return;
+        const song = activeSongs[selectedIndex];
+        const album = activeAlbums[selectedIndex];
+        const theme = activeTab === "console" ? SHELL_THEMES[selectedIndex] : null;
+        if (!song && !album && !theme && !(activeTab === "console" && selectedIndex === SHELL_THEMES.length)) return;
         event.preventDefault();
-        if (activeTab === "queue") onPlayQueueSong(song);
-        else onPlaySong(song, activeRows);
+        if (song && activeTab === "queue") onPlayQueueSong(song);
+        else if (song) onPlaySong(song, activeSongs);
+        else if (album) onPlayAlbum(album);
+        else if (theme) selectShellTheme(theme.id);
+        else onExit();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
-    activeRows,
+    activeAlbums,
+    activeSongs,
     activeTab,
+    albumPage,
+    albumPageLoading,
     currentDuration,
     currentRadio,
+    helpOpen,
+    libraryPageLoading,
+    librarySection,
+    librarySongPage,
     lyricsOpen,
+    openHelp,
+    onLoadAlbumPage,
+    onLoadLibrarySongsPage,
     onExit,
+    onFavoriteAlbum,
     onFavoriteSong,
+    onPlayAlbum,
     onPlayQueueSong,
     onPlaySong,
     onNext,
@@ -613,6 +804,11 @@ export function TerminalShell({
     onTogglePlayback,
     onVolume,
     progress,
+    runSearch,
+    searchLoading,
+    searchPage,
+    selectShellTheme,
+    selectableCount,
     selectedIndex,
     volume,
   ]);
@@ -621,7 +817,7 @@ export function TerminalShell({
     const baseIndex = options.baseIndex ?? 0;
     return items.map((song, index) => {
       const globalIndex = baseIndex + index;
-      const selected = activeRows === options.source && selectedIndex === globalIndex;
+      const selected = activeSongs === options.source && selectedIndex === globalIndex;
       const active = current?.id === song.id;
       return (
         <div
@@ -639,7 +835,7 @@ export function TerminalShell({
             <strong title={song.title}>{song.title || song.file_name}</strong>
             <span title={song.artist}>{song.artist || s("unknownArtist")}</span>
             <span title={song.album}>{song.album || s("unknownAlbum")}</span>
-            <span>{song.format ? song.format.toUpperCase() : "AUDIO"}</span>
+            <span>{song.format ? song.format.toUpperCase() : s("audio")}</span>
             <time>{formatDuration(song.duration_seconds)}</time>
           </button>
           <button
@@ -668,13 +864,15 @@ export function TerminalShell({
         <span>{s("songs")}</span>
         <span />
       </div>
-      {items.map((album, index) => (
-        <div
-          key={album.id}
-          className="ts-table-row"
-        >
+      {items.map((album, index) => {
+        const selected = activeAlbums === items && selectedIndex === index;
+        return (
+          <div
+            key={album.id}
+            className={`ts-table-row${selected ? " selected" : ""}`}
+          >
           <button type="button" className="ts-row-main" onClick={() => onPlayAlbum(album)}>
-            <span className="ts-row-marker">▸</span>
+            <span className="ts-row-marker">{selected ? "›" : "▸"}</span>
             <span className="ts-row-index">{String(index + 1).padStart(2, "0")}</span>
             <strong title={album.title}>{album.title}</strong>
             <span title={album.artist}>{album.artist || album.album_artist || s("unknownArtist")}</span>
@@ -692,7 +890,8 @@ export function TerminalShell({
             {album.favorite ? "♥" : "♡"}
           </button>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 
@@ -721,24 +920,28 @@ export function TerminalShell({
           <strong>LARK SHELL</strong>
         </div>
         <nav className="ts-tabs" aria-label={s("shellTabs")}>
-          {SHELL_TABS.map((tab) => (
-            <button
-              type="button"
-              key={tab.id}
-              className={activeTab === tab.id ? "active" : ""}
-              aria-current={activeTab === tab.id ? "page" : undefined}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <span>{tab.key}</span>
-              {s(tab.labelKey)}
-            </button>
-          ))}
+          {SHELL_TABS.map((tab) => {
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                type="button"
+                key={tab.id}
+                className={selected ? "active" : ""}
+                aria-current={selected ? "page" : undefined}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span className="ts-tab-marker" aria-hidden="true">{selected ? "►" : ""}</span>
+                <span className="ts-tab-key">{tab.key}</span>
+                <span className="ts-tab-label">{s(tab.labelKey)}</span>
+              </button>
+            );
+          })}
         </nav>
         <div className="ts-status">
           <span>{connectionLabel}</span>
-          <span>{user.nickname || user.username}</span>
-          <button type="button" onClick={onExit} aria-label={t("switchToStandardUI")}>
-            [{t("standardUI")}]
+          <span>@{user.username}</span>
+          <button type="button" onClick={openHelp} aria-label={s("openShortcuts")}>
+            [?]
           </button>
         </div>
       </header>
@@ -748,7 +951,7 @@ export function TerminalShell({
           <div className="ts-grid ts-home-grid">
             <ShellPanel title={s("nowPlaying").toUpperCase()} meta={playing ? s("running") : s("paused")} className="ts-now-panel">
               <div className="ts-now-block">
-                <span className="ts-command">$ playback.status</span>
+                <span className="ts-command">{s("playbackStatusCommand")}</span>
                 <h1>{nowTitle}</h1>
                 <p>{nowSubtitle || s("noActiveSource")}</p>
                 {current ? <code>{songDetail(current)}</code> : null}
@@ -894,7 +1097,7 @@ export function TerminalShell({
             <ShellPanel title={s("connection").toUpperCase()} meta={connectionLabel}>
               <dl className="ts-kv">
                 <div><dt>{s("user")}</dt><dd>{user.nickname || user.username}</dd></div>
-                <div><dt>{s("role")}</dt><dd>{user.role}</dd></div>
+                <div><dt>{s("role")}</dt><dd>{roleLabel(user.role, s)}</dd></div>
                 <div><dt>{s("network")}</dt><dd>{networkReachable ? s("online") : s("offline")}</dd></div>
                 <div><dt>{s("library")}</dt><dd>{health?.library || settings.library_path || s("notConfigured")}</dd></div>
               </dl>
@@ -903,8 +1106,8 @@ export function TerminalShell({
               <dl className="ts-kv">
                 <div><dt>{s("songs")}</dt><dd>{libraryStats?.songs ?? songs.length}</dd></div>
                 <div><dt>{s("albums")}</dt><dd>{libraryStats?.albums ?? albums.length}</dd></div>
-                <div><dt>{s("artists")}</dt><dd>{libraryStats?.artists ?? "n/a"}</dd></div>
-                <div><dt>{s("playlists")}</dt><dd>{libraryStats?.playlists ?? "n/a"}</dd></div>
+                <div><dt>{s("artists")}</dt><dd>{libraryStats?.artists ?? s("unavailable")}</dd></div>
+                <div><dt>{s("playlists")}</dt><dd>{libraryStats?.playlists ?? s("unavailable")}</dd></div>
               </dl>
             </ShellPanel>
             <ShellPanel title={s("audio").toUpperCase()} meta={playing ? s("active") : s("standby")}>
@@ -912,32 +1115,40 @@ export function TerminalShell({
                 <div><dt>{s("mode")}</dt><dd>{playModeLabel}</dd></div>
                 <div><dt>{s("volume")}</dt><dd>{Math.round(volume * 100)}%</dd></div>
                 <div><dt>{s("progress")}</dt><dd>{formatDuration(progress)} / {formatDuration(currentDuration)}</dd></div>
-                <div><dt>{s("trackSize")}</dt><dd>{current ? formatBytes(current.size_bytes) : "n/a"}</dd></div>
+                <div><dt>{s("trackSize")}</dt><dd>{current ? formatBytes(current.size_bytes) : s("unavailable")}</dd></div>
               </dl>
             </ShellPanel>
             <ShellPanel title={s("shellTheme").toUpperCase()} meta={s("themePreset")}>
               <div className="ts-theme-picker" role="radiogroup" aria-label={s("shellTheme")}>
-                {SHELL_THEMES.map((theme) => (
-                  <button
-                    key={theme.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={shellTheme === theme.id}
-                    className={shellTheme === theme.id ? "active" : ""}
-                    onClick={() => selectShellTheme(theme.id)}
-                  >
-                    <span>{shellTheme === theme.id ? "►" : " "}</span>
-                    <strong>{s(theme.labelKey)}</strong>
-                    <code>{theme.sample}</code>
-                    <small>{s(theme.hintKey)}</small>
-                  </button>
-                ))}
+                {SHELL_THEMES.map((theme, index) => {
+                  const selected = activeTab === "console" && selectedIndex === index;
+                  const active = shellTheme === theme.id;
+                  return (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={`${active ? "active" : ""}${selected ? " selected" : ""}`.trim()}
+                      onClick={() => selectShellTheme(theme.id)}
+                    >
+                      <span>{selected ? "›" : active ? "►" : " "}</span>
+                      <strong>{s(theme.labelKey)}</strong>
+                      <code>{theme.sample}</code>
+                      <small>{s(theme.hintKey)}</small>
+                    </button>
+                  );
+                })}
               </div>
               <p className="ts-panel-note">{s("shellThemeHint")}</p>
             </ShellPanel>
             <ShellPanel title={s("interface").toUpperCase()} meta={s("mode")}>
-              <button type="button" className="ts-switch-card" onClick={onExit}>
-                <span>► {t("switchToStandardUI")}</span>
+              <button
+                type="button"
+                className={`ts-switch-card${activeTab === "console" && selectedIndex === SHELL_THEMES.length ? " selected" : ""}`}
+                onClick={onExit}
+              >
+                <span>{activeTab === "console" && selectedIndex === SHELL_THEMES.length ? "›" : "►"} {t("switchToStandardUI")}</span>
                 <small>{s("graphicalMode")}</small>
               </button>
             </ShellPanel>
@@ -955,41 +1166,52 @@ export function TerminalShell({
             </div>
           </div>
           <div className="ts-player-controls">
-            <button type="button" aria-label={t("previous")} onClick={onPrevious}>⏮</button>
+            <button type="button" aria-label={t("previous")} onClick={onPrevious}>[&lt;&lt;]</button>
             <button type="button" className="primary" aria-label={playing ? t("pause") : t("play")} onClick={onTogglePlayback}>
-              {playing ? "⏸" : "▶"}
+              {playing ? "[||]" : "[>]"}
             </button>
-            <button type="button" aria-label={t("next")} onClick={onNext}>⏭</button>
+            <button type="button" aria-label={t("next")} onClick={onNext}>[&gt;&gt;]</button>
             <button type="button" aria-label={t("lyrics")} onClick={() => setLyricsOpen(true)}>[L]</button>
           </div>
           <div className="ts-player-right">
-            <span>{s("volume").toUpperCase()} {volumeBar(volume, activeTheme)}</span>
+            <label className="ts-shell-range ts-shell-volume" style={shellRangeStyle(volume, 1)}>
+              <span className="ts-shell-range-prefix" aria-hidden="true">{s("volume").toUpperCase()}</span>
+              <span className="ts-shell-range-text" aria-hidden="true">{volumeBar(volume, activeTheme, 12)}</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                value={volume}
+                step="0.01"
+                aria-label={t("volume")}
+                onChange={(event) => onVolume(Number(event.currentTarget.value))}
+              />
+            </label>
             <span>{s("queueTab").toUpperCase()}({queue.length})</span>
-            <button type="button" aria-label={t("switchToStandardUI")} onClick={onExit}>[UI]</button>
+            <button type="button" aria-label={t("switchToStandardUI")} onClick={onExit}>[{s("standardUIShort")}]</button>
           </div>
         </div>
         <div className="ts-player-row ts-progress-row">
-          <span>{progressBar(progress, currentDuration, activeTheme)}</span>
-          <time>{formatDuration(progress)} / {formatDuration(currentDuration)}</time>
-          <input
-            type="range"
-            min="0"
-            max={currentDuration || 0}
-            value={Math.min(progress, currentDuration || progress || 0)}
-            step="0.01"
-            disabled={!currentDuration || Boolean(currentRadio)}
-            aria-label={t("position")}
-            onChange={(event) => onSeek(Number(event.currentTarget.value))}
-          />
-          <input
-            type="range"
-            min="0"
-            max="1"
-            value={volume}
-            step="0.01"
-            aria-label={t("volume")}
-            onChange={(event) => onVolume(Number(event.currentTarget.value))}
-          />
+          <label
+            className={`ts-shell-range ts-shell-progress${!currentDuration || currentRadio ? " disabled" : ""}`}
+            style={shellRangeStyle(progress, currentDuration)}
+          >
+            <time>{formatDuration(progress)}</time>
+            <span className="ts-shell-range-text" aria-hidden="true">
+              {progressBar(progress, currentDuration, activeTheme, 72)}
+            </span>
+            <time>{formatDuration(currentDuration)}</time>
+            <input
+              type="range"
+              min="0"
+              max={currentDuration || 0}
+              value={Math.min(progress, currentDuration || progress || 0)}
+              step="0.01"
+              disabled={!currentDuration || Boolean(currentRadio)}
+              aria-label={t("position")}
+              onChange={(event) => onSeek(Number(event.currentTarget.value))}
+            />
+          </label>
         </div>
       </footer>
 
@@ -1014,6 +1236,35 @@ export function TerminalShell({
                   <span>{line.key === activeLyric ? "►" : String(line.order + 1).padStart(2, "0")}</span>
                   <p>{line.text}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {helpOpen ? (
+        <div className="ts-overlay" role="dialog" aria-modal="true" aria-labelledby="ts-help-title">
+          <div className="ts-help">
+            <div className="ts-overlay-head">
+              <div>
+                <span>?</span>
+                <h2 id="ts-help-title">{s("shortcutsHelp")}</h2>
+              </div>
+              <button type="button" onClick={() => setHelpOpen(false)} aria-label={s("closeShortcuts")}>[Esc]</button>
+            </div>
+            <div className="ts-help-body">
+              {SHORTCUT_GROUPS.map((group) => (
+                <section key={group.titleKey} className="ts-shortcut-group">
+                  <h3>{s(group.titleKey)}</h3>
+                  <div>
+                    {group.rows.map((row) => (
+                      <div className="ts-shortcut-row" key={`${group.titleKey}-${row.keys}`}>
+                        <kbd>{shortcutKeys(row, settings.language)}</kbd>
+                        <span>{s(row.labelKey)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           </div>
