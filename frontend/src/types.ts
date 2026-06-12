@@ -284,11 +284,17 @@ export interface PlaybackQueue {
   song_ids: number[];
   current_id: number;
   source?: PlaybackSource | null;
+  radio?: PlaybackRadioSession | null;
   updated_at: string;
 }
 
 export interface PlaybackQueueStatus {
   queue?: PlaybackQueue | null;
+}
+
+export interface PlaybackRadioSession {
+  current: RadioStation;
+  queue?: RadioStation[];
 }
 
 export interface PlaybackHistoryEntry {

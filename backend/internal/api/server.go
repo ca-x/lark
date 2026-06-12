@@ -116,6 +116,13 @@ type playbackQueueRequest struct {
 	CurrentID   int                    `json:"current_id"`
 	Source      *playbackSourceRequest `json:"source"`
 	ClearSource bool                   `json:"clear_source"`
+	Radio       *playbackRadioRequest  `json:"radio"`
+	ClearRadio  bool                   `json:"clear_radio"`
+}
+
+type playbackRadioRequest struct {
+	Current models.RadioStation   `json:"current"`
+	Queue   []models.RadioStation `json:"queue"`
 }
 
 type lyricSelectRequest struct {
@@ -1034,7 +1041,11 @@ func (s *Server) handleSavePlaybackQueue(c *echo.Context) error {
 		}
 		source = &models.PlaybackSource{Type: sourceType, SourceID: req.Source.SourceID}
 	}
-	queue, err := s.lib.SavePlaybackQueueSession(c.Request().Context(), currentUserID(c), req.SongIDs, req.CurrentID, source, req.ClearSource)
+	var radio *models.PlaybackRadio
+	if req.Radio != nil {
+		radio = &models.PlaybackRadio{Current: req.Radio.Current, Queue: req.Radio.Queue}
+	}
+	queue, err := s.lib.SavePlaybackQueueSession(c.Request().Context(), currentUserID(c), req.SongIDs, req.CurrentID, source, req.ClearSource, radio, req.ClearRadio)
 	if err != nil {
 		return mapError(err)
 	}

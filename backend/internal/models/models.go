@@ -348,11 +348,17 @@ type PlaybackQueue struct {
 	SongIDs   []int           `json:"song_ids"`
 	CurrentID int             `json:"current_id"`
 	Source    *PlaybackSource `json:"source,omitempty"`
+	Radio     *PlaybackRadio  `json:"radio,omitempty"`
 	UpdatedAt time.Time       `json:"updated_at"`
 }
 
 type PlaybackQueueStatus struct {
 	Queue *PlaybackQueue `json:"queue"`
+}
+
+type PlaybackRadio struct {
+	Current RadioStation   `json:"current"`
+	Queue   []RadioStation `json:"queue,omitempty"`
 }
 
 type LibrarySource struct {

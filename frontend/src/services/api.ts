@@ -90,6 +90,15 @@ export const api = {
         song_ids,
         current_id,
         ...(source ? { source } : { clear_source: true }),
+        clear_radio: true,
+      }),
+    }),
+  savePlaybackRadioQueue: (current: RadioStation, queue: RadioStation[]) =>
+    request<PlaybackQueueStatus>('/api/playback/queue', {
+      method: 'PUT',
+      body: JSON.stringify({
+        radio: { current, queue },
+        clear_source: true,
       }),
     }),
   clearPlaybackQueue: () => request<void>('/api/playback/queue', { method: 'DELETE' }),

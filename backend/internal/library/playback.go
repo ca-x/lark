@@ -187,7 +187,7 @@ func (s *Service) PlaybackSource(ctx context.Context, userID int) (*models.Playb
 	}
 	// Migrate the legacy source-only record into the playback session. The
 	// queue/session key is the single authority after this point.
-	_, _ = s.SavePlaybackQueueSession(ctx, userID, nil, 0, source, false)
+	_, _ = s.SavePlaybackQueueSession(ctx, userID, nil, 0, source, false, nil, true)
 	_ = s.deleteLegacyPlaybackSource(ctx, userID)
 	return source, nil
 }
@@ -207,6 +207,7 @@ func (s *Service) SavePlaybackSource(ctx context.Context, userID int, sourceType
 	}
 	queue.Source = source
 	queue.UpdatedAt = source.UpdatedAt
+	queue.Radio = nil
 	if err := s.savePlaybackQueueSession(ctx, userID, *queue); err != nil {
 		return models.PlaybackSource{}, err
 	}
@@ -224,7 +225,7 @@ func (s *Service) ClearPlaybackSource(ctx context.Context, userID int) error {
 	if queue != nil {
 		queue.Source = nil
 		queue.UpdatedAt = time.Now()
-		if len(queue.SongIDs) == 0 {
+		if len(queue.SongIDs) == 0 && queue.Radio == nil {
 			if err := s.ClearPlaybackQueue(ctx, userID); err != nil {
 				return err
 			}
@@ -260,7 +261,7 @@ func (s *Service) PlaybackQueue(ctx context.Context, userID int) (*models.Playba
 		}
 		return nil, nil
 	}
-	if queue.Source == nil {
+	if queue.Source == nil && queue.Radio == nil {
 		if source, err := s.legacyPlaybackSource(ctx, userID); err != nil {
 			return nil, err
 		} else if source != nil {
@@ -288,7 +289,23 @@ func (s *Service) loadPlaybackQueueSession(ctx context.Context, userID int) (*mo
 	if queue.Source != nil && !validPlaybackSourceShape(queue.Source) {
 		queue.Source = nil
 	}
-	if len(queue.SongIDs) == 0 && queue.Source == nil {
+	if queue.Radio != nil {
+		radio, err := s.normalizePlaybackRadio(ctx, queue.Radio)
+		if err != nil {
+			queue.Radio = nil
+		} else {
+			queue.Radio = radio
+		}
+	}
+	if len(queue.SongIDs) > 0 {
+		queue.Radio = nil
+	}
+	if queue.Radio != nil {
+		queue.SongIDs = nil
+		queue.CurrentID = 0
+		queue.Source = nil
+	}
+	if len(queue.SongIDs) == 0 && queue.Source == nil && queue.Radio == nil {
 		_ = s.ClearPlaybackQueue(ctx, userID)
 		return nil, nil
 	}
@@ -301,9 +318,9 @@ func (s *Service) loadPlaybackQueueSession(ctx context.Context, userID int) (*mo
 	return &queue, nil
 }
 func (s *Service) SavePlaybackQueue(ctx context.Context, userID int, songIDs []int, currentID int) (models.PlaybackQueue, error) {
-	return s.SavePlaybackQueueSession(ctx, userID, songIDs, currentID, nil, false)
+	return s.SavePlaybackQueueSession(ctx, userID, songIDs, currentID, nil, false, nil, true)
 }
-func (s *Service) SavePlaybackQueueSession(ctx context.Context, userID int, songIDs []int, currentID int, source *models.PlaybackSource, clearSource bool) (models.PlaybackQueue, error) {
+func (s *Service) SavePlaybackQueueSession(ctx context.Context, userID int, songIDs []int, currentID int, source *models.PlaybackSource, clearSource bool, radio *models.PlaybackRadio, clearRadio bool) (models.PlaybackQueue, error) {
 	if s.cache == nil {
 		return models.PlaybackQueue{}, nil
 	}
@@ -313,6 +330,13 @@ func (s *Service) SavePlaybackQueueSession(ctx context.Context, userID int, song
 			return models.PlaybackQueue{}, err
 		}
 		source.UpdatedAt = time.Now()
+	}
+	if radio != nil {
+		normalized, err := s.normalizePlaybackRadio(ctx, radio)
+		if err != nil {
+			return models.PlaybackQueue{}, err
+		}
+		radio = normalized
 	}
 	existingSession, err := s.loadPlaybackQueueSession(ctx, userID)
 	if err != nil {
@@ -330,7 +354,29 @@ func (s *Service) SavePlaybackQueueSession(ctx context.Context, userID int, song
 		copy := *source
 		nextSource = &copy
 	}
+	var nextRadio *models.PlaybackRadio
+	if existingSession != nil && existingSession.Radio != nil && !clearRadio {
+		copy := *existingSession.Radio
+		copy.Queue = append([]models.RadioStation{}, existingSession.Radio.Queue...)
+		nextRadio = &copy
+	}
+	if clearRadio || source != nil || clearSource {
+		nextRadio = nil
+	}
+	if radio != nil {
+		copy := *radio
+		copy.Queue = append([]models.RadioStation{}, radio.Queue...)
+		nextRadio = &copy
+		nextSource = nil
+	}
 	ids := normalizePlaybackQueueSongIDs(songIDs, currentID)
+	if len(ids) > 0 {
+		nextRadio = nil
+	}
+	if nextRadio != nil {
+		queue := models.PlaybackQueue{Radio: nextRadio, UpdatedAt: time.Now()}
+		return queue, s.savePlaybackQueueSession(ctx, userID, queue)
+	}
 	if len(ids) == 0 {
 		if nextSource == nil {
 			return models.PlaybackQueue{}, s.ClearPlaybackQueue(ctx, userID)
@@ -411,6 +457,44 @@ func (s *Service) deleteLegacyPlaybackSource(ctx context.Context, userID int) er
 		return err
 	}
 	return s.cache.Delete(ctx, key)
+}
+func (s *Service) normalizePlaybackRadio(ctx context.Context, session *models.PlaybackRadio) (*models.PlaybackRadio, error) {
+	if session == nil {
+		return nil, nil
+	}
+	current, err := s.normalizeRadioFavorite(ctx, session.Current)
+	if err != nil {
+		return nil, err
+	}
+	queue := make([]models.RadioStation, 0, minInt(len(session.Queue)+1, maxPlaybackRadioStations))
+	seen := map[string]bool{}
+	add := func(station models.RadioStation) {
+		key := playbackRadioStationKey(station)
+		if key == "" || seen[key] || len(queue) >= maxPlaybackRadioStations {
+			return
+		}
+		seen[key] = true
+		queue = append(queue, station)
+	}
+	add(current)
+	for _, station := range session.Queue {
+		normalized, err := s.normalizeRadioFavorite(ctx, station)
+		if err != nil {
+			continue
+		}
+		add(normalized)
+	}
+	return &models.PlaybackRadio{Current: current, Queue: queue}, nil
+}
+func playbackRadioStationKey(station models.RadioStation) string {
+	rawURL := strings.TrimSpace(firstString(station.StreamURL, station.URL))
+	if rawURL != "" {
+		return "url:" + strings.ToLower(rawURL)
+	}
+	if id := strings.TrimSpace(station.ID); id != "" {
+		return "id:" + strings.ToLower(id)
+	}
+	return ""
 }
 func validPlaybackSourceShape(source *models.PlaybackSource) bool {
 	if source == nil || source.SourceID <= 0 {

@@ -747,6 +747,37 @@ func TestPlaybackQueueUsesSharedAndDeviceScopedKV(t *testing.T) {
 	if shared == nil || !slices.Equal(shared.SongIDs, []int{songA.ID, songB.ID}) || shared.CurrentID != songB.ID {
 		t.Fatalf("expected queue to be shared before device separation, got %+v", shared)
 	}
+	radioStation := models.RadioStation{
+		ID:        "station-a",
+		Name:      "Station A",
+		URL:       "https://example.com/station-a.mp3",
+		StreamURL: "https://example.com/station-a.mp3",
+	}
+	if _, err := service.SavePlaybackQueueSession(pcCtx, userItem.ID, nil, 0, nil, true, &models.PlaybackRadio{
+		Current: radioStation,
+		Queue: []models.RadioStation{
+			radioStation,
+			{
+				ID:        "station-b",
+				Name:      "Station B",
+				URL:       "https://example.com/station-b.mp3",
+				StreamURL: "https://example.com/station-b.mp3",
+			},
+			{
+				ID:   "broken",
+				Name: "Broken",
+			},
+		},
+	}, true); err != nil {
+		t.Fatal(err)
+	}
+	sharedRadio, err := service.PlaybackQueue(mobileCtx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sharedRadio == nil || sharedRadio.Radio == nil || sharedRadio.Radio.Current.ID != "station-a" || len(sharedRadio.Radio.Queue) != 2 || len(sharedRadio.SongIDs) != 0 || sharedRadio.Source != nil {
+		t.Fatalf("expected radio queue to be shared and normalized before device separation, got %+v", sharedRadio)
+	}
 
 	if _, err := service.SavePlaybackHistorySettings(ctx, userItem.ID, models.PlaybackHistorySettings{SeparateByDevice: true}); err != nil {
 		t.Fatal(err)
@@ -770,6 +801,23 @@ func TestPlaybackQueueUsesSharedAndDeviceScopedKV(t *testing.T) {
 	}
 	if mobileQueue == nil || !slices.Equal(mobileQueue.SongIDs, []int{songC.ID, songB.ID}) || mobileQueue.CurrentID != songC.ID {
 		t.Fatalf("expected mobile queue to prepend current song and stay isolated, got %+v", mobileQueue)
+	}
+	if _, err := service.SavePlaybackQueueSession(pcCtx, userItem.ID, nil, 0, nil, true, &models.PlaybackRadio{Current: radioStation}, true); err != nil {
+		t.Fatal(err)
+	}
+	pcRadioQueue, err := service.PlaybackQueue(pcCtx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mobileSongQueue, err := service.PlaybackQueue(mobileCtx, userItem.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pcRadioQueue == nil || pcRadioQueue.Radio == nil || pcRadioQueue.Radio.Current.ID != "station-a" || len(pcRadioQueue.SongIDs) != 0 {
+		t.Fatalf("expected pc radio queue to replace pc song queue, got %+v", pcRadioQueue)
+	}
+	if mobileSongQueue == nil || mobileSongQueue.Radio != nil || mobileSongQueue.CurrentID != songC.ID {
+		t.Fatalf("expected mobile song queue to survive pc radio save, got %+v", mobileSongQueue)
 	}
 	if err := service.ClearPlaybackQueue(pcCtx, userItem.ID); err != nil {
 		t.Fatal(err)

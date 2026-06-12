@@ -1172,6 +1172,7 @@ const libraryWatcherImportConcurrency = 4
 const libraryWatcherImportQueueSize = 128
 const remoteAlbumSearchConcurrency = 3
 const maxPlaybackQueueSongs = 500
+const maxPlaybackRadioStations = 100
 const defaultPlaybackSourceTTLHours = 24
 const defaultPlaybackHistoryRetentionDays = 0
 const defaultUISoundVolume = 0.85

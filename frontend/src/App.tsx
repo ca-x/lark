@@ -2305,9 +2305,11 @@ export default function App() {
     setFavoriteAlbums(favoriteAlbumItems);
     setFavoriteArtists(favoriteArtistItems);
     setNetworkSources(networkSourceItems);
+    const playableRadioStations = radioStationItems.map(radioStationToPlayable);
+    const playableRadioFavorites = radioFavoriteItems.map(radioStationToPlayable);
     setRadioSources(radioSourceItems);
-    setRadioStations(radioStationItems.map(radioStationToPlayable));
-    setRadioFavorites(radioFavoriteItems.map(radioStationToPlayable));
+    setRadioStations(playableRadioStations);
+    setRadioFavorites(playableRadioFavorites);
     setScrobblingSettings(scrobblingItem);
     setUISoundSettingsState(uiSoundItem);
     setPlaybackHistorySettings(playbackHistoryItem);
@@ -2315,36 +2317,60 @@ export default function App() {
     // Restore playback queue from Layer 1 data.
     let restoredQueue: Song[] = [];
     let restoredCurrent: Song | null = null;
+    let restoredRadio: RadioStation | null = null;
+    let restoredRadioQueue: RadioStation[] = [];
     if (options.initializeQueue && auth?.user && persistentQueueEnabled) {
       const session = playbackQueueItem?.queue;
-      const restoreIDs = session?.song_ids?.filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE) ?? [];
-      const restoreCurrentID = session?.current_id ?? 0;
-      const source = session?.source ?? null;
-      setPlaybackSessionSource(source ? { type: source.type, source_id: source.source_id } : null);
-      if (restoreIDs.length) {
-        const localSongs = new Map([
-          ...songItems,
-          ...dailyItems,
-          ...recentPlayedItems,
-          ...recentAddedItems,
-          ...favoriteSongPageItem.items,
-        ].map((song) => [song.id, song] as const));
-        restoredQueue = (await Promise.all(restoreIDs.map((id) => localSongs.get(id) ?? api.song(id).catch(() => null))))
-          .filter((song): song is Song => Boolean(song));
-        restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
-      }
-      if (!restoredQueue.length && source) {
-        restoredQueue = await songsForPlaybackSource(source, MAX_PLAYBACK_QUEUE_SIZE);
-        restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
+      if (session?.radio?.current) {
+        const withCurrentFavorite = (station: RadioStation) => {
+          const playable = radioStationToPlayable(station);
+          const favorite = playableRadioFavorites.some((item) => sameRadioStation(item, playable));
+          return { ...playable, favorite: playable.favorite || favorite };
+        };
+        restoredRadio = withCurrentFavorite(session.radio.current);
+        restoredRadioQueue = uniqueRadioStations([
+          restoredRadio,
+          ...(session.radio.queue ?? []).map(withCurrentFavorite),
+        ]);
+        setPlaybackSessionSource(null);
+      } else {
+        const restoreIDs = session?.song_ids?.filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE) ?? [];
+        const restoreCurrentID = session?.current_id ?? 0;
+        const source = session?.source ?? null;
+        setPlaybackSessionSource(source ? { type: source.type, source_id: source.source_id } : null);
+        if (restoreIDs.length) {
+          const localSongs = new Map([
+            ...songItems,
+            ...dailyItems,
+            ...recentPlayedItems,
+            ...recentAddedItems,
+            ...favoriteSongPageItem.items,
+          ].map((song) => [song.id, song] as const));
+          restoredQueue = (await Promise.all(restoreIDs.map((id) => localSongs.get(id) ?? api.song(id).catch(() => null))))
+            .filter((song): song is Song => Boolean(song));
+          restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
+        }
+        if (!restoredQueue.length && source) {
+          restoredQueue = await songsForPlaybackSource(source, MAX_PLAYBACK_QUEUE_SIZE);
+          restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
+        }
       }
     }
     if (isStale()) return;
+    if (restoredRadio) {
+      setCurrent(null);
+      setCurrentNetworkTrack(null);
+      setCurrentRadio(restoredRadio);
+      setRadioQueue(restoredRadioQueue);
+    }
     setQueue((old) => {
       if (!options.initializeQueue && old.length > 0) return old;
       if (restoredQueue.length) return restoredQueue;
       return dailyItems.length > 0 ? dailyItems : songItems;
     });
-    const nextCurrent = current
+    const nextCurrent = restoredRadio
+      ? null
+      : current
       ? (songItems.find((item) => item.id === current.id) ?? current)
       : restoredCurrent;
     if (nextCurrent && (nextCurrent.id !== current?.id || nextCurrent !== current)) {
@@ -2588,6 +2614,17 @@ export default function App() {
     void api.savePlaybackQueue(ids, song.id, source).catch(() => undefined);
   }
 
+  function saveRadioPlaybackSession(station: RadioStation, items: RadioStation[]) {
+    if (!auth?.user) return;
+    const radioItems = uniqueRadioStations([station, ...items]);
+    void api.savePlaybackRadioQueue(station, radioItems).catch(() => undefined);
+  }
+
+  function clearPersistentPlaybackSession() {
+    if (!auth?.user) return;
+    void api.clearPlaybackQueue().catch(() => undefined);
+  }
+
   async function songsForPlaybackQueueIDs(ids: number[]) {
     const localSongs = new Map([
       ...queue,
@@ -2731,6 +2768,7 @@ export default function App() {
     setStreamMode("auto");
     setPlaying(true);
     playUISound("play");
+    saveRadioPlaybackSession(playableStation, nextRadioQueue);
   }
 
   function radioQueueForStation(station: RadioStation) {
@@ -2772,6 +2810,7 @@ export default function App() {
     setStreamMode("auto");
     setPlaying(true);
     playUISound("play");
+    clearPersistentPlaybackSession();
   }
 
   async function loadRadioStations(search = "") {
