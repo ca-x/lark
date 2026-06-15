@@ -5,6 +5,7 @@ export { GramophonePlayer } from "./GramophonePlayer";
 export { IpodPlayer } from "./IpodPlayer";
 export { MiniCoverArt } from "./MiniCoverArt";
 export { MobileArtPlayer } from "./MobileArtPlayer";
+export { RunningKittenTurntable } from "./RunningKittenTurntable";
 export { SmartisanTurntable } from "./SmartisanTurntable";
 export { VinylTurntable } from "./VinylTurntable";
 export type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode } from "./types";
