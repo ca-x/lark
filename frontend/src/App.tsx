@@ -140,7 +140,7 @@ import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
 import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
-import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, SmartisanTurntable, VinylTurntable } from "./components/player-themes";
+import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, RunningKittenTurntable, SmartisanTurntable, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -5445,7 +5445,7 @@ function HomeView({
 
   return (
     <section className="home-view">
-      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : "hero"}>
+      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : "hero"}>
         {currentRadio ? (
           <RadioReceiver
             title={currentRadio.name || t("onlineRadio")}
@@ -5543,6 +5543,22 @@ function HomeView({
             title={displaySong?.title}
             artist={displaySong?.artist}
             album={displaySong?.album}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
+            onCyclePlayMode={onCyclePlayMode}
+            onSeek={heroActive ? onSeek : undefined}
+          />
+        ) : homePlayerStyle === "running-kitten" ? (
+          <RunningKittenTurntable
+            cover={coverUrl(displaySong)}
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
             playMode={playMode}
             playModeLabel={playModeLabel}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
