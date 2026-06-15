@@ -293,7 +293,14 @@ function offlineUser(): User {
 
 function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
   if (value === "smartisan-turntable" || value === "smartisan" || value === "smartisan-classic") return "smartisan-turntable";
-  return value === "cassette" || value === "ipod" || value === "audio-scope" || value === "album-slide" || value === "gramophone" ? value : "vinyl";
+  return value === "cassette" ||
+    value === "ipod" ||
+    value === "audio-scope" ||
+    value === "album-slide" ||
+    value === "gramophone" ||
+    value === "running-kitten"
+    ? value
+    : "vinyl";
 }
 
 function storedHomePlayerStyle(): HomePlayerStyle {
@@ -9166,6 +9173,13 @@ function SettingsPanel({
                 onClick={() => onHomePlayerStyleChange("gramophone")}
               >
                 {t("homePlayerGramophone")}
+              </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "running-kitten" ? "active" : ""}
+                onClick={() => onHomePlayerStyleChange("running-kitten")}
+              >
+                {t("homePlayerRunningKitten")}
               </button>
             </div>
           </SettingsSection>
