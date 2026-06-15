@@ -2267,7 +2267,7 @@ body, button, input, select { font-family: var(--app-font); }
 .running-kitten-progress-orbit,
 .running-kitten-run-orbit {
   position:absolute;
-  inset:9%;
+  inset:6%;
   border-radius:50%;
   transform-origin:50% 50%;
 }
@@ -2283,12 +2283,17 @@ body, button, input, select { font-family: var(--app-font); }
 .running-kitten-cat {
   position:absolute;
   left:50%;
-  top:-9px;
-  width:72px;
-  height:42px;
+  top:-4px;
+  width:86px;
+  height:48px;
   overflow:visible;
   transform:translate(-50%,-50%) rotate(96deg);
-  filter:drop-shadow(0 10px 10px rgba(0,0,0,.42));
+  filter:
+    drop-shadow(0 2px 0 rgba(255,239,188,.92))
+    drop-shadow(2px 0 0 rgba(255,239,188,.82))
+    drop-shadow(-2px 0 0 rgba(255,239,188,.82))
+    drop-shadow(0 -2px 0 rgba(255,239,188,.72))
+    drop-shadow(0 10px 10px rgba(0,0,0,.42));
 }
 .running-kitten-cat path,
 .running-kitten-cat circle {
@@ -2496,17 +2501,36 @@ body, button, input, select { font-family: var(--app-font); }
   from { transform:rotate(-4deg); }
   to { transform:rotate(5deg); }
 }
-@media (max-width:1180px) {
+@media (min-width:901px) and (max-width:1180px) {
+  .hero.running-kitten-hero {
+    padding:24px;
+    justify-items:center;
+  }
+  .hero.running-kitten-hero > div:not(.running-kitten-player) {
+    display:none;
+  }
+}
+@media (max-width:900px) {
   .running-kitten-player {
     width:min(640px, 100%);
+    min-height:0;
     grid-template-columns:1fr;
     gap:16px;
   }
   .running-kitten-scene {
-    min-height:330px;
+    min-height:300px;
   }
   .running-kitten-console {
     align-content:start;
+    gap:12px;
+  }
+  .running-kitten-controls button {
+    width:40px;
+    height:40px;
+  }
+  .running-kitten-controls .running-kitten-play {
+    width:52px;
+    height:52px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

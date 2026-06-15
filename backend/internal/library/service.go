@@ -1365,7 +1365,7 @@ func normalizeLyricsDisplayStyle(value string) string {
 
 func normalizeUserHomePlayerStyle(value string) string {
 	switch strings.TrimSpace(value) {
-	case "vinyl", "cassette", "ipod", "audio-scope", "album-slide", "smartisan-turntable", "gramophone":
+	case "vinyl", "cassette", "ipod", "audio-scope", "album-slide", "smartisan-turntable", "gramophone", "running-kitten":
 		return strings.TrimSpace(value)
 	default:
 		return "vinyl"
