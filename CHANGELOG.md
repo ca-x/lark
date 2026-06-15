@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.13 — 奔跑的小猫动效修正
+
+发布日期 / Released: 2026-06-15
+
+### 修复与优化
+
+- **替换小猫为用户提供的 SVG 轮廓。** 跑猫主题现在使用更清晰的小猫剪影，并保留水彩黑胶场景的纸感和暖色描边。
+- **修正小猫运动轨迹。** 小猫改为独立沿外圈轨道奔跑，不再像被绑定在黑胶唱片上；唱片旋转与小猫跑动保持播放态联动。
+- **重做唱针结构与播放状态。** 唱针现在有明确的底座、杆身、唱头和针尖，播放时落到唱片上，停止时抬离唱片。
+- **上移黑胶唱盘。** 首页播放器里的黑胶视觉位置更靠上，避免主体被底部区域压住。
+
+完整 diff：`git log v0.9.12..v0.9.13`
+
+---
+
+## v0.9.13 — Running kitten motion fixes
+
+Released: 2026-06-15
+
+### Fixed and Improved
+
+- **Replaced the kitten with the supplied SVG silhouette.** The Running kitten theme now uses a clearer kitten shape while keeping the watercolor vinyl paper texture and warm outline.
+- **Corrected the kitten motion path.** The kitten now runs on an independent outer track instead of looking attached to the vinyl record; record spin and kitten motion remain tied to playback state.
+- **Rebuilt the tonearm states.** The tonearm now has a clear base, wand, cartridge, and needle, drops onto the record while playing, and lifts away while stopped.
+- **Moved the vinyl platter upward.** The desktop home player positions the record higher so the visual center is not pressed into the lower area.
+
+Full diff: `git log v0.9.12..v0.9.13`
+
+---
+
 ## 0.9.12 — 奔跑的小猫 PC 播放器主题
 
 发布日期 / Released: 2026-06-15
