@@ -5,6 +5,38 @@
 
 ---
 
+## 0.9.14 — 奔跑的小猫主题收口修复
+
+发布日期 / Released: 2026-06-15
+
+### 修复与优化
+
+- **移除奔跑的小猫主题里的唱针。** PC 首页该主题现在只保留水彩黑胶、小猫、唱片和播放控制，避免唱针块干扰画面理解。
+- **让小猫与唱片同轴运动。** 小猫轨道嵌入唱片旋转层，跟随黑胶一起连续线性旋转，同时保留轻微跑步起伏。
+- **修复专辑封面旋转不自然。** 唱片动画固定为 6.8 秒线性循环，不再被播放进度样式更新重建时间轴。
+- **修正 PC 端唱盘显示范围。** 唱盘上移并收进场景边界，1024px 和 1440px 宽度下都不会露不全。
+- **隐藏该主题的通用右侧 hero 文案。** 避免长标题在 PC 首页被挤压成异常换行，主题内部控制区继续显示曲名、歌手和进度。
+
+完整 diff：`git log v0.9.13..v0.9.14`
+
+---
+
+## v0.9.14 — Running kitten theme cleanup
+
+Released: 2026-06-15
+
+### Fixed and Improved
+
+- **Removed the tonearm from the Running kitten theme.** The desktop home player now focuses on the watercolor vinyl, kitten, record, and transport controls without the unclear needle block.
+- **Moved the kitten into the record motion layer.** The kitten now rotates with the vinyl on the same axis while keeping a small running bob.
+- **Made album-cover rotation continuous.** The record uses a fixed 6.8 second linear loop so progress updates no longer rebuild the animation timeline.
+- **Fixed desktop platter bounds.** The platter is moved upward and kept inside the scene at both 1024px and 1440px desktop widths.
+- **Hid generic hero copy for this theme.** Long titles no longer collapse into awkward wrapping beside the themed player; the theme's own console still shows track, artist, and progress.
+
+Full diff: `git log v0.9.13..v0.9.14`
+
+---
+
 ## 0.9.13 — 奔跑的小猫动效修正
 
 发布日期 / Released: 2026-06-15
