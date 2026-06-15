@@ -2090,6 +2090,8 @@ body, button, input, select { font-family: var(--app-font); }
   position:relative;
   overflow:hidden;
   isolation:isolate;
+  grid-template-columns:minmax(0, 1fr);
+  justify-items:center;
   background:
     linear-gradient(90deg, rgba(20,14,10,.72), rgba(20,14,10,.18) 54%, rgba(255,244,220,.12)),
     url('/player-themes/running-kitten-watercolor.webp') center/cover no-repeat,
@@ -2104,15 +2106,20 @@ body, button, input, select { font-family: var(--app-font); }
   pointer-events:none;
 }
 .hero.running-kitten-hero > div:not(.running-kitten-player) {
-  position:relative;
-  z-index:2;
-  max-width:500px;
+  display:none;
 }
 .hero.running-kitten-hero h1,
 .hero.running-kitten-hero h2,
 .hero.running-kitten-hero p,
 .hero.running-kitten-hero .home-hero-meta span {
   text-shadow:0 2px 18px rgba(25,13,5,.46);
+}
+.hero.running-kitten-hero h1 {
+  max-width:min(360px, 31vw);
+  font-size:clamp(42px, 4.4vw, 58px);
+  line-height:.98;
+  letter-spacing:0;
+  overflow-wrap:break-word;
 }
 .running-kitten-player {
   --running-kitten-ink:#080706;
@@ -2187,9 +2194,9 @@ body, button, input, select { font-family: var(--app-font); }
 }
 .running-kitten-platter {
   position:absolute;
-  left:7%;
-  bottom:-8%;
-  width:min(350px, 76%);
+  left:6%;
+  bottom:4%;
+  width:min(330px, 74%);
   aspect-ratio:1;
   border-radius:50%;
   background:radial-gradient(circle, rgba(255,255,255,.08), rgba(0,0,0,.48) 70%);
@@ -2202,7 +2209,9 @@ body, button, input, select { font-family: var(--app-font); }
   border-radius:50%;
   overflow:hidden;
   background:radial-gradient(circle at 50% 50%, #0c0c0c 0 14%, #191919 15% 34%, #060606 35% 100%);
-  animation:running-kitten-spin var(--running-kitten-spin-duration, 6.8s) linear infinite paused;
+  animation:running-kitten-spin 6.8s linear infinite paused;
+  backface-visibility:hidden;
+  will-change:transform;
   z-index:1;
 }
 .running-kitten-player[data-playing='true'] .running-kitten-record {
@@ -2269,18 +2278,15 @@ body, button, input, select { font-family: var(--app-font); }
 }
 .running-kitten-cat-track {
   position:absolute;
-  left:9%;
-  bottom:0%;
-  width:min(350px, 76%);
-  aspect-ratio:1;
+  inset:0;
   border-radius:50%;
   pointer-events:none;
-  z-index:5;
+  z-index:4;
 }
 .running-kitten-cat-track::before {
   content:'';
   position:absolute;
-  inset:12%;
+  inset:20%;
   border-radius:50%;
   border:1px solid rgba(255,239,188,.2);
   border-bottom-color:transparent;
@@ -2289,23 +2295,19 @@ body, button, input, select { font-family: var(--app-font); }
 }
 .running-kitten-cat-runner {
   position:absolute;
-  left:0;
-  top:0;
+  left:66%;
+  top:24%;
   width:1px;
   height:1px;
-  offset-path:path('M 70 150 C 90 82 164 48 236 66 C 292 80 320 125 306 176 C 289 236 220 268 148 248 C 88 232 52 184 70 150');
-  offset-distance:8%;
-  offset-rotate:auto;
-  animation:running-kitten-track 8.8s linear infinite paused;
+  transform:rotate(14deg);
 }
-.running-kitten-player[data-playing='true'] .running-kitten-cat-runner,
 .running-kitten-player[data-playing='true'] .running-kitten-cat {
   animation-play-state:running;
 }
 .running-kitten-cat {
   display:block;
-  width:78px;
-  height:78px;
+  width:60px;
+  height:60px;
   overflow:visible;
   transform:translate(-50%,-50%) scaleX(-1) rotate(-8deg);
   transform-origin:center;
@@ -2321,80 +2323,6 @@ body, button, input, select { font-family: var(--app-font); }
   stroke-linecap:round;
   stroke-linejoin:round;
   paint-order:stroke fill;
-}
-.running-kitten-arm {
-  position:absolute;
-  right:34px;
-  top:58px;
-  width:168px;
-  height:190px;
-  transform-origin:142px 28px;
-  transform:translate(22px,-22px) rotate(58deg);
-  transition:transform .34s ease, filter .34s ease;
-  z-index:6;
-  filter:drop-shadow(0 10px 12px rgba(0,0,0,.28));
-}
-.running-kitten-player[data-playing='true'] .running-kitten-arm {
-  transform:translateY(0) rotate(var(--running-kitten-arm-angle, 21deg));
-}
-.running-kitten-arm-base {
-  position:absolute;
-  right:0;
-  top:0;
-  width:48px;
-  height:48px;
-  border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, #fff1bd, #9b6a39 68%, #2b170d);
-  box-shadow:0 0 0 2px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.28);
-}
-.running-kitten-arm-wand {
-  position:absolute;
-  right:18px;
-  top:26px;
-  width:10px;
-  height:136px;
-  border-radius:999px;
-  transform:rotate(-23deg);
-  transform-origin:top center;
-  background:linear-gradient(90deg, #fbdf9a, #7f542e 68%, #2c1a10);
-  box-shadow:inset 2px 0 0 rgba(255,255,255,.24);
-}
-.running-kitten-arm-head {
-  position:absolute;
-  right:47px;
-  top:145px;
-  width:38px;
-  height:30px;
-  border-radius:7px 7px 10px 10px;
-  transform:rotate(-24deg);
-  background:linear-gradient(135deg, #14100d, #8c5f35 72%, #d6a25b);
-  clip-path:polygon(12% 0, 100% 10%, 88% 100%, 0 84%);
-  box-shadow:0 7px 12px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.22);
-}
-.running-kitten-arm-head::before {
-  content:'';
-  position:absolute;
-  left:8px;
-  right:8px;
-  top:7px;
-  height:5px;
-  border-radius:999px;
-  background:rgba(255,232,176,.6);
-}
-.running-kitten-arm-head i {
-  position:absolute;
-  right:4px;
-  bottom:-15px;
-  width:3px;
-  height:18px;
-  border-radius:999px;
-  transform:rotate(13deg);
-  transform-origin:top center;
-  background:linear-gradient(#f6d27f, #130c07);
-  box-shadow:0 2px 4px rgba(0,0,0,.38);
-}
-.running-kitten-player[data-playing='false'] .running-kitten-arm-head i {
-  opacity:.42;
 }
 .running-kitten-console {
   display:grid;
@@ -2454,7 +2382,6 @@ body, button, input, select { font-family: var(--app-font); }
 }
 .running-kitten-progress-rail i {
   display:block;
-  width:var(--running-kitten-progress-pct, 0%);
   height:100%;
   border-radius:inherit;
   background:linear-gradient(90deg, var(--running-kitten-copper), var(--running-kitten-gold));
@@ -2517,9 +2444,6 @@ body, button, input, select { font-family: var(--app-font); }
 @keyframes running-kitten-spin {
   to { transform:rotate(360deg); }
 }
-@keyframes running-kitten-track {
-  to { offset-distance:108%; }
-}
 @keyframes running-kitten-bob {
   from { transform:translate(-50%,-50%) scaleX(-1) rotate(-10deg) translateY(0); }
   to { transform:translate(-50%,-50%) scaleX(-1) rotate(-5deg) translateY(-5px); }
@@ -2542,6 +2466,12 @@ body, button, input, select { font-family: var(--app-font); }
   }
   .running-kitten-scene {
     min-height:300px;
+  }
+  .running-kitten-platter {
+    left:50%;
+    bottom:8%;
+    width:min(300px, 80%);
+    transform:translateX(-50%);
   }
   .running-kitten-console {
     align-content:start;

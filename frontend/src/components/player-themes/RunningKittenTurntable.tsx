@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
@@ -37,24 +36,15 @@ export function RunningKittenTurntable({
   onSeek?: (seconds: number) => void;
 }) {
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
-  const endWindowSeconds = Math.max(8, Math.min(18, duration * 0.08 || 8));
-  const secondsLeft = duration > 0 ? Math.max(0, duration - progress) : Number.POSITIVE_INFINITY;
-  const endingPct = Number.isFinite(secondsLeft) ? Math.max(0, Math.min(1, (endWindowSeconds - secondsLeft) / endWindowSeconds)) : 0;
   const isAtEnd = duration > 0 && progress >= duration - 0.2;
   const active = playing && !isAtEnd;
   const coverState = useCoverFallback(cover);
-  const spinSeconds = (6.8 * (1 + endingPct * 1.7)).toFixed(2);
-  const tonearmAngle = 21 - pct * 18;
-  const style = {
-    "--running-kitten-progress-pct": `${(pct * 100).toFixed(2)}%`,
-    "--running-kitten-spin-duration": `${spinSeconds}s`,
-    "--running-kitten-arm-angle": `${tonearmAngle.toFixed(2)}deg`,
-  } as CSSProperties;
+  const progressPct = `${(pct * 100).toFixed(2)}%`;
   const modeIcon =
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
 
   return (
-    <div className="running-kitten-player" data-playing={active ? "true" : "false"} style={style}>
+    <div className="running-kitten-player" data-playing={active ? "true" : "false"}>
       <div className="running-kitten-scene" aria-hidden="true">
         <div className="running-kitten-watercolor" />
         <div className="running-kitten-sun" />
@@ -68,15 +58,14 @@ export function RunningKittenTurntable({
               {coverState.displayUrl ? <img src={coverState.displayUrl} alt="" onError={coverState.onCoverError} /> : null}
               <span>{title}</span>
             </div>
+            <div className="running-kitten-cat-track">
+              <div className="running-kitten-cat-runner">
+                <KittenSilhouette />
+              </div>
+            </div>
           </div>
           <div className="running-kitten-spindle" />
         </div>
-        <div className="running-kitten-cat-track">
-          <div className="running-kitten-cat-runner">
-            <KittenSilhouette />
-          </div>
-        </div>
-        <WatercolorTonearm />
       </div>
 
       <div className="running-kitten-console">
@@ -89,7 +78,7 @@ export function RunningKittenTurntable({
             <time>{formatRunningKittenTime(duration || 0)}</time>
           </div>
           <div className="running-kitten-progress-rail">
-            <span><i /></span>
+            <span><i style={{ width: progressPct }} /></span>
             <input
               aria-label="Position"
               type="range"
@@ -126,18 +115,6 @@ function KittenSilhouette() {
     <svg className="running-kitten-cat" viewBox="0 0 1024 1024" aria-hidden="true">
       <path d={RUNNING_KITTEN_PATH} />
     </svg>
-  );
-}
-
-function WatercolorTonearm() {
-  return (
-    <div className="running-kitten-arm">
-      <span className="running-kitten-arm-base" />
-      <span className="running-kitten-arm-wand" />
-      <span className="running-kitten-arm-head">
-        <i />
-      </span>
-    </div>
   );
 }
 
