@@ -5,6 +5,34 @@
 
 ---
 
+## 0.9.12 — 奔跑的小猫 PC 播放器主题
+
+发布日期 / Released: 2026-06-15
+
+### 新增与修复
+
+- **新增 PC 端「奔跑的小猫」首页播放样式。** 新主题使用水彩风格黑胶场景、小猫外圈奔跑动效、唱针、进度轨道和精简播放控制，移动端主题列表保持不变。
+- **修复新主题偏好保存。** 后端用户偏好白名单已支持 `running-kitten`，刷新后不会回退到默认黑胶唱机。
+- **优化中宽 PC 布局与低动效模式。** 1024px 桌面宽度下播放器不会被底部播放栏遮挡；开启 reduced-motion 后唱片、小猫轨道和腿部动效会关闭，控制仍可使用。
+
+完整 diff：`git log v0.9.11..v0.9.12`
+
+---
+
+## v0.9.12 — Running kitten desktop player theme
+
+Released: 2026-06-15
+
+### Added and Fixed
+
+- **Added the desktop Running kitten home player style.** The theme uses a watercolor vinyl scene, kitten orbit motion, tonearm, progress rail, and simplified transport controls while leaving the mobile theme list unchanged.
+- **Fixed persistence for the new theme.** Backend user preference normalization now accepts `running-kitten`, so refreshing no longer falls back to the default vinyl deck.
+- **Improved mid-width desktop layout and reduced motion.** At 1024px desktop widths the player no longer gets covered by the bottom bar; with reduced motion enabled, record, kitten orbit, and step animations stop while controls remain usable.
+
+Full diff: `git log v0.9.11..v0.9.12`
+
+---
+
 ## 0.9.2 — 移动端黑胶主题细节修复
 
 发布日期 / Released: 2026-06-09

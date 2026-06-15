@@ -75,7 +75,7 @@ By default, Lark stores app data and uploaded music in the `lark_data` Docker vo
 
 ### Listen Across Devices
 
-- Desktop home player styles include vinyl deck, cassette deck, iPod, audio scope, album sleeve, Smartisan deck, and Gramophone.
+- Desktop home player styles include vinyl deck, cassette deck, iPod, audio scope, album sleeve, Smartisan deck, Gramophone, and Running kitten.
 - Mobile player styles include Precision Audio, Gramophone, indiewave, iPod, soft vinyl, stage glass, blue halo, and Smartisan classic.
 - The bottom player exposes queue, play mode, volume, progress, favorites, sleep timer, and fullscreen lyrics.
 - Sleep timer can stop by duration, after a number of songs, or at the end of the current album.
