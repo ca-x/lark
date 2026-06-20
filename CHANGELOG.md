@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.16 — 锤子唱机唱针与音量修复
+
+发布日期 / Released: 2026-06-20
+
+### 修复与优化
+
+- **彻底移除锤子唱机唱针黑框。** PC 与移动端唱针改用无边缘污染的唱臂素材，顶帽和底座不再引用带不透明边缘的 `*-original.png`。
+- **修正唱针帽与底座同心定位。** 顶帽、底座、唱臂和阴影共享同一个 hub 坐标，避免小圆帽偏离底座面板中心。
+- **优化锤子移动主题音量显示。** 当前音量值改为绿色；播放时绿色音量格会轻微脉冲，暂停时保持稳定，并遵守 reduced-motion。
+- **新增锤子唱针 CSS 回归检查。** `pnpm test:smartisan-tonearm` 会阻止重新引入污染素材或拆散顶帽/底座中心点。
+
+完整 diff：`git log v0.9.15..v0.9.16`
+
+---
+
+## v0.9.16 — Smartisan tonearm and volume fixes
+
+Released: 2026-06-20
+
+### Fixed and Improved
+
+- **Removed the Smartisan tonearm black box for good.** Desktop and mobile now use the cleaned tonearm asset and no longer reference `*-original.png` layers with opaque edge pixels.
+- **Centered the cap and base on the same pivot.** The top cap, base disc, arm, and shadow share one hub coordinate so the small cap stays centered on the base plate.
+- **Improved Smartisan mobile volume feedback.** Active volume bars are now green, pulse subtly while playing, stay steady while paused, and respect reduced motion.
+- **Added a Smartisan tonearm CSS regression check.** `pnpm test:smartisan-tonearm` prevents reintroducing polluted assets or splitting the cap/base center.
+
+Full diff: `git log v0.9.15..v0.9.16`
+
+---
+
 ## 0.9.15 — 锤子唱机唱针定位修复
 
 发布日期 / Released: 2026-06-20

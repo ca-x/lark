@@ -7278,6 +7278,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .smartisan-turntable-needle {
+  --smartisan-turntable-needle-hub-x:58%;
+  --smartisan-turntable-needle-hub-y:13%;
   position:absolute;
   right:calc(var(--smartisan-turntable-disc) * -.005);
   top:calc(var(--smartisan-turntable-disc) * .015);
@@ -7296,12 +7298,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .smartisan-turntable-needle-base {
-  right:8%;
-  top:0;
+  left:var(--smartisan-turntable-needle-hub-x);
+  top:var(--smartisan-turntable-needle-hub-y);
   z-index:1;
-  width:70%;
-  height:26%;
-  background-image:url('/smartisan/playing-stylus-lp-bg-original.png');
+  width:60%;
+  height:auto;
+  aspect-ratio:1;
+  transform:translate(-50%, -50%);
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 52% 48%, rgba(255,255,255,.96) 0 3%, transparent 4%),
+    radial-gradient(circle at 50% 54%, #fff 0 54%, #f7f7f7 68%, #e4e4e4 100%);
+  background-position:center;
+  background-size:100% 100%;
   filter:drop-shadow(0 8px 13px rgba(0,0,0,.16));
 }
 
@@ -7312,7 +7321,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   background-size:44% 62%;
   background-position:70% 20%;
   opacity:.32;
-  transform-origin:65% 9%;
+  transform-origin:var(--smartisan-turntable-needle-hub-x) var(--smartisan-turntable-needle-hub-y);
   transform:rotate(calc(var(--smartisan-turntable-needle, 0deg) - 4deg));
   transition:transform 220ms ease;
 }
@@ -7320,20 +7329,25 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 .smartisan-turntable-needle-arm {
   inset:0;
   z-index:3;
-  background-image:url('/smartisan/playing-stylus-lp-original.png');
-  transform-origin:65% 9%;
+  background-image:url('/smartisan/playing-stylus-lp.png');
+  transform-origin:var(--smartisan-turntable-needle-hub-x) var(--smartisan-turntable-needle-hub-y);
   transform:rotate(var(--smartisan-turntable-needle, 0deg));
   filter:drop-shadow(0 5px 7px rgba(0,0,0,.18));
   transition:transform 220ms ease;
 }
 
 .smartisan-turntable-needle-top {
-  right:20%;
-  top:5.5%;
+  left:var(--smartisan-turntable-needle-hub-x);
+  top:var(--smartisan-turntable-needle-hub-y);
   z-index:4;
-  width:55.5%;
-  height:24%;
-  background-image:url('/smartisan/playing-stylus-lp-top-original.png');
+  width:38%;
+  height:auto;
+  aspect-ratio:1;
+  transform:translate(-50%, -50%);
+  border-radius:50%;
+  background:linear-gradient(180deg,#fff 0%,#fbfbfb 58%,#eeeeee 100%);
+  background-position:center;
+  background-size:100% 100%;
   filter:drop-shadow(0 7px 11px rgba(0,0,0,.14));
 }
 

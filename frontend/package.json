@@ -1,12 +1,13 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.9.15",
+  "version": "0.9.16",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:smartisan-tonearm": "node scripts/check-smartisan-tonearm.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

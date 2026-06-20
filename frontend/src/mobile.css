@@ -3007,8 +3007,8 @@
 }
 .mobile-art-smartisan-classic .mobile-art-progress-rail i,
 .mobile-art-smartisan-classic .mobile-art-volume-bars i.active {
-  background:#e65c53;
-  box-shadow:none;
+  background:#2ea85d;
+  box-shadow:0 0 10px rgba(46,168,93,.28);
 }
 .mobile-smartisan-stage {
   align-self:stretch;
@@ -9225,6 +9225,8 @@
   }
 
   .mobile-smartisan-needle {
+    --mobile-smartisan-needle-hub-x:58%;
+    --mobile-smartisan-needle-hub-y:13%;
     position:absolute;
     right:calc(var(--mobile-smartisan-deck-size) * -.025);
     top:calc(var(--mobile-smartisan-deck-size) * .006);
@@ -9243,12 +9245,19 @@
   }
 
   .mobile-smartisan-needle-base {
-    right:8%;
-    top:0;
+    left:var(--mobile-smartisan-needle-hub-x);
+    top:var(--mobile-smartisan-needle-hub-y);
     z-index:1;
-    width:70%;
-    height:26%;
-    background-image:url('/smartisan/playing-stylus-lp-bg-original.png');
+    width:60%;
+    height:auto;
+    aspect-ratio:1;
+    transform:translate(-50%, -50%);
+    border-radius:50%;
+    background:
+      radial-gradient(circle at 52% 48%, rgba(255,255,255,.96) 0 3%, transparent 4%),
+      radial-gradient(circle at 50% 54%, #fff 0 54%, #f7f7f7 68%, #e4e4e4 100%);
+    background-position:center;
+    background-size:100% 100%;
     filter:drop-shadow(0 8px 13px rgba(0,0,0,.16));
   }
 
@@ -9259,7 +9268,7 @@
     background-size:44% 62%;
     background-position:70% 20%;
     opacity:.32;
-    transform-origin:65% 9%;
+    transform-origin:var(--mobile-smartisan-needle-hub-x) var(--mobile-smartisan-needle-hub-y);
     transform:rotate(calc(var(--mobile-smartisan-needle, 0deg) - 4deg));
     transition:transform 220ms ease;
   }
@@ -9267,20 +9276,25 @@
   .mobile-smartisan-needle-arm {
     inset:0;
     z-index:3;
-    background-image:url('/smartisan/playing-stylus-lp-original.png');
-    transform-origin:65% 9%;
+    background-image:url('/smartisan/playing-stylus-lp.png');
+    transform-origin:var(--mobile-smartisan-needle-hub-x) var(--mobile-smartisan-needle-hub-y);
     transform:rotate(var(--mobile-smartisan-needle, 0deg));
     filter:drop-shadow(0 5px 7px rgba(0,0,0,.18));
     transition:transform 220ms ease;
   }
 
   .mobile-smartisan-needle-top {
-    right:20%;
-    top:5.5%;
+    left:var(--mobile-smartisan-needle-hub-x);
+    top:var(--mobile-smartisan-needle-hub-y);
     z-index:4;
-    width:55.5%;
-    height:24%;
-    background-image:url('/smartisan/playing-stylus-lp-top-original.png');
+    width:38%;
+    height:auto;
+    aspect-ratio:1;
+    transform:translate(-50%, -50%);
+    border-radius:50%;
+    background:linear-gradient(180deg,#fff 0%,#fbfbfb 58%,#eeeeee 100%);
+    background-position:center;
+    background-size:100% 100%;
     filter:drop-shadow(0 7px 11px rgba(0,0,0,.14));
   }
 
@@ -9366,8 +9380,8 @@
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume-bars i.active {
-    background:linear-gradient(180deg,#b8b8b8,#8f8f8f);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.38);
+    background:linear-gradient(180deg,#58c976,#2ea85d);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.46),0 0 10px rgba(46,168,93,.24);
   }
 }
 
@@ -9379,8 +9393,10 @@
 
 @media (max-width:720px) and (prefers-reduced-motion:reduce) {
   .mobile-smartisan-needle-arm,
-  .mobile-smartisan-needle-shadow {
+  .mobile-smartisan-needle-shadow,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player.mobile-art-smartisan-classic[data-playing='true'] .mobile-art-volume-bars i.active {
     transition:none !important;
+    animation:none !important;
   }
 }
 
@@ -9604,7 +9620,12 @@
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-art-volume-bars i.active {
-    background:linear-gradient(180deg,#afafaf,#969696) !important;
+    background:linear-gradient(180deg,#58c976,#2ea85d) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.46),0 0 10px rgba(46,168,93,.28) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player.mobile-art-smartisan-classic[data-playing='true'] .mobile-art-volume-bars i.active {
+    animation:smartisan-volume-pulse 980ms ease-in-out infinite;
   }
 
   .mobile-mini-player[data-mobile-theme='smartisan-classic'] .mobile-mini-play {
@@ -9766,6 +9787,17 @@
     background-image:
       url('/smartisan/titlebar-bg.png'),
       linear-gradient(180deg,#fff 0%,#f7f7f7 50%,#ededed 100%) !important;
+  }
+}
+
+@keyframes smartisan-volume-pulse {
+  0%, 100% {
+    filter:none;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.46),0 0 8px rgba(46,168,93,.24);
+  }
+  50% {
+    filter:brightness(1.16);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.58),0 0 16px rgba(46,168,93,.50);
   }
 }
 
