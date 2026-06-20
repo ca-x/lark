@@ -7279,8 +7279,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 .smartisan-turntable-needle {
   position:absolute;
-  inset:0;
+  right:calc(var(--smartisan-turntable-disc) * -.005);
+  top:calc(var(--smartisan-turntable-disc) * .015);
   z-index:6;
+  width:calc(var(--smartisan-turntable-disc) * .206);
+  height:calc(var(--smartisan-turntable-disc) * .626);
   pointer-events:none;
 }
 
@@ -7293,56 +7296,44 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 
 .smartisan-turntable-needle-base {
-  right:calc(var(--smartisan-turntable-disc) * .0069);
-  top:calc(var(--smartisan-turntable-disc) * .0708);
+  right:8%;
+  top:0;
   z-index:1;
-  width:calc(var(--smartisan-turntable-disc) * .2036);
-  height:calc(var(--smartisan-turntable-disc) * .8611);
-  background-image:url('/smartisan/playing-stylus-lp-bg.png');
-  background-position:right top;
-  background-size:100% auto;
+  width:70%;
+  height:26%;
+  background-image:url('/smartisan/playing-stylus-lp-bg-original.png');
   filter:drop-shadow(0 8px 13px rgba(0,0,0,.16));
 }
 
 .smartisan-turntable-needle-shadow {
-  right:calc(var(--smartisan-turntable-disc) * .0056);
-  top:calc(var(--smartisan-turntable-disc) * .0708);
+  inset:0;
   z-index:2;
-  width:calc(var(--smartisan-turntable-disc) * .2036);
-  height:calc(var(--smartisan-turntable-disc) * .8611);
   background-image:url('/smartisan/needle-shadow2.png');
-  background-size:100% 100%;
-  background-position:right top;
+  background-size:44% 62%;
+  background-position:70% 20%;
   opacity:.32;
-  transform-origin:65.5% 9.03%;
+  transform-origin:65% 9%;
   transform:rotate(calc(var(--smartisan-turntable-needle, 0deg) - 4deg));
   transition:transform 220ms ease;
 }
 
 .smartisan-turntable-needle-arm {
-  right:calc(var(--smartisan-turntable-disc) * .0069);
-  top:calc(var(--smartisan-turntable-disc) * .0708);
+  inset:0;
   z-index:3;
-  width:calc(var(--smartisan-turntable-disc) * .2036);
-  height:calc(var(--smartisan-turntable-disc) * .8611);
-  background-image:url('/smartisan/playing-stylus-lp.png');
-  background-position:right top;
-  background-size:100% 100%;
-  transform-origin:65.5% 9.03%;
+  background-image:url('/smartisan/playing-stylus-lp-original.png');
+  transform-origin:65% 9%;
   transform:rotate(var(--smartisan-turntable-needle, 0deg));
   filter:drop-shadow(0 5px 7px rgba(0,0,0,.18));
   transition:transform 220ms ease;
 }
 
 .smartisan-turntable-needle-top {
-  right:calc(var(--smartisan-turntable-disc) * .0069);
-  top:calc(var(--smartisan-turntable-disc) * .0708);
+  right:20%;
+  top:5.5%;
   z-index:4;
-  width:calc(var(--smartisan-turntable-disc) * .1139);
-  height:calc(var(--smartisan-turntable-disc) * .8611);
-  background-image:url('/smartisan/playing-stylus-lp-top.png');
-  background-position:right top;
-  background-size:100% auto;
+  width:55.5%;
+  height:24%;
+  background-image:url('/smartisan/playing-stylus-lp-top-original.png');
   filter:drop-shadow(0 7px 11px rgba(0,0,0,.14));
 }
 

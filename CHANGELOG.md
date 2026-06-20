@@ -5,6 +5,34 @@
 
 ---
 
+## 0.9.15 — 锤子唱机唱针定位修复
+
+发布日期 / Released: 2026-06-20
+
+### 修复与优化
+
+- **修复移动端锤子唱机唱针底座压到唱片上。** 唱针底座、阴影、唱臂和顶帽重新使用局部唱针坐标系，底座不再跟随整张唱机台铺开。
+- **修复 PC 端唱针帽偏离底座面板。** 顶帽回到右上底座圆盘区域，唱臂继续围绕同一锚点旋转。
+- **恢复 Smartisan 唱针原始比例素材。** 分层素材使用 `*-original.png`，避免把短底座图拉伸到整根唱臂高度。
+
+完整 diff：`git log v0.9.14..v0.9.15`
+
+---
+
+## v0.9.15 — Smartisan tonearm alignment fixes
+
+Released: 2026-06-20
+
+### Fixed and Improved
+
+- **Fixed the mobile Smartisan tonearm base overlapping the record.** The base, shadow, arm, and top cap now share a local tonearm coordinate system instead of stretching across the whole deck.
+- **Fixed the desktop tonearm cap drifting off the base plate.** The cap is back on the upper-right pivot disc while the arm keeps rotating around the same anchor.
+- **Restored the original Smartisan tonearm asset ratios.** Layered assets now use the `*-original.png` files so short base artwork is not stretched to full arm height.
+
+Full diff: `git log v0.9.14..v0.9.15`
+
+---
+
 ## 0.9.14 — 奔跑的小猫主题收口修复
 
 发布日期 / Released: 2026-06-15
