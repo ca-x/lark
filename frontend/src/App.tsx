@@ -48,6 +48,7 @@ import {
 } from "@phosphor-icons/react";
 import WavesurferPlayer from "@wavesurfer/react";
 import { api } from "./services/api";
+import { prependOptimisticPlaybackHistoryEntry, shouldLoadPlaybackHistory } from "./playbackHistory";
 import {
   hasClientMediaSession,
   setClientActionHandler,
@@ -870,6 +871,7 @@ export default function App() {
   const [recentPlayedSongs, setRecentPlayedSongs] = useState<Song[]>([]);
   const [historyEntries, setHistoryEntries] = useState<PlaybackHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [recentAddedSongs, setRecentAddedSongs] = useState<Song[]>([]);
   const [dailyMix, setDailyMix] = useState<Song[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -1342,14 +1344,23 @@ export default function App() {
   }, [settings.sharing_enabled, view]);
 
   useEffect(() => {
-    if (!auth?.user || view !== "history" || historyEntries.length || historyLoading) return;
-    setHistoryLoading(true);
-    void api
-      .playbackHistory(PLAYBACK_HISTORY_LIMIT)
-      .then(setHistoryEntries)
-      .catch(() => undefined)
-      .finally(() => setHistoryLoading(false));
-  }, [auth?.user?.id, view, historyEntries.length, historyLoading]);
+    setHistoryLoaded(false);
+    setHistoryEntries([]);
+  }, [auth?.user?.id]);
+
+  useEffect(() => {
+    if (
+      !shouldLoadPlaybackHistory({
+        authenticated: Boolean(auth?.user),
+        view,
+        loaded: historyLoaded,
+        loading: historyLoading,
+      })
+    ) {
+      return;
+    }
+    void refreshPlaybackHistory();
+  }, [auth?.user?.id, view, historyLoaded, historyLoading]);
 
   useEffect(() => {
     if (mobileViewport && !MOBILE_PLAYBACK_VIEWS.has(view)) {
@@ -2558,6 +2569,7 @@ export default function App() {
     } catch {
       // Keep the existing timeline visible if the refresh fails.
     } finally {
+      setHistoryLoaded(true);
       setHistoryLoading(false);
     }
   }
@@ -2567,23 +2579,12 @@ export default function App() {
   // trip (the previous code blind-refetched on every play, causing visible lag).
   function prependRecentPlayed(song: Song) {
     setRecentPlayedSongs((old) => [song, ...old.filter((item) => item.id !== song.id)].slice(0, HOME_RECENT_LIMIT));
-    const now = new Date().toISOString();
-    setHistoryEntries((old) => {
-      if (!old.length) return old;
-      return [
-        {
-          id: -Date.now(),
-          song: { ...song, last_played_at: now },
-          played_at: now,
-          updated_at: now,
-          progress_seconds: 0,
-          duration_seconds: song.duration_seconds,
-          completed: false,
-          device_type: mobileViewport ? "mobile" : "pc",
-        },
-        ...old,
-      ].slice(0, PLAYBACK_HISTORY_LIMIT);
-    });
+    setHistoryEntries((old) =>
+      prependOptimisticPlaybackHistoryEntry(old, song, {
+        deviceType: mobileViewport ? "mobile" : "pc",
+        limit: PLAYBACK_HISTORY_LIMIT,
+      }),
+    );
   }
 
   // scheduleRecentPlayedRefresh coalesces the server reconciliation so we don't fire a
@@ -7073,7 +7074,7 @@ function LibraryView({
             <UploadSimple /> {t("upload")}
             <input
               type="file"
-              accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.cue"
+              accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.wma,.cue"
               onChange={(event) => onUpload(event)}
             />
           </label>
@@ -7321,7 +7322,7 @@ function LibraryDirectoryManager({
               <UploadSimple /> {t("upload")}
               <input
                 type="file"
-                accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.cue"
+                accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.wma,.cue"
                 onChange={(event) => onUpload(event)}
               />
             </label>
@@ -8300,7 +8301,7 @@ function EmptyLibrary({
               <UploadSimple /> {t("upload")}
               <input
                 type="file"
-                accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.cue"
+                accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.wma,.cue"
                 onChange={(event) => onUpload(event)}
               />
             </label>

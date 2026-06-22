@@ -79,6 +79,33 @@ func TestScanRejectsConcurrentRun(t *testing.T) {
 	}
 }
 
+func TestScanImportsWMAFiles(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	audioPath := filepath.Join(root, "Legacy Artist - Legacy Song.wma")
+	if err := os.WriteFile(audioPath, []byte("fake wma"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	client := enttest.Open(t, "sqlite3", "file:scan-wma?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client, libraryDir: root}
+
+	result, err := service.Scan(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Scanned != 1 || result.Added != 1 || result.Skipped != 0 {
+		t.Fatalf("expected one imported WMA file, got scanned=%d added=%d skipped=%d errors=%v", result.Scanned, result.Added, result.Skipped, result.Errors)
+	}
+	item, err := client.Song.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Path != audioPath || item.Format != "wma" || item.Mime != "audio/x-ms-wma" {
+		t.Fatalf("expected WMA song row with audio/x-ms-wma MIME, got path=%q format=%q mime=%q", item.Path, item.Format, item.Mime)
+	}
+}
+
 func TestScanPreservesSongFavoriteForExistingPath(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()

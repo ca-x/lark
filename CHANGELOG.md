@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.17 — 播放历史与 WMA 扫描修复
+
+发布日期 / Released: 2026-06-22
+
+### 修复与优化
+
+- **修复空播放历史页反复刷新。** 历史页现在用显式加载状态区分“还没加载”和“已加载但为空”，避免没有播放记录时界面持续闪动。
+- **修复首次播放不显示历史记录。** 第一次播放歌曲时也会立即插入乐观历史项，最近播放与历史时间线不再等到下一次刷新才出现。
+- **补全 WMA 曲库支持。** `.wma` 文件现在会被目录扫描导入，落库 MIME 固定为 `audio/x-ms-wma`，并走现有自动转码播放路径。
+- **补齐上传入口的 WMA 选择。** 曲库上传控件允许选择 `.wma` 文件。
+
+完整 diff：`git log v0.9.16..v0.9.17`
+
+---
+
+## v0.9.17 — Playback history and WMA scan fixes
+
+Released: 2026-06-22
+
+### Fixed and Improved
+
+- **Fixed repeated refreshes on an empty playback history.** The history view now tracks loaded state separately from empty results, so an empty timeline no longer keeps reloading and flickering.
+- **Fixed the first played song not appearing in history.** Starting playback now prepends an optimistic history entry even when the timeline was empty.
+- **Added WMA library support.** `.wma` files are imported during directory scans, stored with `audio/x-ms-wma`, and use the existing automatic transcode playback path.
+- **Allowed WMA uploads from the UI.** Library upload controls now expose `.wma` in their file picker accept list.
+
+Full diff: `git log v0.9.16..v0.9.17`
+
+---
+
 ## 0.9.16 — 锤子唱机唱针与音量修复
 
 发布日期 / Released: 2026-06-20

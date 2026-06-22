@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -50,6 +51,7 @@ var supportedAudioExts = map[string]bool{
 	".mp3": true, ".flac": true, ".wav": true, ".aiff": true, ".aif": true,
 	".m4a": true, ".aac": true, ".ogg": true, ".oga": true, ".opus": true,
 	".dsf": true, ".dff": true, ".dst": true, ".ape": true, ".alac": true,
+	".wma": true,
 }
 
 var supportedExts = func() map[string]bool {
@@ -2398,9 +2400,23 @@ func audioMime(format string) string {
 		return "audio/aiff"
 	case "ape":
 		return "audio/x-ape"
+	case "wma":
+		return "audio/x-ms-wma"
 	default:
 		return "application/octet-stream"
 	}
+}
+
+func audioMimeForPath(path, format string) string {
+	format = strings.ToLower(strings.TrimPrefix(format, "."))
+	if format == "wma" {
+		return audioMime(format)
+	}
+	mimeType := mime.TypeByExtension(filepath.Ext(path))
+	if mimeType != "" {
+		return mimeType
+	}
+	return audioMime(format)
 }
 
 func sourceIf(ok bool, yes, no string) string {

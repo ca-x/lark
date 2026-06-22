@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"mime"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -269,10 +268,7 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		}
 	}
 	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(abs)), ".")
-	mimeType := mime.TypeByExtension(filepath.Ext(abs))
-	if mimeType == "" {
-		mimeType = audioMime(format)
-	}
+	mimeType := audioMimeForPath(abs, format)
 	artistEntity, err := s.ensureArtist(ctx, meta.Artist)
 	if err != nil {
 		return false, err
@@ -469,10 +465,7 @@ func (s *Service) upsertCUETrack(ctx context.Context, virtualPath, audioPath str
 		return false, nil
 	}
 	format := strings.TrimPrefix(strings.ToLower(filepath.Ext(audioPath)), ".")
-	mimeType := mime.TypeByExtension(filepath.Ext(audioPath))
-	if mimeType == "" {
-		mimeType = audioMime(format)
-	}
+	mimeType := audioMimeForPath(audioPath, format)
 	artistEntity, err := s.ensureArtist(ctx, meta.Artist)
 	if err != nil {
 		return false, err
