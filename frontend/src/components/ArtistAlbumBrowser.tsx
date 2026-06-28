@@ -1,4 +1,4 @@
-import type { MouseEvent, PointerEvent } from "react";
+import type { CSSProperties, MouseEvent, PointerEvent } from "react";
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Play, Record } from "@phosphor-icons/react";
 
@@ -236,6 +236,16 @@ function ArtistAlbumShowcase({
     return `artist-album-card showcase-hidden showcase-${direction}`;
   }
 
+  function cardMotionStyle(index: number) {
+    const distance = index - displayIndex;
+    return {
+      "--album-showcase-index": index,
+      "--album-showcase-distance": distance,
+      "--album-showcase-abs-distance": Math.abs(distance),
+      "--album-showcase-parity": index % 2 === 0 ? 1 : -1,
+    } as CSSProperties;
+  }
+
   return (
     <>
       <div
@@ -252,6 +262,7 @@ function ArtistAlbumShowcase({
             key={`${album.id}-${index}`}
             album={album}
             className={cardClassName(index)}
+            style={cardMotionStyle(index)}
             t={t}
             onOpenAlbum={onOpenAlbum}
             onPlayAlbum={onPlayAlbum}
@@ -279,6 +290,7 @@ function ArtistAlbumShowcase({
 function ArtistAlbumCard({
   album,
   className,
+  style,
   t,
   onOpenAlbum,
   onPlayAlbum,
@@ -288,6 +300,7 @@ function ArtistAlbumCard({
 }: {
   album: Album;
   className: string;
+  style?: CSSProperties;
   t: Translate;
   onOpenAlbum?: (album: Album) => void;
   onPlayAlbum?: (album: Album) => void;
@@ -304,7 +317,9 @@ function ArtistAlbumCard({
       <button
         type="button"
         className={className}
+        data-showcase-motion-card="true"
         data-active={isActive ? "true" : "false"}
+        style={style}
         aria-label={`${t("listenNow")} ${album.title}`}
         onClick={(event) => {
           if (onBeforeAction?.(event, "card")) return;

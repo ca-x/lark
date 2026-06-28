@@ -5,6 +5,34 @@
 
 ---
 
+## 0.9.21 — 专辑页动效归位
+
+发布日期 / Released: 2026-06-28
+
+### 修复
+
+- **修正 Mineradio 空卡片串到播放器主题。** 播放器没有歌单时不再渲染右侧空白 shelf / ghost cards，避免把本应属于专辑页的卡片堆叠动效显示在播放器舞台里。
+- **补回专辑橱窗页动效。** 歌手详情页的专辑橱窗现在使用自己的卡片呼吸、扫光、封面漂移和播放按钮脉冲动效，和播放器主题解耦。
+- **加强回归检查。** `pnpm test:mineradio-motion` 现在会禁止播放器空 shelf fallback 重新出现，并检查专辑橱窗动效通道。
+
+完整 diff：`git log v0.9.20..v0.9.21`
+
+---
+
+## v0.9.21 — Album-page motion boundary fix
+
+Released: 2026-06-28
+
+### Fixed
+
+- **Stopped empty Mineradio cards from leaking into the player theme.** The player no longer renders blank right-side shelf / ghost cards when there are no playlists, so album-style card motion does not appear inside the player stage.
+- **Restored album showcase motion on the album page surface.** Artist detail album showcase cards now own their breathing, sweep, cover-drift, and play-control pulse animations independently from the player theme.
+- **Strengthened the regression check.** `pnpm test:mineradio-motion` now forbids the player empty shelf fallback and checks the album showcase motion channels.
+
+Full diff: `git log v0.9.20..v0.9.21`
+
+---
+
 ## 0.9.20 — Mineradio 原版动效复刻
 
 发布日期 / Released: 2026-06-28

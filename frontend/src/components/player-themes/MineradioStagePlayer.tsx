@@ -285,15 +285,15 @@ export function MineradioStagePlayer({
               <span className="mineradio-stage-lyric-text">{liveLyric}</span>
             </strong>
           </div>
-          <div
-            className="mineradio-stage-shelf"
-            aria-label="3D playlist shelf"
-            tabIndex={shelfItems.length ? 0 : undefined}
-            onWheel={handleShelfWheel}
-            onKeyDown={handleShelfKeyDown}
-          >
-            {shelfItems.length ? (
-              shelfItems.map((playlist, index) => {
+          {shelfItems.length ? (
+            <div
+              className="mineradio-stage-shelf"
+              aria-label="3D playlist shelf"
+              tabIndex={0}
+              onWheel={handleShelfWheel}
+              onKeyDown={handleShelfKeyDown}
+            >
+              {shelfItems.map((playlist, index) => {
                 const delta = index - selectedShelfIndex;
                 const absDelta = Math.abs(delta);
                 return (
@@ -316,15 +316,9 @@ export function MineradioStagePlayer({
                     <small>{playlist.song_count} tracks</small>
                   </button>
                 );
-              })
-            ) : (
-              <span className="mineradio-stage-empty-shelf" aria-hidden="true">
-                {[0, 1, 2, 3].map((index) => (
-                  <i key={index} style={{ "--shelf-index": index } as CSSProperties} />
-                ))}
-              </span>
-            )}
-          </div>
+              })}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -427,35 +421,19 @@ function useMineradioStageScene(
     shelf.visible = immersiveStage;
     shelf.position.set(2.85, -0.2, -0.72);
     shelf.rotation.set(-0.06, -0.58, 0.025);
-    if (playlists.length) {
-      playlists.forEach((playlist, index) => {
-        const card = makeShelfCard(playlist, index);
-        const baseY = (index - 2.5) * -0.38;
-        const baseZ = index * -0.24;
-        card.position.set(0, baseY, baseZ);
-        card.rotation.y = index * 0.035;
-        card.userData.baseX = 0;
-        card.userData.baseY = baseY;
-        card.userData.baseZ = baseZ;
-        card.userData.phase = index * 0.71 + seeded(index, 4.4);
-        card.userData.slot = index;
-        shelf.add(card);
-      });
-    } else {
-      for (let index = 0; index < 5; index += 1) {
-        const card = makeGhostShelfCard(index);
-        const baseY = (index - 2) * -0.36;
-        const baseZ = index * -0.26;
-        card.position.set(0, baseY, baseZ);
-        card.rotation.y = index * 0.035;
-        card.userData.baseX = 0;
-        card.userData.baseY = baseY;
-        card.userData.baseZ = baseZ;
-        card.userData.phase = index * 0.78 + seeded(index, 5.5);
-        card.userData.slot = index;
-        shelf.add(card);
-      }
-    }
+    playlists.forEach((playlist, index) => {
+      const card = makeShelfCard(playlist, index);
+      const baseY = (index - 2.5) * -0.38;
+      const baseZ = index * -0.24;
+      card.position.set(0, baseY, baseZ);
+      card.rotation.y = index * 0.035;
+      card.userData.baseX = 0;
+      card.userData.baseY = baseY;
+      card.userData.baseZ = baseZ;
+      card.userData.phase = index * 0.71 + seeded(index, 4.4);
+      card.userData.slot = index;
+      shelf.add(card);
+    });
     scene.add(shelf);
 
     const resize = () => {
@@ -644,17 +622,6 @@ function makeShelfCard(playlist: Playlist, index: number) {
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.92, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.16, 1.58), material);
   return mesh;
-}
-
-function makeGhostShelfCard(index: number) {
-  const material = new THREE.MeshBasicMaterial({
-    color: index % 2 ? 0xfff0b8 : 0x9cffdf,
-    transparent: true,
-    opacity: 0.075,
-    side: THREE.DoubleSide,
-    wireframe: true,
-  });
-  return new THREE.Mesh(new THREE.PlaneGeometry(1.16, 1.58, 2, 3), material);
 }
 
 function disposeMaterial(material: THREE.Material) {
