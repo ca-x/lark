@@ -28,6 +28,11 @@ type MineradioStagePlayerProps = {
   onOpenPlaylist?: (playlist: Playlist) => void;
 };
 
+const SPLASH_PARTICLES = Array.from({ length: 54 }, (_, index) => index);
+const SPLASH_STREAKS = Array.from({ length: 16 }, (_, index) => index);
+const SPLASH_SHARDS = Array.from({ length: 24 }, (_, index) => index);
+const LYRIC_RIVER_PARTICLES = Array.from({ length: 22 }, (_, index) => index);
+
 export function MineradioStagePlayer({
   cover,
   playing,
@@ -69,6 +74,7 @@ export function MineradioStagePlayer({
     immersiveStage,
     playlistSignature,
     playlists: shelfItems,
+    selectedShelfIndex,
   });
 
   useEffect(() => {
@@ -137,6 +143,50 @@ export function MineradioStagePlayer({
         onClick={enterStage}
         onKeyDown={handleSplashKeyDown}
       >
+        <span className="mineradio-stage-splash-particles" aria-hidden="true">
+          {SPLASH_PARTICLES.map((index) => (
+            <i
+              key={index}
+              style={{
+                "--particle-index": index,
+                "--particle-x": `${Math.round(6 + (seeded(index, 1.7) + 0.5) * 88)}%`,
+                "--particle-y": `${Math.round(8 + (seeded(index, 2.9) + 0.5) * 78)}%`,
+                "--particle-delay": `${(index % 13) * -0.41}s`,
+                "--particle-duration": `${4.8 + (index % 7) * 0.42}s`,
+                "--particle-scale": (0.72 + (index % 5) * 0.12).toFixed(2),
+              } as CSSProperties}
+            />
+          ))}
+        </span>
+        <span className="mineradio-stage-splash-streaks" aria-hidden="true">
+          {SPLASH_STREAKS.map((index) => (
+            <i
+              key={index}
+              style={{
+                "--streak-index": index,
+                "--streak-y": `${Math.round(18 + (index / Math.max(1, SPLASH_STREAKS.length - 1)) * 62)}%`,
+                "--streak-delay": `${(index % 8) * -0.36}s`,
+                "--streak-duration": `${3.6 + (index % 5) * 0.38}s`,
+                "--streak-length": `${120 + (index % 6) * 26}px`,
+                "--streak-angle": `${-10 + (index % 5) * 5}deg`,
+              } as CSSProperties}
+            />
+          ))}
+        </span>
+        <span className="mineradio-stage-splash-shards" aria-hidden="true">
+          {SPLASH_SHARDS.map((index) => (
+            <i
+              key={index}
+              style={{
+                "--shard-index": index,
+                "--shard-x": `${Math.round(18 + (seeded(index, 7.3) + 0.5) * 64)}%`,
+                "--shard-y": `${Math.round(42 + (seeded(index, 8.8) + 0.5) * 18)}%`,
+                "--shard-delay": `${(index % 10) * -0.18}s`,
+                "--shard-width": `${28 + (index % 7) * 13}px`,
+              } as CSSProperties}
+            />
+          ))}
+        </span>
         <span className="mineradio-stage-splash-word" aria-hidden="true">
           <span className="mineradio-stage-splash-mine">Lark</span>
           <span className="mineradio-stage-splash-radio">radio</span>
@@ -217,7 +267,23 @@ export function MineradioStagePlayer({
         <div className="mineradio-stage-immersive">
           <div className="mineradio-stage-lyrics" aria-live="polite">
             <span>Live lyric</span>
-            <strong>{liveLyric}</strong>
+            <span className="mineradio-stage-lyric-river" aria-hidden="true">
+              {LYRIC_RIVER_PARTICLES.map((index) => (
+                <i
+                  key={index}
+                  style={{
+                    "--river-index": index,
+                    "--river-x": `${Math.round((index / Math.max(1, LYRIC_RIVER_PARTICLES.length - 1)) * 100)}%`,
+                    "--river-lane": index % 5,
+                    "--river-delay": `${(index % 11) * -0.34}s`,
+                  } as CSSProperties}
+                />
+              ))}
+            </span>
+            <strong key={liveLyric} data-lyric-text={liveLyric}>
+              <span className="mineradio-stage-lyric-glow" aria-hidden="true">{liveLyric}</span>
+              <span className="mineradio-stage-lyric-text">{liveLyric}</span>
+            </strong>
           </div>
           <div
             className="mineradio-stage-shelf"
@@ -227,20 +293,30 @@ export function MineradioStagePlayer({
             onKeyDown={handleShelfKeyDown}
           >
             {shelfItems.length ? (
-              shelfItems.map((playlist, index) => (
-                <button
-                  key={playlist.id}
-                  type="button"
-                  data-selected={index === selectedShelfIndex ? "true" : "false"}
-                  style={{ "--shelf-index": index } as CSSProperties}
-                  onFocus={() => setSelectedShelfIndex(index)}
-                  onMouseEnter={() => setSelectedShelfIndex(index)}
-                  onClick={() => onOpenPlaylist?.(playlist)}
-                >
-                  <span>{playlist.name}</span>
-                  <small>{playlist.song_count} tracks</small>
-                </button>
-              ))
+              shelfItems.map((playlist, index) => {
+                const delta = index - selectedShelfIndex;
+                const absDelta = Math.abs(delta);
+                return (
+                  <button
+                    key={playlist.id}
+                    type="button"
+                    data-motion-card="true"
+                    data-selected={index === selectedShelfIndex ? "true" : "false"}
+                    style={{
+                      "--shelf-index": index,
+                      "--shelf-delta": delta,
+                      "--shelf-abs-delta": absDelta,
+                      "--shelf-parity": index % 2 === 0 ? 1 : -1,
+                    } as CSSProperties}
+                    onFocus={() => setSelectedShelfIndex(index)}
+                    onMouseEnter={() => setSelectedShelfIndex(index)}
+                    onClick={() => onOpenPlaylist?.(playlist)}
+                  >
+                    <span>{playlist.name}</span>
+                    <small>{playlist.song_count} tracks</small>
+                  </button>
+                );
+              })
             ) : (
               <span className="mineradio-stage-empty-shelf" aria-hidden="true">
                 {[0, 1, 2, 3].map((index) => (
@@ -262,16 +338,30 @@ function useMineradioStageScene(
     immersiveStage: boolean;
     playlistSignature: string;
     playlists: Playlist[];
+    selectedShelfIndex: number;
   },
 ) {
-  const { playing, immersiveStage, playlistSignature, playlists } = options;
+  const { playing, immersiveStage, playlistSignature, playlists, selectedShelfIndex } = options;
+  const selectedShelfIndexRef = useRef(selectedShelfIndex);
+
+  useEffect(() => {
+    selectedShelfIndexRef.current = selectedShelfIndex;
+  }, [selectedShelfIndex]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: true });
+    canvas.removeAttribute("data-webgl-unavailable");
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: true });
+    } catch (error) {
+      canvas.setAttribute("data-webgl-unavailable", "true");
+      console.warn("Mineradio Stage WebGL unavailable; using DOM motion layers only.", error);
+      return;
+    }
     renderer.setClearColor(0x000000, 0);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
 
@@ -319,6 +409,9 @@ function useMineradioStageScene(
     scene.add(beamGroup);
 
     const particleGeometry = makeParticleGeometry(960);
+    const particlePositionAttribute = particleGeometry.getAttribute("position") as THREE.BufferAttribute;
+    const particlePositions = particlePositionAttribute.array as Float32Array;
+    const particleBasePositions = particlePositions.slice();
     const particleMaterial = new THREE.PointsMaterial({
       vertexColors: true,
       size: 0.026,
@@ -337,15 +430,29 @@ function useMineradioStageScene(
     if (playlists.length) {
       playlists.forEach((playlist, index) => {
         const card = makeShelfCard(playlist, index);
-        card.position.set(0, (index - 2.5) * -0.38, index * -0.24);
+        const baseY = (index - 2.5) * -0.38;
+        const baseZ = index * -0.24;
+        card.position.set(0, baseY, baseZ);
         card.rotation.y = index * 0.035;
+        card.userData.baseX = 0;
+        card.userData.baseY = baseY;
+        card.userData.baseZ = baseZ;
+        card.userData.phase = index * 0.71 + seeded(index, 4.4);
+        card.userData.slot = index;
         shelf.add(card);
       });
     } else {
       for (let index = 0; index < 5; index += 1) {
         const card = makeGhostShelfCard(index);
-        card.position.set(0, (index - 2) * -0.36, index * -0.26);
+        const baseY = (index - 2) * -0.36;
+        const baseZ = index * -0.26;
+        card.position.set(0, baseY, baseZ);
         card.rotation.y = index * 0.035;
+        card.userData.baseX = 0;
+        card.userData.baseY = baseY;
+        card.userData.baseZ = baseZ;
+        card.userData.phase = index * 0.78 + seeded(index, 5.5);
+        card.userData.slot = index;
         shelf.add(card);
       }
     }
@@ -364,20 +471,65 @@ function useMineradioStageScene(
     if (canvas.parentElement) observer.observe(canvas.parentElement);
     resize();
 
-    let frame = 0;
+    const clock = new THREE.Clock();
+    let visualEnergy = playing ? 0.72 : 0.28;
+    let beatPulse = 0;
     let raf = 0;
     const tick = () => {
-      frame += 0.01;
-      particles.rotation.z += playing ? 0.0019 : 0.0008;
-      particles.rotation.y = Math.sin(frame * 0.72) * 0.045;
-      aura.scale.x = 1.55 + Math.sin(frame * 1.7) * (playing ? 0.045 : 0.018);
-      aura.material.opacity = playing ? 0.14 + Math.sin(frame * 1.4) * 0.025 : 0.1;
-      beamGroup.rotation.z = Math.sin(frame * 0.28) * 0.015;
+      const delta = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.elapsedTime;
+      const energyTarget = playing ? 0.74 + Math.sin(elapsed * 1.18) * 0.08 + Math.sin(elapsed * 2.74) * 0.035 : 0.26;
+      visualEnergy += (energyTarget - visualEnergy) * (energyTarget > visualEnergy ? 0.09 : 0.045);
+      const beatTarget = playing ? Math.pow(Math.max(0, Math.sin(elapsed * 2.45) * 0.72 + Math.sin(elapsed * 5.1) * 0.28), 4) : 0;
+      beatPulse += (beatTarget - beatPulse) * (beatTarget > beatPulse ? 0.34 : 0.08);
+
+      for (let index = 0; index < particlePositions.length / 3; index += 1) {
+        const offset = index * 3;
+        const phase = index * 0.071;
+        const lane = (index % 37) / 37;
+        const drift = 0.025 + visualEnergy * 0.055 + beatPulse * 0.05;
+        particlePositions[offset] = particleBasePositions[offset] + Math.sin(elapsed * (0.42 + lane * 0.26) + phase) * drift;
+        particlePositions[offset + 1] = particleBasePositions[offset + 1] + Math.cos(elapsed * (0.34 + lane * 0.18) + phase * 1.7) * drift * 0.72;
+        particlePositions[offset + 2] = particleBasePositions[offset + 2] + Math.sin(elapsed * 0.26 + phase * 2.1) * (0.035 + beatPulse * 0.06);
+      }
+      particlePositionAttribute.needsUpdate = true;
+
+      particles.rotation.z += (playing ? 0.12 : 0.046) * delta;
+      particles.rotation.y = Math.sin(elapsed * 0.72) * (0.06 + visualEnergy * 0.025);
+      particles.rotation.x = Math.cos(elapsed * 0.52) * (0.018 + visualEnergy * 0.02);
+      particleMaterial.opacity = playing ? 0.66 + visualEnergy * 0.22 + beatPulse * 0.08 : 0.44;
+      particleMaterial.size = 0.024 + visualEnergy * 0.008 + beatPulse * 0.008;
+
+      aura.scale.x = 1.52 + Math.sin(elapsed * 1.08) * (0.04 + visualEnergy * 0.035) + beatPulse * 0.08;
+      aura.scale.y = 0.64 + Math.cos(elapsed * 0.88) * 0.022 + beatPulse * 0.034;
+      aura.material.opacity = playing ? 0.10 + visualEnergy * 0.08 + beatPulse * 0.05 : 0.09;
+      beamGroup.rotation.z = Math.sin(elapsed * 0.28) * 0.024;
+      cyanBeams.material.opacity = immersiveStage ? 0.16 + visualEnergy * 0.10 + beatPulse * 0.06 : 0.12;
+      goldBeams.material.opacity = immersiveStage ? 0.10 + visualEnergy * 0.07 + beatPulse * 0.05 : 0.07;
+      camera.position.x = Math.sin(elapsed * 0.22) * (immersiveStage ? 0.11 : 0.06);
+      camera.position.y = Math.cos(elapsed * 0.18) * 0.045 + beatPulse * 0.015;
+      camera.lookAt(0, 0, 0);
       shelf.visible = immersiveStage;
-      shelf.position.y = -0.2 + Math.sin(frame * 1.2) * (playing ? 0.035 : 0.018);
+      shelf.position.y = -0.2 + Math.sin(elapsed * 1.2) * (playing ? 0.05 : 0.022);
+      shelf.position.z = -0.72 + Math.cos(elapsed * 0.8) * 0.035;
       shelf.children.forEach((child, index) => {
-        child.position.x = Math.sin(frame * 1.6 + index) * 0.04;
-        child.rotation.z = Math.sin(frame + index) * 0.01;
+        const mesh = child as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+        const phase = Number(mesh.userData.phase || index);
+        const slot = Number(mesh.userData.slot || index);
+        const selectedDelta = slot - selectedShelfIndexRef.current;
+        const selectedLift = Math.max(0, 1 - Math.abs(selectedDelta));
+        const depthFade = Math.max(0.38, 1 - Math.abs(selectedDelta) * 0.13);
+        const baseX = Number(mesh.userData.baseX || 0);
+        const baseY = Number(mesh.userData.baseY || 0);
+        const baseZ = Number(mesh.userData.baseZ || 0);
+        mesh.position.x = baseX - selectedLift * 0.16 + Math.sin(elapsed * 1.45 + phase) * (0.035 + selectedLift * 0.022);
+        mesh.position.y = baseY + selectedLift * 0.11 + Math.sin(elapsed * 0.92 + phase) * (0.042 + visualEnergy * 0.018);
+        mesh.position.z = baseZ + selectedLift * 0.26 + Math.cos(elapsed * 0.78 + phase) * 0.045;
+        mesh.rotation.y = -0.05 + selectedDelta * 0.035 + Math.sin(elapsed * 0.5 + phase) * 0.018;
+        mesh.rotation.x = -selectedDelta * 0.014 + Math.cos(elapsed * 0.44 + phase) * 0.01;
+        mesh.rotation.z = Math.sin(elapsed * 0.72 + phase) * 0.012;
+        mesh.scale.setScalar(1 + selectedLift * 0.075 + beatPulse * 0.026);
+        mesh.material.opacity = Math.min(1, (0.62 + depthFade * 0.34 + selectedLift * 0.16 + beatPulse * 0.035) * (immersiveStage ? 1 : 0));
       });
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);

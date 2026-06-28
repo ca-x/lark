@@ -1,12 +1,13 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.9.19",
+  "version": "0.9.20",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:mineradio-motion": "node scripts/check-mineradio-motion.mjs",
     "test:smartisan-tonearm": "node scripts/check-smartisan-tonearm.mjs",
     "preview": "vite preview"
   },

@@ -14,7 +14,7 @@ For release notes, see [CHANGELOG.md](CHANGELOG.md).
 
 Thanks to the [LinuxDo Community](https://linux.do) for discussion and feedback.
 
-The Mineradio Stage player theme and its optional dark-stage effects take visual and interaction inspiration from [Mineradio](https://github.com/XxHuberrr/Mineradio) by XxHuberrr. Lark's implementation is a separate React/Three.js adaptation for this project and is not affiliated with Mineradio.
+The Mineradio Stage player theme and its optional dark-stage effects take visual and interaction inspiration from [Mineradio](https://github.com/XxHuberrr/Mineradio) by XxHuberrr. The current motion pass was implemented after reading Mineradio's original splash, 3D playlist shelf, lyric glow, and render-loop code, then adapting those interface and interaction ideas into Lark's separate React/Three.js implementation. Lark is not affiliated with Mineradio.
 
 ---
 

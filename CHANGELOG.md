@@ -5,6 +5,38 @@
 
 ---
 
+## 0.9.20 — Mineradio 原版动效复刻
+
+发布日期 / Released: 2026-06-28
+
+### 优化与修复
+
+- **对照原版代码重做暗场动效。** 这次读取并参考了 Mineradio 原版 `drawMineradioSplash()`、`makeShelfManager()`、`updateStageLyrics3D()` 和主 `animate()` 循环，把缺失的启动幕、歌单架、歌词和舞台连续动效补回百灵实现。
+- **补强启动幕信号动画。** 启动页新增 dust 粒子、横向光束、信号碎片、中心扫描线和信号点扫动，进入前不再只是静态字标。
+- **补强歌单架浮动交互。** 歌单卡片现在带持续呼吸、选中浮起、前后景深和播放态 Three.js 联动，更接近原版 `floatMix` / `breathPulse` 的手感。
+- **补强歌词与舞台律动。** 歌词区新增可读外发光和粒子河，Three.js 背景粒子、光束、光晕、镜头和 3D shelf 都改为 elapsed-time 驱动。
+- **新增 Mineradio 动效回归检查。** `pnpm test:mineradio-motion` 会检查这些关键动效通道，避免以后只留下静态外观。
+
+完整 diff：`git log v0.9.19..v0.9.20`
+
+---
+
+## v0.9.20 — Mineradio original motion fidelity
+
+Released: 2026-06-28
+
+### Improved and Fixed
+
+- **Rebuilt the dark-stage motion against the original source.** This pass read Mineradio's `drawMineradioSplash()`, `makeShelfManager()`, `updateStageLyrics3D()`, and main `animate()` loop, then restored the missing entry, shelf, lyric, and stage motion channels in Lark.
+- **Strengthened the entry-screen signal animation.** The splash now includes dust particles, moving streaks, signal shards, a center sweep, and a moving signal blip instead of only a static wordmark.
+- **Strengthened playlist-shelf motion.** Shelf cards now breathe continuously, lift when selected, preserve depth layering, and move with the Three.js stage, closer to the original `floatMix` / `breathPulse` feel.
+- **Strengthened lyric and stage motion.** The lyric area now has readable outer glow and a particle river, while Three.js particles, beams, aura, camera, and shelf cards are driven by elapsed-time motion.
+- **Added a Mineradio motion regression check.** `pnpm test:mineradio-motion` checks the required motion channels so future changes do not regress to a static skin.
+
+Full diff: `git log v0.9.19..v0.9.20`
+
+---
+
 ## 0.9.19 — 暗场电台复刻加强
 
 发布日期 / Released: 2026-06-28
