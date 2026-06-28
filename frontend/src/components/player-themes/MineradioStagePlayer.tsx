@@ -33,6 +33,15 @@ const SPLASH_STREAKS = Array.from({ length: 16 }, (_, index) => index);
 const SPLASH_SHARDS = Array.from({ length: 24 }, (_, index) => index);
 const LYRIC_RIVER_PARTICLES = Array.from({ length: 22 }, (_, index) => index);
 
+type LightBeamMotion = {
+  attribute: THREE.BufferAttribute;
+  positions: Float32Array;
+  basePositions: Float32Array;
+  direction: -1 | 1;
+  phaseOffset: number;
+  amplitude: number;
+};
+
 export function MineradioStagePlayer({
   cover,
   playing,
@@ -399,8 +408,32 @@ function useMineradioStageScene(
         depthWrite: false,
       }),
     );
-    beamGroup.add(cyanBeams, goldBeams);
+    const cyanBeamSweep = new THREE.LineSegments(
+      makeLightBeamGeometry(16, -1),
+      new THREE.LineBasicMaterial({
+        color: 0x9cffdf,
+        transparent: true,
+        opacity: 0.045,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    const goldBeamSweep = new THREE.LineSegments(
+      makeLightBeamGeometry(12, 1),
+      new THREE.LineBasicMaterial({
+        color: 0xfff0b8,
+        transparent: true,
+        opacity: 0.035,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    );
+    beamGroup.add(cyanBeams, goldBeams, cyanBeamSweep, goldBeamSweep);
     scene.add(beamGroup);
+    const cyanBeamMotion = makeLightBeamMotion(cyanBeams, -1, 0.2, 1);
+    const goldBeamMotion = makeLightBeamMotion(goldBeams, 1, 1.8, 0.78);
+    const cyanSweepMotion = makeLightBeamMotion(cyanBeamSweep, -1, 3.1, 1.42);
+    const goldSweepMotion = makeLightBeamMotion(goldBeamSweep, 1, 4.4, 1.2);
 
     const particleGeometry = makeParticleGeometry(960);
     const particlePositionAttribute = particleGeometry.getAttribute("position") as THREE.BufferAttribute;
@@ -481,9 +514,20 @@ function useMineradioStageScene(
       aura.scale.x = 1.52 + Math.sin(elapsed * 1.08) * (0.04 + visualEnergy * 0.035) + beatPulse * 0.08;
       aura.scale.y = 0.64 + Math.cos(elapsed * 0.88) * 0.022 + beatPulse * 0.034;
       aura.material.opacity = playing ? 0.10 + visualEnergy * 0.08 + beatPulse * 0.05 : 0.09;
-      beamGroup.rotation.z = Math.sin(elapsed * 0.28) * 0.024;
+      const beamSweepPulse = (0.5 + Math.sin(elapsed * 0.82) * 0.5) * (0.55 + visualEnergy * 0.45) + beatPulse * 0.35;
+      animateLightBeamGeometry(cyanBeamMotion, elapsed, visualEnergy, beatPulse);
+      animateLightBeamGeometry(goldBeamMotion, elapsed, visualEnergy, beatPulse);
+      animateLightBeamGeometry(cyanSweepMotion, elapsed + 0.72, visualEnergy, beatPulse);
+      animateLightBeamGeometry(goldSweepMotion, elapsed + 1.44, visualEnergy, beatPulse);
+      beamGroup.rotation.z = Math.sin(elapsed * 0.24) * 0.03 + Math.sin(elapsed * 0.58) * 0.008;
+      beamGroup.scale.x = 1 + Math.sin(elapsed * 0.36) * 0.018 + beatPulse * 0.012;
+      beamGroup.scale.y = 1 + Math.cos(elapsed * 0.42) * 0.014 + beatPulse * 0.008;
       cyanBeams.material.opacity = immersiveStage ? 0.16 + visualEnergy * 0.10 + beatPulse * 0.06 : 0.12;
       goldBeams.material.opacity = immersiveStage ? 0.10 + visualEnergy * 0.07 + beatPulse * 0.05 : 0.07;
+      cyanBeamSweep.material.opacity = immersiveStage ? 0.025 + beamSweepPulse * 0.085 : 0.018 + beamSweepPulse * 0.045;
+      goldBeamSweep.material.opacity = immersiveStage ? 0.02 + beamSweepPulse * 0.065 : 0.014 + beamSweepPulse * 0.034;
+      cyanBeamSweep.rotation.z = -0.018 + Math.sin(elapsed * 0.68) * 0.038;
+      goldBeamSweep.rotation.z = 0.016 + Math.sin(elapsed * 0.62 + 1.7) * 0.032;
       camera.position.x = Math.sin(elapsed * 0.22) * (immersiveStage ? 0.11 : 0.06);
       camera.position.y = Math.cos(elapsed * 0.18) * 0.045 + beatPulse * 0.015;
       camera.lookAt(0, 0, 0);
@@ -574,6 +618,40 @@ function makeLightBeamGeometry(count: number, direction: -1 | 1) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   return geometry;
+}
+
+function makeLightBeamMotion(line: THREE.LineSegments, direction: -1 | 1, phaseOffset: number, amplitude: number): LightBeamMotion {
+  const attribute = line.geometry.getAttribute("position") as THREE.BufferAttribute;
+  const positions = attribute.array as Float32Array;
+  return {
+    attribute,
+    positions,
+    basePositions: positions.slice(),
+    direction,
+    phaseOffset,
+    amplitude,
+  };
+}
+
+function animateLightBeamGeometry(motion: LightBeamMotion, elapsed: number, visualEnergy: number, beatPulse: number) {
+  const segmentCount = motion.positions.length / 6;
+  for (let index = 0; index < segmentCount; index += 1) {
+    const base = index * 6;
+    const lane = segmentCount <= 1 ? 0 : index / (segmentCount - 1);
+    const phase = motion.phaseOffset + index * 0.37 + lane * 2.1;
+    const sweep = Math.sin(elapsed * (0.5 + lane * 0.08) + lane * Math.PI * 2 + motion.phaseOffset);
+    const shimmer = Math.sin(elapsed * (1.08 + lane * 0.16) + phase);
+    const amplitude = motion.amplitude * (0.035 + visualEnergy * 0.06 + beatPulse * 0.035) * (0.55 + lane * 0.75);
+    const rootDrift = amplitude * 0.18;
+
+    motion.positions[base] = motion.basePositions[base] + Math.sin(elapsed * 0.74 + phase) * rootDrift;
+    motion.positions[base + 1] = motion.basePositions[base + 1] + Math.cos(elapsed * 0.62 + phase) * rootDrift * 0.66;
+    motion.positions[base + 2] = motion.basePositions[base + 2] + Math.sin(elapsed * 0.38 + phase) * rootDrift * 0.42;
+    motion.positions[base + 3] = motion.basePositions[base + 3] + motion.direction * (sweep * amplitude + shimmer * amplitude * 0.28);
+    motion.positions[base + 4] = motion.basePositions[base + 4] + Math.cos(elapsed * 0.7 + phase) * amplitude * 0.76 + beatPulse * 0.04;
+    motion.positions[base + 5] = motion.basePositions[base + 5] + Math.sin(elapsed * 0.44 + phase) * amplitude * 0.38;
+  }
+  motion.attribute.needsUpdate = true;
 }
 
 function makeShelfCard(playlist: Playlist, index: number) {

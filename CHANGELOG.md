@@ -5,6 +5,34 @@
 
 ---
 
+## 0.9.22 — 播放舞台光束动效
+
+发布日期 / Released: 2026-06-29
+
+### 优化与修复
+
+- **让播放界面射线动起来。** Mineradio Stage 的 WebGL 光束现在会在播放状态下做端点漂移、扇形呼吸、透明度脉冲和低亮度扫描光束，避免截图反馈中的静止射线感。
+- **保持克制的暗场光效。** 新动效只调整 Three.js 光束几何、透明度和组变换，不新增重装饰层，不影响专辑页或普通卡片界面。
+- **加强动效回归检查。** `pnpm test:mineradio-motion` 现在会检查动态光束几何和扫描光束通道，防止播放舞台退回静态光线。
+
+完整 diff：`git log v0.9.21..v0.9.22`
+
+---
+
+## v0.9.22 — Playback-stage light beam motion
+
+Released: 2026-06-29
+
+### Improved and Fixed
+
+- **Animated the playback-stage rays.** Mineradio Stage WebGL beams now drift their endpoints, breathe as a fan, pulse opacity, and add low-brightness sweep beams while playing, removing the static-ray feel from the playback view.
+- **Kept the dark-stage lighting restrained.** The new motion only changes Three.js beam geometry, opacity, and group transforms, without adding heavy decorative layers or affecting album pages and regular cards.
+- **Strengthened motion regression coverage.** `pnpm test:mineradio-motion` now checks the dynamic beam geometry and sweep beam channels so the stage does not regress to static rays.
+
+Full diff: `git log v0.9.21..v0.9.22`
+
+---
+
 ## 0.9.21 — 专辑页动效归位
 
 发布日期 / Released: 2026-06-28

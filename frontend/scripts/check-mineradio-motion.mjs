@@ -26,6 +26,11 @@ for (const needle of [
   "--shelf-delta",
   "data-motion-card",
   "data-webgl-unavailable",
+  "cyanBeamSweep",
+  "goldBeamSweep",
+  "makeLightBeamMotion",
+  "animateLightBeamGeometry",
+  "beamSweepPulse",
 ]) {
   requireInSource(component, needle, "MineradioStagePlayer.tsx");
 }
