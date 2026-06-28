@@ -1331,6 +1331,7 @@ func defaultUserPreferences() models.UserPreferences {
 	return models.UserPreferences{
 		HomePlayerStyle:         "vinyl",
 		MobileHomePlayerStyle:   "neon-console",
+		MineradioStageEnabled:   false,
 		ArtistAlbumDisplayStyle: "classic",
 		LyricsDisplayStyle:      "immersive",
 		LyricsDragSeekEnabled:   true,
@@ -1342,6 +1343,7 @@ func normalizeUserPreferences(preferences models.UserPreferences) models.UserPre
 	return models.UserPreferences{
 		HomePlayerStyle:         normalizeUserHomePlayerStyle(preferences.HomePlayerStyle),
 		MobileHomePlayerStyle:   normalizeUserMobileHomePlayerStyle(preferences.MobileHomePlayerStyle),
+		MineradioStageEnabled:   preferences.MineradioStageEnabled,
 		ArtistAlbumDisplayStyle: normalizeArtistAlbumDisplayStyle(preferences.ArtistAlbumDisplayStyle),
 		LyricsDisplayStyle:      normalizeLyricsDisplayStyle(preferences.LyricsDisplayStyle),
 		LyricsDragSeekEnabled:   preferences.LyricsDragSeekEnabled,
@@ -1367,7 +1369,7 @@ func normalizeLyricsDisplayStyle(value string) string {
 
 func normalizeUserHomePlayerStyle(value string) string {
 	switch strings.TrimSpace(value) {
-	case "vinyl", "cassette", "ipod", "audio-scope", "album-slide", "smartisan-turntable", "gramophone", "running-kitten":
+	case "vinyl", "cassette", "ipod", "audio-scope", "album-slide", "smartisan-turntable", "gramophone", "running-kitten", "mineradio-stage":
 		return strings.TrimSpace(value)
 	default:
 		return "vinyl"

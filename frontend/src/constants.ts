@@ -25,6 +25,7 @@ export const COLLECTION_LOAD_TIMEOUT_MS = 12_000;
 export const LIBRARY_SOURCE_TAB_KEY = "lark.library-source-tab";
 export const HOME_PLAYER_STYLE_KEY = "lark.home-player-style";
 export const MOBILE_HOME_PLAYER_STYLE_KEY = "lark.mobile-home-player-style";
+export const MINERADIO_STAGE_ENABLED_KEY = "lark.mineradio-stage-enabled";
 export const ARTIST_ALBUM_DISPLAY_STYLE_KEY = "lark.artist-album-display-style";
 export const PERSISTENT_QUEUE_KEY = "lark.persistent-queue-enabled";
 export const AUTO_CACHE_PLAYED_KEY = "lark.auto-cache-played-enabled";

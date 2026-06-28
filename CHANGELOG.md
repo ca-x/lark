@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.18 — 暗场电台与 Mineradio 致敬效果
+
+发布日期 / Released: 2026-06-28
+
+### 新增与优化
+
+- **新增 PC 端「暗场电台」首页播放样式。** 新主题使用暗场封面光晕、粒子星河、播放态漂移动效和精简播放控制，移动端继续使用现有移动播放器。
+- **新增可切换的 3D 歌单架 / 歌词舞台。** 设置页新增独立开关；开启后暗场电台会显示歌词舞台和基于现有歌单数据的 3D 歌单架，关闭后仍保留基础暗场播放器。
+- **持久化暗场沉浸开关。** 用户偏好接口、后端归一化和本地缓存都支持 `mineradio_stage_enabled`，跨会话不会丢失设置。
+- **补充 Mineradio 借鉴说明。** README 与中文 README 明确说明暗场电台视觉和交互灵感借鉴自 XxHuberrr 的 Mineradio，并标明百灵中的实现是独立适配版本。
+
+完整 diff：`git log v0.9.17..v0.9.18`
+
+---
+
+## v0.9.18 — Mineradio-inspired dark stage
+
+Released: 2026-06-28
+
+### Added and Improved
+
+- **Added the desktop Mineradio Stage home player style.** The new theme uses dark cover glow, a particle field, playback-state drift, and focused transport controls while mobile keeps the existing mobile player.
+- **Added a toggleable 3D playlist shelf / lyric stage.** Settings now include an independent switch; when enabled, Mineradio Stage shows a lyric stage and a 3D shelf backed by existing playlist data.
+- **Persisted the immersive-stage switch.** User preferences, backend normalization, and local cache now support `mineradio_stage_enabled` so the setting survives refreshes and sessions.
+- **Documented the Mineradio inspiration.** README and README_ZH now credit XxHuberrr's Mineradio as the visual and interaction inspiration and clarify that Lark's implementation is a separate adaptation.
+
+Full diff: `git log v0.9.17..v0.9.18`
+
+---
+
 ## 0.9.17 — 播放历史与 WMA 扫描修复
 
 发布日期 / Released: 2026-06-22

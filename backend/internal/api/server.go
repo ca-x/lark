@@ -213,6 +213,7 @@ type playbackHistorySettingsRequest struct {
 type userPreferencesRequest struct {
 	HomePlayerStyle         string  `json:"home_player_style"`
 	MobileHomePlayerStyle   string  `json:"mobile_home_player_style"`
+	MineradioStageEnabled   *bool   `json:"mineradio_stage_enabled"`
 	ArtistAlbumDisplayStyle string  `json:"artist_album_display_style"`
 	LyricsDisplayStyle      *string `json:"lyrics_display_style"`
 	LyricsDragSeekEnabled   *bool   `json:"lyrics_drag_seek_enabled"`
@@ -630,9 +631,14 @@ func (s *Server) handleSaveUserPreferences(c *echo.Context) error {
 	if req.TerminalShellTheme != nil {
 		terminalShellTheme = *req.TerminalShellTheme
 	}
+	mineradioStageEnabled := current.MineradioStageEnabled
+	if req.MineradioStageEnabled != nil {
+		mineradioStageEnabled = *req.MineradioStageEnabled
+	}
 	preferences, err := s.lib.SaveUserPreferences(c.Request().Context(), currentUserID(c), models.UserPreferences{
 		HomePlayerStyle:         req.HomePlayerStyle,
 		MobileHomePlayerStyle:   req.MobileHomePlayerStyle,
+		MineradioStageEnabled:   mineradioStageEnabled,
 		ArtistAlbumDisplayStyle: req.ArtistAlbumDisplayStyle,
 		LyricsDisplayStyle:      lyricsDisplayStyle,
 		LyricsDragSeekEnabled:   lyricsDragSeekEnabled,

@@ -141,7 +141,7 @@ import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
 import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
-import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, RunningKittenTurntable, SmartisanTurntable, VinylTurntable } from "./components/player-themes";
+import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, RunningKittenTurntable, SmartisanTurntable, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -172,7 +172,7 @@ import {
   FAVORITES_FETCH_LIMIT, COLLECTION_DETAIL_SONG_LIMIT, OFFLINE_STATUS_POLL_MS, OFFLINE_STATUS_MAX_POLLS,
   SONG_ROW_HEIGHT, VIRTUAL_TABLE_THRESHOLD, VIRTUAL_OVERSCAN, COLLECTION_LOAD_TIMEOUT_MS,
   LIBRARY_SOURCE_TAB_KEY, HOME_PLAYER_STYLE_KEY, MOBILE_HOME_PLAYER_STYLE_KEY,
-  ARTIST_ALBUM_DISPLAY_STYLE_KEY, PERSISTENT_QUEUE_KEY, AUTO_CACHE_PLAYED_KEY, AUTH_REDIRECT_KEY,
+  ARTIST_ALBUM_DISPLAY_STYLE_KEY, MINERADIO_STAGE_ENABLED_KEY, PERSISTENT_QUEUE_KEY, AUTO_CACHE_PLAYED_KEY, AUTH_REDIRECT_KEY,
   defaultLibraryTab, emptyOfflineUsage, measurePageSizing,
 } from "./constants";
 import {
@@ -299,7 +299,8 @@ function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
     value === "audio-scope" ||
     value === "album-slide" ||
     value === "gramophone" ||
-    value === "running-kitten"
+    value === "running-kitten" ||
+    value === "mineradio-stage"
     ? value
     : "vinyl";
 }
@@ -317,6 +318,22 @@ function rememberHomePlayerStyle(style: HomePlayerStyle) {
     window.localStorage.setItem(HOME_PLAYER_STYLE_KEY, style);
   } catch {
     // localStorage can be unavailable in private/webview modes; vinyl remains default.
+  }
+}
+
+function storedMineradioStageEnabled() {
+  try {
+    return window.localStorage.getItem(MINERADIO_STAGE_ENABLED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberMineradioStageEnabled(enabled: boolean) {
+  try {
+    window.localStorage.setItem(MINERADIO_STAGE_ENABLED_KEY, enabled ? "1" : "0");
+  } catch {
+    // localStorage can be unavailable in private/webview modes; the saved user preference remains authoritative.
   }
 }
 
@@ -369,6 +386,7 @@ function normalizeUserPreferences(value?: Partial<UserPreferences> | null): User
   return {
     home_player_style: normalizeHomePlayerStyle(value?.home_player_style),
     mobile_home_player_style: normalizeMobileHomePlayerStyle(value?.mobile_home_player_style),
+    mineradio_stage_enabled: value?.mineradio_stage_enabled ?? false,
     artist_album_display_style: normalizeArtistAlbumDisplayStyle(value?.artist_album_display_style),
     lyrics_display_style: normalizeLyricsDisplayStyle(value?.lyrics_display_style),
     lyrics_drag_seek_enabled: value?.lyrics_drag_seek_enabled ?? true,
@@ -380,6 +398,7 @@ function sameUserPreferences(left: UserPreferences | null, right: UserPreference
   if (!left) return false;
   return left.home_player_style === right.home_player_style &&
     left.mobile_home_player_style === right.mobile_home_player_style &&
+    left.mineradio_stage_enabled === right.mineradio_stage_enabled &&
     left.artist_album_display_style === right.artist_album_display_style &&
     left.lyrics_display_style === right.lyrics_display_style &&
     left.lyrics_drag_seek_enabled === right.lyrics_drag_seek_enabled &&
@@ -951,6 +970,7 @@ export default function App() {
   const [resumeMode, setResumeMode] = useState<ResumeMode>("resume");
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
   const [mobileHomePlayerStyle, setMobileHomePlayerStyle] = useState<MobileHomePlayerStyle>(storedMobileHomePlayerStyle);
+  const [mineradioStageEnabled, setMineradioStageEnabled] = useState(storedMineradioStageEnabled);
   const [artistAlbumDisplayStyle, setArtistAlbumDisplayStyle] = useState<ArtistAlbumDisplayStyle>(() => storedArtistAlbumDisplayStyle());
   const [lyricsDisplayStyle, setLyricsDisplayStyle] = useState<LyricsDisplayStyle>("immersive");
   const [lyricsDragSeekEnabled, setLyricsDragSeekEnabled] = useState(true);
@@ -1300,6 +1320,10 @@ export default function App() {
   }, [mobileHomePlayerStyle]);
 
   useEffect(() => {
+    rememberMineradioStageEnabled(mineradioStageEnabled);
+  }, [mineradioStageEnabled]);
+
+  useEffect(() => {
     rememberArtistAlbumDisplayStyle(artistAlbumDisplayStyle, auth?.user);
   }, [artistAlbumDisplayStyle, auth?.user?.id]);
 
@@ -1312,6 +1336,7 @@ export default function App() {
     const nextPreferences = normalizeUserPreferences({
       home_player_style: homePlayerStyle,
       mobile_home_player_style: mobileHomePlayerStyle,
+      mineradio_stage_enabled: mineradioStageEnabled,
       artist_album_display_style: artistAlbumDisplayStyle,
       lyrics_display_style: lyricsDisplayStyle,
       lyrics_drag_seek_enabled: lyricsDragSeekEnabled,
@@ -1329,7 +1354,7 @@ export default function App() {
         })
         .catch(() => undefined);
     }, 250);
-  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, lyricsDisplayStyle, lyricsDragSeekEnabled, mobileHomePlayerStyle, terminalShellTheme]);
+  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, lyricsDisplayStyle, lyricsDragSeekEnabled, mineradioStageEnabled, mobileHomePlayerStyle, terminalShellTheme]);
 
   useEffect(() => {
     return () => {
@@ -2054,12 +2079,14 @@ export default function App() {
       lastSavedUserPreferencesRef.current = normalized;
       setHomePlayerStyle(normalized.home_player_style);
       setMobileHomePlayerStyle(normalized.mobile_home_player_style);
+      setMineradioStageEnabled(normalized.mineradio_stage_enabled);
       setArtistAlbumDisplayStyle(normalized.artist_album_display_style);
       setLyricsDisplayStyle(normalized.lyrics_display_style);
       setLyricsDragSeekEnabled(normalized.lyrics_drag_seek_enabled);
       setTerminalShellTheme(normalized.terminal_shell_theme);
       rememberHomePlayerStyle(normalized.home_player_style);
       rememberMobileHomePlayerStyle(normalized.mobile_home_player_style);
+      rememberMineradioStageEnabled(normalized.mineradio_stage_enabled);
       rememberArtistAlbumDisplayStyle(normalized.artist_album_display_style, user);
       rememberTerminalShellTheme(normalized.terminal_shell_theme);
       userPreferencesReadyRef.current = true;
@@ -4218,7 +4245,9 @@ export default function App() {
                 trebleGain={trebleGain}
                 playMode={playMode}
                 playModeLabel={playModeLabel}
+                activeLyricText={activeLyricText}
                 homePlayerStyle={homePlayerStyle}
+                mineradioStageEnabled={mineradioStageEnabled}
                 mobileHomePlayerStyle={mobileHomePlayerStyle}
                 mobileViewport={mobileViewport}
                 t={t}
@@ -4604,6 +4633,8 @@ export default function App() {
                 onHomePlayerStyleChange={setHomePlayerStyle}
                 mobileHomePlayerStyle={mobileHomePlayerStyle}
                 onMobileHomePlayerStyleChange={setMobileHomePlayerStyle}
+                mineradioStageEnabled={mineradioStageEnabled}
+                onMineradioStageEnabledChange={setMineradioStageEnabled}
                 artistAlbumDisplayStyle={artistAlbumDisplayStyle}
                 onArtistAlbumDisplayStyleChange={setArtistAlbumDisplayStyle}
                 lyricsDisplayStyle={lyricsDisplayStyle}
@@ -5320,7 +5351,9 @@ function HomeView({
   trebleGain,
   playMode,
   playModeLabel,
+  activeLyricText,
   homePlayerStyle,
+  mineradioStageEnabled,
   mobileHomePlayerStyle,
   mobileViewport,
   t,
@@ -5366,7 +5399,9 @@ function HomeView({
   trebleGain: number;
   playMode: PlayMode;
   playModeLabel: string;
+  activeLyricText: string;
   homePlayerStyle: HomePlayerStyle;
+  mineradioStageEnabled: boolean;
   mobileHomePlayerStyle: MobileHomePlayerStyle;
   mobileViewport: boolean;
   t: ReturnType<typeof createT>;
@@ -5446,7 +5481,7 @@ function HomeView({
 
   return (
     <section className="home-view">
-      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : "hero"}>
+      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : homePlayerStyle === "mineradio-stage" ? "hero mineradio-stage-hero" : "hero"}>
         {currentRadio ? (
           <RadioReceiver
             title={currentRadio.name || t("onlineRadio")}
@@ -5567,6 +5602,27 @@ function HomeView({
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
             onSeek={heroActive ? onSeek : undefined}
+          />
+        ) : homePlayerStyle === "mineradio-stage" ? (
+          <MineradioStagePlayer
+            cover={coverUrl(displaySong)}
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
+            album={displaySong?.album}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            immersiveStage={mineradioStageEnabled}
+            activeLyricText={activeLyricText}
+            playlists={playlists}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
+            onCyclePlayMode={onCyclePlayMode}
+            onSeek={heroActive ? onSeek : undefined}
+            onOpenPlaylist={onOpenPlaylist}
           />
         ) : (
           <VinylTurntable
@@ -8734,6 +8790,8 @@ function SettingsPanel({
   onHomePlayerStyleChange,
   mobileHomePlayerStyle,
   onMobileHomePlayerStyleChange,
+  mineradioStageEnabled,
+  onMineradioStageEnabledChange,
   artistAlbumDisplayStyle,
   onArtistAlbumDisplayStyleChange,
   lyricsDisplayStyle,
@@ -8772,6 +8830,8 @@ function SettingsPanel({
   onHomePlayerStyleChange: (style: HomePlayerStyle) => void;
   mobileHomePlayerStyle: MobileHomePlayerStyle;
   onMobileHomePlayerStyleChange: (style: MobileHomePlayerStyle) => void;
+  mineradioStageEnabled: boolean;
+  onMineradioStageEnabledChange: (enabled: boolean) => void;
   artistAlbumDisplayStyle: ArtistAlbumDisplayStyle;
   onArtistAlbumDisplayStyleChange: (style: ArtistAlbumDisplayStyle) => void;
   lyricsDisplayStyle: LyricsDisplayStyle;
@@ -9136,12 +9196,13 @@ function SettingsPanel({
             </div>
           </SettingsSection>
           {!mobileViewport ? (
-          <SettingsSection
-            wideRow
-            title={t("homePlayerStyle")}
-            description={t("homePlayerStyleHint")}
-          >
-            <div className="segmented-control segmented-control-fluid" role="group" aria-label={t("homePlayerStyle")}>
+            <>
+              <SettingsSection
+                wideRow
+                title={t("homePlayerStyle")}
+                description={t("homePlayerStyleHint")}
+              >
+                <div className="segmented-control segmented-control-fluid" role="group" aria-label={t("homePlayerStyle")}>
               <button
                 type="button"
                 className={homePlayerStyle === "vinyl" ? "active" : ""}
@@ -9198,8 +9259,33 @@ function SettingsPanel({
               >
                 {t("homePlayerRunningKitten")}
               </button>
-            </div>
-          </SettingsSection>
+              <button
+                type="button"
+                className={homePlayerStyle === "mineradio-stage" ? "active" : ""}
+                onClick={() => onHomePlayerStyleChange("mineradio-stage")}
+              >
+                {t("homePlayerMineradioStage")}
+              </button>
+                </div>
+              </SettingsSection>
+              <SettingsSection
+                wideRow
+                title={t("mineradioStageEffects")}
+                description={t("mineradioStageEffectsHint")}
+              >
+                <label className="switch-row">
+                  <span>
+                    <span>{t("mineradioStageEffectsSwitch")}</span>
+                    <small>{t("mineradioStageEffectsSwitchHint")}</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={mineradioStageEnabled}
+                    onChange={(event) => onMineradioStageEnabledChange(event.target.checked)}
+                  />
+                </label>
+              </SettingsSection>
+            </>
           ) : null}
           {mobileViewport ? (
           <SettingsSection

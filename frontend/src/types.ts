@@ -242,7 +242,7 @@ export interface UISoundSettings {
 export interface PlaybackHistorySettings {
   separate_by_device: boolean;
 }
-export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide" | "smartisan-turntable" | "gramophone" | "running-kitten";
+export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide" | "smartisan-turntable" | "gramophone" | "running-kitten" | "mineradio-stage";
 export type MobileHomePlayerStyle = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic";
 export type ArtistAlbumDisplayStyle = "classic" | "showcase";
 export type LyricsDisplayStyle = "immersive" | "classic";
@@ -250,6 +250,7 @@ export type TerminalShellTheme = "operator" | "dusk" | "phosphor" | "ashgray" | 
 export interface UserPreferences {
   home_player_style: HomePlayerStyle;
   mobile_home_player_style: MobileHomePlayerStyle;
+  mineradio_stage_enabled: boolean;
   artist_album_display_style: ArtistAlbumDisplayStyle;
   lyrics_display_style: LyricsDisplayStyle;
   lyrics_drag_seek_enabled: boolean;

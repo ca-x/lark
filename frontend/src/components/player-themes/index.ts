@@ -4,6 +4,7 @@ export { CassetteDeck } from "./CassetteDeck";
 export { GramophonePlayer } from "./GramophonePlayer";
 export { IpodPlayer } from "./IpodPlayer";
 export { MiniCoverArt } from "./MiniCoverArt";
+export { MineradioStagePlayer } from "./MineradioStagePlayer";
 export { MobileArtPlayer } from "./MobileArtPlayer";
 export { RunningKittenTurntable } from "./RunningKittenTurntable";
 export { SmartisanTurntable } from "./SmartisanTurntable";

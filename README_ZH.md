@@ -14,6 +14,8 @@
 
 感谢 [LinuxDo 社区](https://linux.do) 的讨论与反馈。
 
+暗场电台播放器样式及可选的 3D 歌单架 / 歌词舞台效果，视觉与交互灵感借鉴自 XxHuberrr 的 [Mineradio](https://github.com/XxHuberrr/Mineradio)。百灵中的实现是面向本项目重新适配的 React/Three.js 版本，与 Mineradio 官方无从属关系。
+
 ---
 
 ## 适合这些场景
