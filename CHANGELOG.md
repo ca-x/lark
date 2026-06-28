@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.19 — 暗场电台复刻加强
+
+发布日期 / Released: 2026-06-28
+
+### 优化与修复
+
+- **重做 Mineradio 风格启动幕。** 暗场电台现在有中心 wordmark、信号线、暗场网格、粒子背景和「点击进入」入口，支持鼠标点击、Enter 与 Space 进入舞台。
+- **补齐歌单架交互。** 3D 歌单架使用真实歌单卡片质感，支持 hover/focus 浮起、方向键切换、滚轮切换和点击打开歌单详情。
+- **强化舞台构图。** 封面唱片、播放控制、歌词字幕和右侧歌单架重新排布，避免上一版像普通玻璃卡片播放器。
+- **修复低高度桌面遮挡。** 暗场舞台会在矮屏桌面中压缩高度和内距，避免被底部播放栏遮住；移动端继续自动降级为移动播放器。
+
+完整 diff：`git log v0.9.18..v0.9.19`
+
+---
+
+## v0.9.19 — Mineradio stage fidelity pass
+
+Released: 2026-06-28
+
+### Improved and Fixed
+
+- **Reworked the Mineradio-style entry screen.** Mineradio Stage now opens with a centered wordmark, signal line, dark grid, particle backdrop, and click-to-enter affordance with mouse, Enter, and Space support.
+- **Completed playlist shelf interaction.** The 3D shelf now uses tangible playlist cards with hover/focus lift, arrow-key selection, wheel selection, and click-through to playlist details.
+- **Strengthened the stage composition.** Album art, transport controls, live lyric text, and the right-side shelf were rearranged so the theme reads as a stage instead of a generic glass player.
+- **Fixed low-height desktop overlap.** The stage compresses on short desktop viewports so the bottom player no longer covers it; mobile still falls back to the normal mobile player.
+
+Full diff: `git log v0.9.18..v0.9.19`
+
+---
+
 ## 0.9.18 — 暗场电台与 Mineradio 致敬效果
 
 发布日期 / Released: 2026-06-28
