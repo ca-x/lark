@@ -5,6 +5,38 @@
 
 ---
 
+## 0.9.24 — 暗场电台封面粒子与歌词景深
+
+发布日期 / Released: 2026-07-01
+
+### 优化与修复
+
+- **复刻封面粒子舞台。** Mineradio Stage 会从当前封面采样像素生成 Three.js 粒子云，并保留封面加载失败时的暗场 fallback 粒子。
+- **补齐音频响应。** 首页暗场电台现在会用播放音频驱动低频、中频、高频、能量和 beat pulse，让封面粒子、光束、光晕、频谱和 3D 歌单架跟随音乐变化。
+- **分清首页舞台与全屏歌词。** 设置页文案明确“首页暗场电台效果”只控制桌面首页的封面粒子、音频响应和 3D 歌单架；“歌词显示效果”控制全屏歌词界面的沉浸景深。
+- **增强全屏歌词界面。** 沉浸景深歌词新增封面投影、扫描光束、景深环和粒子层，并继续支持 reduced motion 降级。
+- **加强回归检查。** `pnpm test:mineradio-motion` 现在覆盖封面粒子、音频响应标记、歌词界面景深和设置边界文案。
+
+完整 diff：`git log v0.9.23..v0.9.24`
+
+---
+
+## v0.9.24 — Cover particles and lyric depth for Mineradio Stage
+
+Released: 2026-07-01
+
+### Improved and Fixed
+
+- **Recreated the cover-particle stage.** Mineradio Stage now samples the current cover into a Three.js particle cloud while keeping a dark-stage fallback when cover extraction fails.
+- **Added audio-reactive motion.** The desktop home Mineradio Stage now derives bass, mid, treble, energy, and beat pulse metrics from playback audio so cover particles, beams, aura, spectrum bars, and the 3D shelf react to music.
+- **Separated home-stage and lyrics settings.** Settings copy now makes “Home Mineradio effects” control only the desktop home cover particles, audio response, and 3D shelf, while “Lyrics display” controls the full-screen lyrics view.
+- **Enhanced the full-screen lyrics view.** Immersive lyrics gain cover projection, scan beam, depth rings, and particle layers, with reduced-motion fallback preserved.
+- **Strengthened regression coverage.** `pnpm test:mineradio-motion` now checks cover particles, audio-reactive markers, lyrics depth, and settings-boundary copy.
+
+Full diff: `git log v0.9.23..v0.9.24`
+
+---
+
 ## 0.9.23 — 暗场电台沉浸动效增强
 
 发布日期 / Released: 2026-07-01

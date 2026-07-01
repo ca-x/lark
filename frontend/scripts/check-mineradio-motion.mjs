@@ -4,8 +4,10 @@ import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const component = readFileSync(join(root, "src/components/player-themes/MineradioStagePlayer.tsx"), "utf8");
+const app = readFileSync(join(root, "src/App.tsx"), "utf8");
 const artistAlbumBrowser = readFileSync(join(root, "src/components/ArtistAlbumBrowser.tsx"), "utf8");
 const css = readFileSync(join(root, "src/styles.css"), "utf8");
+const i18n = readFileSync(join(root, "src/i18n.ts"), "utf8");
 
 const failures = [];
 
@@ -35,8 +37,37 @@ for (const needle of [
   "makeLightBeamMotion",
   "animateLightBeamGeometry",
   "beamSweepPulse",
+  "audioElement",
+  "makeAudioAnalyser",
+  "analyserRetryAt",
+  "captureStream",
+  "data-audio-reactive",
+  "data-cover-particles",
+  "loadCoverParticleGeometry",
+  "makeCoverParticleGeometryFromImage",
+  "makeCoverBurstPositions",
+  "coverParticles",
+  "coverBloomParticles",
 ]) {
   requireInSource(component, needle, "MineradioStagePlayer.tsx");
+}
+
+for (const needle of [
+  "lyrics-depth-stage",
+  "lyrics-depth-cover",
+  "lyrics-depth-particles",
+  "LYRICS_DEPTH_PARTICLES",
+]) {
+  requireInSource(app, needle, "App.tsx");
+}
+
+for (const needle of [
+  "控制全屏歌词界面的视觉效果",
+  "首页暗场电台效果",
+  "full-screen lyrics view",
+  "Home Mineradio effects",
+]) {
+  requireInSource(i18n, needle, "i18n.ts");
 }
 
 for (const needle of [
@@ -59,6 +90,11 @@ for (const needle of [
   "@keyframes mineradio-stage-slit-breathe",
   "@keyframes mineradio-stage-spectrum-live",
   "@keyframes mineradio-stage-lyric-reveal",
+  ".mineradio-stage-player[data-audio-reactive='true']",
+  ".lyrics-depth-stage",
+  "@keyframes lyrics-depth-cover-orbit",
+  "@keyframes lyrics-depth-ring-pulse",
+  "@keyframes lyrics-depth-particle-drift",
   "@keyframes artist-album-showcase-card-breathe",
   "@keyframes artist-album-showcase-sweep",
   "@keyframes artist-album-showcase-cover-drift",

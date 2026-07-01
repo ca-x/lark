@@ -225,6 +225,8 @@ const SLEEP_SONG_PRESETS = [1, 3, 5] as const;
 const LYRIC_OFFSET_STEP_MS = [-500, -100, 100, 500] as const;
 const MAX_LYRIC_OFFSET_MS = 10_000;
 const LYRIC_ACTIVE_ANCHOR_RATIO = 0.38;
+const LYRICS_DEPTH_PARTICLES = Array.from({ length: 36 }, (_, index) => index);
+const LYRICS_DEPTH_RINGS = Array.from({ length: 4 }, (_, index) => index);
 const INTERFACE_MODE_KEY = "lark.interface-mode";
 const TERMINAL_SHELL_THEME_KEY = "lark.shell-theme";
 
@@ -380,6 +382,10 @@ function normalizeTerminalShellTheme(value?: string | null): TerminalShellTheme 
 function normalizeLyricOffsetMs(value?: number | null) {
   const numeric = Math.round(Number(value) || 0);
   return Math.max(-MAX_LYRIC_OFFSET_MS, Math.min(MAX_LYRIC_OFFSET_MS, numeric));
+}
+
+function motionSeed(index: number, salt: number) {
+  return Math.sin((index + 1) * 127.1 + salt * 311.7) * 0.5 + 0.5;
 }
 
 function normalizeUserPreferences(value?: Partial<UserPreferences> | null): UserPreferences {
@@ -4240,6 +4246,7 @@ export default function App() {
                 playing={playing}
                 progress={progress}
                 duration={playableDuration}
+                audioElement={audioEl}
                 volume={volume}
                 bassGain={bassGain}
                 trebleGain={trebleGain}
@@ -5346,6 +5353,7 @@ function HomeView({
   playing,
   progress,
   duration,
+  audioElement,
   volume,
   bassGain,
   trebleGain,
@@ -5394,6 +5402,7 @@ function HomeView({
   playing: boolean;
   progress: number;
   duration: number;
+  audioElement: HTMLAudioElement | null;
   volume: number;
   bassGain: number;
   trebleGain: number;
@@ -5616,6 +5625,7 @@ function HomeView({
             playModeLabel={playModeLabel}
             immersiveStage={mineradioStageEnabled}
             activeLyricText={activeLyricText}
+            audioElement={audioElement}
             playlists={playlists}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
@@ -8040,6 +8050,38 @@ function FullLyrics({
   };
   return (
     <section className="full-lyrics" data-display-style={lyricsDisplayStyle} style={backgroundStyle}>
+      {lyricsDisplayStyle === "immersive" ? (
+        <div className="lyrics-depth-stage" aria-hidden="true">
+          <span className="lyrics-depth-cover" />
+          <span className="lyrics-depth-beam" />
+          <span className="lyrics-depth-rings">
+            {LYRICS_DEPTH_RINGS.map((index) => (
+              <i
+                key={index}
+                style={{
+                  "--lyrics-ring-index": index,
+                  "--lyrics-ring-scale": (0.78 + index * 0.2).toFixed(2),
+                  "--lyrics-ring-delay": `${index * -1.2}s`,
+                } as React.CSSProperties}
+              />
+            ))}
+          </span>
+          <span className="lyrics-depth-particles">
+            {LYRICS_DEPTH_PARTICLES.map((index) => (
+              <i
+                key={index}
+                style={{
+                  "--lyrics-particle-x": `${Math.round(8 + motionSeed(index, 1.3) * 84)}%`,
+                  "--lyrics-particle-y": `${Math.round(10 + motionSeed(index, 2.7) * 78)}%`,
+                  "--lyrics-particle-size": `${2 + Math.round(motionSeed(index, 4.2) * 4)}px`,
+                  "--lyrics-particle-delay": `${index * -0.21}s`,
+                  "--lyrics-particle-duration": `${4.6 + motionSeed(index, 7.9) * 4.8}s`,
+                } as React.CSSProperties}
+              />
+            ))}
+          </span>
+        </div>
+      ) : null}
       <div className="full-lyrics-head">
         <button
           className="full-lyrics-cover-button"

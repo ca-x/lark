@@ -19,6 +19,7 @@ type MineradioStagePlayerProps = {
   playModeLabel?: string;
   immersiveStage?: boolean;
   activeLyricText?: string;
+  audioElement?: HTMLAudioElement | null;
   playlists?: Playlist[];
   onToggle?: () => void;
   onPrevious?: () => void;
@@ -56,6 +57,7 @@ export function MineradioStagePlayer({
   playModeLabel = "Play mode",
   immersiveStage = false,
   activeLyricText = "",
+  audioElement = null,
   playlists = [],
   onToggle,
   onPrevious,
@@ -67,6 +69,7 @@ export function MineradioStagePlayer({
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [stageEntered, setStageEntered] = useState(false);
   const [selectedShelfIndex, setSelectedShelfIndex] = useState(0);
@@ -80,9 +83,11 @@ export function MineradioStagePlayer({
     [shelfItems],
   );
 
-  useMineradioStageScene(canvasRef, {
+  useMineradioStageScene(rootRef, canvasRef, {
     playing,
     immersiveStage,
+    coverUrl: coverState.displayUrl,
+    audioElement,
     playlistSignature,
     playlists: shelfItems,
     selectedShelfIndex,
@@ -132,6 +137,7 @@ export function MineradioStagePlayer({
 
   return (
     <div
+      ref={rootRef}
       className="mineradio-stage-player"
       data-playing={playing ? "true" : "false"}
       data-immersive={immersiveStage ? "true" : "false"}
@@ -367,16 +373,19 @@ export function MineradioStagePlayer({
 }
 
 function useMineradioStageScene(
+  rootRef: RefObject<HTMLDivElement | null>,
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: {
     playing: boolean;
     immersiveStage: boolean;
+    coverUrl: string;
+    audioElement: HTMLAudioElement | null;
     playlistSignature: string;
     playlists: Playlist[];
     selectedShelfIndex: number;
   },
 ) {
-  const { playing, immersiveStage, playlistSignature, playlists, selectedShelfIndex } = options;
+  const { playing, immersiveStage, coverUrl, audioElement, playlistSignature, playlists, selectedShelfIndex } = options;
   const selectedShelfIndexRef = useRef(selectedShelfIndex);
 
   useEffect(() => {
@@ -403,6 +412,20 @@ function useMineradioStageScene(
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 90);
     camera.position.set(0, 0, 8.6);
+
+    const pointerTarget = new THREE.Vector2(0, 0);
+    const pointerParallax = new THREE.Vector2(0, 0);
+    const onPointerMove = (event: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      pointerTarget.x = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+      pointerTarget.y = -(((event.clientY - rect.top) / rect.height - 0.5) * 2);
+    };
+    const onPointerLeave = () => {
+      pointerTarget.set(0, 0);
+    };
+    canvas.parentElement?.addEventListener("pointermove", onPointerMove, { passive: true });
+    canvas.parentElement?.addEventListener("pointerleave", onPointerLeave, { passive: true });
 
     const aura = new THREE.Mesh(
       new THREE.CircleGeometry(2.55, 96),
@@ -482,6 +505,76 @@ function useMineradioStageScene(
     const particles = new THREE.Points(particleGeometry, particleMaterial);
     scene.add(particles);
 
+    let coverParticleGeometry = makeFallbackCoverParticleGeometry(reduceMotion ? 720 : 2200);
+    let coverPositionAttribute = coverParticleGeometry.getAttribute("position") as THREE.BufferAttribute;
+    let coverPositions = coverPositionAttribute.array as Float32Array;
+    let coverBasePositions = coverPositions.slice();
+    let coverBurstPositions = makeCoverBurstPositions(coverBasePositions);
+    const coverParticleMaterial = new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 0.036,
+      transparent: true,
+      opacity: coverUrl ? 0.9 : 0.54,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true,
+    });
+    const coverParticles = new THREE.Points(coverParticleGeometry, coverParticleMaterial);
+    coverParticles.position.set(-1.7, -0.12, -0.9);
+    coverParticles.rotation.set(-0.03, 0.14, -0.02);
+    scene.add(coverParticles);
+
+    const coverBloomMaterial = new THREE.PointsMaterial({
+      vertexColors: true,
+      size: 0.074,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true,
+    });
+    const coverBloomParticles = new THREE.Points(coverParticleGeometry, coverBloomMaterial);
+    coverBloomParticles.position.copy(coverParticles.position);
+    coverBloomParticles.rotation.copy(coverParticles.rotation);
+    coverBloomParticles.scale.set(1.045, 1.045, 1.045);
+    scene.add(coverBloomParticles);
+
+    const coverHalo = new THREE.Mesh(
+      new THREE.RingGeometry(1.55, 1.76, 96),
+      new THREE.MeshBasicMaterial({
+        color: 0x9cffdf,
+        transparent: true,
+        opacity: 0.1,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    coverHalo.position.copy(coverParticles.position);
+    coverHalo.position.z -= 0.12;
+    scene.add(coverHalo);
+
+    const setCoverParticleGeometry = (geometry: THREE.BufferGeometry) => {
+      if (coverParticleGeometry !== geometry) coverParticleGeometry.dispose();
+      coverParticleGeometry = geometry;
+      coverPositionAttribute = coverParticleGeometry.getAttribute("position") as THREE.BufferAttribute;
+      coverPositions = coverPositionAttribute.array as Float32Array;
+      coverBasePositions = coverPositions.slice();
+      coverBurstPositions = makeCoverBurstPositions(coverBasePositions);
+      coverParticles.geometry = coverParticleGeometry;
+      coverBloomParticles.geometry = coverParticleGeometry;
+    };
+
+    let coverLoadCancelled = false;
+    void loadCoverParticleGeometry(coverUrl, reduceMotion ? 900 : 2800).then((geometry) => {
+      if (coverLoadCancelled) {
+        geometry.dispose();
+        return;
+      }
+      setCoverParticleGeometry(geometry);
+      canvas.setAttribute("data-cover-particles", coverUrl ? "sampled" : "fallback");
+    });
+
     const shelf = new THREE.Group();
     shelf.visible = immersiveStage;
     shelf.position.set(2.85, -0.2, -0.72);
@@ -517,14 +610,97 @@ function useMineradioStageScene(
     const clock = new THREE.Clock();
     let visualEnergy = playing ? 0.72 : 0.28;
     let beatPulse = 0;
+    let bass = 0;
+    let mid = 0;
+    let treble = 0;
+    let bassPeak = 0.032;
+    let midPeak = 0.024;
+    let treblePeak = 0.018;
+    let energyPeak = 0.032;
+    let previousEnergy = 0;
+    let spectrumPaintAt = 0;
+    let analyserState = makeAudioAnalyser(audioElement);
+    const spectrumBars = () => rootRef.current?.querySelectorAll<HTMLElement>(".mineradio-stage-spectrum i") || [];
+    const syncAudioReactiveMarker = () => {
+      const marker = analyserState.analyser ? "true" : "fallback";
+      canvas.setAttribute("data-audio-reactive", marker);
+      if (rootRef.current) rootRef.current.dataset.audioReactive = marker;
+    };
+    syncAudioReactiveMarker();
+    let analyserRetryAt = 0;
     let raf = 0;
+    const sampleAudioMetrics = (elapsed: number, delta: number) => {
+      if (!analyserState.analyser && audioElement && playing && !audioElement.paused && elapsed - analyserRetryAt > 0.45) {
+        analyserRetryAt = elapsed;
+        analyserState.dispose();
+        analyserState = makeAudioAnalyser(audioElement);
+        syncAudioReactiveMarker();
+      }
+      if (analyserState.context?.state === "suspended" && playing) void analyserState.context.resume().catch(() => undefined);
+      if (analyserState.analyser && analyserState.frequencyData && analyserState.timeDomainData && audioElement && playing && !audioElement.paused) {
+        analyserState.analyser.getByteFrequencyData(analyserState.frequencyData);
+        analyserState.analyser.getByteTimeDomainData(analyserState.timeDomainData);
+        const freq = analyserState.frequencyData;
+        const len = freq.length;
+        const bassEnd = Math.min(len, 8);
+        const midEnd = Math.min(len, 144);
+        const trebleEnd = Math.min(len, 320);
+        let rawBass = 0;
+        let rawMid = 0;
+        let rawTreble = 0;
+        let rms = 0;
+        for (let index = 1; index < bassEnd; index += 1) rawBass += freq[index] / 255;
+        for (let index = bassEnd; index < midEnd; index += 1) rawMid += freq[index] / 255;
+        for (let index = midEnd; index < trebleEnd; index += 1) rawTreble += freq[index] / 255;
+        for (let index = 0; index < analyserState.timeDomainData.length; index += 1) {
+          const value = (analyserState.timeDomainData[index] - 128) / 128;
+          rms += value * value;
+        }
+        rawBass /= Math.max(1, bassEnd - 1);
+        rawMid /= Math.max(1, midEnd - bassEnd);
+        rawTreble /= Math.max(1, trebleEnd - midEnd);
+        rms = Math.sqrt(rms / analyserState.timeDomainData.length);
+        bassPeak = Math.max(bassPeak * 0.994, rawBass, 0.032);
+        midPeak = Math.max(midPeak * 0.993, rawMid, 0.024);
+        treblePeak = Math.max(treblePeak * 0.992, rawTreble, 0.018);
+        energyPeak = Math.max(energyPeak * 0.995, rms, 0.032);
+        const nextBass = Math.min(1, Math.pow(rawBass / Math.max(0.04, bassPeak * 0.66), 0.76));
+        const nextMid = Math.min(1, Math.pow(rawMid / Math.max(0.03, midPeak * 0.7), 0.82));
+        const nextTreble = Math.min(1, Math.pow(rawTreble / Math.max(0.022, treblePeak * 0.74), 0.9));
+        const nextEnergy = Math.min(1, Math.pow(rms / Math.max(0.034, energyPeak * 0.68), 0.82));
+        const onset = Math.max(0, nextBass - bass, nextEnergy - previousEnergy);
+        previousEnergy += (nextEnergy - previousEnergy) * 0.14;
+        beatPulse = Math.max(beatPulse * Math.pow(0.34, delta), Math.min(0.92, onset * 1.72));
+        bass += (nextBass - bass) * (nextBass > bass ? 0.28 : 0.07);
+        mid += (nextMid - mid) * (nextMid > mid ? 0.2 : 0.06);
+        treble += (nextTreble - treble) * (nextTreble > treble ? 0.18 : 0.055);
+        visualEnergy += (Math.min(1, nextEnergy * 0.82 + bass * 0.14 + mid * 0.08) - visualEnergy) * 0.13;
+      } else {
+        const fallbackEnergy = playing ? 0.58 + Math.sin(elapsed * 1.18) * 0.08 + Math.sin(elapsed * 2.74) * 0.035 : 0.22;
+        const fallbackBeat = playing ? Math.pow(Math.max(0, Math.sin(elapsed * 2.45) * 0.72 + Math.sin(elapsed * 5.1) * 0.28), 4) : 0;
+        beatPulse += (fallbackBeat - beatPulse) * (fallbackBeat > beatPulse ? 0.34 : 0.08);
+        bass += ((playing ? fallbackBeat * 0.52 + 0.16 : 0) - bass) * 0.08;
+        mid += ((playing ? 0.22 + Math.max(0, Math.sin(elapsed * 1.7 + 0.5)) * 0.18 : 0) - mid) * 0.07;
+        treble += ((playing ? 0.16 + Math.max(0, Math.sin(elapsed * 2.6 + 1.8)) * 0.16 : 0) - treble) * 0.065;
+        visualEnergy += (fallbackEnergy - visualEnergy) * (fallbackEnergy > visualEnergy ? 0.09 : 0.045);
+      }
+      if (elapsed - spectrumPaintAt > 0.055) {
+        spectrumPaintAt = elapsed;
+        spectrumBars().forEach((bar, index, bars) => {
+          const ratio = bars.length <= 1 ? 0 : index / (bars.length - 1);
+          const wave = 0.26 + Math.sin(elapsed * (1.4 + ratio * 1.8) + index * 0.72) * 0.12;
+          const level = Math.max(0.08, Math.min(1.24, wave + bass * (1 - ratio) * 0.62 + mid * (1 - Math.abs(ratio - 0.48) * 1.7) * 0.48 + treble * ratio * 0.44 + beatPulse * 0.52));
+          bar.style.setProperty("--spectrum-level", level.toFixed(3));
+        });
+      }
+      rootRef.current?.style.setProperty("--mineradio-audio-energy", visualEnergy.toFixed(3));
+      rootRef.current?.style.setProperty("--mineradio-audio-bass", bass.toFixed(3));
+      rootRef.current?.style.setProperty("--mineradio-audio-beat", beatPulse.toFixed(3));
+    };
     const tick = () => {
       const delta = Math.min(clock.getDelta(), 0.05);
       const elapsed = clock.elapsedTime;
-      const energyTarget = playing ? 0.74 + Math.sin(elapsed * 1.18) * 0.08 + Math.sin(elapsed * 2.74) * 0.035 : 0.26;
-      visualEnergy += (energyTarget - visualEnergy) * (energyTarget > visualEnergy ? 0.09 : 0.045);
-      const beatTarget = playing ? Math.pow(Math.max(0, Math.sin(elapsed * 2.45) * 0.72 + Math.sin(elapsed * 5.1) * 0.28), 4) : 0;
-      beatPulse += (beatTarget - beatPulse) * (beatTarget > beatPulse ? 0.34 : 0.08);
+      sampleAudioMetrics(elapsed, delta);
 
       for (let index = 0; index < particlePositions.length / 3; index += 1) {
         const offset = index * 3;
@@ -542,6 +718,33 @@ function useMineradioStageScene(
       particles.rotation.x = Math.cos(elapsed * 0.52) * (0.018 + visualEnergy * 0.02);
       particleMaterial.opacity = playing ? 0.66 + visualEnergy * 0.22 + beatPulse * 0.08 : 0.44;
       particleMaterial.size = 0.022 + visualEnergy * 0.008 + beatPulse * 0.008;
+
+      for (let index = 0; index < coverPositions.length / 3; index += 1) {
+        const offset = index * 3;
+        const phase = index * 0.093;
+        const bassPush = bass * 0.34 + beatPulse * 0.5;
+        const trebleFizz = treble * 0.18;
+        const scatter = 0.06 + visualEnergy * 0.08 + bassPush * 0.11;
+        coverPositions[offset] = coverBasePositions[offset] + coverBurstPositions[offset] * bassPush + Math.sin(elapsed * (0.72 + (index % 11) * 0.013) + phase) * scatter * 0.22;
+        coverPositions[offset + 1] = coverBasePositions[offset + 1] + coverBurstPositions[offset + 1] * (mid * 0.22 + beatPulse * 0.24) + Math.cos(elapsed * (0.68 + (index % 13) * 0.011) + phase) * scatter * 0.16;
+        coverPositions[offset + 2] = coverBasePositions[offset + 2] + coverBurstPositions[offset + 2] * (0.18 + bassPush) + Math.sin(elapsed * 1.18 + phase * 1.7) * trebleFizz;
+      }
+      coverPositionAttribute.needsUpdate = true;
+      pointerParallax.x += (pointerTarget.x - pointerParallax.x) * 0.05;
+      pointerParallax.y += (pointerTarget.y - pointerParallax.y) * 0.05;
+      coverParticles.rotation.y = 0.14 + pointerParallax.x * 0.18 + Math.sin(elapsed * 0.34) * (0.035 + mid * 0.03) + beatPulse * 0.035;
+      coverParticles.rotation.x = -0.03 - pointerParallax.y * 0.12 + Math.cos(elapsed * 0.28) * (0.018 + treble * 0.026);
+      coverParticles.rotation.z += delta * (0.022 + bass * 0.05 + beatPulse * 0.06);
+      coverParticles.scale.setScalar(1 + bass * 0.035 + beatPulse * 0.05);
+      coverParticleMaterial.size = 0.028 + visualEnergy * 0.012 + bass * 0.016 + beatPulse * 0.018;
+      coverParticleMaterial.opacity = coverUrl ? Math.min(0.96, 0.58 + visualEnergy * 0.28 + beatPulse * 0.12) : 0.48;
+      coverBloomParticles.rotation.copy(coverParticles.rotation);
+      coverBloomParticles.scale.setScalar(1.045 + bass * 0.055 + beatPulse * 0.09);
+      coverBloomMaterial.size = coverParticleMaterial.size * (1.95 + beatPulse * 0.55);
+      coverBloomMaterial.opacity = Math.min(0.32, 0.08 + bass * 0.12 + treble * 0.08 + beatPulse * 0.12);
+      coverHalo.rotation.z -= delta * (0.04 + bass * 0.04);
+      coverHalo.scale.setScalar(1 + bass * 0.09 + beatPulse * 0.16);
+      coverHalo.material.opacity = Math.min(0.24, 0.055 + visualEnergy * 0.07 + beatPulse * 0.08);
 
       aura.scale.x = 1.52 + Math.sin(elapsed * 1.08) * (0.04 + visualEnergy * 0.035) + beatPulse * 0.08;
       aura.scale.y = 0.64 + Math.cos(elapsed * 0.88) * 0.022 + beatPulse * 0.034;
@@ -592,8 +795,13 @@ function useMineradioStageScene(
     else tick();
 
     return () => {
+      coverLoadCancelled = true;
       cancelAnimationFrame(raf);
       observer.disconnect();
+      canvas.parentElement?.removeEventListener("pointermove", onPointerMove);
+      canvas.parentElement?.removeEventListener("pointerleave", onPointerLeave);
+      analyserState.dispose();
+      if (rootRef.current) delete rootRef.current.dataset.audioReactive;
       scene.traverse((object) => {
         const mesh = object as THREE.Mesh;
         if (mesh.geometry) mesh.geometry.dispose();
@@ -603,7 +811,177 @@ function useMineradioStageScene(
       });
       renderer.dispose();
     };
-  }, [canvasRef, immersiveStage, playing, playlistSignature, playlists]);
+  }, [rootRef, canvasRef, immersiveStage, playing, coverUrl, audioElement, playlistSignature, playlists]);
+}
+
+type MineradioAnalyserState = {
+  context: AudioContext | null;
+  analyser: AnalyserNode | null;
+  frequencyData: Uint8Array<ArrayBuffer> | null;
+  timeDomainData: Uint8Array<ArrayBuffer> | null;
+  dispose: () => void;
+};
+
+function makeAudioAnalyser(audioElement: HTMLAudioElement | null): MineradioAnalyserState {
+  if (!audioElement) return emptyAudioAnalyser();
+  const capturable = audioElement as HTMLAudioElement & {
+    captureStream?: () => MediaStream;
+    mozCaptureStream?: () => MediaStream;
+  };
+  const stream = capturable.captureStream?.() || capturable.mozCaptureStream?.();
+  if (!stream || stream.getAudioTracks().length === 0) return emptyAudioAnalyser();
+  const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextCtor) return emptyAudioAnalyser();
+  try {
+    const context = new AudioContextCtor();
+    const source = context.createMediaStreamSource(stream);
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.74;
+    source.connect(analyser);
+    return {
+      context,
+      analyser,
+      frequencyData: new Uint8Array(analyser.frequencyBinCount),
+      timeDomainData: new Uint8Array(analyser.fftSize),
+      dispose: () => {
+        try {
+          source.disconnect();
+        } catch {
+          // The node may already be disconnected during rapid theme switches.
+        }
+        void context.close().catch(() => undefined);
+      },
+    };
+  } catch {
+    return emptyAudioAnalyser();
+  }
+}
+
+function emptyAudioAnalyser(): MineradioAnalyserState {
+  return {
+    context: null,
+    analyser: null,
+    frequencyData: null,
+    timeDomainData: null,
+    dispose: () => undefined,
+  };
+}
+
+function makeFallbackCoverParticleGeometry(count: number) {
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const cyan = new THREE.Color(0x9cffdf);
+  const blue = new THREE.Color(0x8fe9ff);
+  const gold = new THREE.Color(0xfff0b8);
+  for (let index = 0; index < count; index += 1) {
+    const t = index / Math.max(1, count - 1);
+    const angle = t * Math.PI * 42;
+    const radius = Math.sqrt(t) * 1.44;
+    positions[index * 3] = Math.cos(angle) * radius * (0.78 + seeded(index, 2.2) * 0.05);
+    positions[index * 3 + 1] = Math.sin(angle) * radius * (0.78 + seeded(index, 4.1) * 0.05);
+    positions[index * 3 + 2] = seeded(index, 6.6) * 0.36;
+    const color = index % 9 === 0 ? gold : index % 5 === 0 ? blue : cyan;
+    colors[index * 3] = color.r;
+    colors[index * 3 + 1] = color.g;
+    colors[index * 3 + 2] = color.b;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  return geometry;
+}
+
+async function loadCoverParticleGeometry(url: string, targetCount: number) {
+  if (!url) return makeFallbackCoverParticleGeometry(targetCount);
+  const image = await loadImage(url).catch(() => null);
+  if (!image) return makeFallbackCoverParticleGeometry(targetCount);
+  return makeCoverParticleGeometryFromImage(image, targetCount);
+}
+
+function loadImage(url: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = url;
+  });
+}
+
+function makeCoverParticleGeometryFromImage(image: HTMLImageElement, targetCount: number) {
+  const size = 96;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return makeFallbackCoverParticleGeometry(targetCount);
+  try {
+    context.clearRect(0, 0, size, size);
+    context.drawImage(image, 0, 0, size, size);
+    const pixels = context.getImageData(0, 0, size, size).data;
+    const candidates: { x: number; y: number; z: number; color: THREE.Color; weight: number }[] = [];
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        const index = (y * size + x) * 4;
+        const alpha = pixels[index + 3] / 255;
+        if (alpha < 0.42) continue;
+        const red = pixels[index];
+        const green = pixels[index + 1];
+        const blue = pixels[index + 2];
+        const max = Math.max(red, green, blue);
+        const min = Math.min(red, green, blue);
+        const brightness = (red + green + blue) / (255 * 3);
+        const saturation = (max - min) / 255;
+        const weight = alpha * (0.34 + brightness * 0.44 + saturation * 0.72);
+        if (weight < 0.16) continue;
+        candidates.push({
+          x: (x / (size - 1) - 0.5) * 3,
+          y: (0.5 - y / (size - 1)) * 3,
+          z: (brightness - 0.5) * 0.36 + saturation * 0.18,
+          color: new THREE.Color(red / 255, green / 255, blue / 255).lerp(new THREE.Color(0xf7fbff), 0.12),
+          weight,
+        });
+      }
+    }
+    if (candidates.length < 80) return makeFallbackCoverParticleGeometry(targetCount);
+    candidates.sort((a, b) => b.weight - a.weight);
+    const positions = new Float32Array(targetCount * 3);
+    const colors = new Float32Array(targetCount * 3);
+    const samplePool = candidates.slice(0, Math.max(160, Math.min(candidates.length, targetCount * 2)));
+    for (let index = 0; index < targetCount; index += 1) {
+      const pick = samplePool[Math.floor(Math.abs(seeded(index, 11.9) + 0.5) * (samplePool.length - 1))] || samplePool[index % samplePool.length];
+      const jitter = 0.012 + (1 - Math.min(1, pick.weight)) * 0.018;
+      positions[index * 3] = pick.x + seeded(index, 3.3) * jitter;
+      positions[index * 3 + 1] = pick.y + seeded(index, 5.5) * jitter;
+      positions[index * 3 + 2] = pick.z + seeded(index, 7.7) * 0.11;
+      colors[index * 3] = pick.color.r;
+      colors[index * 3 + 1] = pick.color.g;
+      colors[index * 3 + 2] = pick.color.b;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    return geometry;
+  } catch {
+    return makeFallbackCoverParticleGeometry(targetCount);
+  }
+}
+
+function makeCoverBurstPositions(basePositions: Float32Array) {
+  const burst = new Float32Array(basePositions.length);
+  for (let index = 0; index < basePositions.length / 3; index += 1) {
+    const offset = index * 3;
+    const x = basePositions[offset];
+    const y = basePositions[offset + 1];
+    const z = basePositions[offset + 2];
+    const length = Math.max(0.18, Math.hypot(x, y, z * 0.6));
+    burst[offset] = x / length;
+    burst[offset + 1] = y / length;
+    burst[offset + 2] = (z + seeded(index, 13.4) * 0.42) / length;
+  }
+  return burst;
 }
 
 function makeParticleGeometry(count: number) {
