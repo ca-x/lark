@@ -5,6 +5,34 @@
 
 ---
 
+## 0.9.25 — 暗场电台封面点云复刻增强
+
+发布日期 / Released: 2026-07-01
+
+### 优化与修复
+
+- **补齐封面结构点云。** Mineradio Stage 的封面粒子改为更高密度网格，并新增封面边缘/深度纹理、上一封面 crossfade、暗色粒子可读描边和独立 bloom 层。
+- **强化音乐驱动形变。** 点云 shader 现在采样封面颜色、边缘、亮度和深度，并由 bass、vocal、mid、treble、beat 与 12 路九宫格 ripple 共同驱动位移和相机冲击。
+- **提升复刻验收锚点。** `pnpm test:mineradio-motion` 现在要求 cover depth/crossfade、12 路 region ripple、NormalBlending 主层和运行时 DOM 标记，避免退回普通点云增强。
+
+完整 diff：`git log v0.9.24..v0.9.25`
+
+---
+
+## v0.9.25 — Mineradio cover-cloud fidelity pass
+
+Released: 2026-07-01
+
+### Improved and Fixed
+
+- **Filled in the cover-structure particle cloud.** Mineradio Stage now uses a denser cover grid with cover edge/depth texture sampling, previous-cover crossfade, readable dark-particle rims, and a separate bloom layer.
+- **Strengthened music-driven deformation.** The cover shader samples cover color, edge, luminance, and depth while bass, vocal, mid, treble, beat, and 12 region ripples drive displacement and camera punch.
+- **Tightened fidelity checks.** `pnpm test:mineradio-motion` now requires cover depth/crossfade, 12 region ripples, a NormalBlending main layer, and runtime DOM markers so the feature cannot regress to generic point-cloud polish.
+
+Full diff: `git log v0.9.24..v0.9.25`
+
+---
+
 ## 0.9.24 — 暗场电台封面粒子与歌词景深
 
 发布日期 / Released: 2026-07-01

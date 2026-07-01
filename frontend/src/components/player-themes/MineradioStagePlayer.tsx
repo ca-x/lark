@@ -45,6 +45,34 @@ type LightBeamMotion = {
   amplitude: number;
 };
 
+type CoverParticlePayload = {
+  geometry: THREE.BufferGeometry;
+  texture: THREE.Texture;
+  edgeTexture: THREE.Texture;
+  coverCanvas: HTMLCanvasElement;
+  hasCover: boolean;
+  marker: "sampled" | "fallback";
+};
+
+type CoverRipple = {
+  x: number;
+  y: number;
+  age: number;
+  strength: number;
+};
+
+const COVER_PLANE_SIZE = 3.36;
+const COVER_RIPPLE_COUNT = 12;
+const COVER_EDGE_TEXTURE_SIZE = 256;
+const COVER_RIPPLE_REGIONS = Array.from({ length: 9 }, (_, index) => {
+  const x = index % 3;
+  const y = Math.floor(index / 3);
+  return {
+    x: (x / 2 - 0.5) * COVER_PLANE_SIZE * 0.74,
+    y: (0.5 - y / 2) * COVER_PLANE_SIZE * 0.74,
+  };
+});
+
 export function MineradioStagePlayer({
   cover,
   playing,
@@ -387,6 +415,7 @@ function useMineradioStageScene(
 ) {
   const { playing, immersiveStage, coverUrl, audioElement, playlistSignature, playlists, selectedShelfIndex } = options;
   const selectedShelfIndexRef = useRef(selectedShelfIndex);
+  const previousCoverCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     selectedShelfIndexRef.current = selectedShelfIndex;
@@ -505,34 +534,22 @@ function useMineradioStageScene(
     const particles = new THREE.Points(particleGeometry, particleMaterial);
     scene.add(particles);
 
-    let coverParticleGeometry = makeFallbackCoverParticleGeometry(reduceMotion ? 720 : 2200);
-    let coverPositionAttribute = coverParticleGeometry.getAttribute("position") as THREE.BufferAttribute;
-    let coverPositions = coverPositionAttribute.array as Float32Array;
-    let coverBasePositions = coverPositions.slice();
-    let coverBurstPositions = makeCoverBurstPositions(coverBasePositions);
-    const coverParticleMaterial = new THREE.PointsMaterial({
-      vertexColors: true,
-      size: 0.036,
-      transparent: true,
-      opacity: coverUrl ? 0.9 : 0.54,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      sizeAttenuation: true,
-    });
+    const coverParticleTargetCount = chooseCoverParticleTargetCount(reduceMotion);
+    let coverTexture: THREE.Texture = makeFallbackCoverTexture();
+    let prevCoverTexture: THREE.Texture = makeTextureFromCoverCanvas(previousCoverCanvasRef.current || makeFallbackCoverCanvas());
+    let edgeTexture: THREE.Texture = makeFallbackCoverEdgeTexture();
+    const dotTexture = makeDotTexture();
+    let coverParticleGeometry = makeFallbackCoverParticleGeometry(coverParticleTargetCount);
+    const coverRippleUniforms = Array.from({ length: COVER_RIPPLE_COUNT }, () => new THREE.Vector4(0, 0, -10, 0));
+    const coverUniforms = makeCoverParticleUniforms(coverTexture, prevCoverTexture, edgeTexture, dotTexture, coverRippleUniforms, false);
+    const coverBloomUniforms = makeCoverParticleUniforms(coverTexture, prevCoverTexture, edgeTexture, dotTexture, coverRippleUniforms, true);
+    const coverParticleMaterial = makeCoverParticleShaderMaterial(coverUniforms, false);
     const coverParticles = new THREE.Points(coverParticleGeometry, coverParticleMaterial);
     coverParticles.position.set(-1.7, -0.12, -0.9);
     coverParticles.rotation.set(-0.03, 0.14, -0.02);
     scene.add(coverParticles);
 
-    const coverBloomMaterial = new THREE.PointsMaterial({
-      vertexColors: true,
-      size: 0.074,
-      transparent: true,
-      opacity: 0.18,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      sizeAttenuation: true,
-    });
+    const coverBloomMaterial = makeCoverParticleShaderMaterial(coverBloomUniforms, true);
     const coverBloomParticles = new THREE.Points(coverParticleGeometry, coverBloomMaterial);
     coverBloomParticles.position.copy(coverParticles.position);
     coverBloomParticles.rotation.copy(coverParticles.rotation);
@@ -554,25 +571,65 @@ function useMineradioStageScene(
     coverHalo.position.z -= 0.12;
     scene.add(coverHalo);
 
-    const setCoverParticleGeometry = (geometry: THREE.BufferGeometry) => {
-      if (coverParticleGeometry !== geometry) coverParticleGeometry.dispose();
-      coverParticleGeometry = geometry;
-      coverPositionAttribute = coverParticleGeometry.getAttribute("position") as THREE.BufferAttribute;
-      coverPositions = coverPositionAttribute.array as Float32Array;
-      coverBasePositions = coverPositions.slice();
-      coverBurstPositions = makeCoverBurstPositions(coverBasePositions);
+    let coverColorMixRaf = 0;
+    const startCoverColorMix = (durationMs: number) => {
+      cancelAnimationFrame(coverColorMixRaf);
+      const startedAt = performance.now();
+      const duration = Math.max(1, durationMs);
+      coverUniforms.uColorMixT.value = 0;
+      coverBloomUniforms.uColorMixT.value = 0;
+      const step = (now: number) => {
+        const raw = Math.min(1, (now - startedAt) / duration);
+        const eased = raw * raw * (3 - raw * 2);
+        coverUniforms.uColorMixT.value = eased;
+        coverBloomUniforms.uColorMixT.value = eased;
+        if (raw < 1) coverColorMixRaf = requestAnimationFrame(step);
+        else coverColorMixRaf = 0;
+      };
+      coverColorMixRaf = requestAnimationFrame(step);
+    };
+    const setCoverParticlePayload = (payload: CoverParticlePayload) => {
+      if (coverParticleGeometry !== payload.geometry) coverParticleGeometry.dispose();
+      if (coverTexture !== payload.texture) coverTexture.dispose();
+      if (edgeTexture !== payload.edgeTexture) edgeTexture.dispose();
+      const nextPrevCoverTexture = makeTextureFromCoverCanvas(previousCoverCanvasRef.current || makeFallbackCoverCanvas());
+      prevCoverTexture.dispose();
+      prevCoverTexture = nextPrevCoverTexture;
+      coverParticleGeometry = payload.geometry;
+      coverTexture = payload.texture;
+      edgeTexture = payload.edgeTexture;
+      previousCoverCanvasRef.current = cloneCoverCanvas(payload.coverCanvas);
+      coverUniforms.uPrevCoverTex.value = prevCoverTexture;
+      coverBloomUniforms.uPrevCoverTex.value = prevCoverTexture;
+      coverUniforms.uCoverTex.value = coverTexture;
+      coverBloomUniforms.uCoverTex.value = coverTexture;
+      coverUniforms.uEdgeTex.value = edgeTexture;
+      coverBloomUniforms.uEdgeTex.value = edgeTexture;
+      coverUniforms.uHasCover.value = payload.hasCover ? 1 : 0;
+      coverBloomUniforms.uHasCover.value = payload.hasCover ? 1 : 0;
+      coverUniforms.uHasDepth.value = payload.hasCover ? 1 : 0.45;
+      coverBloomUniforms.uHasDepth.value = payload.hasCover ? 1 : 0.45;
+      coverUniforms.uBurst.value = Math.max(coverUniforms.uBurst.value, payload.hasCover ? 0.36 : 0.18);
+      coverBloomUniforms.uBurst.value = Math.max(coverBloomUniforms.uBurst.value, payload.hasCover ? 0.36 : 0.18);
       coverParticles.geometry = coverParticleGeometry;
       coverBloomParticles.geometry = coverParticleGeometry;
+      canvas.setAttribute("data-cover-particles", payload.marker);
+      canvas.setAttribute("data-cover-shader", payload.hasCover ? "texture-uniform" : "fallback-uniform");
+      canvas.setAttribute("data-cover-depth", payload.hasCover ? "edge-texture" : "fallback-depth");
+      canvas.setAttribute("data-cover-crossfade", "prev-cover-texture");
+      canvas.setAttribute("data-cover-grid", String(coverParticleGeometry.userData.coverGrid || ""));
+      startCoverColorMix(payload.hasCover ? 820 : 360);
     };
 
     let coverLoadCancelled = false;
-    void loadCoverParticleGeometry(coverUrl, reduceMotion ? 900 : 2800).then((geometry) => {
+    void loadCoverParticlePayload(coverUrl, coverParticleTargetCount).then((payload) => {
       if (coverLoadCancelled) {
-        geometry.dispose();
+        payload.geometry.dispose();
+        payload.texture.dispose();
+        payload.edgeTexture.dispose();
         return;
       }
-      setCoverParticleGeometry(geometry);
-      canvas.setAttribute("data-cover-particles", coverUrl ? "sampled" : "fallback");
+      setCoverParticlePayload(payload);
     });
 
     const shelf = new THREE.Group();
@@ -601,6 +658,8 @@ function useMineradioStageScene(
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      coverUniforms.uPixel.value = renderer.getPixelRatio();
+      coverBloomUniforms.uPixel.value = renderer.getPixelRatio();
       renderer.render(scene, camera);
     };
     const observer = new ResizeObserver(resize);
@@ -611,13 +670,21 @@ function useMineradioStageScene(
     let visualEnergy = playing ? 0.72 : 0.28;
     let beatPulse = 0;
     let bass = 0;
+    let vocal = 0;
     let mid = 0;
     let treble = 0;
     let bassPeak = 0.032;
+    let vocalPeak = 0.026;
     let midPeak = 0.024;
     let treblePeak = 0.018;
     let energyPeak = 0.032;
     let previousEnergy = 0;
+    let cameraPunch = 0;
+    let burstPulse = 0;
+    let scatterPulse = 0;
+    let rippleCursor = 0;
+    let lastBeatAt = -10;
+    const coverRipples: CoverRipple[] = Array.from({ length: COVER_RIPPLE_COUNT }, () => ({ x: 0, y: 0, age: -10, strength: 0 }));
     let spectrumPaintAt = 0;
     let analyserState = makeAudioAnalyser(audioElement);
     const spectrumBars = () => rootRef.current?.querySelectorAll<HTMLElement>(".mineradio-stage-spectrum i") || [];
@@ -641,45 +708,62 @@ function useMineradioStageScene(
         analyserState.analyser.getByteFrequencyData(analyserState.frequencyData);
         analyserState.analyser.getByteTimeDomainData(analyserState.timeDomainData);
         const freq = analyserState.frequencyData;
-        const len = freq.length;
-        const bassEnd = Math.min(len, 8);
-        const midEnd = Math.min(len, 144);
-        const trebleEnd = Math.min(len, 320);
-        let rawBass = 0;
-        let rawMid = 0;
-        let rawTreble = 0;
+        const sampleRate = analyserState.context?.sampleRate || 44100;
+        const fftSize = analyserState.analyser.fftSize;
+        const rawBass = averageFrequencyBand(freq, sampleRate, fftSize, 60, 150);
+        const rawVocal = averageFrequencyBand(freq, sampleRate, fftSize, 200, 3000);
+        const rawMid = averageFrequencyBand(freq, sampleRate, fftSize, 3000, 6000);
+        const rawTreble = averageFrequencyBand(freq, sampleRate, fftSize, 6000, sampleRate / 2);
         let rms = 0;
-        for (let index = 1; index < bassEnd; index += 1) rawBass += freq[index] / 255;
-        for (let index = bassEnd; index < midEnd; index += 1) rawMid += freq[index] / 255;
-        for (let index = midEnd; index < trebleEnd; index += 1) rawTreble += freq[index] / 255;
         for (let index = 0; index < analyserState.timeDomainData.length; index += 1) {
           const value = (analyserState.timeDomainData[index] - 128) / 128;
           rms += value * value;
         }
-        rawBass /= Math.max(1, bassEnd - 1);
-        rawMid /= Math.max(1, midEnd - bassEnd);
-        rawTreble /= Math.max(1, trebleEnd - midEnd);
         rms = Math.sqrt(rms / analyserState.timeDomainData.length);
         bassPeak = Math.max(bassPeak * 0.994, rawBass, 0.032);
+        vocalPeak = Math.max(vocalPeak * 0.993, rawVocal, 0.026);
         midPeak = Math.max(midPeak * 0.993, rawMid, 0.024);
         treblePeak = Math.max(treblePeak * 0.992, rawTreble, 0.018);
         energyPeak = Math.max(energyPeak * 0.995, rms, 0.032);
         const nextBass = Math.min(1, Math.pow(rawBass / Math.max(0.04, bassPeak * 0.66), 0.76));
-        const nextMid = Math.min(1, Math.pow(rawMid / Math.max(0.03, midPeak * 0.7), 0.82));
+        const nextVocal = Math.min(1, Math.pow(rawVocal / Math.max(0.03, vocalPeak * 0.7), 0.84));
+        const nextMid = Math.min(1, Math.pow(rawMid / Math.max(0.03, midPeak * 0.7), 0.86));
         const nextTreble = Math.min(1, Math.pow(rawTreble / Math.max(0.022, treblePeak * 0.74), 0.9));
         const nextEnergy = Math.min(1, Math.pow(rms / Math.max(0.034, energyPeak * 0.68), 0.82));
-        const onset = Math.max(0, nextBass - bass, nextEnergy - previousEnergy);
+        const bassOnset = Math.max(0, nextBass - bass);
+        const energyOnset = Math.max(0, nextEnergy - previousEnergy);
+        const onset = Math.max(bassOnset, energyOnset);
         previousEnergy += (nextEnergy - previousEnergy) * 0.14;
-        beatPulse = Math.max(beatPulse * Math.pow(0.34, delta), Math.min(0.92, onset * 1.72));
+        const beatHit = elapsed - lastBeatAt > 0.16 && nextBass > 0.34 && bassOnset > 0.065 && energyOnset > 0.012;
+        if (beatHit) {
+          lastBeatAt = elapsed;
+          const impact = Math.min(1, bassOnset * 2.9 + energyOnset * 1.15 + nextBass * 0.22);
+          beatPulse = Math.max(beatPulse, Math.min(0.92, 0.22 + impact * 0.72));
+          cameraPunch = Math.max(cameraPunch, 0.16 + impact * 0.48);
+          burstPulse = Math.max(burstPulse, 0.34 + impact * 0.42);
+          scatterPulse = Math.max(scatterPulse, 0.025 + impact * 0.06);
+          rippleCursor = triggerCoverRegionRipples(coverRipples, rippleCursor, elapsed, impact, 2 + (impact > 0.56 ? 1 : 0));
+        } else {
+          beatPulse = Math.max(beatPulse * Math.pow(0.34, delta), Math.min(0.42, onset * 1.08));
+        }
         bass += (nextBass - bass) * (nextBass > bass ? 0.28 : 0.07);
+        vocal += (nextVocal - vocal) * (nextVocal > vocal ? 0.16 : 0.052);
         mid += (nextMid - mid) * (nextMid > mid ? 0.2 : 0.06);
         treble += (nextTreble - treble) * (nextTreble > treble ? 0.18 : 0.055);
-        visualEnergy += (Math.min(1, nextEnergy * 0.82 + bass * 0.14 + mid * 0.08) - visualEnergy) * 0.13;
+        visualEnergy += (Math.min(1, nextEnergy * 0.74 + bass * 0.14 + vocal * 0.06 + mid * 0.08) - visualEnergy) * 0.13;
       } else {
         const fallbackEnergy = playing ? 0.58 + Math.sin(elapsed * 1.18) * 0.08 + Math.sin(elapsed * 2.74) * 0.035 : 0.22;
         const fallbackBeat = playing ? Math.pow(Math.max(0, Math.sin(elapsed * 2.45) * 0.72 + Math.sin(elapsed * 5.1) * 0.28), 4) : 0;
+        if (fallbackBeat > 0.62 && elapsed - lastBeatAt > 0.42) {
+          lastBeatAt = elapsed;
+          cameraPunch = Math.max(cameraPunch, 0.24);
+          burstPulse = Math.max(burstPulse, 0.36);
+          scatterPulse = Math.max(scatterPulse, 0.045);
+          rippleCursor = triggerCoverRegionRipples(coverRipples, rippleCursor, elapsed, fallbackBeat, 2);
+        }
         beatPulse += (fallbackBeat - beatPulse) * (fallbackBeat > beatPulse ? 0.34 : 0.08);
         bass += ((playing ? fallbackBeat * 0.52 + 0.16 : 0) - bass) * 0.08;
+        vocal += ((playing ? 0.18 + Math.max(0, Math.sin(elapsed * 1.34 + 0.2)) * 0.16 : 0) - vocal) * 0.06;
         mid += ((playing ? 0.22 + Math.max(0, Math.sin(elapsed * 1.7 + 0.5)) * 0.18 : 0) - mid) * 0.07;
         treble += ((playing ? 0.16 + Math.max(0, Math.sin(elapsed * 2.6 + 1.8)) * 0.16 : 0) - treble) * 0.065;
         visualEnergy += (fallbackEnergy - visualEnergy) * (fallbackEnergy > visualEnergy ? 0.09 : 0.045);
@@ -695,6 +779,8 @@ function useMineradioStageScene(
       }
       rootRef.current?.style.setProperty("--mineradio-audio-energy", visualEnergy.toFixed(3));
       rootRef.current?.style.setProperty("--mineradio-audio-bass", bass.toFixed(3));
+      rootRef.current?.style.setProperty("--mineradio-audio-mid", mid.toFixed(3));
+      rootRef.current?.style.setProperty("--mineradio-audio-treble", treble.toFixed(3));
       rootRef.current?.style.setProperty("--mineradio-audio-beat", beatPulse.toFixed(3));
     };
     const tick = () => {
@@ -719,29 +805,47 @@ function useMineradioStageScene(
       particleMaterial.opacity = playing ? 0.66 + visualEnergy * 0.22 + beatPulse * 0.08 : 0.44;
       particleMaterial.size = 0.022 + visualEnergy * 0.008 + beatPulse * 0.008;
 
-      for (let index = 0; index < coverPositions.length / 3; index += 1) {
-        const offset = index * 3;
-        const phase = index * 0.093;
-        const bassPush = bass * 0.34 + beatPulse * 0.5;
-        const trebleFizz = treble * 0.18;
-        const scatter = 0.06 + visualEnergy * 0.08 + bassPush * 0.11;
-        coverPositions[offset] = coverBasePositions[offset] + coverBurstPositions[offset] * bassPush + Math.sin(elapsed * (0.72 + (index % 11) * 0.013) + phase) * scatter * 0.22;
-        coverPositions[offset + 1] = coverBasePositions[offset + 1] + coverBurstPositions[offset + 1] * (mid * 0.22 + beatPulse * 0.24) + Math.cos(elapsed * (0.68 + (index % 13) * 0.011) + phase) * scatter * 0.16;
-        coverPositions[offset + 2] = coverBasePositions[offset + 2] + coverBurstPositions[offset + 2] * (0.18 + bassPush) + Math.sin(elapsed * 1.18 + phase * 1.7) * trebleFizz;
-      }
-      coverPositionAttribute.needsUpdate = true;
+      cameraPunch *= Math.pow(0.18, delta);
+      burstPulse *= Math.pow(0.22, delta);
+      scatterPulse *= Math.pow(0.28, delta);
+      const activeRippleCount = tickCoverRippleUniforms(coverRipples, coverRippleUniforms, delta);
+      coverUniforms.uRippleCount.value = activeRippleCount;
+      coverBloomUniforms.uRippleCount.value = activeRippleCount;
+
       pointerParallax.x += (pointerTarget.x - pointerParallax.x) * 0.05;
       pointerParallax.y += (pointerTarget.y - pointerParallax.y) * 0.05;
       coverParticles.rotation.y = 0.14 + pointerParallax.x * 0.18 + Math.sin(elapsed * 0.34) * (0.035 + mid * 0.03) + beatPulse * 0.035;
       coverParticles.rotation.x = -0.03 - pointerParallax.y * 0.12 + Math.cos(elapsed * 0.28) * (0.018 + treble * 0.026);
       coverParticles.rotation.z += delta * (0.022 + bass * 0.05 + beatPulse * 0.06);
       coverParticles.scale.setScalar(1 + bass * 0.035 + beatPulse * 0.05);
-      coverParticleMaterial.size = 0.028 + visualEnergy * 0.012 + bass * 0.016 + beatPulse * 0.018;
-      coverParticleMaterial.opacity = coverUrl ? Math.min(0.96, 0.58 + visualEnergy * 0.28 + beatPulse * 0.12) : 0.48;
+      syncCoverParticleUniforms(coverUniforms, elapsed, {
+        bass,
+        vocal,
+        mid,
+        treble,
+        beat: beatPulse,
+        energy: visualEnergy,
+        burst: burstPulse,
+        scatter: scatterPulse,
+        alpha: coverUrl ? Math.min(0.98, 0.64 + visualEnergy * 0.22 + beatPulse * 0.1) : 0.54,
+        pointScale: 1 + bass * 0.16 + beatPulse * 0.18,
+        bloomStrength: 0,
+      });
       coverBloomParticles.rotation.copy(coverParticles.rotation);
       coverBloomParticles.scale.setScalar(1.045 + bass * 0.055 + beatPulse * 0.09);
-      coverBloomMaterial.size = coverParticleMaterial.size * (1.95 + beatPulse * 0.55);
-      coverBloomMaterial.opacity = Math.min(0.32, 0.08 + bass * 0.12 + treble * 0.08 + beatPulse * 0.12);
+      syncCoverParticleUniforms(coverBloomUniforms, elapsed, {
+        bass,
+        vocal,
+        mid,
+        treble,
+        beat: beatPulse,
+        energy: visualEnergy,
+        burst: burstPulse,
+        scatter: scatterPulse,
+        alpha: coverUrl ? Math.min(0.42, 0.13 + bass * 0.12 + treble * 0.08 + beatPulse * 0.13) : 0.16,
+        pointScale: 1.82 + bass * 0.32 + beatPulse * 0.38,
+        bloomStrength: Math.min(0.72, 0.24 + bass * 0.24 + treble * 0.18 + beatPulse * 0.22),
+      });
       coverHalo.rotation.z -= delta * (0.04 + bass * 0.04);
       coverHalo.scale.setScalar(1 + bass * 0.09 + beatPulse * 0.16);
       coverHalo.material.opacity = Math.min(0.24, 0.055 + visualEnergy * 0.07 + beatPulse * 0.08);
@@ -763,8 +867,9 @@ function useMineradioStageScene(
       goldBeamSweep.material.opacity = immersiveStage ? 0.02 + beamSweepPulse * 0.065 : 0.014 + beamSweepPulse * 0.034;
       cyanBeamSweep.rotation.z = -0.018 + Math.sin(elapsed * 0.68) * 0.038;
       goldBeamSweep.rotation.z = 0.016 + Math.sin(elapsed * 0.62 + 1.7) * 0.032;
-      camera.position.x = Math.sin(elapsed * 0.22) * (immersiveStage ? 0.11 : 0.06);
-      camera.position.y = Math.cos(elapsed * 0.18) * 0.045 + beatPulse * 0.015;
+      camera.position.x = Math.sin(elapsed * 0.22) * (immersiveStage ? 0.11 : 0.06) + pointerParallax.x * 0.035 + Math.sin(elapsed * 4.1) * cameraPunch * 0.012;
+      camera.position.y = Math.cos(elapsed * 0.18) * 0.045 + beatPulse * 0.015 + pointerParallax.y * 0.022 + Math.cos(elapsed * 3.7) * cameraPunch * 0.01;
+      camera.position.z = 8.6 - cameraPunch * (immersiveStage ? 0.34 : 0.22) - beatPulse * 0.035;
       camera.lookAt(0, 0, 0);
       shelf.visible = immersiveStage;
       shelf.position.y = -0.2 + Math.sin(elapsed * 1.2) * (playing ? 0.05 : 0.022);
@@ -797,10 +902,15 @@ function useMineradioStageScene(
     return () => {
       coverLoadCancelled = true;
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(coverColorMixRaf);
       observer.disconnect();
       canvas.parentElement?.removeEventListener("pointermove", onPointerMove);
       canvas.parentElement?.removeEventListener("pointerleave", onPointerLeave);
       analyserState.dispose();
+      coverTexture.dispose();
+      prevCoverTexture.dispose();
+      edgeTexture.dispose();
+      dotTexture.dispose();
       if (rootRef.current) delete rootRef.current.dataset.audioReactive;
       scene.traverse((object) => {
         const mesh = object as THREE.Mesh;
@@ -868,35 +978,61 @@ function emptyAudioAnalyser(): MineradioAnalyserState {
   };
 }
 
+function averageFrequencyBand(data: Uint8Array<ArrayBuffer>, sampleRate: number, fftSize: number, startHz: number, endHz: number) {
+  const binHz = sampleRate / fftSize;
+  const start = Math.max(1, Math.floor(startHz / binHz));
+  const end = Math.min(data.length, Math.max(start + 1, Math.ceil(endHz / binHz)));
+  let sum = 0;
+  for (let index = start; index < end; index += 1) sum += data[index] / 255;
+  return sum / Math.max(1, end - start);
+}
+
 function makeFallbackCoverParticleGeometry(count: number) {
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
+  const grid = coverParticleGridForCount(count);
+  const pointCount = grid * grid;
+  const positions = new Float32Array(pointCount * 3);
+  const colors = new Float32Array(pointCount * 3);
+  const uvs = new Float32Array(pointCount * 2);
+  const randoms = new Float32Array(pointCount);
+  const lums = new Float32Array(pointCount);
+  const edges = new Float32Array(pointCount);
+  const depths = new Float32Array(pointCount);
+  const alphas = new Float32Array(pointCount);
   const cyan = new THREE.Color(0x9cffdf);
   const blue = new THREE.Color(0x8fe9ff);
   const gold = new THREE.Color(0xfff0b8);
-  for (let index = 0; index < count; index += 1) {
-    const t = index / Math.max(1, count - 1);
-    const angle = t * Math.PI * 42;
-    const radius = Math.sqrt(t) * 1.44;
-    positions[index * 3] = Math.cos(angle) * radius * (0.78 + seeded(index, 2.2) * 0.05);
-    positions[index * 3 + 1] = Math.sin(angle) * radius * (0.78 + seeded(index, 4.1) * 0.05);
-    positions[index * 3 + 2] = seeded(index, 6.6) * 0.36;
+  for (let index = 0; index < pointCount; index += 1) {
+    const gx = index % grid;
+    const gy = Math.floor(index / grid);
+    const u = (gx + 0.5) / grid;
+    const v = (gy + 0.5) / grid;
+    const x = (u - 0.5) * COVER_PLANE_SIZE;
+    const y = (0.5 - v) * COVER_PLANE_SIZE;
+    const dist = Math.min(1, Math.hypot(x, y) / (COVER_PLANE_SIZE * 0.58));
+    const ring = Math.exp(-((dist - 0.62) ** 2) / 0.04);
+    positions[index * 3] = x;
+    positions[index * 3 + 1] = y;
+    positions[index * 3 + 2] = seeded(index, 6.6) * 0.18 + ring * 0.12;
+    uvs[index * 2] = u;
+    uvs[index * 2 + 1] = v;
+    randoms[index] = seededUnit(index, 10.2);
+    lums[index] = 0.32 + ring * 0.32;
+    edges[index] = ring;
+    depths[index] = 0.48 + seeded(index, 7.4) * 0.28;
+    alphas[index] = 0.34 + ring * 0.5;
     const color = index % 9 === 0 ? gold : index % 5 === 0 ? blue : cyan;
     colors[index * 3] = color.r;
     colors[index * 3 + 1] = color.g;
     colors[index * 3 + 2] = color.b;
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  return geometry;
+  return makeCoverParticleGeometryFromAttributes({ positions, colors, uvs, randoms, lums, edges, depths, alphas, grid });
 }
 
-async function loadCoverParticleGeometry(url: string, targetCount: number) {
-  if (!url) return makeFallbackCoverParticleGeometry(targetCount);
+async function loadCoverParticlePayload(url: string, targetCount: number): Promise<CoverParticlePayload> {
+  if (!url) return makeFallbackCoverParticlePayload(targetCount);
   const image = await loadImage(url).catch(() => null);
-  if (!image) return makeFallbackCoverParticleGeometry(targetCount);
-  return makeCoverParticleGeometryFromImage(image, targetCount);
+  if (!image) return makeFallbackCoverParticlePayload(targetCount);
+  return makeCoverParticlePayloadFromImage(image, targetCount);
 }
 
 function loadImage(url: string) {
@@ -910,79 +1046,573 @@ function loadImage(url: string) {
   });
 }
 
-function makeCoverParticleGeometryFromImage(image: HTMLImageElement, targetCount: number) {
-  const size = 96;
+function makeFallbackCoverParticlePayload(targetCount: number): CoverParticlePayload {
+  const coverCanvas = makeFallbackCoverCanvas();
+  return {
+    geometry: makeFallbackCoverParticleGeometry(targetCount),
+    texture: makeTextureFromCoverCanvas(coverCanvas),
+    edgeTexture: makeCoverEdgeDepthTexture(coverCanvas),
+    coverCanvas,
+    hasCover: false,
+    marker: "fallback",
+  };
+}
+
+function makeCoverParticlePayloadFromImage(image: HTMLImageElement, targetCount: number): CoverParticlePayload {
+  const grid = coverParticleGridForCount(targetCount);
+  const size = Math.max(192, Math.min(384, grid * 3));
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) return makeFallbackCoverParticleGeometry(targetCount);
+  if (!context) return makeFallbackCoverParticlePayload(targetCount);
   try {
     context.clearRect(0, 0, size, size);
-    context.drawImage(image, 0, 0, size, size);
+    const imageWidth = image.naturalWidth || image.width;
+    const imageHeight = image.naturalHeight || image.height;
+    const crop = Math.min(imageWidth, imageHeight);
+    context.drawImage(image, (imageWidth - crop) / 2, (imageHeight - crop) / 2, crop, crop, 0, 0, size, size);
     const pixels = context.getImageData(0, 0, size, size).data;
-    const candidates: { x: number; y: number; z: number; color: THREE.Color; weight: number }[] = [];
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        const index = (y * size + x) * 4;
-        const alpha = pixels[index + 3] / 255;
-        if (alpha < 0.42) continue;
-        const red = pixels[index];
-        const green = pixels[index + 1];
-        const blue = pixels[index + 2];
-        const max = Math.max(red, green, blue);
-        const min = Math.min(red, green, blue);
-        const brightness = (red + green + blue) / (255 * 3);
-        const saturation = (max - min) / 255;
-        const weight = alpha * (0.34 + brightness * 0.44 + saturation * 0.72);
-        if (weight < 0.16) continue;
-        candidates.push({
-          x: (x / (size - 1) - 0.5) * 3,
-          y: (0.5 - y / (size - 1)) * 3,
-          z: (brightness - 0.5) * 0.36 + saturation * 0.18,
-          color: new THREE.Color(red / 255, green / 255, blue / 255).lerp(new THREE.Color(0xf7fbff), 0.12),
-          weight,
-        });
-      }
+    const pointCount = grid * grid;
+    const positions = new Float32Array(pointCount * 3);
+    const colors = new Float32Array(pointCount * 3);
+    const uvs = new Float32Array(pointCount * 2);
+    const randoms = new Float32Array(pointCount);
+    const lums = new Float32Array(pointCount);
+    const edges = new Float32Array(pointCount);
+    const depths = new Float32Array(pointCount);
+    const alphas = new Float32Array(pointCount);
+    for (let index = 0; index < pointCount; index += 1) {
+      const gx = index % grid;
+      const gy = Math.floor(index / grid);
+      const u = (gx + 0.5) / grid;
+      const v = (gy + 0.5) / grid;
+      const x = Math.min(size - 1, Math.max(0, Math.round(u * (size - 1))));
+      const y = Math.min(size - 1, Math.max(0, Math.round(v * (size - 1))));
+      const pixel = sampleCoverPixel(pixels, size, x, y);
+      const left = sampleCoverPixel(pixels, size, Math.max(0, x - 1), y).lum;
+      const right = sampleCoverPixel(pixels, size, Math.min(size - 1, x + 1), y).lum;
+      const up = sampleCoverPixel(pixels, size, x, Math.max(0, y - 1)).lum;
+      const down = sampleCoverPixel(pixels, size, x, Math.min(size - 1, y + 1)).lum;
+      const edge = Math.min(1, Math.abs(right - left) * 1.9 + Math.abs(down - up) * 1.9 + pixel.saturation * 0.12);
+      const alpha = Math.max(0.14, pixel.alpha);
+      const planeX = (u - 0.5) * COVER_PLANE_SIZE;
+      const planeY = (0.5 - v) * COVER_PLANE_SIZE;
+      positions[index * 3] = planeX;
+      positions[index * 3 + 1] = planeY;
+      positions[index * 3 + 2] = (pixel.lum - 0.45) * 0.32 + edge * 0.16 + seeded(index, 7.7) * 0.04;
+      uvs[index * 2] = u;
+      uvs[index * 2 + 1] = v;
+      randoms[index] = seededUnit(index, 10.2);
+      lums[index] = pixel.lum;
+      edges[index] = edge;
+      depths[index] = Math.max(0, Math.min(1, 0.36 + pixel.lum * 0.42 + edge * 0.22));
+      alphas[index] = alpha * Math.max(0.22, 0.36 + pixel.lum * 0.5 + edge * 0.44);
+      const color = new THREE.Color(pixel.red, pixel.green, pixel.blue).lerp(new THREE.Color(0xf7fbff), edge * 0.1);
+      colors[index * 3] = color.r;
+      colors[index * 3 + 1] = color.g;
+      colors[index * 3 + 2] = color.b;
     }
-    if (candidates.length < 80) return makeFallbackCoverParticleGeometry(targetCount);
-    candidates.sort((a, b) => b.weight - a.weight);
-    const positions = new Float32Array(targetCount * 3);
-    const colors = new Float32Array(targetCount * 3);
-    const samplePool = candidates.slice(0, Math.max(160, Math.min(candidates.length, targetCount * 2)));
-    for (let index = 0; index < targetCount; index += 1) {
-      const pick = samplePool[Math.floor(Math.abs(seeded(index, 11.9) + 0.5) * (samplePool.length - 1))] || samplePool[index % samplePool.length];
-      const jitter = 0.012 + (1 - Math.min(1, pick.weight)) * 0.018;
-      positions[index * 3] = pick.x + seeded(index, 3.3) * jitter;
-      positions[index * 3 + 1] = pick.y + seeded(index, 5.5) * jitter;
-      positions[index * 3 + 2] = pick.z + seeded(index, 7.7) * 0.11;
-      colors[index * 3] = pick.color.r;
-      colors[index * 3 + 1] = pick.color.g;
-      colors[index * 3 + 2] = pick.color.b;
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    return geometry;
+    const texture = makeTextureFromCoverCanvas(canvas);
+    const edgeTexture = makeCoverEdgeDepthTexture(canvas);
+    return {
+      geometry: makeCoverParticleGeometryFromAttributes({ positions, colors, uvs, randoms, lums, edges, depths, alphas, grid }),
+      texture,
+      edgeTexture,
+      coverCanvas: canvas,
+      hasCover: true,
+      marker: "sampled",
+    };
   } catch {
-    return makeFallbackCoverParticleGeometry(targetCount);
+    return makeFallbackCoverParticlePayload(targetCount);
   }
 }
 
-function makeCoverBurstPositions(basePositions: Float32Array) {
-  const burst = new Float32Array(basePositions.length);
-  for (let index = 0; index < basePositions.length / 3; index += 1) {
-    const offset = index * 3;
-    const x = basePositions[offset];
-    const y = basePositions[offset + 1];
-    const z = basePositions[offset + 2];
-    const length = Math.max(0.18, Math.hypot(x, y, z * 0.6));
-    burst[offset] = x / length;
-    burst[offset + 1] = y / length;
-    burst[offset + 2] = (z + seeded(index, 13.4) * 0.42) / length;
-  }
-  return burst;
+function makeCoverParticleGeometryFromAttributes(attributes: {
+  positions: Float32Array;
+  colors: Float32Array;
+  uvs: Float32Array;
+  randoms: Float32Array;
+  lums: Float32Array;
+  edges: Float32Array;
+  depths: Float32Array;
+  alphas: Float32Array;
+  grid: number;
+}) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(attributes.positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(attributes.colors, 3));
+  geometry.setAttribute("aUv", new THREE.BufferAttribute(attributes.uvs, 2));
+  geometry.setAttribute("aRand", new THREE.BufferAttribute(attributes.randoms, 1));
+  geometry.setAttribute("aLum", new THREE.BufferAttribute(attributes.lums, 1));
+  geometry.setAttribute("aEdge", new THREE.BufferAttribute(attributes.edges, 1));
+  geometry.setAttribute("aDepth", new THREE.BufferAttribute(attributes.depths, 1));
+  geometry.setAttribute("aAlpha", new THREE.BufferAttribute(attributes.alphas, 1));
+  geometry.userData.coverGrid = attributes.grid;
+  return geometry;
 }
+
+function coverParticleGridForCount(targetCount: number) {
+  const grid = Math.max(32, Math.min(128, Math.round(Math.sqrt(targetCount))));
+  return grid % 2 ? grid : grid + 1;
+}
+
+function sampleCoverPixel(pixels: Uint8ClampedArray, size: number, x: number, y: number) {
+  const offset = (y * size + x) * 4;
+  const red = pixels[offset] / 255;
+  const green = pixels[offset + 1] / 255;
+  const blue = pixels[offset + 2] / 255;
+  const alpha = pixels[offset + 3] / 255;
+  const lum = red * 0.299 + green * 0.587 + blue * 0.114;
+  const saturation = Math.max(red, green, blue) - Math.min(red, green, blue);
+  return { red, green, blue, alpha, lum, saturation };
+}
+
+function makeDotTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 64;
+  const context = canvas.getContext("2d");
+  if (context) {
+    const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 31);
+    gradient.addColorStop(0, "rgba(255,255,255,0.98)");
+    gradient.addColorStop(0.38, "rgba(255,255,255,0.78)");
+    gradient.addColorStop(0.72, "rgba(255,255,255,0.22)");
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 64, 64);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
+
+function chooseCoverParticleTargetCount(reduceMotion: boolean) {
+  if (reduceMotion) return 45 * 45;
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  const memory = nav.deviceMemory || 4;
+  const width = window.innerWidth || 1024;
+  if (width >= 1280 && memory >= 4) return 118 * 118;
+  if (width >= 960 && memory >= 3) return 105 * 105;
+  if (width >= 720) return 89 * 89;
+  return 65 * 65;
+}
+
+function makeFallbackCoverCanvas() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 96;
+  canvas.height = 96;
+  const context = canvas.getContext("2d");
+  if (context) {
+    const gradient = context.createLinearGradient(0, 0, 96, 96);
+    gradient.addColorStop(0, "#102127");
+    gradient.addColorStop(0.46, "#17294a");
+    gradient.addColorStop(1, "#3b2d1c");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 96, 96);
+    context.fillStyle = "rgba(156,255,223,.18)";
+    context.beginPath();
+    context.arc(48, 48, 28, 0, Math.PI * 2);
+    context.fill();
+  }
+  return canvas;
+}
+
+function cloneCoverCanvas(source: HTMLCanvasElement) {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, source.width || 1);
+  canvas.height = Math.max(1, source.height || 1);
+  const context = canvas.getContext("2d");
+  if (context) context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+function makeTextureFromCoverCanvas(canvas: HTMLCanvasElement) {
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+function makeFallbackCoverTexture() {
+  return makeTextureFromCoverCanvas(makeFallbackCoverCanvas());
+}
+
+function makeFallbackCoverEdgeTexture() {
+  return makeCoverEdgeDepthTexture(makeFallbackCoverCanvas());
+}
+
+function makeCoverEdgeDepthTexture(sourceCanvas: HTMLCanvasElement) {
+  const size = COVER_EDGE_TEXTURE_SIZE;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return makeTextureFromCoverCanvas(makeFallbackCoverCanvas());
+  context.drawImage(sourceCanvas, 0, 0, size, size);
+  const source = context.getImageData(0, 0, size, size);
+  const total = size * size;
+  const luminance = new Float32Array(total);
+  const horizontal = new Float32Array(total);
+  const blurred = new Float32Array(total);
+  const edges = new Float32Array(total);
+  const depth = new Float32Array(total);
+  const foreground = new Float32Array(total);
+  for (let index = 0; index < total; index += 1) {
+    const offset = index * 4;
+    luminance[index] = (source.data[offset] * 0.299 + source.data[offset + 1] * 0.587 + source.data[offset + 2] * 0.114) / 255;
+  }
+  blurScalarField(luminance, horizontal, size, 5, true);
+  blurScalarField(horizontal, blurred, size, 5, false);
+  for (let y = 1; y < size - 1; y += 1) {
+    for (let x = 1; x < size - 1; x += 1) {
+      const north = (y - 1) * size;
+      const midRow = y * size;
+      const south = (y + 1) * size;
+      const gx =
+        -blurred[north + x - 1] -
+        blurred[midRow + x - 1] * 2 -
+        blurred[south + x - 1] +
+        blurred[north + x + 1] +
+        blurred[midRow + x + 1] * 2 +
+        blurred[south + x + 1];
+      const gy =
+        -blurred[north + x - 1] -
+        blurred[north + x] * 2 -
+        blurred[north + x + 1] +
+        blurred[south + x - 1] +
+        blurred[south + x] * 2 +
+        blurred[south + x + 1];
+      edges[midRow + x] = Math.min(1, Math.hypot(gx, gy) * 1.72);
+    }
+  }
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const index = y * size + x;
+      const nx = x / (size - 1) - 0.5;
+      const ny = y / (size - 1) - 0.5;
+      const center = Math.max(0, 1 - Math.hypot(nx, ny) * 1.52);
+      const localDepth = Math.min(1, blurred[index] * 0.48 + center * 0.44 + edges[index] * 0.22);
+      depth[index] = localDepth;
+      foreground[index] = Math.min(1, localDepth * 0.62 + edges[index] * 0.56);
+    }
+  }
+  const output = context.createImageData(size, size);
+  for (let index = 0; index < total; index += 1) {
+    const offset = index * 4;
+    output.data[offset] = Math.round(depth[index] * 255);
+    output.data[offset + 1] = Math.round(edges[index] * 255);
+    output.data[offset + 2] = Math.round(foreground[index] * 255);
+    output.data[offset + 3] = Math.round(luminance[index] * 255);
+  }
+  context.putImageData(output, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+function blurScalarField(source: Float32Array, target: Float32Array, size: number, radius: number, horizontal: boolean) {
+  const span = radius * 2 + 1;
+  for (let outer = 0; outer < size; outer += 1) {
+    let sum = 0;
+    for (let offset = -radius; offset <= radius; offset += 1) {
+      const coord = Math.max(0, Math.min(size - 1, offset));
+      sum += horizontal ? source[outer * size + coord] : source[coord * size + outer];
+    }
+    for (let inner = 0; inner < size; inner += 1) {
+      if (horizontal) target[outer * size + inner] = sum / span;
+      else target[inner * size + outer] = sum / span;
+      const enter = Math.min(size - 1, inner + radius + 1);
+      const leave = Math.max(0, inner - radius);
+      sum += horizontal ? source[outer * size + enter] - source[outer * size + leave] : source[enter * size + outer] - source[leave * size + outer];
+    }
+  }
+}
+
+function makeCoverParticleUniforms(
+  coverTexture: THREE.Texture,
+  prevCoverTexture: THREE.Texture,
+  edgeTexture: THREE.Texture,
+  dotTexture: THREE.Texture,
+  ripples: THREE.Vector4[],
+  bloomLayer: boolean,
+) {
+  return {
+    uTime: { value: 0 },
+    uBass: { value: 0 },
+    uVocal: { value: 0 },
+    uMid: { value: 0 },
+    uTreble: { value: 0 },
+    uBeat: { value: 0 },
+    uEnergy: { value: 0 },
+    uBurst: { value: 0 },
+    uScatter: { value: 0 },
+    uDepth: { value: 1.0 },
+    uPointScale: { value: 1.0 },
+    uPixel: { value: 1.0 },
+    uAlpha: { value: 0.72 },
+    uBloomLayer: { value: bloomLayer ? 1 : 0 },
+    uBloomStrength: { value: bloomLayer ? 0.34 : 0 },
+    uHasCover: { value: 0 },
+    uHasDepth: { value: 0 },
+    uEdgeEnabled: { value: 1 },
+    uColorMixT: { value: 1 },
+    uColorBoost: { value: 1.08 },
+    uCoverTex: { value: coverTexture },
+    uPrevCoverTex: { value: prevCoverTexture },
+    uEdgeTex: { value: edgeTexture },
+    uDotTex: { value: dotTexture },
+    uRipples: { value: ripples },
+    uRippleCount: { value: 0 },
+  };
+}
+
+function syncCoverParticleUniforms(
+  uniforms: ReturnType<typeof makeCoverParticleUniforms>,
+  elapsed: number,
+  values: {
+    bass: number;
+    vocal: number;
+    mid: number;
+    treble: number;
+    beat: number;
+    energy: number;
+    burst: number;
+    scatter: number;
+    alpha: number;
+    pointScale: number;
+    bloomStrength: number;
+  },
+) {
+  uniforms.uTime.value = elapsed;
+  uniforms.uBass.value = values.bass;
+  uniforms.uVocal.value = values.vocal;
+  uniforms.uMid.value = values.mid;
+  uniforms.uTreble.value = values.treble;
+  uniforms.uBeat.value = values.beat;
+  uniforms.uEnergy.value = values.energy;
+  uniforms.uBurst.value = values.burst;
+  uniforms.uScatter.value = values.scatter;
+  uniforms.uAlpha.value = values.alpha;
+  uniforms.uPointScale.value = values.pointScale;
+  uniforms.uBloomStrength.value = values.bloomStrength;
+  uniforms.uDepth.value = 1.06 + values.bass * 0.18 + values.beat * 0.12;
+  uniforms.uColorBoost.value = 1.04 + values.energy * 0.12 + values.beat * 0.06;
+}
+
+function triggerCoverRegionRipples(ripples: CoverRipple[], cursor: number, elapsed: number, strength: number, count: number) {
+  const used = new Set<number>();
+  let nextCursor = cursor;
+  const hitCount = Math.max(1, Math.min(3, count));
+  const seedBase = Math.floor(elapsed * 31) + Math.floor(strength * 97);
+  for (let hit = 0; hit < hitCount; hit += 1) {
+    let regionIndex = Math.floor(seededUnit(seedBase + hit * 17, 9.3) * COVER_RIPPLE_REGIONS.length) % COVER_RIPPLE_REGIONS.length;
+    for (let tries = 0; used.has(regionIndex) && tries < COVER_RIPPLE_REGIONS.length; tries += 1) {
+      regionIndex = (regionIndex + 1) % COVER_RIPPLE_REGIONS.length;
+    }
+    used.add(regionIndex);
+    const region = COVER_RIPPLE_REGIONS[regionIndex];
+    const jitterX = seeded(seedBase + hit * 23, 12.7) * 0.52;
+    const jitterY = seeded(seedBase + hit * 29, 14.1) * 0.52;
+    ripples[nextCursor] = {
+      x: region.x + jitterX,
+      y: region.y + jitterY,
+      age: 0,
+      strength: Math.max(0.34, Math.min(1.55, 0.62 + strength * 0.92 + hit * 0.06)),
+    };
+    nextCursor = (nextCursor + 1) % COVER_RIPPLE_COUNT;
+  }
+  return nextCursor;
+}
+
+function tickCoverRippleUniforms(ripples: CoverRipple[], uniforms: THREE.Vector4[], delta: number) {
+  let active = 0;
+  for (let index = 0; index < ripples.length; index += 1) {
+    const ripple = ripples[index];
+    if (ripple.age >= 0) ripple.age += delta;
+    if (ripple.age > 1.85) {
+      ripple.age = -10;
+      ripple.strength = 0;
+    }
+    if (ripple.strength > 0.004 && ripple.age >= 0) active += 1;
+    uniforms[index].set(ripple.x, ripple.y, ripple.age, ripple.strength);
+  }
+  return active > 0 ? uniforms.length : 0;
+}
+
+function makeCoverParticleShaderMaterial(uniforms: ReturnType<typeof makeCoverParticleUniforms>, bloomLayer: boolean) {
+  return new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: coverParticleVertexShader,
+    fragmentShader: coverParticleFragmentShader,
+    transparent: true,
+    depthWrite: false,
+    depthTest: !bloomLayer,
+    blending: bloomLayer ? THREE.AdditiveBlending : THREE.NormalBlending,
+  });
+}
+
+const coverParticleVertexShader = `
+precision highp float;
+uniform float uTime;
+uniform float uBass;
+uniform float uVocal;
+uniform float uMid;
+uniform float uTreble;
+uniform float uBeat;
+uniform float uEnergy;
+uniform float uBurst;
+uniform float uScatter;
+uniform float uDepth;
+uniform float uPointScale;
+uniform float uPixel;
+uniform float uBloomLayer;
+uniform float uHasCover;
+uniform float uHasDepth;
+uniform float uEdgeEnabled;
+uniform float uColorMixT;
+uniform float uColorBoost;
+uniform vec4 uRipples[${COVER_RIPPLE_COUNT}];
+uniform int uRippleCount;
+uniform sampler2D uCoverTex;
+uniform sampler2D uPrevCoverTex;
+uniform sampler2D uEdgeTex;
+attribute vec2 aUv;
+attribute float aRand;
+attribute float aLum;
+attribute float aEdge;
+attribute float aDepth;
+attribute float aAlpha;
+varying vec3 vColor;
+varying float vAlpha;
+varying float vGlow;
+varying float vLum;
+varying float vEdge;
+varying float vSourceLum;
+
+float hash11(float p) {
+  return fract(sin(p * 127.1) * 43758.5453123);
+}
+
+float waveNoise(vec2 p, float seed) {
+  float a = sin(p.x * 2.3 + p.y * 1.7 + seed);
+  float b = cos(p.x * 4.1 - p.y * 2.9 + seed * 1.37);
+  float c = sin((p.x + p.y) * 6.2 + seed * 0.71);
+  return (a * 0.52 + b * 0.34 + c * 0.14);
+}
+
+float rippleAt(vec2 p, out float glow) {
+  float sum = 0.0;
+  glow = 0.0;
+  for (int i = 0; i < ${COVER_RIPPLE_COUNT}; i++) {
+    if (i >= uRippleCount) break;
+    vec4 ripple = uRipples[i];
+    float age = ripple.z;
+    float strength = ripple.w;
+    if (age < 0.0 || strength <= 0.001) continue;
+    float life = clamp(age / 1.85, 0.0, 1.0);
+    float dist = distance(p, ripple.xy);
+    float waveRadius = age * (0.72 + strength * 0.55);
+    float ring = exp(-pow((dist - waveRadius) / (0.13 + age * 0.08), 2.0));
+    float bulge = exp(-dist * dist / (0.18 + age * 0.32));
+    float fade = smoothstep(0.0, 0.08, age) * (1.0 - smoothstep(0.68, 1.0, life));
+    float local = (ring * 0.85 + bulge * 0.42) * fade * strength;
+    sum += local;
+    glow = max(glow, ring * fade * strength);
+  }
+  return sum;
+}
+
+void main() {
+  vec3 pos = position;
+  vec2 centered = position.xy / ${COVER_PLANE_SIZE.toFixed(2)};
+  float radial = length(centered);
+  float t = uTime;
+  float randPhase = aRand * 6.2831853;
+  vec2 safeUv = clamp(aUv, vec2(0.002), vec2(0.998));
+  vec3 nextCoverColor = texture2D(uCoverTex, safeUv).rgb;
+  vec3 prevCoverColor = texture2D(uPrevCoverTex, safeUv).rgb;
+  vec3 coverColor = mix(prevCoverColor, nextCoverColor, clamp(uColorMixT, 0.0, 1.0));
+  vec4 edgeMap = texture2D(uEdgeTex, safeUv);
+  float depthVal = mix(aDepth, edgeMap.r, uHasDepth);
+  float edgeVal = max(aEdge * 0.45, edgeMap.g * uEdgeEnabled);
+  float foreground = mix(aAlpha, edgeMap.b, uHasDepth);
+  float sourceLum = mix(aLum, edgeMap.a, uHasDepth);
+  vec3 fallbackColor = mix(vec3(0.47, 0.96, 0.88), vec3(1.0, 0.86, 0.56), smoothstep(0.12, 0.92, aUv.y));
+  fallbackColor = mix(fallbackColor, vec3(0.58, 0.86, 1.0), hash11(aRand * 19.0) * 0.32);
+  vec3 edgeLitCover = mix(coverColor, coverColor + vec3(0.18), edgeVal * 0.46);
+  vColor = mix(fallbackColor, edgeLitCover, uHasCover);
+  vColor = pow(max(vColor, vec3(0.0)), vec3(1.0 / max(0.42, uColorBoost)));
+
+  float rippleGlow = 0.0;
+  float ripple = rippleAt(position.xy, rippleGlow);
+  float bodyWave = waveNoise(position.xy * (1.04 + depthVal * 0.62), t * 0.74 + randPhase);
+  float trebleFizz = waveNoise(position.xy * 4.6, t * 2.8 + randPhase * 1.7);
+  vec2 outward = normalize(position.xy + vec2(cos(randPhase), sin(randPhase)) * 0.04);
+  float bassPush = (uBass * 0.25 + uBeat * 0.30) * (0.40 + sourceLum * 0.46 + edgeVal * 0.58);
+  float vocalBreath = sin(t * (0.72 + aRand * 0.18) + centered.y * 3.2) * uVocal * 0.035;
+  pos.xy += outward * (bassPush + uBurst * (0.16 + aRand * 0.19));
+  pos.xy += vec2(bodyWave, waveNoise(position.yx * 1.2, t * 0.62 + randPhase)) * uMid * (0.052 + edgeVal * 0.036);
+  pos.xy += vec2(cos(randPhase), sin(randPhase)) * (uScatter * (0.38 + uTreble * 0.9) + trebleFizz * uTreble * 0.024);
+  pos.xy *= 1.0 + uEnergy * 0.018 + uBeat * 0.022;
+  pos.z += (depthVal - 0.5) * uDepth * 1.08 * uHasCover;
+  pos.z += edgeVal * (0.16 + uBeat * 0.12) * uHasCover;
+  pos.z += bodyWave * uMid * 0.23 + trebleFizz * uTreble * 0.12 + uBass * (0.075 - radial * 0.045);
+  pos.z += ripple * (0.68 + uBeat * 0.22) + vocalBreath;
+  pos.z += (hash11(aRand * 41.0) - 0.5) * uBurst * 0.58;
+
+  vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+  float depthSize = 32.0 / max(0.85, -mvPosition.z);
+  float glow = edgeVal * 0.86 + rippleGlow * 1.12 + uBeat * 0.38 + uBurst * 0.54 + uTreble * 0.22;
+  float bloomMul = mix(1.0, 2.75 + glow * 0.74, uBloomLayer);
+  gl_PointSize = clamp(depthSize * uPixel * uPointScale * bloomMul * (0.88 + sourceLum * 0.48 + edgeVal * 0.58 + rippleGlow * 0.24), 0.9, mix(6.8, 16.5, uBloomLayer));
+  gl_Position = projectionMatrix * mvPosition;
+  vLum = sourceLum;
+  vEdge = edgeVal;
+  vSourceLum = sourceLum;
+  vGlow = glow;
+  vAlpha = aAlpha * (0.50 + sourceLum * 0.52 + edgeVal * 0.48 + foreground * 0.28 + rippleGlow * 0.46);
+}
+`;
+
+const coverParticleFragmentShader = `
+precision highp float;
+uniform sampler2D uDotTex;
+uniform float uAlpha;
+uniform float uBloomLayer;
+uniform float uBloomStrength;
+uniform float uHasCover;
+varying vec3 vColor;
+varying float vAlpha;
+varying float vGlow;
+varying float vLum;
+varying float vEdge;
+varying float vSourceLum;
+
+void main() {
+  vec4 dotTex = texture2D(uDotTex, gl_PointCoord);
+  if (dotTex.a < 0.015) discard;
+  float dist = length(gl_PointCoord - vec2(0.5)) * 2.0;
+  float rim = smoothstep(0.46, 0.96, dist) * (1.0 - smoothstep(0.96, 1.08, dist));
+  vec3 color = vColor * (0.74 + vLum * 0.82 + vGlow * 0.72);
+  float lightParticle = smoothstep(0.54, 0.86, dot(color, vec3(0.299, 0.587, 0.114)));
+  float darkParticle = 1.0 - smoothstep(0.18, 0.46, vSourceLum);
+  color = mix(color, color * 0.64, rim * lightParticle * 0.34);
+  color = mix(color, color + vec3(0.20), rim * darkParticle * 0.24);
+  color = mix(color, color + vec3(0.16, 0.20, 0.16), vEdge * (0.14 + vGlow * 0.12));
+  float bloomAlpha = dotTex.a * dotTex.a * uBloomStrength * (0.32 + vGlow * 0.98);
+  float mainAlpha = dotTex.a * uAlpha * vAlpha * mix(0.72, 0.9, uHasCover);
+  float alpha = mix(mainAlpha, bloomAlpha, uBloomLayer);
+  gl_FragColor = vec4(clamp(color, vec3(0.0), vec3(1.55)), alpha);
+}
+`;
 
 function makeParticleGeometry(count: number) {
   const positions = new Float32Array(count * 3);
@@ -1149,6 +1779,10 @@ function wrapCanvasText(ctx: CanvasRenderingContext2D, text: string, x: number, 
 
 function seeded(index: number, salt: number) {
   return Math.sin((index + 1) * 127.1 + salt * 311.7) * 0.5;
+}
+
+function seededUnit(index: number, salt: number) {
+  return seeded(index, salt) + 0.5;
 }
 
 function initials(artist?: string, title?: string) {
