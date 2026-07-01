@@ -32,6 +32,8 @@ const SPLASH_PARTICLES = Array.from({ length: 54 }, (_, index) => index);
 const SPLASH_STREAKS = Array.from({ length: 16 }, (_, index) => index);
 const SPLASH_SHARDS = Array.from({ length: 24 }, (_, index) => index);
 const LYRIC_RIVER_PARTICLES = Array.from({ length: 22 }, (_, index) => index);
+const STAGE_SMOKE_PLUMES = Array.from({ length: 7 }, (_, index) => index);
+const STAGE_SPECTRUM_BARS = Array.from({ length: 24 }, (_, index) => index);
 
 type LightBeamMotion = {
   attribute: THREE.BufferAttribute;
@@ -134,9 +136,27 @@ export function MineradioStagePlayer({
       data-playing={playing ? "true" : "false"}
       data-immersive={immersiveStage ? "true" : "false"}
       data-entered={stageEntered ? "true" : "false"}
+      data-has-shelf={shelfItems.length ? "true" : "false"}
       style={stageStyle}
     >
+      <span className="mineradio-stage-backdrop" aria-hidden="true" />
       <canvas ref={canvasRef} className="mineradio-stage-canvas" aria-hidden="true" />
+      <span className="mineradio-stage-depth-grid" aria-hidden="true" />
+      <span className="mineradio-stage-light-slit" aria-hidden="true"><i /><i /></span>
+      <span className="mineradio-stage-smoke" aria-hidden="true">
+        {STAGE_SMOKE_PLUMES.map((index) => (
+          <i
+            key={index}
+            style={{
+              "--smoke-index": index,
+              "--smoke-x": `${10 + index * 13 + Math.round(seeded(index, 11.4) * 8)}%`,
+              "--smoke-y": `${22 + (index % 4) * 16 + Math.round(seeded(index, 12.8) * 8)}%`,
+              "--smoke-scale": (0.8 + (index % 4) * 0.18).toFixed(2),
+              "--smoke-delay": `${index * -1.1}s`,
+            } as CSSProperties}
+          />
+        ))}
+      </span>
       <span className="mineradio-stage-vignette" aria-hidden="true" />
       <span className="mineradio-stage-scanline" aria-hidden="true" />
       <span className="mineradio-stage-noise" aria-hidden="true" />
@@ -239,6 +259,18 @@ export function MineradioStagePlayer({
           <div className="mineradio-stage-status" aria-hidden="true">
             <i />
             <span>{playing ? "On air" : "Standby"}</span>
+          </div>
+          <div className="mineradio-stage-spectrum" aria-hidden="true">
+            {STAGE_SPECTRUM_BARS.map((index) => (
+              <i
+                key={index}
+                style={{
+                  "--spectrum-index": index,
+                  "--spectrum-height": `${24 + ((index * 17) % 58)}%`,
+                  "--spectrum-delay": `${index * -0.055}s`,
+                } as CSSProperties}
+              />
+            ))}
           </div>
 
           <div className="mineradio-stage-progress">
@@ -435,13 +467,13 @@ function useMineradioStageScene(
     const cyanSweepMotion = makeLightBeamMotion(cyanBeamSweep, -1, 3.1, 1.42);
     const goldSweepMotion = makeLightBeamMotion(goldBeamSweep, 1, 4.4, 1.2);
 
-    const particleGeometry = makeParticleGeometry(960);
+    const particleGeometry = makeParticleGeometry(reduceMotion ? 520 : 1800);
     const particlePositionAttribute = particleGeometry.getAttribute("position") as THREE.BufferAttribute;
     const particlePositions = particlePositionAttribute.array as Float32Array;
     const particleBasePositions = particlePositions.slice();
     const particleMaterial = new THREE.PointsMaterial({
       vertexColors: true,
-      size: 0.026,
+      size: 0.024,
       transparent: true,
       opacity: playing ? 0.78 : 0.52,
       depthWrite: false,
@@ -509,7 +541,7 @@ function useMineradioStageScene(
       particles.rotation.y = Math.sin(elapsed * 0.72) * (0.06 + visualEnergy * 0.025);
       particles.rotation.x = Math.cos(elapsed * 0.52) * (0.018 + visualEnergy * 0.02);
       particleMaterial.opacity = playing ? 0.66 + visualEnergy * 0.22 + beatPulse * 0.08 : 0.44;
-      particleMaterial.size = 0.024 + visualEnergy * 0.008 + beatPulse * 0.008;
+      particleMaterial.size = 0.022 + visualEnergy * 0.008 + beatPulse * 0.008;
 
       aura.scale.x = 1.52 + Math.sin(elapsed * 1.08) * (0.04 + visualEnergy * 0.035) + beatPulse * 0.08;
       aura.scale.y = 0.64 + Math.cos(elapsed * 0.88) * 0.022 + beatPulse * 0.034;

@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.23 — 暗场电台沉浸动效增强
+
+发布日期 / Released: 2026-07-01
+
+### 优化与修复
+
+- **补强暗场电影感。** Mineradio Stage 现在会在桌面首页收敛外层背景，新增烟雾漂移、中心点火光缝、斜向光幕和更密的 Three.js 粒子场，让启动幕和播放舞台更接近参考项目的黑场氛围。
+- **补齐播放态细节。** 舞台控制台新增频谱脉冲，歌词切换使用 reveal 动效，低高度桌面会自动压缩频谱与舞台内距，避免控制按钮被底部播放栏裁切。
+- **保护歌单架边界。** 无歌单时不再为右侧 shelf 预留空白；有真实歌单时继续显示 3D 实卡 shelf、选中浮起和歌词层级避让。
+- **加强动效回归检查。** `pnpm test:mineradio-motion` 现在覆盖烟雾、光缝、频谱、歌词 reveal 和无歌单布局标记。
+
+完整 diff：`git log v0.9.22..v0.9.23`
+
+---
+
+## v0.9.23 — Mineradio Stage immersion pass
+
+Released: 2026-07-01
+
+### Improved and Fixed
+
+- **Strengthened the cinematic dark stage.** Mineradio Stage now darkens the desktop shell around the hero and adds drifting smoke, an ignition slit, diagonal light curtains, and a denser Three.js particle field so the splash and playback stage feel closer to the reference project's black-stage atmosphere.
+- **Added playback-state detail.** The stage console now includes spectrum pulses, lyric changes use a reveal motion, and short desktop viewports compress the spectrum and stage spacing so transport controls stay visible above the bottom player.
+- **Preserved playlist-shelf boundaries.** Empty libraries no longer reserve blank right-side shelf space; real playlists still render as 3D shelf cards with selected-card lift and lyric layer avoidance.
+- **Strengthened motion regression coverage.** `pnpm test:mineradio-motion` now checks smoke, ignition slit, spectrum, lyric reveal, and no-shelf layout markers.
+
+Full diff: `git log v0.9.22..v0.9.23`
+
+---
+
 ## 0.9.22 — 播放舞台光束动效
 
 发布日期 / Released: 2026-06-29
