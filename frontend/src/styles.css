@@ -3615,6 +3615,7 @@ body, button, input, select { font-family: var(--app-font); }
 .mineradio-stage-disc {
   position:absolute;
   inset:6%;
+  z-index:0;
   border-radius:50%;
   background:
     conic-gradient(from -28deg, rgba(255,255,255,.18), transparent 28deg, rgba(143,233,255,.13) 154deg, transparent 210deg, rgba(255,240,184,.14) 292deg, transparent 330deg),
@@ -3625,6 +3626,84 @@ body, button, input, select { font-family: var(--app-font); }
 }
 .mineradio-stage-player[data-playing='true'] .mineradio-stage-disc {
   animation-play-state:running;
+}
+.mineradio-stage-cover-cloud {
+  position:absolute;
+  inset:-2%;
+  z-index:1;
+  border-radius:50%;
+  overflow:hidden;
+  pointer-events:none;
+  perspective:620px;
+  transform-style:preserve-3d;
+  opacity:.52;
+  mix-blend-mode:screen;
+  filter:drop-shadow(0 0 10px rgba(156,255,223,.16));
+  animation:mineradio-stage-cover-cloud-orbit 18s linear infinite;
+  mask-image:radial-gradient(circle, transparent 0 17%, #000 18% 86%, transparent 92%);
+}
+.mineradio-stage-cover-cloud::before,
+.mineradio-stage-cover-cloud::after {
+  content:'';
+  position:absolute;
+  inset:12%;
+  border-radius:50%;
+  border:1px solid rgba(156,255,223,.15);
+  box-shadow:0 0 28px rgba(156,255,223,.08), inset 0 0 22px rgba(255,240,184,.045);
+  opacity:.62;
+  transform:rotateX(64deg) rotateZ(-12deg);
+}
+.mineradio-stage-cover-cloud::after {
+  inset:22%;
+  border-color:rgba(255,240,184,.13);
+  transform:rotateX(64deg) rotateZ(16deg);
+  opacity:.42;
+}
+.mineradio-stage-cover-cloud i {
+  position:absolute;
+  left:var(--cloud-x, 50%);
+  top:var(--cloud-y, 50%);
+  width:var(--cloud-size, 2px);
+  height:var(--cloud-size, 2px);
+  border-radius:50%;
+  background:rgba(247,251,255,.92);
+  box-shadow:0 0 9px rgba(156,255,223,.46), 0 0 18px rgba(255,240,184,.18);
+  opacity:calc(var(--cloud-alpha, .55) * .66);
+  transform:translate3d(-50%, -50%, var(--cloud-z, 0px)) scale(var(--cloud-scale, 1));
+  animation:
+    mineradio-stage-cover-cloud-pulse var(--cloud-duration, 6s) ease-in-out var(--cloud-delay, 0s) infinite,
+    mineradio-stage-cover-cloud-drift calc(var(--cloud-duration, 6s) * 1.7) ease-in-out var(--cloud-delay, 0s) infinite alternate;
+  will-change:transform, opacity, filter;
+}
+.mineradio-stage-cover-cloud i:nth-child(4n) {
+  background:rgba(156,255,223,.9);
+  box-shadow:0 0 12px rgba(156,255,223,.62), 0 0 22px rgba(143,233,255,.2);
+}
+.mineradio-stage-cover-cloud i:nth-child(6n) {
+  background:rgba(255,240,184,.92);
+  box-shadow:0 0 11px rgba(255,240,184,.54), 0 0 21px rgba(156,255,223,.16);
+}
+.mineradio-stage-cover-cloud i:nth-child(11n) {
+  width:calc(var(--cloud-size, 2px) * 1.6);
+  height:1px;
+  border-radius:999px;
+  transform:translate3d(-50%, -50%, var(--cloud-z, 0px)) rotate(-18deg) scaleX(1.8);
+}
+.mineradio-stage-player[data-playing='true'] .mineradio-stage-cover-cloud {
+  opacity:.68;
+  animation-duration:12s;
+}
+.mineradio-stage-player[data-webgl-unavailable='true'] .mineradio-stage-cover-cloud {
+  opacity:.96;
+  filter:drop-shadow(0 0 13px rgba(156,255,223,.3)) saturate(1.22);
+}
+.mineradio-stage-player[data-webgl-unavailable='true'] .mineradio-stage-cover-cloud i {
+  opacity:calc(var(--cloud-alpha, .55) * .96);
+}
+.mineradio-stage-player[data-cover-gesture='dragging'] .mineradio-stage-cover-cloud {
+  opacity:1;
+  animation-duration:7s;
+  filter:drop-shadow(0 0 16px rgba(255,240,184,.26)) saturate(1.35);
 }
 .mineradio-stage-cover {
   position:relative;
@@ -4023,6 +4102,19 @@ body, button, input, select { font-family: var(--app-font); }
   38% { transform:scaleY(1.14); filter:brightness(1.18); }
   64% { transform:scaleY(.58); }
   100% { transform:scaleY(.82); filter:brightness(1); }
+}
+@keyframes mineradio-stage-cover-cloud-orbit {
+  from { transform:rotateZ(0deg) rotateX(0deg); }
+  to { transform:rotateZ(360deg) rotateX(0deg); }
+}
+@keyframes mineradio-stage-cover-cloud-pulse {
+  0%, 100% { opacity:calc(var(--cloud-alpha, .55) * .38); filter:blur(.25px); }
+  42% { opacity:var(--cloud-alpha, .55); filter:blur(0); }
+  68% { opacity:calc(var(--cloud-alpha, .55) * .6); }
+}
+@keyframes mineradio-stage-cover-cloud-drift {
+  from { transform:translate3d(-50%, -50%, var(--cloud-z, 0px)) translate3d(0, 0, 0) scale(var(--cloud-scale, 1)); }
+  to { transform:translate3d(-50%, -50%, var(--cloud-z, 0px)) translate3d(var(--cloud-drift-x, 8px), var(--cloud-drift-y, -6px), 0) scale(calc(var(--cloud-scale, 1) * 1.18)); }
 }
 @keyframes mineradio-stage-lyric-reveal {
   from { opacity:0; clip-path:inset(0 100% 0 0); transform:translate3d(-10px, 4px, 0); }

@@ -5,6 +5,32 @@
 
 ---
 
+## 0.9.29 — 修复暗场电台点云兜底
+
+发布日期 / Released: 2026-07-02
+
+### 修复
+
+- **修复暗场电台封面点云在 WebGL 不可用时消失的问题。** Mineradio 舞台现在会在 WebGL 初始化失败时启用 DOM 封面点云 fallback，并通过 `data-webgl-unavailable` 增强点云亮度，避免只剩黑胶和背景光。
+- **加强暗场动效回归检查。** `pnpm test:mineradio-motion` 现在覆盖 DOM 点云 fallback、WebGL unavailable 标记和对应关键帧。
+
+完整 diff：`git log v0.9.28..v0.9.29`
+
+---
+
+## v0.9.29 — Fix Mineradio cover-cloud fallback
+
+Released: 2026-07-02
+
+### Fixed
+
+- **Fixed the Mineradio cover cloud disappearing when WebGL is unavailable.** The stage now renders a DOM cover-particle fallback and boosts it through `data-webgl-unavailable`, so the vinyl/cover area keeps visible point-cloud motion instead of falling back to a bare disc.
+- **Strengthened Mineradio motion regression checks.** `pnpm test:mineradio-motion` now covers the DOM particle fallback, WebGL unavailable marker, and related keyframes.
+
+Full diff: `git log v0.9.28..v0.9.29`
+
+---
+
 ## 0.9.28 — 暗场电台原版效果通道
 
 发布日期 / Released: 2026-07-02

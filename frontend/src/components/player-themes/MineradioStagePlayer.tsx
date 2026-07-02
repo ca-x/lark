@@ -36,6 +36,7 @@ const SPLASH_SHARDS = Array.from({ length: 24 }, (_, index) => index);
 const LYRIC_RIVER_PARTICLES = Array.from({ length: 22 }, (_, index) => index);
 const STAGE_SMOKE_PLUMES = Array.from({ length: 7 }, (_, index) => index);
 const STAGE_SPECTRUM_BARS = Array.from({ length: 24 }, (_, index) => index);
+const COVER_DOM_PARTICLES = Array.from({ length: 220 }, (_, index) => index);
 
 type LightBeamMotion = {
   attribute: THREE.BufferAttribute;
@@ -294,6 +295,32 @@ export function MineradioStagePlayer({
         >
           <span className="mineradio-stage-art-glow" aria-hidden="true" />
           <span className="mineradio-stage-disc" aria-hidden="true" />
+          <span className="mineradio-stage-cover-cloud" data-cover-dom-particles="fallback-orbit" aria-hidden="true">
+            {COVER_DOM_PARTICLES.map((index) => {
+              const ratio = COVER_DOM_PARTICLES.length <= 1 ? 0 : index / (COVER_DOM_PARTICLES.length - 1);
+              const angle = index * 137.508 + seeded(index, 4.2) * 28;
+              const radius = 12 + Math.pow(ratio, 0.72) * 45 + seededUnit(index, 8.6) * 9;
+              const x = 50 + Math.cos((angle * Math.PI) / 180) * radius;
+              const y = 50 + Math.sin((angle * Math.PI) / 180) * radius * 0.82;
+              return (
+                <i
+                  key={index}
+                  style={{
+                    "--cloud-x": `${x.toFixed(2)}%`,
+                    "--cloud-y": `${y.toFixed(2)}%`,
+                    "--cloud-z": `${(-38 + seededUnit(index, 3.7) * 76).toFixed(1)}px`,
+                    "--cloud-size": `${(1.35 + seededUnit(index, 5.4) * 2.35).toFixed(2)}px`,
+                    "--cloud-alpha": (0.22 + Math.pow(ratio, 0.48) * 0.6 + seededUnit(index, 6.9) * 0.18).toFixed(2),
+                    "--cloud-delay": `${(index % 37) * -0.12}s`,
+                    "--cloud-duration": `${5.6 + (index % 11) * 0.34}s`,
+                    "--cloud-drift-x": `${(seeded(index, 9.1) * 18).toFixed(1)}px`,
+                    "--cloud-drift-y": `${(seeded(index, 10.4) * 14).toFixed(1)}px`,
+                    "--cloud-scale": (0.76 + seededUnit(index, 12.2) * 0.74).toFixed(2),
+                  } as CSSProperties}
+                />
+              );
+            })}
+          </span>
           <span className="mineradio-stage-cover">
             {coverState.displayUrl ? (
               <img src={coverState.displayUrl} alt="" loading="eager" decoding="async" onError={coverState.onCoverError} />
@@ -526,12 +553,15 @@ function useMineradioStageScene(
     if (!canvas) return;
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const rootElement = canvas.parentElement;
     canvas.removeAttribute("data-webgl-unavailable");
+    rootElement?.removeAttribute("data-webgl-unavailable");
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: true });
     } catch (error) {
       canvas.setAttribute("data-webgl-unavailable", "true");
+      rootElement?.setAttribute("data-webgl-unavailable", "true");
       console.warn("Mineradio Stage WebGL unavailable; using DOM motion layers only.", error);
       return;
     }
@@ -572,7 +602,6 @@ function useMineradioStageScene(
       if (Math.abs(gestureRotation.x) > limit) gestureRotation.x -= Math.round(gestureRotation.x / (Math.PI * 2)) * Math.PI * 2;
       if (Math.abs(gestureRotation.y) > limit) gestureRotation.y -= Math.round(gestureRotation.y / (Math.PI * 2)) * Math.PI * 2;
     };
-    const rootElement = canvas.parentElement;
     const onPointerMove = (event: PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
