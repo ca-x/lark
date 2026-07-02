@@ -1,6 +1,7 @@
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
 const RUNNING_KITTEN_PATH =
@@ -45,6 +46,7 @@ export function RunningKittenTurntable({
 
   return (
     <div className="running-kitten-player" data-playing={active ? "true" : "false"}>
+      <PaperShaderLayer variant="running-kitten" playing={active} cover={coverState.displayUrl} />
       <div className="running-kitten-scene" aria-hidden="true">
         <div className="running-kitten-watercolor" />
         <div className="running-kitten-sun" />

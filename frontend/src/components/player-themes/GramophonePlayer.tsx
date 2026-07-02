@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
 export function GramophonePlayer({
@@ -50,6 +51,7 @@ export function GramophonePlayer({
 
   return (
     <div className="gramophone-player" data-playing={playing ? "true" : "false"} style={playerStyle}>
+      <PaperShaderLayer variant="gramophone" playing={playing} cover={coverState.displayUrl} />
       <div className="gramophone-stage">
         <div className="gramophone-plinth">
           <div className="gramophone-platter">

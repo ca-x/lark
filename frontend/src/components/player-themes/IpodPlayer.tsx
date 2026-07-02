@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
 export function IpodPlayer({
@@ -50,6 +51,7 @@ export function IpodPlayer({
       data-playing={playing ? "true" : "false"}
       style={playerStyle}
     >
+      <PaperShaderLayer variant="ipod" playing={playing} cover={coverState.displayUrl} />
       <div className="ipod-shell">
         <div className="ipod-headphone-port" aria-hidden="true" />
         <div className="ipod-hold-switch" aria-hidden="true" />

@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 import type { Playlist } from "../../types";
 import type { PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
 type MineradioStagePlayerProps = {
@@ -174,6 +175,7 @@ export function MineradioStagePlayer({
       style={stageStyle}
     >
       <span className="mineradio-stage-backdrop" aria-hidden="true" />
+      <PaperShaderLayer variant="mineradio" playing={playing} cover={coverState.displayUrl} />
       <canvas ref={canvasRef} className="mineradio-stage-canvas" aria-hidden="true" />
       <span className="mineradio-stage-depth-grid" aria-hidden="true" />
       <span className="mineradio-stage-light-slit" aria-hidden="true"><i /><i /></span>

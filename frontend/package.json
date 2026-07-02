@@ -1,17 +1,19 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.9.25",
+  "version": "0.9.26",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test:mineradio-motion": "node scripts/check-mineradio-motion.mjs",
+    "test:paper-shaders": "node scripts/check-paper-shader-effects.mjs",
     "test:smartisan-tonearm": "node scripts/check-smartisan-tonearm.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@paper-design/shaders-react": "^0.0.76",
     "@phosphor-icons/react": "^2.1.10",
     "@wavesurfer/react": "^1.0.12",
     "react": "^19.2.5",

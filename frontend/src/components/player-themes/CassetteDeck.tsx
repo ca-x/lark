@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
 export function CassetteDeck({
@@ -55,6 +56,7 @@ export function CassetteDeck({
       {coverState.displayUrl ? (
         <img className="cassette-cover-probe" src={coverState.displayUrl} alt="" loading="eager" decoding="async" onError={coverState.onCoverError} />
       ) : null}
+      <PaperShaderLayer variant="cassette" playing={playing} cover={coverState.displayUrl} />
       <div className="cassette-deck">
         <div className="cassette-brand-bar">
           <div className="cassette-brand">SŌNIX</div>

@@ -18,6 +18,7 @@ import {
 } from "@phosphor-icons/react";
 
 import type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 import { useDiscScratchSeek } from "./useDiscScratchSeek";
 
@@ -198,6 +199,7 @@ export function MobileArtPlayer({
         {coverState.displayUrl ? (
           <div className="mobile-art-blur-bg" style={{ backgroundImage: `url(${coverState.displayUrl})` }} aria-hidden="true" />
         ) : null}
+        <PaperShaderLayer variant={`mobile-${variant}`} playing={playing} cover={coverState.displayUrl} compact />
         {onBack ? (
           <div className="mobile-art-topbar">
             <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>

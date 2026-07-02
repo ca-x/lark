@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 import { useDiscScratchSeek } from "./useDiscScratchSeek";
 
@@ -51,6 +52,7 @@ export function SmartisanTurntable({
 
   return (
     <div className="smartisan-turntable-player" data-playing={playing ? "true" : "false"} style={playerStyle}>
+      <PaperShaderLayer variant="smartisan" playing={playing} cover={coverState.displayUrl} />
       <div className="smartisan-turntable-titlebar" aria-hidden="true">
         <span />
         <i />

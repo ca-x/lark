@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.26 — 全主题 Paper Shader 动效扩展
+
+发布日期 / Released: 2026-07-02
+
+### 优化与修复
+
+- **扩展全主题动效质感。** 新增 `@paper-design/shaders-react` 封装层，为 Vinyl、Cassette、iPod、Smartisan、Gramophone、Running Kitten、Album Slide、Audio Scope、Mini 封面和播放器 mood 区分别接入契合主题的 shader。
+- **补齐暗场电台与歌词界面氛围层。** Mineradio Stage 叠加光束与烟雾 shader，全屏歌词的沉浸景深界面新增动态 MeshGradient 和封面 Halftone 纹理。
+- **覆盖移动端播放器主题。** 移动端 8 个播放器主题获得对应的玻璃、颗粒、脉冲、烟圈、液态金属等背景动效，并保留控件点击穿透。
+- **加强动效回归检查。** 新增 `pnpm test:paper-shaders`，覆盖依赖、集中封装、主题接入、全屏歌词接入和 reduced-motion 静态降级。
+
+完整 diff：`git log v0.9.25..v0.9.26`
+
+---
+
+## v0.9.26 — Paper Shader motion across player themes
+
+Released: 2026-07-02
+
+### Improved and Fixed
+
+- **Expanded theme-specific motion texture.** Added a centralized `@paper-design/shaders-react` layer for Vinyl, Cassette, iPod, Smartisan, Gramophone, Running Kitten, Album Slide, Audio Scope, Mini artwork, and the player mood panel.
+- **Filled in Mineradio and full-lyrics ambience.** Mineradio Stage now layers ray and smoke shaders, while immersive full-screen lyrics gain dynamic MeshGradient and cover-driven Halftone texture.
+- **Covered mobile player themes.** The 8 mobile player variants now receive matching glass, grain, pulse, smoke-ring, and liquid-metal background effects while keeping controls click-through safe.
+- **Strengthened motion regression checks.** Added `pnpm test:paper-shaders` for dependency, wrapper, theme integration, full-lyrics integration, and reduced-motion fallback coverage.
+
+Full diff: `git log v0.9.25..v0.9.26`
+
+---
+
 ## 0.9.25 — 暗场电台封面点云复刻增强
 
 发布日期 / Released: 2026-07-01

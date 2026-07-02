@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pause, Play, Power, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
 export function VinylTurntable({
@@ -71,6 +72,7 @@ export function VinylTurntable({
   } as CSSProperties;
   return (
     <div className={decorative ? "turntable vinyl-component decorative" : "turntable vinyl-component"} data-playing={recordSpinning ? "true" : "false"} data-ending={endingPct > 0 && recordSpinning ? "true" : "false"} style={deckStyle}>
+      <PaperShaderLayer variant="vinyl" playing={recordSpinning} cover={coverState.displayUrl} />
       <div className="vinyl-plinth">
         <div className="vinyl-top-row">
           <div className="vinyl-platter-wrap">

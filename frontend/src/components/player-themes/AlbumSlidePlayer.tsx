@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
 export function AlbumSlidePlayer({
@@ -53,6 +54,7 @@ export function AlbumSlidePlayer({
       data-playing={playing ? "true" : "false"}
       style={playerStyle}
     >
+      <PaperShaderLayer variant="album-slide" playing={playing} cover={coverState.displayUrl} />
       <div className="album-slide-panel">
         <div className="album-slide-content">
           <div className="album-slide-info">

@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import type { PlayerThemePlayMode } from "./types";
+import { PaperShaderLayer } from "./PaperShaderLayer";
 
 export function AudioScopePlayer({
   playing,
@@ -46,6 +47,7 @@ export function AudioScopePlayer({
       data-playing={playing ? "true" : "false"}
       style={playerStyle}
     >
+      <PaperShaderLayer variant="audio-scope" playing={playing} />
       <span className="audio-scope-hover-label" aria-hidden="true">{playing ? "pause" : "play"}</span>
       <button
         type="button"

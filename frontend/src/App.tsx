@@ -141,7 +141,7 @@ import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
 import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
-import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, RunningKittenTurntable, SmartisanTurntable, VinylTurntable } from "./components/player-themes";
+import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, PaperShaderLayer, RunningKittenTurntable, SmartisanTurntable, VinylTurntable } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -6097,6 +6097,7 @@ function MiniArtwork({
       data-has-cover={displayUrl ? "true" : "false"}
       style={style}
     >
+      <PaperShaderLayer variant="mini" playing={playing} cover={displayUrl} compact />
       {displayUrl ? (
         <img
           src={displayUrl}
@@ -6404,6 +6405,7 @@ function PlayerMood({
   if (radio) {
     return (
       <div className="player-mood player-waveform radio-waveform-mood loading" data-theme-key={theme} data-playing={playing ? "true" : "false"}>
+        <PaperShaderLayer variant="player-mood" playing={playing && !lowBandwidth} compact />
         <span>LIVE</span>
         <button className={eqActive ? "wave-eq-button active" : "wave-eq-button"} type="button" title={equalizerLabel} aria-label={equalizerLabel} onClick={onOpenEqualizer}>
           <SlidersHorizontal />
@@ -6435,6 +6437,7 @@ function PlayerMood({
       data-theme-key={theme}
       data-playing={playing ? "true" : "false"}
     >
+      <PaperShaderLayer variant="player-mood" playing={playing && !lowBandwidth && !waveFailed} compact />
       <span>{labels[theme]}</span>
       <button className={eqActive ? "wave-eq-button active" : "wave-eq-button"} type="button" title={equalizerLabel} aria-label={equalizerLabel} onClick={onOpenEqualizer}>
         <SlidersHorizontal />
@@ -8052,6 +8055,7 @@ function FullLyrics({
     <section className="full-lyrics" data-display-style={lyricsDisplayStyle} style={backgroundStyle}>
       {lyricsDisplayStyle === "immersive" ? (
         <div className="lyrics-depth-stage" aria-hidden="true">
+          <PaperShaderLayer variant="lyrics" playing={!loading} cover={songCoverUrl} />
           <span className="lyrics-depth-cover" />
           <span className="lyrics-depth-beam" />
           <span className="lyrics-depth-rings">
