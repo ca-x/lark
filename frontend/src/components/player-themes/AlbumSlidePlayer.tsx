@@ -56,6 +56,13 @@ export function AlbumSlidePlayer({
     >
       <PaperShaderLayer variant="album-slide" playing={playing} cover={coverState.displayUrl} />
       <div className="album-slide-panel">
+        <PaperShaderLayer
+          variant="album-slide"
+          playing={playing}
+          cover={coverState.displayUrl}
+          compact
+          className="album-slide-panel-shader"
+        />
         <div className="album-slide-content">
           <div className="album-slide-info">
             <span className="album-slide-kicker">Track</span>

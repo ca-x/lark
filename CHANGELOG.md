@@ -5,6 +5,34 @@
 
 ---
 
+## 0.9.27 — 修复唱片封套黑胶层级
+
+发布日期 / Released: 2026-07-02
+
+### 优化与修复
+
+- **恢复唱片封套黑胶显示。** 修复 Paper Shader 通用层级规则 specificity 过高，覆盖 `.album-slide-art-stack` 绝对定位，导致黑胶/封套堆叠错位的问题。
+- **把动效裁进封套卡片。** 唱片封套主题现在在外层氛围之外，也会在卡片面板内部使用低强度 shader 纹理，同时保持文字、进度条和按钮在上层可读。
+- **补充回归检查。** `pnpm test:paper-shaders` 现在会检查唱片封套必须使用低 specificity stacking rule，并保护 panel shader/content 层级。
+
+完整 diff：`git log v0.9.26..v0.9.27`
+
+---
+
+## v0.9.27 — Fix album sleeve vinyl layering
+
+Released: 2026-07-02
+
+### Improved and Fixed
+
+- **Restored the album sleeve vinyl.** Fixed the Paper Shader stacking rule specificity so it no longer overrides `.album-slide-art-stack` absolute positioning and breaks the vinyl/sleeve stack.
+- **Clipped the motion texture into the sleeve card.** Album sleeve now keeps the outer ambience and adds a low-strength shader layer inside the card panel while text, progress, and controls stay above it.
+- **Added regression coverage.** `pnpm test:paper-shaders` now checks the album sleeve low-specificity stacking rule and panel shader/content layering.
+
+Full diff: `git log v0.9.26..v0.9.27`
+
+---
+
 ## 0.9.26 — 全主题 Paper Shader 动效扩展
 
 发布日期 / Released: 2026-07-02

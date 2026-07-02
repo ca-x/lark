@@ -107,6 +107,7 @@ for (const [fileName, variant] of [
 }
 
 requireInSource(files.get("MobileArtPlayer.tsx"), "variant={`mobile-${variant}`}", "MobileArtPlayer.tsx");
+requireInSource(files.get("AlbumSlidePlayer.tsx"), "album-slide-panel-shader", "AlbumSlidePlayer.tsx");
 requireInSource(app, 'variant="lyrics"', "App.tsx");
 requireInSource(app, 'variant="player-mood"', "App.tsx");
 requireInSource(app, 'variant="mini"', "App.tsx");
@@ -115,6 +116,13 @@ requireInSource(styles, ".paper-shader-layer", "styles.css");
 requireInSource(styles, ".paper-shader-canvas", "styles.css");
 requireInSource(styles, "prefers-reduced-motion: reduce", "styles.css");
 requireInSource(styles, ".paper-shader-canvas { display:none !important; }", "styles.css");
+requireInSource(styles, ":where(\n  .album-slide-player", "styles.css");
+requireInSource(styles, ") > :where(:not(.paper-shader-layer))", "styles.css");
+requireInSource(styles, ".album-slide-panel > .paper-shader-album-slide", "styles.css");
+requireInSource(styles, ".album-slide-panel > :not(.paper-shader-layer)", "styles.css");
+if (styles.includes(":is(\n  .album-slide-player")) {
+  failures.push("styles.css: paper shader stacking rule must stay low-specificity so album sleeve absolute layers remain visible");
+}
 
 if (failures.length) {
   console.error(failures.join("\n"));

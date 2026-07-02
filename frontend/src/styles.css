@@ -410,6 +410,22 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
     radial-gradient(circle at 74% 76%, color-mix(in srgb, var(--highlight) 16%, transparent), transparent 36%);
 }
 .paper-shader-album-slide { inset:-16px; opacity:.34; mix-blend-mode:multiply; filter:saturate(1.08); }
+.album-slide-panel > .paper-shader-album-slide {
+  inset:0;
+  z-index:0;
+  opacity:.26;
+  mix-blend-mode:screen;
+  filter:saturate(1.08) contrast(1.05);
+}
+.album-slide-panel > .album-slide-panel-shader::after {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--album-slide-surface) 74%, transparent), transparent 48%),
+    radial-gradient(circle at 76% 52%, transparent 0 30%, rgba(0,0,0,.2) 100%);
+}
+.album-slide-panel > :not(.paper-shader-layer) {
+  position:relative;
+  z-index:1;
+}
 .paper-shader-audio-scope { inset:-18px; opacity:.22; mix-blend-mode:screen; filter:saturate(1.25); }
 .paper-shader-vinyl { inset:-8px; opacity:.48; mix-blend-mode:screen; }
 .paper-shader-cassette { opacity:.18; mix-blend-mode:screen; filter:saturate(1.35) contrast(1.08); }
@@ -429,7 +445,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .paper-shader-mobile-editorial-pulse { opacity:.13; mix-blend-mode:multiply; filter:saturate(.72); }
 .paper-shader-mobile-stage-glass { opacity:.2; mix-blend-mode:screen; filter:saturate(1.18); }
 .paper-shader-mobile-blue-halo { opacity:.24; mix-blend-mode:screen; filter:saturate(1.35); }
-:is(
+:where(
   .album-slide-player,
   .audio-scope-player,
   .cassette-component,
@@ -439,7 +455,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   .running-kitten-player,
   .vinyl-component,
   .player-mood
-) > :not(.paper-shader-layer) {
+) > :where(:not(.paper-shader-layer)) {
   position:relative;
   z-index:1;
 }
@@ -5165,6 +5181,8 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .album-slide-panel {
   position:relative;
   z-index:3;
+  isolation:isolate;
+  overflow:hidden;
   width:min(528px,100%);
   max-width:calc(100% - 72px);
   height:370px;
