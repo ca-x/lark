@@ -10,11 +10,17 @@ The backend is Go + Echo v5 + Ent ORM, with SQLite by default. The frontend is R
 
 For release notes, see [CHANGELOG.md](CHANGELOG.md).
 
+## License
+
+Lark is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
+
 ## Acknowledgements
 
 Thanks to the [LinuxDo Community](https://linux.do) for discussion and feedback.
 
-The Mineradio Stage player theme and its optional dark-stage effects take visual and interaction inspiration from [Mineradio](https://github.com/XxHuberrr/Mineradio) by XxHuberrr. The current motion pass was implemented after reading Mineradio's original splash, 3D playlist shelf, lyric glow, and render-loop code, then adapting those interface and interaction ideas into Lark's separate React/Three.js implementation. Lark is not affiliated with Mineradio.
+The Mineradio Stage player theme and its optional dark-stage effects adapt visual-effect code and interaction models from [Mineradio](https://github.com/XxHuberrr/Mineradio) by XxHuberrr, including the startup shader, cover-particle motion, 3D playlist shelf, lyric glow, and render-loop dynamics. Lark is not affiliated with Mineradio.
+
+The fullscreen lyrics direction also references [folia-major](https://github.com/chthollyphile/folia-major) by chthollyphile for lyric timing, rail, and glow interaction ideas.
 
 ---
 

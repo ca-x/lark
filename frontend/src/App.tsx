@@ -1,5 +1,5 @@
 import type { ChangeEvent, ReactNode, UIEvent } from "react";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import {
@@ -131,7 +131,7 @@ import type {
   ScrobblingSettings,
   SmartPlaylist,
 } from "./types";
-import { createT, libraryDirectoryStatusLabel, smartPlaylistLabel } from "./i18n";
+import { createT, libraryDirectoryStatusLabel, smartPlaylistLabel, type TKey } from "./i18n";
 import { RadioReceiver } from "./components/RadioPlayer";
 import { LibraryRadioSources, RadioView } from "./components/RadioLibrary";
 import { radioGroupName } from "./components/radio";
@@ -227,6 +227,14 @@ const MAX_LYRIC_OFFSET_MS = 10_000;
 const LYRIC_ACTIVE_ANCHOR_RATIO = 0.38;
 const LYRICS_DEPTH_PARTICLES = Array.from({ length: 36 }, (_, index) => index);
 const LYRICS_DEPTH_RINGS = Array.from({ length: 4 }, (_, index) => index);
+const LYRICS_DISPLAY_STYLE_OPTIONS: Array<{ value: LyricsDisplayStyle; labelKey: TKey }> = [
+  { value: "immersive", labelKey: "lyricsDisplayImmersive" },
+  { value: "folia-monet", labelKey: "lyricsDisplayFoliaMonet" },
+  { value: "folia-fume", labelKey: "lyricsDisplayFoliaFume" },
+  { value: "folia-tilt", labelKey: "lyricsDisplayFoliaTilt" },
+  { value: "folia-cadenza", labelKey: "lyricsDisplayFoliaCadenza" },
+  { value: "classic", labelKey: "lyricsDisplayClassic" },
+];
 const INTERFACE_MODE_KEY = "lark.interface-mode";
 const TERMINAL_SHELL_THEME_KEY = "lark.shell-theme";
 
@@ -372,7 +380,16 @@ function normalizeArtistAlbumDisplayStyle(value?: string | null): ArtistAlbumDis
 }
 
 function normalizeLyricsDisplayStyle(value?: string | null): LyricsDisplayStyle {
-  return value === "classic" ? "classic" : "immersive";
+  switch (value) {
+    case "classic":
+    case "folia-monet":
+    case "folia-fume":
+    case "folia-tilt":
+    case "folia-cadenza":
+      return value;
+    default:
+      return "immersive";
+  }
 }
 
 function normalizeTerminalShellTheme(value?: string | null): TerminalShellTheme {
@@ -7857,6 +7874,34 @@ function lyricLinePositionClass(
   return `upcoming next next-${depth}${depth >= 2 ? " far-upcoming" : ""}`;
 }
 
+function renderLyricLineText(text: string, displayStyle: LyricsDisplayStyle, active: boolean): ReactNode {
+  if (!active || (displayStyle !== "folia-tilt" && displayStyle !== "folia-cadenza")) return text;
+  let glyphIndex = 0;
+  return (text.match(/\S+|\s+/g) || [" "]).map((token, tokenIndex) => {
+    if (/^\s+$/.test(token)) return <Fragment key={`space-${tokenIndex}`}>{token}</Fragment>;
+    return (
+      <span key={`word-${tokenIndex}`} className="lyric-word">
+        {Array.from(token).map((char, charIndex) => {
+          const currentGlyphIndex = glyphIndex;
+          glyphIndex += 1;
+          return (
+            <span
+              key={`${char}-${charIndex}`}
+              className="lyric-glyph"
+              style={{
+                "--glyph-delay": `${currentGlyphIndex * 18}ms`,
+                "--glyph-spark-delay": `${currentGlyphIndex * -42}ms`,
+              } as React.CSSProperties}
+            >
+              {char}
+            </span>
+          );
+        })}
+      </span>
+    );
+  });
+}
+
 function FullLyrics({
   song,
   lines,
@@ -7928,6 +7973,8 @@ function FullLyrics({
     [activeLyric, lines],
   );
   const activeLyricLine = activeLyricIndex >= 0 ? lines[activeLyricIndex] : null;
+  const visualLyrics = lyricsDisplayStyle !== "classic";
+  const foliaLyrics = lyricsDisplayStyle.startsWith("folia-");
   const songCoverUrl = coverUrl(song);
   const [coverTone, setCoverTone] = useState("");
   const backgroundStyle = useMemo(
@@ -7939,7 +7986,7 @@ function FullLyrics({
     [coverTone, songCoverUrl],
   );
   useEffect(() => {
-    if (!songCoverUrl || lyricsDisplayStyle !== "immersive") {
+    if (!songCoverUrl || !visualLyrics) {
       setCoverTone("");
       return;
     }
@@ -7994,7 +8041,7 @@ function FullLyrics({
     return () => {
       cancelled = true;
     };
-  }, [lyricsDisplayStyle, songCoverUrl]);
+  }, [songCoverUrl, visualLyrics]);
   useEffect(() => {
     return () => {
       if (seekTimer.current != null) window.clearTimeout(seekTimer.current);
@@ -8052,8 +8099,14 @@ function FullLyrics({
     onOpenCandidates();
   };
   return (
-    <section className="full-lyrics" data-display-style={lyricsDisplayStyle} style={backgroundStyle}>
-      {lyricsDisplayStyle === "immersive" ? (
+    <section
+      className="full-lyrics"
+      data-display-style={lyricsDisplayStyle}
+      data-folia-mode={foliaLyrics ? "true" : "false"}
+      data-has-cover={songCoverUrl ? "true" : "false"}
+      style={backgroundStyle}
+    >
+      {visualLyrics ? (
         <div className="lyrics-depth-stage" aria-hidden="true">
           <PaperShaderLayer variant="lyrics" playing={!loading} cover={songCoverUrl} />
           <span className="lyrics-depth-cover" />
@@ -8084,6 +8137,49 @@ function FullLyrics({
               />
             ))}
           </span>
+          {foliaLyrics ? (
+            <>
+              <span className="lyrics-folia-poster" />
+              <span className="lyrics-folia-fume-paper">
+                {Array.from({ length: 5 }, (_, index) => (
+                  <i
+                    key={index}
+                    style={{
+                      "--folia-smoke-x": `${8 + index * 17}%`,
+                      "--folia-smoke-y": `${14 + (index % 3) * 22}%`,
+                      "--folia-smoke-delay": `${index * -0.8}s`,
+                    } as React.CSSProperties}
+                  />
+                ))}
+              </span>
+              <span className="lyrics-folia-tilt-field">
+                {Array.from({ length: 7 }, (_, index) => (
+                  <i
+                    key={index}
+                    style={{
+                      "--folia-tilt-x": `${6 + index * 13}%`,
+                      "--folia-tilt-y": `${18 + (index % 4) * 17}%`,
+                      "--folia-tilt-angle": `${-18 + index * 5}deg`,
+                      "--folia-tilt-delay": `${index * -0.34}s`,
+                    } as React.CSSProperties}
+                  />
+                ))}
+              </span>
+              <span className="lyrics-folia-cadenza-field">
+                {Array.from({ length: 9 }, (_, index) => (
+                  <i
+                    key={index}
+                    style={{
+                      "--folia-beam-x": `${-16 + index * 15}%`,
+                      "--folia-beam-y": `${12 + (index % 5) * 17}%`,
+                      "--folia-beam-angle": `${-24 + index * 7}deg`,
+                      "--folia-beam-delay": `${index * -0.22}s`,
+                    } as React.CSSProperties}
+                  />
+                ))}
+              </span>
+            </>
+          ) : null}
         </div>
       ) : null}
       <div className="full-lyrics-head">
@@ -8287,7 +8383,9 @@ function FullLyrics({
                   .join(" ")}
                 onClick={lyricsDragSeekEnabled ? () => line.at >= 0 && onSeek(lyricTime) : undefined}
               >
-                <span className="lyric-line-text">{line.text}</span>
+                <span className="lyric-line-text">
+                  {renderLyricLineText(line.text, lyricsDisplayStyle, isLive)}
+                </span>
                 {showCursorPlay ? (
                   <button
                     type="button"
@@ -9426,21 +9524,17 @@ function SettingsPanel({
             title={t("lyricsDisplayStyle")}
             description={t("lyricsDisplayStyleHint")}
           >
-            <div className="segmented-control" role="group" aria-label={t("lyricsDisplayStyle")}>
-              <button
-                type="button"
-                className={lyricsDisplayStyle === "immersive" ? "active" : ""}
-                onClick={() => onLyricsDisplayStyleChange("immersive")}
-              >
-                {t("lyricsDisplayImmersive")}
-              </button>
-              <button
-                type="button"
-                className={lyricsDisplayStyle === "classic" ? "active" : ""}
-                onClick={() => onLyricsDisplayStyleChange("classic")}
-              >
-                {t("lyricsDisplayClassic")}
-              </button>
+            <div className="segmented-control lyrics-style-control" role="group" aria-label={t("lyricsDisplayStyle")}>
+              {LYRICS_DISPLAY_STYLE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={lyricsDisplayStyle === option.value ? "active" : ""}
+                  onClick={() => onLyricsDisplayStyleChange(option.value)}
+                >
+                  {t(option.labelKey)}
+                </button>
+              ))}
             </div>
           </SettingsSection>
           <label className="switch-row settings-wide-row">

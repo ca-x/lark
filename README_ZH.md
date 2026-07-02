@@ -10,11 +10,17 @@
 
 更新日志见 [CHANGELOG.md](CHANGELOG.md)。
 
+## 许可证
+
+百灵使用 GNU Affero General Public License v3.0 发布。详见 [LICENSE](LICENSE) 和 [NOTICE.md](NOTICE.md)。
+
 ## 致谢
 
 感谢 [LinuxDo 社区](https://linux.do) 的讨论与反馈。
 
-暗场电台播放器样式及可选的 3D 歌单架 / 歌词舞台效果，视觉与交互灵感借鉴自 XxHuberrr 的 [Mineradio](https://github.com/XxHuberrr/Mineradio)。当前动效复刻是在阅读 Mineradio 原版启动幕、3D 歌单架、歌词溢光和渲染循环代码后，将其中的界面和交互思路重新适配到百灵的 React/Three.js 实现中；百灵与 Mineradio 官方无从属关系。
+暗场电台播放器样式及可选的 3D 歌单架 / 歌词舞台效果，直接适配了 XxHuberrr 的 [Mineradio](https://github.com/XxHuberrr/Mineradio) 中的启动幕 shader、封面粒子运动、3D 歌单架、歌词溢光和渲染循环动态。百灵与 Mineradio 官方无从属关系。
+
+全屏歌词方向也参考了 chthollyphile 的 [folia-major](https://github.com/chthollyphile/folia-major)，用于歌词时序、歌词轨道和溢光交互设计。
 
 ---
 

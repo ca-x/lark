@@ -7,6 +7,7 @@ const component = readFileSync(join(root, "src/components/player-themes/Mineradi
 const app = readFileSync(join(root, "src/App.tsx"), "utf8");
 const artistAlbumBrowser = readFileSync(join(root, "src/components/ArtistAlbumBrowser.tsx"), "utf8");
 const css = readFileSync(join(root, "src/styles.css"), "utf8");
+const mobileCss = readFileSync(join(root, "src/mobile.css"), "utf8");
 const i18n = readFileSync(join(root, "src/i18n.ts"), "utf8");
 
 const failures = [];
@@ -21,6 +22,7 @@ function forbidInSource(source, needle, label) {
 
 for (const needle of [
   "mineradio-stage-splash-particles",
+  "mineradio-stage-splash-canvas",
   "mineradio-stage-splash-streaks",
   "mineradio-stage-splash-shards",
   "mineradio-stage-smoke",
@@ -37,6 +39,17 @@ for (const needle of [
   "makeLightBeamMotion",
   "animateLightBeamGeometry",
   "beamSweepPulse",
+  "useMineradioSplashShader",
+  "mineradioSplashFragmentShader",
+  "animatedLoop",
+  "data-mineradio-splash-shader",
+  "gestureRotation",
+  "particleSpin",
+  "applyParticleSpinDrag",
+  "data-cover-gesture",
+  "drag-inertia",
+  "makeShelfExtras",
+  "data-shelf-extras",
   "audioElement",
   "makeAudioAnalyser",
   "analyserRetryAt",
@@ -56,6 +69,7 @@ for (const needle of [
   "coverParticleFragmentShader",
   "makeCoverParticleUniforms",
   "syncCoverParticleUniforms",
+  "--mineradio-lyric-solar",
   "averageFrequencyBand",
   "COVER_RIPPLE_COUNT = 12",
   "COVER_RIPPLE_REGIONS",
@@ -86,14 +100,26 @@ for (const needle of [
   "lyrics-depth-cover",
   "lyrics-depth-particles",
   "LYRICS_DEPTH_PARTICLES",
+  "LYRICS_DISPLAY_STYLE_OPTIONS",
+  "folia-monet",
+  "folia-fume",
+  "folia-tilt",
+  "folia-cadenza",
+  "lyrics-folia-poster",
+  "lyrics-folia-fume-paper",
+  "lyrics-folia-tilt-field",
+  "lyrics-folia-cadenza-field",
+  "renderLyricLineText",
 ]) {
   requireInSource(app, needle, "App.tsx");
 }
 
 for (const needle of [
   "控制全屏歌词界面的视觉效果",
+  "Folia 海报",
   "首页暗场电台效果",
   "full-screen lyrics view",
+  "Folia Poster",
   "Home Mineradio effects",
 ]) {
   requireInSource(i18n, needle, "i18n.ts");
@@ -115,21 +141,34 @@ for (const needle of [
   "mineradio-stage-splash-particle",
   "mineradio-stage-splash-streak",
   "mineradio-stage-splash-shard",
+  ".mineradio-stage-splash-canvas",
+  ".mineradio-stage-player[data-cover-gesture='dragging']",
   "@keyframes mineradio-stage-smoke-drift",
   "@keyframes mineradio-stage-slit-breathe",
   "@keyframes mineradio-stage-spectrum-live",
   "@keyframes mineradio-stage-lyric-reveal",
   ".mineradio-stage-player[data-audio-reactive='true']",
   ".lyrics-depth-stage",
+  "[data-folia-mode='true']",
+  "lyrics-folia-poster-float",
+  "lyrics-folia-glyph-spark",
   "@keyframes lyrics-depth-cover-orbit",
   "@keyframes lyrics-depth-ring-pulse",
   "@keyframes lyrics-depth-particle-drift",
+  "@keyframes lyrics-folia-smoke",
   "@keyframes artist-album-showcase-card-breathe",
   "@keyframes artist-album-showcase-sweep",
   "@keyframes artist-album-showcase-cover-drift",
   "prefers-reduced-motion: reduce",
 ]) {
   requireInSource(css, needle, "styles.css");
+}
+
+for (const needle of [
+  ".full-lyrics[data-folia-mode='true']",
+  ".segmented-control.lyrics-style-control",
+]) {
+  requireInSource(mobileCss, needle, "mobile.css");
 }
 
 for (const [source, label] of [

@@ -5,6 +5,40 @@
 
 ---
 
+## 0.9.28 — 暗场电台原版效果通道
+
+发布日期 / Released: 2026-07-02
+
+### 优化与修复
+
+- **接入 Mineradio 原版启动幕 shader。** 暗场电台启动层现在使用 WebGL loop shader，并保留 DOM 粒子、光线和 reduced-motion 降级。
+- **补回封面点云拖拽惯性。** 封面粒子支持拖拽旋转、松手惯性衰减、节拍爆发和 DOM 抓取反馈，更接近原版舞台手感。
+- **扩展 3D 歌单架舞台配件。** 歌单架新增连接粒子与底部反射层，并随音频、指针和 shelf 可见状态同步。
+- **新增 Folia 风格歌词页模式。** 全屏歌词设置新增 Folia 海报、烟页、倾斜和光谱模式，分别映射 folia-major 的歌词轨、烟雾纸面、倾斜排版和发光碎片质感，并保留经典列表兜底。
+- **补充许可证说明。** 项目许可证切换为 AGPL-3.0，并新增 `NOTICE.md` 标注 Mineradio 与 folia-major 参考来源。
+- **加强暗场电台与歌词动效回归检查。** `pnpm test:mineradio-motion` 现在覆盖原版 shader、拖拽惯性、shelf extras、歌词溢光变量和 Folia 歌词页模式。
+
+完整 diff：`git log v0.9.27..v0.9.28`
+
+---
+
+## v0.9.28 — Mineradio original effect channels
+
+Released: 2026-07-02
+
+### Improved and Fixed
+
+- **Integrated the original-style Mineradio splash shader.** The dark radio entry layer now runs a WebGL loop shader while keeping DOM particles, light streaks, and reduced-motion fallback.
+- **Restored cover-cloud drag inertia.** Cover particles now support drag rotation, release inertia, beat burst feedback, and DOM grab states for a closer stage feel.
+- **Expanded the 3D playlist shelf stage.** The shelf gains connector particles and a floor reflection layer that follow audio, pointer, and shelf visibility state.
+- **Added Folia-style full-lyrics modes.** Full-screen lyrics settings now include Folia Poster, Fume, Tilt, and Cadenza modes, mapping folia-major's lyric rail, smoky paper, tilted type, and glowing fragment feel while keeping Classic List as the fallback.
+- **Added license notices.** The project is now AGPL-3.0 and includes `NOTICE.md` for Mineradio and folia-major attribution.
+- **Strengthened Mineradio and lyrics motion regression checks.** `pnpm test:mineradio-motion` now covers the shader, drag inertia, shelf extras, lyric glow variables, and Folia full-lyrics modes.
+
+Full diff: `git log v0.9.27..v0.9.28`
+
+---
+
 ## 0.9.27 — 修复唱片封套黑胶层级
 
 发布日期 / Released: 2026-07-02

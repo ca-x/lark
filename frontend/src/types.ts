@@ -245,7 +245,7 @@ export interface PlaybackHistorySettings {
 export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide" | "smartisan-turntable" | "gramophone" | "running-kitten" | "mineradio-stage";
 export type MobileHomePlayerStyle = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic";
 export type ArtistAlbumDisplayStyle = "classic" | "showcase";
-export type LyricsDisplayStyle = "immersive" | "classic";
+export type LyricsDisplayStyle = "immersive" | "classic" | "folia-monet" | "folia-fume" | "folia-tilt" | "folia-cadenza";
 export type TerminalShellTheme = "operator" | "dusk" | "phosphor" | "ashgray" | "embers";
 export interface UserPreferences {
   home_player_style: HomePlayerStyle;

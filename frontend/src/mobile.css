@@ -9960,3 +9960,83 @@
     height:17px;
   }
 }
+
+@media (max-width:760px) {
+  .segmented-control.lyrics-style-control {
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    grid-auto-rows:minmax(44px, auto);
+    align-self:start;
+    align-items:stretch;
+  }
+
+  .segmented-control.lyrics-style-control button {
+    min-width:0;
+    padding:8px 9px;
+    font-size:12px;
+    line-height:1.18;
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] {
+    min-height:calc(100dvh - var(--lyrics-player-row, var(--player-h)) - 14px);
+    padding:14px;
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] .lyrics-folia-poster {
+    right:50%;
+    top:54%;
+    width:min(68vw, 250px);
+    opacity:.24;
+    transform:translate(50%, -50%) rotate(-4deg);
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] .lyrics-depth-cover {
+    right:50%;
+    top:52%;
+    width:min(70vw, 280px);
+    opacity:.16;
+    transform:translate(50%, -50%) rotate(-5deg);
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] .lyrics-folia-fume-paper {
+    inset:15% 4% 11%;
+    border-radius:22px;
+    opacity:.58;
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] .lyrics-folia-tilt-field i,
+  .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] .lyrics-folia-cadenza-field i {
+    width:70vw;
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] .full-lyrics-lines {
+    width:100%;
+    max-width:100%;
+    padding:max(26px, 24vh) 3vw max(38px, 34vh);
+    gap:clamp(10px, 2vh, 18px);
+    font-size:var(--lyrics-font-size, clamp(22px, 7vw, 34px));
+    overflow-x:hidden;
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-display-style='folia-monet'] .full-lyrics-lines,
+  .app-shell.lyrics-mode .full-lyrics[data-display-style='folia-fume'] .full-lyrics-lines,
+  .app-shell.lyrics-mode .full-lyrics[data-display-style='folia-tilt'] .full-lyrics-lines,
+  .app-shell.lyrics-mode .full-lyrics[data-display-style='folia-cadenza'] .full-lyrics-lines {
+    padding-left:3vw;
+    padding-right:3vw;
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] .full-lyrics-lines p {
+    width:100%;
+    max-width:100%;
+    overflow-wrap:anywhere;
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-display-style='folia-tilt'] .full-lyrics-lines p.live {
+    transform:translate3d(0, 0, 0) rotate(-1.8deg) scale(1.02);
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-display-style='folia-cadenza'] .full-lyrics-lines p.live,
+  .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] .full-lyrics-lines p.live {
+    transform:translate3d(0, 0, 0) scale(1.02);
+  }
+}

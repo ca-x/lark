@@ -1361,10 +1361,12 @@ func normalizeTerminalShellTheme(value string) string {
 }
 
 func normalizeLyricsDisplayStyle(value string) string {
-	if strings.TrimSpace(value) == "classic" {
-		return "classic"
+	switch strings.TrimSpace(value) {
+	case "classic", "folia-monet", "folia-fume", "folia-tilt", "folia-cadenza":
+		return strings.TrimSpace(value)
+	default:
+		return "immersive"
 	}
-	return "immersive"
 }
 
 func normalizeUserHomePlayerStyle(value string) string {
