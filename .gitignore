@@ -45,5 +45,9 @@ frontend/node_modules/.tmp/
 # Release artifacts
 /dist/
 
+# Local git worktrees
+.worktrees
+.worktrees/
+
 # Uploaded design source archives
 favicon_io.zip
