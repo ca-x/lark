@@ -4,7 +4,7 @@
 
 Lark is a self-hosted web music player for people who keep their own music library. Point it at music on a NAS, home server, desktop, or container volume, then use a browser to scan, browse, fix, play, cache, and share that collection.
 
-It is designed for large local libraries first: FLAC/WAV/Hi-Res albums, CUE sheets, uneven tags, missing lyrics, album art problems, and folders collected over time. It also covers the listening habits around that library: mobile playback, browser-side offline cache, radio, Subsonic-compatible clients, ListenBrainz/Last.fm scrobbling, and public share links.
+It is designed for large local libraries first: FLAC/WAV/Hi-Res albums, CUE sheets, uneven tags, missing lyrics, album art problems, and folders collected over time. It also covers the listening habits around that library: mobile playback, browser-side offline cache, radio, DLNA devices, Subsonic-compatible clients, ListenBrainz/Last.fm scrobbling, and public share links.
 
 The backend is Go + Echo v5 + Ent ORM, with SQLite by default. The frontend is React + TypeScript + Vite. The production web build is embedded into the Go server, so Lark can run as one service.
 
@@ -30,7 +30,7 @@ The fullscreen lyrics direction also references [folia-major](https://github.com
 - You want a private music site for a NAS, home server, VPS, or always-on desktop.
 - You keep FLAC/WAV/Hi-Res albums, CUE rips, and older formats that need a careful playback path.
 - Your tags, covers, artists, or lyrics are inconsistent and you want to repair them from the same interface you use to listen.
-- You listen from desktop and mobile browsers, sometimes offline, sometimes through Subsonic/Navidrome-compatible clients.
+- You listen from desktop and mobile browsers, sometimes offline, sometimes through DLNA renderers or Subsonic/Navidrome-compatible clients.
 - You want to share a song, album, artist, or playlist with someone without creating an account for them.
 
 ## Quick Start
@@ -90,6 +90,7 @@ By default, Lark stores app data and uploaded music in the `lark_data` Docker vo
 - Playback queue, source context, resume position, and history can persist across sessions. Cross-device continue restores the saved queue, not only the last track.
 - History can be separated by device when you want each phone, tablet, or browser to keep its own playback trail.
 - Equalizer presets apply to local music, network tracks, and radio playback. Optional interface sounds add light feedback for playback, favorites, and sharing actions.
+- `Play to device` can send the current local-library song and Lark queue to a discovered DLNA renderer such as a TV, receiver, speaker, or set-top box on the same LAN. If the renderer cannot fetch Lark's media URL, set **Media base URL** in Site Settings to the backend's reachable LAN URL, for example `http://192.168.1.8:8080`.
 - The layout adapts across desktop sidebar, tablet icon rail, and mobile bottom navigation.
 - Songs can be prepared for browser-side offline playback with visible cache status and storage use. Played songs can also be cached automatically, and offline mode prefers cached audio when the network is unavailable.
 
@@ -110,6 +111,7 @@ By default, Lark stores app data and uploaded music in the `lark_data` Docker vo
 - Streaming quality and transcode policy can be tuned for local network, mobile data, or constrained devices.
 - Public share links can expose songs, albums, artists, or playlists on a playback page without sign-in.
 - Share links can be permanent or expire after 1 hour, 1 day, 7 days, or 30 days, and users can manage links they created.
+- Optional DLNA library exposure lets TVs, receivers, speakers, and third-party DLNA clients discover Lark as a LAN music source and browse songs, albums, artists, playlists, and folders. This is a separate admin setting from casting and defaults off.
 - The optional Subsonic-compatible `/rest/*.view` service lets Subsonic/Navidrome clients connect with separate Subsonic credentials.
 - Lark exposes an MCP SSE endpoint for AI clients, with tools for listing artists and albums, searching songs, reading favorites, toggling favorites, fetching lyrics, and preparing playback URLs.
 - Played tracks can be scrobbled to ListenBrainz or Last.fm with configurable thresholds.
@@ -117,7 +119,7 @@ By default, Lark stores app data and uploaded music in the `lark_data` Docker vo
 ### Administer A Private Music Service
 
 - First-run setup creates the first admin account. Admins can also enable registration.
-- Settings cover language, theme, library paths, directory status, directory watch, diagnostics, font uploads, lyrics font, and transcode policy.
+- Settings cover language, theme, library paths, directory status, directory watch, diagnostics, font uploads, lyrics font, DLNA casting/library exposure, and transcode policy.
 - Lark supports Simplified Chinese and English. The app name appears as **百灵** in Chinese and **Lark** in English.
 - The theme system includes 21 schemes: original dark and light themes, Apple Music / Spotify / NetEase / Winamp / Foobar2000 inspired dark and light themes, and a Smartisan Music classic theme.
 - Uploaded web fonts can be used for the whole interface or just lyrics.

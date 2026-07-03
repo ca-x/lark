@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"lark/backend/ent"
+	dlnapkg "lark/backend/internal/dlna"
 	"lark/backend/internal/library"
 	"lark/backend/internal/models"
 	"lark/backend/pkg/version"
@@ -33,6 +34,7 @@ type Server struct {
 	echo                   *echo.Echo
 	client                 *ent.Client
 	lib                    *library.Service
+	dlna                   *dlnapkg.Service
 	mcp                    http.Handler
 	ctx                    context.Context
 	cancel                 context.CancelFunc
@@ -410,6 +412,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/debug/pprof", s.handlePprof, admin)
 	e.GET("/api/debug/pprof/*", s.handlePprof, admin)
 	e.POST("/api/debug/pprof/symbol", s.handlePprof, admin)
+	s.registerDLNARoutes(auth)
 	s.registerFrontendRoutes()
 	return s
 }
@@ -425,12 +428,21 @@ func (s *Server) Start(addr string) error {
 		cancel()
 		return err
 	}
+	if s.dlna != nil {
+		if err := s.dlna.Start(ctx, listenBaseURL(addr)); err != nil {
+			cancel()
+			return err
+		}
+	}
 	return echo.StartConfig{Address: addr, HideBanner: true, GracefulTimeout: 10}.Start(ctx, s.echo)
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	if s.cancel != nil {
 		s.cancel()
+	}
+	if s.dlna != nil {
+		_ = s.dlna.Shutdown(ctx)
 	}
 	s.lib.StopLibraryWatchers(ctx)
 	s.transcodeWarmersMu.Lock()
@@ -2135,6 +2147,9 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 		return mapError(err)
 	}
 	s.diagnosticsEnabled.Store(settings.DiagnosticsEnabled)
+	if s.dlna != nil {
+		s.dlna.UpdateOptions(dlnapkg.OptionsFromSettings(settings))
+	}
 	return c.JSON(http.StatusOK, settings)
 }
 

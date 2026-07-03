@@ -16,6 +16,7 @@ import (
 	"lark/backend/ent/song"
 	"lark/backend/internal/api"
 	"lark/backend/internal/config"
+	"lark/backend/internal/dlna"
 	"lark/backend/internal/kv"
 	"lark/backend/internal/library"
 	"lark/backend/internal/netease"
@@ -75,12 +76,18 @@ func main() {
 	if err := ensureInitialAdminFromEnv(context.Background(), lib, cfg); err != nil {
 		log.Fatal(err)
 	}
+	initialSettings, err := lib.GetSettings(context.Background())
+	if err != nil {
+		log.Fatalf("load dlna settings: %v", err)
+	}
+	dlnaService := dlna.NewService(lib, dlna.OptionsFromSettings(initialSettings), dlna.WithTokenSecret([]byte(cfg.DatabaseDSN)))
 	server := api.New(
 		client,
 		lib,
 		cfg.FrontendOrigin,
 		api.WithTranscodeWarmTTL(time.Duration(cfg.TranscodeWarmTTL)*time.Second),
 		api.WithTranscodeWarmLimit(cfg.TranscodeWarmLimit),
+		api.WithDLNA(dlnaService),
 	)
 	serverErr := make(chan error, 1)
 	go func() {

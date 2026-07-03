@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.30 — DLNA 投放与曲库服务
+
+发布日期 / Released: 2026-07-03
+
+### 新功能
+
+- **新增播放到 DLNA 设备。** 播放器新增“播放到其他设备”入口，可发现同一局域网内的 DLNA 电视、音箱、功放或播放器，并把当前本地曲库歌曲与百灵队列投放过去；下一首/上一首会继续发送同一队列中的歌曲。
+- **新增可选 DLNA 曲库暴露。** 管理员可单独开启“作为 DLNA 曲库被发现”，让局域网内的 DLNA 客户端浏览歌曲、专辑、歌手、歌单和文件夹；该选项默认关闭，不会在百灵前端新增 DLNA 曲库浏览页。
+- **新增 DLNA 连接设置。** 站点设置支持 DLNA 曲库名称、媒体 Base URL、允许客户端 IP 和监听网卡；当电视或播放器无法访问百灵媒体 URL 时，可把 Media base URL 设置为后端在局域网内可达的地址。
+- **增加 DLNA 媒体安全边界。** DLNA 音频、封面和转码 URL 使用短期 HMAC token，支持 Range 请求和 DLNA 设备需要的传输头。
+
+完整 diff：`git log v0.9.29..v0.9.30`
+
+---
+
+## v0.9.30 — DLNA casting and library service
+
+Released: 2026-07-03
+
+### Features
+
+- **Added Play to DLNA devices.** The player now has a Play to device entry that discovers DLNA TVs, speakers, receivers, and renderers on the same LAN, then sends the current local-library song and Lark queue to the selected renderer.
+- **Added optional DLNA library exposure.** Admins can separately enable Expose Lark as a DLNA library so LAN DLNA clients can browse songs, albums, artists, playlists, and folders. It defaults off and does not add a DLNA library browser inside the Lark frontend.
+- **Added DLNA connection settings.** Site Settings now include the DLNA library name, Media base URL, allowed client IPs, and network interfaces. If a TV or player cannot reach Lark's media URLs, set Media base URL to the backend's reachable LAN address.
+- **Added token-protected DLNA media URLs.** DLNA audio, cover, and transcode URLs use short-lived HMAC tokens, support Range requests, and include DLNA-friendly transfer headers.
+
+Full diff: `git log v0.9.29..v0.9.30`
+
+---
+
 ## 0.9.29 — 修复暗场电台点云兜底
 
 发布日期 / Released: 2026-07-02
