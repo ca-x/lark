@@ -48,6 +48,7 @@ frontend/node_modules/.tmp/
 # Local git worktrees
 .worktrees
 .worktrees/
+.superpowers/
 
 # Uploaded design source archives
 favicon_io.zip
