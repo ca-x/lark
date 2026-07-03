@@ -313,6 +313,7 @@ type Settings struct {
 	DLNAMediaBaseURL             string `json:"dlna_media_base_url"`
 	DLNAAllowedIPs               string `json:"dlna_allowed_ips"`
 	DLNAInterfaces               string `json:"dlna_interfaces"`
+	NoDLNAOption                 bool   `json:"no_dlna_option"`
 	PlaybackSourceTTLHours       int    `json:"playback_source_ttl_hours"`
 	PlaybackHistoryRetentionDays int    `json:"playback_history_retention_days"`
 	WebFontFamily                string `json:"web_font_family"`

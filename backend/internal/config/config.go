@@ -33,6 +33,7 @@ type Config struct {
 	AdminNickname      string
 	SQLiteMaxOpenConns int
 	SQLiteMaxIdleConns int
+	NoDLNAOption       bool
 }
 
 func Load() (Config, error) {
@@ -74,6 +75,7 @@ func Load() (Config, error) {
 		AdminNickname:      strings.TrimSpace(os.Getenv("LARK_ADMIN_NICKNAME")),
 		SQLiteMaxOpenConns: GetEnvInt("LARK_SQLITE_MAX_OPEN_CONNS", 4),
 		SQLiteMaxIdleConns: GetEnvInt("LARK_SQLITE_MAX_IDLE_CONNS", 4),
+		NoDLNAOption:       GetEnvBool("NO_DLNA_OPTION", false),
 	}
 	return cfg, nil
 }
@@ -160,6 +162,21 @@ func GetEnvInt(key string, fallback int) int {
 		return fallback
 	}
 	return parsed
+}
+
+func GetEnvBool(key string, fallback bool) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "1", "true", "yes", "y", "on":
+		return true
+	case "0", "false", "no", "n", "off":
+		return false
+	default:
+		return fallback
+	}
 }
 
 func cacheRuntimeDir(cfg Config) string {

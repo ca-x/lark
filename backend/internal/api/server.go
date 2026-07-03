@@ -47,6 +47,7 @@ type Server struct {
 	transcodeWarmersClosed bool
 	transcodeWarmTTL       time.Duration
 	transcodeWarmLimit     int
+	noDLNAOption           bool
 	offlineTranscodeErrors sync.Map
 	diagnosticsEnabled     atomic.Bool
 }
@@ -79,6 +80,12 @@ func WithTranscodeWarmTTL(ttl time.Duration) Option {
 func WithTranscodeWarmLimit(limit int) Option {
 	return func(s *Server) {
 		s.transcodeWarmLimit = limit
+	}
+}
+
+func WithNoDLNAOption(hidden bool) Option {
+	return func(s *Server) {
+		s.noDLNAOption = hidden
 	}
 }
 
@@ -2104,6 +2111,7 @@ func (s *Server) handleGetSettings(c *echo.Context) error {
 	if err != nil {
 		return mapError(err)
 	}
+	settings = s.applyDLNAOptionPolicy(settings)
 	return c.JSON(http.StatusOK, settings)
 }
 
@@ -2112,7 +2120,7 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	settings, err := s.lib.SaveSettings(c.Request().Context(), models.Settings{
+	nextSettings := models.Settings{
 		Language:                     req.Language,
 		Theme:                        req.Theme,
 		SleepTimerMins:               req.SleepTimerMins,
@@ -2142,15 +2150,28 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 		SubsonicServerEnabled:        req.SubsonicServerEnabled,
 		TranscodePolicy:              req.TranscodePolicy,
 		TranscodeQualityKbps:         req.TranscodeQualityKbps,
-	})
+	}
+	nextSettings = s.applyDLNAOptionPolicy(nextSettings)
+	settings, err := s.lib.SaveSettings(c.Request().Context(), nextSettings)
 	if err != nil {
 		return mapError(err)
 	}
+	settings = s.applyDLNAOptionPolicy(settings)
 	s.diagnosticsEnabled.Store(settings.DiagnosticsEnabled)
 	if s.dlna != nil {
 		s.dlna.UpdateOptions(dlnapkg.OptionsFromSettings(settings))
 	}
 	return c.JSON(http.StatusOK, settings)
+}
+
+func (s *Server) applyDLNAOptionPolicy(settings models.Settings) models.Settings {
+	if !s.noDLNAOption {
+		return settings
+	}
+	settings.DLNACastEnabled = false
+	settings.DLNALibraryEnabled = false
+	settings.NoDLNAOption = true
+	return settings
 }
 
 func (s *Server) handlePprof(c *echo.Context) error {

@@ -273,6 +273,7 @@ const defaultSettings: Settings = {
   dlna_media_base_url: "",
   dlna_allowed_ips: "",
   dlna_interfaces: "",
+  no_dlna_option: false,
   transcode_policy: "auto",
   transcode_quality_kbps: 192,
 };
@@ -1115,7 +1116,8 @@ export default function App() {
   networkReachableRef.current = networkReachable;
   autoCachePlayedRef.current = autoCachePlayed;
   const t = useMemo(() => createT(settings.language), [settings.language]);
-  const dlnaCastAvailable = settings.dlna_cast_enabled;
+  const dlnaOptionHidden = settings.no_dlna_option;
+  const dlnaCastAvailable = settings.dlna_cast_enabled && !dlnaOptionHidden;
   const remoteDLNAActive = dlnaStatus?.output === "dlna" && Boolean(dlnaStatus.device_id);
   const remoteDLNAPlaying = remoteDLNAActive && dlnaStatus?.state === "playing";
   const offlineCachedIds = useMemo(() => offlineCachedSongIds(offlineIndex), [offlineIndex]);
@@ -10350,28 +10352,32 @@ function SettingsPanel({
                   onChange={(e) => setSettings({ ...settings, subsonic_server_enabled: e.target.checked })}
                 />
               </label>
-              <label className="switch-row">
-                <span>
-                  <span>{t("dlnaCast")}</span>
-                  <small>{t("dlnaCastHint")}</small>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={settings.dlna_cast_enabled}
-                  onChange={(e) => setSettings({ ...settings, dlna_cast_enabled: e.target.checked })}
-                />
-              </label>
-              <label className="switch-row">
-                <span>
-                  <span>{t("dlnaLibrary")}</span>
-                  <small>{t("dlnaLibraryHint")}</small>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={settings.dlna_library_enabled}
-                  onChange={(e) => setSettings({ ...settings, dlna_library_enabled: e.target.checked })}
-                />
-              </label>
+              {!settings.no_dlna_option ? (
+                <>
+                  <label className="switch-row">
+                    <span>
+                      <span>{t("dlnaCast")}</span>
+                      <small>{t("dlnaCastHint")}</small>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={settings.dlna_cast_enabled}
+                      onChange={(e) => setSettings({ ...settings, dlna_cast_enabled: e.target.checked })}
+                    />
+                  </label>
+                  <label className="switch-row">
+                    <span>
+                      <span>{t("dlnaLibrary")}</span>
+                      <small>{t("dlnaLibraryHint")}</small>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={settings.dlna_library_enabled}
+                      onChange={(e) => setSettings({ ...settings, dlna_library_enabled: e.target.checked })}
+                    />
+                  </label>
+                </>
+              ) : null}
               <div className="settings-mini-grid">
                 <label>
                   {t("sharingEndpoint")}
@@ -10381,38 +10387,42 @@ function SettingsPanel({
                   {t("subsonicEndpoint")}
                   <input readOnly value={subsonicEndpoint} />
                 </label>
-                <label>
-                  {t("dlnaServerName")}
-                  <input
-                    value={settings.dlna_server_name}
-                    placeholder="Lark"
-                    onChange={(e) => setSettings({ ...settings, dlna_server_name: e.target.value })}
-                  />
-                </label>
-                <label>
-                  {t("dlnaMediaBaseURL")}
-                  <input
-                    value={settings.dlna_media_base_url}
-                    placeholder={window.location.origin}
-                    onChange={(e) => setSettings({ ...settings, dlna_media_base_url: e.target.value })}
-                  />
-                </label>
-                <label>
-                  {t("dlnaAllowedIPs")}
-                  <input
-                    value={settings.dlna_allowed_ips}
-                    placeholder="192.168.1.20,*"
-                    onChange={(e) => setSettings({ ...settings, dlna_allowed_ips: e.target.value })}
-                  />
-                </label>
-                <label>
-                  {t("dlnaInterfaces")}
-                  <input
-                    value={settings.dlna_interfaces}
-                    placeholder="eth0,wlan0"
-                    onChange={(e) => setSettings({ ...settings, dlna_interfaces: e.target.value })}
-                  />
-                </label>
+                {!settings.no_dlna_option ? (
+                  <>
+                    <label>
+                      {t("dlnaServerName")}
+                      <input
+                        value={settings.dlna_server_name}
+                        placeholder="Lark"
+                        onChange={(e) => setSettings({ ...settings, dlna_server_name: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      {t("dlnaMediaBaseURL")}
+                      <input
+                        value={settings.dlna_media_base_url}
+                        placeholder={window.location.origin}
+                        onChange={(e) => setSettings({ ...settings, dlna_media_base_url: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      {t("dlnaAllowedIPs")}
+                      <input
+                        value={settings.dlna_allowed_ips}
+                        placeholder="192.168.1.20,*"
+                        onChange={(e) => setSettings({ ...settings, dlna_allowed_ips: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      {t("dlnaInterfaces")}
+                      <input
+                        value={settings.dlna_interfaces}
+                        placeholder="eth0,wlan0"
+                        onChange={(e) => setSettings({ ...settings, dlna_interfaces: e.target.value })}
+                      />
+                    </label>
+                  </>
+                ) : null}
                 <label>
                   {t("transcodePolicy")}
                   <select

@@ -190,6 +190,7 @@ go run ./cmd/server
 | `LARK_ADMIN_USERNAME` | 空 | 数据库暂无用户时，自动创建首个管理员 |
 | `LARK_ADMIN_PASSWORD` | 空 | 首个管理员密码；必须和用户名一起设置 |
 | `LARK_ADMIN_NICKNAME` | 空 | 自动创建管理员的可选昵称 |
+| `NO_DLNA_OPTION` | `false` | 设置为 `true` 时隐藏所有 DLNA 设置项，并强制关闭 DLNA 投放/曲库开关 |
 | `FFMPEG_BIN` | `ffmpeg` | 可选转码工具 |
 | `FFPROBE_BIN` | `ffprobe` | 可选元数据探测工具 |
 | `LARK_CACHE_BACKEND` | `badger` | 缓存后端：`badger`、`redis`、`memory` 或 `none`。未设置时如果检测到 Redis 环境变量，会自动使用 Redis。 |

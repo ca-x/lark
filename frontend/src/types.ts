@@ -413,6 +413,7 @@ export interface Settings {
   dlna_media_base_url: string;
   dlna_allowed_ips: string;
   dlna_interfaces: string;
+  no_dlna_option: boolean;
   playback_source_ttl_hours: number;
   playback_history_retention_days: number;
   web_font_family: string;

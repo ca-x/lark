@@ -5,6 +5,30 @@
 
 ---
 
+## 0.9.32 — 增加 DLNA 选项隐藏开关
+
+发布日期 / Released: 2026-07-03
+
+### 新功能
+
+- **新增 `NO_DLNA_OPTION=true` 运行参数。** 开启后，前端设置页会隐藏所有 DLNA 设置项，播放器也不会显示 DLNA 投放入口；后端会强制关闭 DLNA 投放和 DLNA 曲库开关，适合 Docker bridge 等无法稳定使用 DLNA 的部署环境。
+
+完整 diff：`git log v0.9.31..v0.9.32`
+
+---
+
+## v0.9.32 — Add DLNA option hiding flag
+
+Released: 2026-07-03
+
+### Features
+
+- **Added the `NO_DLNA_OPTION=true` runtime flag.** When enabled, the settings UI hides every DLNA option, the player does not show DLNA cast controls, and the backend forces DLNA cast/library switches off for bridge-style deployments where DLNA is not viable.
+
+Full diff: `git log v0.9.31..v0.9.32`
+
+---
+
 ## 0.9.31 — 修复 DLNA 投放入口显示
 
 发布日期 / Released: 2026-07-03

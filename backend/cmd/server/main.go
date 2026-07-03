@@ -80,6 +80,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("load dlna settings: %v", err)
 	}
+	if cfg.NoDLNAOption {
+		initialSettings.DLNACastEnabled = false
+		initialSettings.DLNALibraryEnabled = false
+		initialSettings.NoDLNAOption = true
+	}
 	dlnaService := dlna.NewService(lib, dlna.OptionsFromSettings(initialSettings), dlna.WithTokenSecret([]byte(cfg.DatabaseDSN)))
 	server := api.New(
 		client,
@@ -87,6 +92,7 @@ func main() {
 		cfg.FrontendOrigin,
 		api.WithTranscodeWarmTTL(time.Duration(cfg.TranscodeWarmTTL)*time.Second),
 		api.WithTranscodeWarmLimit(cfg.TranscodeWarmLimit),
+		api.WithNoDLNAOption(cfg.NoDLNAOption),
 		api.WithDLNA(dlnaService),
 	)
 	serverErr := make(chan error, 1)

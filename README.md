@@ -190,6 +190,7 @@ Default server settings:
 | `LARK_ADMIN_USERNAME` | empty | Create the first admin automatically when the database has no users |
 | `LARK_ADMIN_PASSWORD` | empty | Password for `LARK_ADMIN_USERNAME`; must be set together with username |
 | `LARK_ADMIN_NICKNAME` | empty | Optional nickname for the auto-created admin |
+| `NO_DLNA_OPTION` | `false` | Set to `true` to hide all DLNA settings and force DLNA cast/library switches off |
 | `FFMPEG_BIN` | `ffmpeg` | Optional transcoder binary |
 | `FFPROBE_BIN` | `ffprobe` | Optional metadata probe binary |
 | `LARK_CACHE_BACKEND` | `badger` | Cache backend: `badger`, `redis`, `memory`, or `none`. If unset and Redis env vars are present, Redis is selected automatically. |

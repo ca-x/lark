@@ -35,6 +35,18 @@ func TestLoadUsesRedisWhenRedisEnvConfigured(t *testing.T) {
 	}
 }
 
+func TestLoadNoDLNAOption(t *testing.T) {
+	t.Setenv("NO_DLNA_OPTION", "true")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.NoDLNAOption {
+		t.Fatal("expected NO_DLNA_OPTION=true to enable NoDLNAOption")
+	}
+}
+
 func TestLoadDatabaseDefaultsToSQLiteDSN(t *testing.T) {
 	t.Setenv("LARK_DB_TYPE", "")
 	t.Setenv("LARK_DB_DSN", "")

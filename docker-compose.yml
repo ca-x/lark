@@ -26,6 +26,7 @@ services:
       LARK_ADMIN_USERNAME: ${LARK_ADMIN_USERNAME:-}
       LARK_ADMIN_PASSWORD: ${LARK_ADMIN_PASSWORD:-}
       LARK_ADMIN_NICKNAME: ${LARK_ADMIN_NICKNAME:-}
+      NO_DLNA_OPTION: ${NO_DLNA_OPTION:-false}
     ports:
       - '${LARK_PORT:-8080}:8080'
     volumes:
