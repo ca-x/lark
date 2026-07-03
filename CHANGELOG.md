@@ -5,6 +5,30 @@
 
 ---
 
+## 0.9.31 — 修复 DLNA 投放入口显示
+
+发布日期 / Released: 2026-07-03
+
+### 修复
+
+- **关闭 DLNA 投放时隐藏播放器入口。** 当站点设置未开启“播放到其他设备”时，桌面播放器底栏和移动全屏播放器不再显示 DLNA 投放按钮，避免用户进入不可用的投放面板。
+
+完整 diff：`git log v0.9.30..v0.9.31`
+
+---
+
+## v0.9.31 — Hide DLNA cast entry when disabled
+
+Released: 2026-07-03
+
+### Fixed
+
+- **Hid player cast controls when DLNA casting is disabled.** When Site Settings has Play to device disabled, the desktop player bar and mobile full-screen player no longer show the DLNA cast button or open the unavailable cast panel.
+
+Full diff: `git log v0.9.30..v0.9.31`
+
+---
+
 ## 0.9.30 — DLNA 投放与曲库服务
 
 发布日期 / Released: 2026-07-03

@@ -275,9 +275,11 @@ export function MobileArtPlayer({
           <button type="button" className={soundEffectsActive ? "active" : ""} aria-label={text.soundEffects} aria-pressed={soundEffectsActive} disabled={!onSoundEffects} onClick={onSoundEffects}>
             <MusicNotes weight={soundEffectsActive ? "fill" : "regular"} />
           </button>
-          <button type="button" className={castActive ? "active" : ""} aria-label={castLabel || text.cast} title={castLabel || text.cast} aria-pressed={castActive} disabled={!onCast} onClick={onCast}>
-            <Screencast weight={castActive ? "fill" : "regular"} />
-          </button>
+          {onCast ? (
+            <button type="button" className={castActive ? "active" : ""} aria-label={castLabel || text.cast} title={castLabel || text.cast} aria-pressed={castActive} onClick={onCast}>
+              <Screencast weight={castActive ? "fill" : "regular"} />
+            </button>
+          ) : null}
           <button type="button" className={sleepTimerActive ? "active" : ""} aria-label={text.sleepTimer} aria-pressed={sleepTimerActive} disabled={!onSleepTimer} onClick={onSleepTimer}>
             <Timer weight={sleepTimerActive ? "fill" : "regular"} />
           </button>

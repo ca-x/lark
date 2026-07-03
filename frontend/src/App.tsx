@@ -1115,6 +1115,7 @@ export default function App() {
   networkReachableRef.current = networkReachable;
   autoCachePlayedRef.current = autoCachePlayed;
   const t = useMemo(() => createT(settings.language), [settings.language]);
+  const dlnaCastAvailable = settings.dlna_cast_enabled;
   const remoteDLNAActive = dlnaStatus?.output === "dlna" && Boolean(dlnaStatus.device_id);
   const remoteDLNAPlaying = remoteDLNAActive && dlnaStatus?.state === "playing";
   const offlineCachedIds = useMemo(() => offlineCachedSongIds(offlineIndex), [offlineIndex]);
@@ -4974,18 +4975,20 @@ export default function App() {
         />
       ) : null}
 
-      <DLNACastPanel
-        open={dlnaPanelOpen}
-        devices={dlnaDevices}
-        status={dlnaStatus}
-        loading={dlnaLoading}
-        error={dlnaError}
-        onClose={() => setDLNAPanelOpen(false)}
-        onRefresh={() => void refreshDLNADevices(true)}
-        onSelectLocal={() => void switchDLNAToLocal()}
-        onSelectDevice={(device) => void playCurrentToDLNA(device)}
-        t={t}
-      />
+      {dlnaCastAvailable ? (
+        <DLNACastPanel
+          open={dlnaPanelOpen}
+          devices={dlnaDevices}
+          status={dlnaStatus}
+          loading={dlnaLoading}
+          error={dlnaError}
+          onClose={() => setDLNAPanelOpen(false)}
+          onRefresh={() => void refreshDLNADevices(true)}
+          onSelectLocal={() => void switchDLNAToLocal()}
+          onSelectDevice={(device) => void playCurrentToDLNA(device)}
+          t={t}
+        />
+      ) : null}
 
       <footer className="player" style={playerStyle}>
         <MobileMiniPlayer
@@ -5033,7 +5036,7 @@ export default function App() {
           onBack={() => setMobilePlayerExpanded(false)}
           onFavorite={canFavoriteCurrent ? toggleCurrentFavorite : undefined}
           onSoundEffects={toggleEqualizerPanel}
-          onCast={openDLNAPanel}
+          onCast={dlnaCastAvailable ? openDLNAPanel : undefined}
           onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
           onSleepTimer={() => setSleepTimerOpen(true)}
           onLyrics={current ? () => {
@@ -5042,7 +5045,7 @@ export default function App() {
           } : undefined}
           favoriteActive={Boolean(currentRadio?.favorite || current?.favorite)}
           soundEffectsActive={eqPanelOpen || eqEnabled}
-          castActive={remoteDLNAActive}
+          castActive={dlnaCastAvailable && remoteDLNAActive}
           castLabel={dlnaCastLabel}
           queueActive={queueOpen}
           sleepTimerActive={sleepTimerMode !== "off"}
@@ -5225,15 +5228,17 @@ export default function App() {
           >
             <Queue />
           </button>
-          <button
-            className={remoteDLNAActive ? "cast-toggle active" : "cast-toggle"}
-            title={dlnaCastLabel}
-            aria-label={dlnaCastLabel}
-            aria-pressed={remoteDLNAActive}
-            onClick={openDLNAPanel}
-          >
-            <Screencast />
-          </button>
+          {dlnaCastAvailable ? (
+            <button
+              className={remoteDLNAActive ? "cast-toggle active" : "cast-toggle"}
+              title={dlnaCastLabel}
+              aria-label={dlnaCastLabel}
+              aria-pressed={remoteDLNAActive}
+              onClick={openDLNAPanel}
+            >
+              <Screencast />
+            </button>
+          ) : null}
           <button
             className={eqPanelOpen || eqEnabled ? "eq-toggle active" : "eq-toggle"}
             title={t("equalizer")}
