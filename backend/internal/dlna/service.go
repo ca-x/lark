@@ -1,6 +1,7 @@
 package dlna
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
@@ -17,6 +18,10 @@ type Service struct {
 
 	httpClient httpClient
 	now        func() time.Time
+
+	runCancel context.CancelFunc
+	runDone   chan struct{}
+	baseURL   string
 }
 
 type serviceOption func(*Service)
