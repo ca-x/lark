@@ -185,6 +185,9 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 		LibraryPath:                  s.libraryDir,
 		NeteaseFallback:              true,
 		RegistrationEnabled:          false,
+		DLNACastEnabled:              false,
+		DLNALibraryEnabled:           false,
+		DLNAServerName:               "Lark",
 		PlaybackSourceTTLHours:       defaultPlaybackSourceTTLHours,
 		PlaybackHistoryRetentionDays: defaultPlaybackHistoryRetentionDays,
 		LyricsFontSize:               0,
@@ -215,6 +218,18 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.RegistrationEnabled = item.Value == "true"
 		case "diagnostics_enabled":
 			settings.DiagnosticsEnabled = item.Value == "true"
+		case "dlna_cast_enabled":
+			settings.DLNACastEnabled = item.Value == "true"
+		case "dlna_library_enabled":
+			settings.DLNALibraryEnabled = item.Value == "true"
+		case "dlna_server_name":
+			settings.DLNAServerName = item.Value
+		case "dlna_media_base_url":
+			settings.DLNAMediaBaseURL = item.Value
+		case "dlna_allowed_ips":
+			settings.DLNAAllowedIPs = item.Value
+		case "dlna_interfaces":
+			settings.DLNAInterfaces = item.Value
 		case "playback_source_ttl_hours":
 			settings.PlaybackSourceTTLHours, _ = strconv.Atoi(item.Value)
 		case "playback_history_retention_days":
@@ -259,6 +274,10 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 	settings.LyricsFontSize = normalizeLyricsFontSize(settings.LyricsFontSize)
 	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
 	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
+	settings.DLNAServerName = normalizeDLNAServerName(settings.DLNAServerName)
+	settings.DLNAMediaBaseURL = normalizeDLNAMediaBaseURL(settings.DLNAMediaBaseURL)
+	settings.DLNAAllowedIPs = normalizeCSVSetting(settings.DLNAAllowedIPs)
+	settings.DLNAInterfaces = normalizeCSVSetting(settings.DLNAInterfaces)
 	return settings, nil
 }
 func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (models.Settings, error) {
@@ -280,6 +299,10 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 	settings.PlaybackHistoryRetentionDays = normalizePlaybackHistoryRetentionDays(settings.PlaybackHistoryRetentionDays)
 	settings.TranscodePolicy = normalizeTranscodePolicy(settings.TranscodePolicy)
 	settings.TranscodeQualityKbps = normalizeTranscodeQuality(settings.TranscodeQualityKbps)
+	settings.DLNAServerName = normalizeDLNAServerName(settings.DLNAServerName)
+	settings.DLNAMediaBaseURL = normalizeDLNAMediaBaseURL(settings.DLNAMediaBaseURL)
+	settings.DLNAAllowedIPs = normalizeCSVSetting(settings.DLNAAllowedIPs)
+	settings.DLNAInterfaces = normalizeCSVSetting(settings.DLNAInterfaces)
 	pairs := map[string]string{
 		"language":                        settings.Language,
 		"theme":                           settings.Theme,
@@ -287,6 +310,12 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 		"netease_fallback":                strconv.FormatBool(settings.NeteaseFallback),
 		settingRegistrationEnabled:        strconv.FormatBool(settings.RegistrationEnabled),
 		"diagnostics_enabled":             strconv.FormatBool(settings.DiagnosticsEnabled),
+		"dlna_cast_enabled":               strconv.FormatBool(settings.DLNACastEnabled),
+		"dlna_library_enabled":            strconv.FormatBool(settings.DLNALibraryEnabled),
+		"dlna_server_name":                settings.DLNAServerName,
+		"dlna_media_base_url":             settings.DLNAMediaBaseURL,
+		"dlna_allowed_ips":                settings.DLNAAllowedIPs,
+		"dlna_interfaces":                 settings.DLNAInterfaces,
 		"playback_source_ttl_hours":       strconv.Itoa(settings.PlaybackSourceTTLHours),
 		"playback_history_retention_days": strconv.Itoa(settings.PlaybackHistoryRetentionDays),
 		"web_font_family":                 settings.WebFontFamily,
@@ -434,6 +463,40 @@ func sanitizeFontURL(value string) string {
 		return ""
 	}
 	return value
+}
+func normalizeDLNAServerName(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "Lark"
+	}
+	if len([]rune(value)) > 80 {
+		return string([]rune(value)[:80])
+	}
+	return value
+}
+func normalizeDLNAMediaBaseURL(value string) string {
+	value = strings.TrimRight(strings.TrimSpace(value), "/")
+	if value == "" {
+		return ""
+	}
+	if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+		return value
+	}
+	return ""
+}
+func normalizeCSVSetting(value string) string {
+	parts := strings.Split(value, ",")
+	clean := make([]string, 0, len(parts))
+	seen := map[string]bool{}
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" || seen[part] {
+			continue
+		}
+		seen[part] = true
+		clean = append(clean, part)
+	}
+	return strings.Join(clean, ",")
 }
 func (s *Service) setSetting(ctx context.Context, key, value string) error {
 	existing, err := s.client.AppSetting.Query().Where(appsetting.Key(key)).Only(ctx)

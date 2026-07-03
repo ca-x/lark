@@ -407,6 +407,12 @@ export interface Settings {
   netease_fallback: boolean;
   registration_enabled: boolean;
   diagnostics_enabled: boolean;
+  dlna_cast_enabled: boolean;
+  dlna_library_enabled: boolean;
+  dlna_server_name: string;
+  dlna_media_base_url: string;
+  dlna_allowed_ips: string;
+  dlna_interfaces: string;
   playback_source_ttl_hours: number;
   playback_history_retention_days: number;
   web_font_family: string;

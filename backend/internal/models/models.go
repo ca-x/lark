@@ -307,6 +307,12 @@ type Settings struct {
 	NeteaseFallback              bool   `json:"netease_fallback"`
 	RegistrationEnabled          bool   `json:"registration_enabled"`
 	DiagnosticsEnabled           bool   `json:"diagnostics_enabled"`
+	DLNACastEnabled              bool   `json:"dlna_cast_enabled"`
+	DLNALibraryEnabled           bool   `json:"dlna_library_enabled"`
+	DLNAServerName               string `json:"dlna_server_name"`
+	DLNAMediaBaseURL             string `json:"dlna_media_base_url"`
+	DLNAAllowedIPs               string `json:"dlna_allowed_ips"`
+	DLNAInterfaces               string `json:"dlna_interfaces"`
 	PlaybackSourceTTLHours       int    `json:"playback_source_ttl_hours"`
 	PlaybackHistoryRetentionDays int    `json:"playback_history_retention_days"`
 	WebFontFamily                string `json:"web_font_family"`
