@@ -263,6 +263,12 @@ const defaultSettings: Settings = {
   smart_playlists_enabled: false,
   sharing_enabled: false,
   subsonic_server_enabled: false,
+  dlna_cast_enabled: false,
+  dlna_library_enabled: false,
+  dlna_server_name: "Lark",
+  dlna_media_base_url: "",
+  dlna_allowed_ips: "",
+  dlna_interfaces: "",
   transcode_policy: "auto",
   transcode_quality_kbps: 192,
 };
