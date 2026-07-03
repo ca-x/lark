@@ -51,6 +51,54 @@ func TestSettingsPersistDiagnosticsEnabled(t *testing.T) {
 	}
 }
 
+func TestDLNASettingsPersistAndDefaultLibraryOff(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:dlna-settings?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := New(client, t.TempDir(), t.TempDir(), "ffprobe", "ffmpeg", nil, nil)
+
+	defaults, err := service.GetSettings(ctx)
+	if err != nil {
+		t.Fatalf("GetSettings defaults: %v", err)
+	}
+	if defaults.DLNALibraryEnabled {
+		t.Fatal("dlna library exposure must default off")
+	}
+	if defaults.DLNAServerName != "Lark" {
+		t.Fatalf("expected default server name Lark, got %q", defaults.DLNAServerName)
+	}
+
+	saved, err := service.SaveSettings(ctx, models.Settings{
+		Language:             "zh-CN",
+		Theme:                "deep-space",
+		DLNACastEnabled:      true,
+		DLNALibraryEnabled:   true,
+		DLNAServerName:       "Living Room Lark",
+		DLNAMediaBaseURL:     " http://192.168.1.8:8080/ ",
+		DLNAAllowedIPs:       "192.168.1.20, *",
+		DLNAInterfaces:       "eth0,wlan0",
+		TranscodePolicy:      "auto",
+		TranscodeQualityKbps: 192,
+	})
+	if err != nil {
+		t.Fatalf("SaveSettings: %v", err)
+	}
+	if !saved.DLNACastEnabled || !saved.DLNALibraryEnabled {
+		t.Fatalf("expected dlna settings enabled, got %+v", saved)
+	}
+	if saved.DLNAMediaBaseURL != "http://192.168.1.8:8080" {
+		t.Fatalf("expected trimmed media base URL, got %q", saved.DLNAMediaBaseURL)
+	}
+
+	loaded, err := service.GetSettings(ctx)
+	if err != nil {
+		t.Fatalf("GetSettings loaded: %v", err)
+	}
+	if loaded.DLNAServerName != "Living Room Lark" || loaded.DLNAAllowedIPs != "192.168.1.20,*" || loaded.DLNAInterfaces != "eth0,wlan0" {
+		t.Fatalf("unexpected loaded dlna settings: %+v", loaded)
+	}
+}
+
 func TestSettingsPersistPlaybackSourceTTL(t *testing.T) {
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
