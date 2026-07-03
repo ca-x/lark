@@ -30,13 +30,15 @@ func (s *Service) Start(ctx context.Context, baseURL string) error {
 		return nil
 	}
 	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
 	s.runCancel = cancel
-	s.runDone = make(chan struct{})
-	s.baseURL = strings.TrimRight(strings.TrimSpace(firstNonEmpty(s.options.MediaBaseURL, baseURL)), "/")
+	s.runDone = done
+	s.serverURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	s.baseURL = strings.TrimRight(strings.TrimSpace(firstNonEmpty(s.options.MediaBaseURL, s.serverURL)), "/")
 	s.mu.Unlock()
 
 	go func() {
-		defer close(s.runDone)
+		defer close(done)
 		s.ssdpNotifyLoop(runCtx)
 	}()
 	return nil

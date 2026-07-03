@@ -3,6 +3,7 @@ package dlna
 import (
 	"context"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -22,6 +23,7 @@ type Service struct {
 	runCancel context.CancelFunc
 	runDone   chan struct{}
 	baseURL   string
+	serverURL string
 }
 
 type serviceOption func(*Service)
@@ -60,6 +62,7 @@ func (s *Service) UpdateOptions(options Options) {
 	s.mu.Lock()
 	wasLibraryEnabled := s.options.LibraryEnabled
 	s.options = options
+	s.baseURL = strings.TrimRight(strings.TrimSpace(firstNonEmpty(options.MediaBaseURL, s.serverURL)), "/")
 	isLibraryEnabled := s.options.LibraryEnabled
 	s.mu.Unlock()
 	if !wasLibraryEnabled && isLibraryEnabled {
