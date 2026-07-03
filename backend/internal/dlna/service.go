@@ -53,6 +53,23 @@ func NewService(lib Library, options Options, opts ...serviceOption) *Service {
 	return s
 }
 
+func (s *Service) UpdateOptions(options Options) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	wasLibraryEnabled := s.options.LibraryEnabled
+	s.options = options
+	isLibraryEnabled := s.options.LibraryEnabled
+	s.mu.Unlock()
+	if !wasLibraryEnabled && isLibraryEnabled {
+		s.sendSSDPNotify("ssdp:alive")
+	}
+	if wasLibraryEnabled && !isLibraryEnabled {
+		s.sendSSDPNotify("ssdp:byebye")
+	}
+}
+
 func (s *Service) Status(userID int) Status {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

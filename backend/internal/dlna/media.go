@@ -24,8 +24,8 @@ const (
 )
 
 func (s *Service) RegisterPublicRoutes(mux interface {
-	GET(string, echo.HandlerFunc, ...echo.MiddlewareFunc) *echo.Route
-	POST(string, echo.HandlerFunc, ...echo.MiddlewareFunc) *echo.Route
+	GET(string, echo.HandlerFunc, ...echo.MiddlewareFunc) echo.RouteInfo
+	POST(string, echo.HandlerFunc, ...echo.MiddlewareFunc) echo.RouteInfo
 }) {
 	if s == nil {
 		return

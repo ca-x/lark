@@ -33,16 +33,11 @@ func (s *Service) Start(ctx context.Context, baseURL string) error {
 	s.runCancel = cancel
 	s.runDone = make(chan struct{})
 	s.baseURL = strings.TrimRight(strings.TrimSpace(firstNonEmpty(s.options.MediaBaseURL, baseURL)), "/")
-	libraryEnabled := s.options.LibraryEnabled
 	s.mu.Unlock()
 
 	go func() {
 		defer close(s.runDone)
-		if libraryEnabled {
-			s.ssdpNotifyLoop(runCtx)
-		} else {
-			<-runCtx.Done()
-		}
+		s.ssdpNotifyLoop(runCtx)
 	}()
 	return nil
 }
@@ -72,7 +67,11 @@ func (s *Service) Shutdown(ctx context.Context) error {
 }
 
 func (s *Service) Discover(ctx context.Context) ([]Device, error) {
-	if s == nil || !s.options.CastEnabled {
+	if s == nil {
+		return []Device{}, nil
+	}
+	options := s.snapshotOptions()
+	if !options.CastEnabled {
 		return []Device{}, nil
 	}
 	conn, err := net.ListenPacket("udp4", ":0")
@@ -254,23 +253,29 @@ func ssdpHeader(data []byte, name string) string {
 }
 
 func (s *Service) ssdpNotifyLoop(ctx context.Context) {
-	s.sendSSDPNotify("ssdp:alive")
+	if s.snapshotOptions().LibraryEnabled {
+		s.sendSSDPNotify("ssdp:alive")
+	}
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			s.sendSSDPNotify("ssdp:byebye")
+			if s.snapshotOptions().LibraryEnabled {
+				s.sendSSDPNotify("ssdp:byebye")
+			}
 			return
 		case <-ticker.C:
-			s.sendSSDPNotify("ssdp:alive")
+			if s.snapshotOptions().LibraryEnabled {
+				s.sendSSDPNotify("ssdp:alive")
+			}
 		}
 	}
 }
 
 func (s *Service) sendSSDPNotify(nts string) {
-	base := s.baseURL
-	if base == "" {
+	options, base := s.snapshotOptionsAndBase()
+	if base == "" || (!options.LibraryEnabled && nts != "ssdp:byebye") {
 		return
 	}
 	conn, err := net.Dial("udp4", ssdpMulticastAddr)
@@ -279,7 +284,7 @@ func (s *Service) sendSSDPNotify(nts string) {
 	}
 	defer conn.Close()
 	location := strings.TrimRight(base, "/") + "/dlna/rootDesc.xml"
-	usn := "uuid:" + deviceUUID(defaultString(s.options.ServerName, "Lark"))
+	usn := "uuid:" + deviceUUID(defaultString(options.ServerName, "Lark"))
 	targets := []string{
 		"upnp:rootdevice",
 		"urn:schemas-upnp-org:device:MediaServer:1",
@@ -290,4 +295,16 @@ func (s *Service) sendSSDPNotify(nts string) {
 		msg := fmt.Sprintf("NOTIFY * HTTP/1.1\r\nHOST: %s\r\nCACHE-CONTROL: max-age=%d\r\nLOCATION: %s\r\nNT: %s\r\nNTS: %s\r\nSERVER: Lark/1.0 UPnP/1.0 DLNADOC/1.50\r\nUSN: %s::%s\r\n\r\n", ssdpMulticastAddr, ssdpMaxAge, location, nt, nts, usn, nt)
 		_, _ = conn.Write([]byte(msg))
 	}
+}
+
+func (s *Service) snapshotOptions() Options {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.options
+}
+
+func (s *Service) snapshotOptionsAndBase() (Options, string) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.options, s.baseURL
 }
