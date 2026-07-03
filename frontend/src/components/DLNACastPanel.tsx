@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Monitor, Screencast, X } from "@phosphor-icons/react";
 import type { DLNADevice, DLNAStatus } from "../types";
+import type { TKey } from "../i18n";
 
-function deviceStateLabel(state: string, t: (key: string) => string) {
+function deviceStateLabel(state: string, t: (key: TKey) => string) {
   switch (state) {
     case "available":
       return t("available");
@@ -38,7 +39,7 @@ export function DLNACastPanel({
   onRefresh: () => void;
   onSelectLocal: () => void;
   onSelectDevice: (device: DLNADevice) => void;
-  t: (key: string) => string;
+  t: (key: TKey) => string;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
 

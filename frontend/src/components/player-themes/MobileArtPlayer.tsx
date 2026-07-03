@@ -9,6 +9,7 @@ import {
   Queue,
   Repeat,
   RepeatOnce,
+  Screencast,
   Shuffle,
   SkipBack,
   SkipForward,
@@ -38,6 +39,7 @@ const DEFAULT_LABELS = {
   menu: "Menu",
   favorite: "Favorite",
   soundEffects: "Sound effects",
+  cast: "Play to device",
   queue: "Queue",
   sleepTimer: "Sleep timer",
   lyrics: "Lyrics",
@@ -80,11 +82,14 @@ export function MobileArtPlayer({
   onBack,
   onFavorite,
   onSoundEffects,
+  onCast,
   onQueue,
   onSleepTimer,
   onLyrics,
   favoriteActive = false,
   soundEffectsActive = false,
+  castActive = false,
+  castLabel,
   queueActive = false,
   sleepTimerActive = false,
   lyricsActive = false,
@@ -110,11 +115,14 @@ export function MobileArtPlayer({
   onBack?: () => void;
   onFavorite?: () => void;
   onSoundEffects?: () => void;
+  onCast?: () => void;
   onQueue?: () => void;
   onSleepTimer?: () => void;
   onLyrics?: () => void;
   favoriteActive?: boolean;
   soundEffectsActive?: boolean;
+  castActive?: boolean;
+  castLabel?: string;
   queueActive?: boolean;
   sleepTimerActive?: boolean;
   lyricsActive?: boolean;
@@ -266,6 +274,9 @@ export function MobileArtPlayer({
           </button>
           <button type="button" className={soundEffectsActive ? "active" : ""} aria-label={text.soundEffects} aria-pressed={soundEffectsActive} disabled={!onSoundEffects} onClick={onSoundEffects}>
             <MusicNotes weight={soundEffectsActive ? "fill" : "regular"} />
+          </button>
+          <button type="button" className={castActive ? "active" : ""} aria-label={castLabel || text.cast} title={castLabel || text.cast} aria-pressed={castActive} disabled={!onCast} onClick={onCast}>
+            <Screencast weight={castActive ? "fill" : "regular"} />
           </button>
           <button type="button" className={sleepTimerActive ? "active" : ""} aria-label={text.sleepTimer} aria-pressed={sleepTimerActive} disabled={!onSleepTimer} onClick={onSleepTimer}>
             <Timer weight={sleepTimerActive ? "fill" : "regular"} />

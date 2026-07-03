@@ -34,6 +34,7 @@ import {
   Record,
   Repeat,
   RepeatOnce,
+  Screencast,
   ShareNetwork,
   Shuffle,
   SlidersHorizontal,
@@ -95,6 +96,8 @@ import type {
   ArtistAlbumDisplayStyle,
   ArtistPage,
   AuthStatus,
+  DLNADevice,
+  DLNAStatus,
   Folder,
   FolderDirectory,
   HealthInfo,
@@ -145,6 +148,7 @@ import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, Ipo
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
+import { DLNACastPanel } from "./components/DLNACastPanel";
 import { EqualizerPanel } from "./components/EqualizerPanel";
 import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEqualizer, storedToneControls } from "./components/equalizer";
 import { SkeletonSongList } from "./components/Skeleton";
@@ -947,6 +951,11 @@ export default function App() {
   const [collectionBack, setCollectionBack] = useState<Collection | null>(null);
   const [current, setCurrent] = useState<Song | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [dlnaStatus, setDLNAStatus] = useState<DLNAStatus | null>(null);
+  const [dlnaDevices, setDLNADevices] = useState<DLNADevice[]>([]);
+  const [dlnaPanelOpen, setDLNAPanelOpen] = useState(false);
+  const [dlnaLoading, setDLNALoading] = useState(false);
+  const [dlnaError, setDLNAError] = useState("");
   const [playMode, setPlayMode] = useState<PlayMode>("sequence");
   const [view, setView] = useState<View>("home");
   const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>(storedInterfaceMode);
@@ -1106,6 +1115,8 @@ export default function App() {
   networkReachableRef.current = networkReachable;
   autoCachePlayedRef.current = autoCachePlayed;
   const t = useMemo(() => createT(settings.language), [settings.language]);
+  const remoteDLNAActive = dlnaStatus?.output === "dlna" && Boolean(dlnaStatus.device_id);
+  const remoteDLNAPlaying = remoteDLNAActive && dlnaStatus?.state === "playing";
   const offlineCachedIds = useMemo(() => offlineCachedSongIds(offlineIndex), [offlineIndex]);
   const offlineEntries = useMemo(() => offlineSongEntries(offlineIndex), [offlineIndex]);
   const libraryPageSize = pageSizing.songs;
@@ -1396,6 +1407,23 @@ export default function App() {
   useEffect(() => {
     if (!settings.sharing_enabled && view === "shares") setView("home");
   }, [settings.sharing_enabled, view]);
+
+  useEffect(() => {
+    if (!auth?.user) {
+      setDLNAStatus(null);
+      setDLNADevices([]);
+      setDLNAError("");
+      return;
+    }
+    if (!settings.dlna_cast_enabled) {
+      setDLNADevices([]);
+      setDLNAError("");
+      setDLNAStatus((old) => old ? { ...old, cast_enabled: false, output: "local", state: "idle" } : old);
+      return;
+    }
+    void api.dlnaStatus().then(setDLNAStatus).catch(() => undefined);
+    void api.dlnaDevices().then(setDLNADevices).catch(() => undefined);
+  }, [auth?.user?.id, settings.dlna_cast_enabled]);
 
   useEffect(() => {
     setHistoryLoaded(false);
@@ -1760,9 +1788,27 @@ export default function App() {
       setClientMediaMetadata(null);
     }
     const handlers: Partial<Record<MediaSessionAction, MediaSessionActionHandler>> = {
-      play: () => setPlaying(true),
-      pause: () => setPlaying(false),
-      stop: () => setPlaying(false),
+      play: () => {
+        if (remoteDLNAActive && dlnaStatus?.device_id) {
+          if (dlnaStatus.state !== "playing") void togglePlaybackOutput();
+          return;
+        }
+        setPlaying(true);
+      },
+      pause: () => {
+        if (remoteDLNAActive && dlnaStatus?.device_id) {
+          if (dlnaStatus.state === "playing") void togglePlaybackOutput();
+          return;
+        }
+        setPlaying(false);
+      },
+      stop: () => {
+        if (remoteDLNAActive) {
+          void switchDLNAToLocal();
+          return;
+        }
+        setPlaying(false);
+      },
       previoustrack: () => next(-1),
       nexttrack: () => next(1),
       seekbackward: (details) =>
@@ -1786,19 +1832,19 @@ export default function App() {
         setClientActionHandler(action as MediaSessionAction, null);
       });
     };
-  }, [current?.id, currentRadio?.id, currentRadio?.url, currentNetworkTrack?.id, currentNetworkTrack?.source_id, t]);
+  }, [current?.id, currentRadio?.id, currentRadio?.url, currentNetworkTrack?.id, currentNetworkTrack?.source_id, dlnaStatus?.device_id, dlnaStatus?.state, remoteDLNAActive, t]);
 
   useEffect(() => {
     if (!hasClientMediaSession()) return;
     const hasPlayable = Boolean(current || currentRadio || currentNetworkTrack);
-    setClientPlaybackState(playing ? "playing" : hasPlayable ? "paused" : "none");
+    setClientPlaybackState(remoteDLNAPlaying || playing ? "playing" : hasPlayable ? "paused" : "none");
     if ((!current && !currentNetworkTrack) || !duration) return;
     setClientPositionState({
       duration,
       playbackRate: audioRef.current?.playbackRate || 1,
       position: Math.min(progress, duration),
     });
-  }, [current?.id, currentRadio?.id, currentNetworkTrack?.id, currentNetworkTrack?.source_id, duration, playing, progress]);
+  }, [current?.id, currentRadio?.id, currentNetworkTrack?.id, currentNetworkTrack?.source_id, duration, playing, progress, remoteDLNAPlaying]);
 
   useEffect(() => {
     return () => {
@@ -2678,6 +2724,160 @@ export default function App() {
     void api.savePlaybackQueue(ids, song.id, source).catch(() => undefined);
   }
 
+  function dlnaErrorMessage(err: unknown) {
+    return err instanceof Error ? err.message : String(err);
+  }
+
+  async function refreshDLNADevices(active = true) {
+    if (!settings.dlna_cast_enabled) {
+      setDLNADevices([]);
+      setDLNAError(t("dlnaCastDisabled"));
+      setDLNAStatus((old) => old ?? {
+        cast_enabled: false,
+        library_enabled: settings.dlna_library_enabled,
+        output: "local",
+        state: "idle",
+      });
+      return;
+    }
+    if (active) setDLNALoading(true);
+    setDLNAError("");
+    try {
+      const devices = active ? await api.discoverDLNADevices() : await api.dlnaDevices();
+      setDLNADevices(devices);
+      setDLNAStatus(await api.dlnaStatus());
+    } catch (err) {
+      setDLNAError(dlnaErrorMessage(err));
+    } finally {
+      if (active) setDLNALoading(false);
+    }
+  }
+
+  function openDLNAPanel() {
+    setDLNAPanelOpen(true);
+    void refreshDLNADevices(false);
+  }
+
+  async function playSongToDLNADevice(
+    deviceID: string,
+    song: Song,
+    list = songs,
+    options: PlaySongOptions = {},
+  ) {
+    if (!deviceID || !settings.dlna_cast_enabled) {
+      setDLNAError(t("dlnaCastDisabled"));
+      setDLNAPanelOpen(true);
+      return false;
+    }
+    const nextQueue = queueWithCurrent(list.length ? list : [song], song);
+    setDLNALoading(true);
+    setDLNAError("");
+    try {
+      const status = await api.playDLNA(deviceID, song.id);
+      if (current && current.id !== song.id) syncPlaybackProgress(false);
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
+      playbackStartModeRef.current = options.startMode ?? "restart";
+      pendingAutoplayRef.current = false;
+      setBuffering(false);
+      setRadioDownloadKbps(0);
+      radioDownloadSampleRef.current = { at: 0, ahead: 0 };
+      setStreamOffset(0);
+      setStreamMode(defaultStreamMode(song));
+      setCurrentRadio(null);
+      setRadioQueue([]);
+      setCurrentNetworkTrack(null);
+      setCurrent(song);
+      setQueue(nextQueue);
+      setProgress(0);
+      setBufferedEnd(0);
+      setDuration(song.duration_seconds || 0);
+      setPlaying(false);
+      setDLNAStatus(status);
+      setDLNAPanelOpen(false);
+      playUISound("play");
+      const nextSource = persistPlaybackSourceForPlay(options);
+      savePlaybackQueueSession(nextQueue, song, nextSource);
+      prependRecentPlayed(song);
+      await api.markPlayed(song.id).catch(() => undefined);
+      scheduleRecentPlayedRefresh();
+      return true;
+    } catch (err) {
+      const messageText = dlnaErrorMessage(err);
+      setDLNAError(messageText);
+      setDLNAPanelOpen(true);
+      showMessage(messageText);
+      return false;
+    } finally {
+      setDLNALoading(false);
+    }
+  }
+
+  async function playCurrentToDLNA(device: DLNADevice) {
+    if (!current) {
+      setDLNAError(t("dlnaSelectSongFirst"));
+      return;
+    }
+    await playSongToDLNADevice(device.id, current, queue.length ? queue : [current], { keepPlaybackSource: true });
+  }
+
+  async function switchDLNAToLocal() {
+    if (!remoteDLNAActive) {
+      setDLNAPanelOpen(false);
+      return;
+    }
+    setDLNALoading(true);
+    setDLNAError("");
+    try {
+      if (dlnaStatus?.device_id) {
+        await api.stopDLNA(dlnaStatus.device_id).catch(() => undefined);
+      }
+      const status = await api.switchDLNALocal();
+      setDLNAStatus(status);
+      setDLNAPanelOpen(false);
+      if (current) {
+        pendingAutoplayRef.current = true;
+        setPlaying(true);
+      }
+      showMessage(t("localPlayback"));
+    } catch (err) {
+      setDLNAError(dlnaErrorMessage(err));
+    } finally {
+      setDLNALoading(false);
+    }
+  }
+
+  async function togglePlaybackOutput() {
+    if (remoteDLNAActive && dlnaStatus?.device_id) {
+      setDLNALoading(true);
+      setDLNAError("");
+      try {
+        const nextStatus = dlnaStatus.state === "playing"
+          ? await api.pauseDLNA(dlnaStatus.device_id)
+          : await api.resumeDLNA(dlnaStatus.device_id);
+        setDLNAStatus(nextStatus);
+        setPlaying(false);
+        audioRef.current?.pause();
+        playUISound(nextStatus.state === "playing" ? "play" : "pause");
+      } catch (err) {
+        const messageText = dlnaErrorMessage(err);
+        setDLNAError(messageText);
+        setDLNAPanelOpen(true);
+        showMessage(messageText);
+      } finally {
+        setDLNALoading(false);
+      }
+      return;
+    }
+    setPlaying((value) => {
+      playUISound(value ? "pause" : "play");
+      return !value;
+    });
+  }
+
   function saveRadioPlaybackSession(station: RadioStation, items: RadioStation[]) {
     if (!auth?.user) return;
     const radioItems = uniqueRadioStations([station, ...items]);
@@ -2755,6 +2955,10 @@ export default function App() {
     list = songs,
     options: PlaySongOptions = {},
   ) {
+    if (remoteDLNAActive && dlnaStatus?.device_id) {
+      await playSongToDLNADevice(dlnaStatus.device_id, song, list, options);
+      return;
+    }
     const sameSong = current?.id === song.id;
     if (current && !sameSong) {
       syncPlaybackProgress(false);
@@ -3029,6 +3233,10 @@ export default function App() {
       return;
     }
     if (ended && mode === "repeat-one") {
+      if (remoteDLNAActive && dlnaStatus?.device_id) {
+        void playSongToDLNADevice(dlnaStatus.device_id, active, activeQueue, { keepPlaybackSource: true });
+        return;
+      }
       const audio = audioRef.current;
       if (audio) {
         audio.currentTime = 0;
@@ -3069,6 +3277,10 @@ export default function App() {
       return;
     }
     if (target.id === active.id && audioRef.current) {
+      if (remoteDLNAActive && dlnaStatus?.device_id) {
+        void playSongToDLNADevice(dlnaStatus.device_id, target, activeQueue, { keepPlaybackSource: true });
+        return;
+      }
       audioRef.current.currentTime = 0;
       setStreamOffset(0);
       setProgress(0);
@@ -3081,6 +3293,10 @@ export default function App() {
       pendingAutoplayRef.current = true;
       setPlaying(true);
       requestAudioPlay();
+      return;
+    }
+    if (remoteDLNAActive && dlnaStatus?.device_id) {
+      void playSongToDLNADevice(dlnaStatus.device_id, target, activeQueue, { keepPlaybackSource: true });
       return;
     }
     void playSong(target, activeQueue, { keepPlaybackSource: true });
@@ -4022,7 +4238,11 @@ export default function App() {
     ? [currentRadio.country, currentRadio.codec || currentRadio.tags, currentRadio.bitrate ? `${currentRadio.bitrate}kbps` : "", radioDownloadSpeed].filter(Boolean).join(" · ")
     : currentNetworkTrack
       ? [t("networkLibrary"), currentNetworkTrack.provider, currentNetworkTrack.artist, currentNetworkTrack.album].filter(Boolean).join(" · ")
-    : "";
+      : "";
+  const playerPlaying = remoteDLNAPlaying || playing;
+  const dlnaCastLabel = remoteDLNAActive && dlnaStatus?.device_name
+    ? `${t("playingOnDevice")} ${dlnaStatus.device_name}`
+    : t("playToDevice");
   const radioPanelStations = useMemo(() => {
     const inferredGroupQueue = currentRadio ? radioQueueForStation(currentRadio) : [];
     const base = uniqueRadioStations([
@@ -4065,6 +4285,7 @@ export default function App() {
     queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
     lyrics: t("lyrics"),
     sleepTimer: t("sleepTimer"),
+    cast: dlnaCastLabel,
   };
   const seekStyle = {
     "--played": playedPercent,
@@ -4266,7 +4487,7 @@ export default function App() {
                 currentRadio={currentRadio}
                 heroSong={heroSong}
                 current={current}
-                playing={playing}
+                playing={playerPlaying}
                 progress={progress}
                 duration={playableDuration}
                 audioElement={audioEl}
@@ -4283,10 +4504,7 @@ export default function App() {
                 t={t}
                 onPlay={playSong}
                 onResume={(song) => void resumePlayback(song)}
-                onTogglePlayback={() => setPlaying((value) => {
-                  playUISound(value ? "pause" : "play");
-                  return !value;
-                })}
+                onTogglePlayback={() => void togglePlaybackOutput()}
                 onPrevious={() => next(-1)}
                 onNext={() => next(1)}
                 onVolume={updateVolume}
@@ -4344,7 +4562,7 @@ export default function App() {
                 entries={historyEntries}
                 loading={historyLoading}
                 current={current}
-                playing={playing}
+                playing={playerPlaying}
                 t={t}
                 onRefresh={() => void refreshPlaybackHistory()}
                 onPlay={(song, list) => playSong(song, list)}
@@ -4756,13 +4974,26 @@ export default function App() {
         />
       ) : null}
 
+      <DLNACastPanel
+        open={dlnaPanelOpen}
+        devices={dlnaDevices}
+        status={dlnaStatus}
+        loading={dlnaLoading}
+        error={dlnaError}
+        onClose={() => setDLNAPanelOpen(false)}
+        onRefresh={() => void refreshDLNADevices(true)}
+        onSelectLocal={() => void switchDLNAToLocal()}
+        onSelectDevice={(device) => void playCurrentToDLNA(device)}
+        t={t}
+      />
+
       <footer className="player" style={playerStyle}>
         <MobileMiniPlayer
           theme={mobileHomePlayerStyle}
           cover={currentArtwork || coverUrl(mobileDisplaySong)}
           title={mobileDisplaySong?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("brand")}
           artist={mobileDisplaySong?.artist ?? currentNetworkTrack?.artist ?? currentRadio?.country ?? t("nowPlaying")}
-          playing={playing}
+          playing={playerPlaying}
           progress={progress}
           duration={playableDuration}
           labels={{
@@ -4772,10 +5003,7 @@ export default function App() {
             queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
             next: t("next"),
           }}
-          onToggle={() => setPlaying((value) => {
-            playUISound(value ? "pause" : "play");
-            return !value;
-          })}
+          onToggle={() => void togglePlaybackOutput()}
           onExpand={() => {
             setLyricsFullScreen(false);
             setMobilePlayerExpanded(true);
@@ -4786,7 +5014,7 @@ export default function App() {
         <MobilePlayerDock
           theme={mobileHomePlayerStyle}
           cover={currentArtwork || coverUrl(mobileDisplaySong)}
-          playing={playing}
+          playing={playerPlaying}
           progress={progress}
           duration={playableDuration}
           volume={volume}
@@ -4796,10 +5024,7 @@ export default function App() {
           playMode={playMode}
           playModeLabel={playModeLabel}
           labels={mobilePlayerLabels}
-          onToggle={() => setPlaying((value) => {
-            playUISound(value ? "pause" : "play");
-            return !value;
-          })}
+          onToggle={() => void togglePlaybackOutput()}
           onPrevious={() => next(-1)}
           onNext={() => next(1)}
           onCyclePlayMode={cyclePlayMode}
@@ -4808,6 +5033,7 @@ export default function App() {
           onBack={() => setMobilePlayerExpanded(false)}
           onFavorite={canFavoriteCurrent ? toggleCurrentFavorite : undefined}
           onSoundEffects={toggleEqualizerPanel}
+          onCast={openDLNAPanel}
           onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
           onSleepTimer={() => setSleepTimerOpen(true)}
           onLyrics={current ? () => {
@@ -4816,13 +5042,15 @@ export default function App() {
           } : undefined}
           favoriteActive={Boolean(currentRadio?.favorite || current?.favorite)}
           soundEffectsActive={eqPanelOpen || eqEnabled}
+          castActive={remoteDLNAActive}
+          castLabel={dlnaCastLabel}
           queueActive={queueOpen}
           sleepTimerActive={sleepTimerMode !== "off"}
           lyricsActive={lyricsFullScreen || inlineLyrics}
         />
         <PlayerMood
           theme={settings.theme}
-          playing={playing}
+          playing={playerPlaying}
           song={current}
           radio={currentRadio}
           audioEl={audioEl}
@@ -4847,11 +5075,11 @@ export default function App() {
             }}
           >
             {currentRadio ? (
-              <RadioMiniLogo station={currentRadio} playing={playing} />
+              <RadioMiniLogo station={currentRadio} playing={playerPlaying} />
             ) : currentNetworkTrack ? (
-              <MiniArtwork url={currentNetworkTrack.cover_url} playing={playing} />
+              <MiniArtwork url={currentNetworkTrack.cover_url} playing={playerPlaying} />
             ) : (
-              <MiniCover song={current} playing={playing} />
+              <MiniCover song={current} playing={playerPlaying} />
             )}
           </button>
           <div>
@@ -4915,15 +5143,12 @@ export default function App() {
               </button>
               <button
                 className="play"
-                data-playing={playing ? "true" : "false"}
-                aria-label={playing ? t("pause") : t("play")}
+                data-playing={playerPlaying ? "true" : "false"}
+                aria-label={playerPlaying ? t("pause") : t("play")}
                 disabled={!current && !currentRadio && !currentNetworkTrack}
-                onClick={() => setPlaying((value) => {
-                  playUISound(value ? "pause" : "play");
-                  return !value;
-                })}
+                onClick={() => void togglePlaybackOutput()}
               >
-                {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
+                {playerPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
               </button>
               <button aria-label={t("next")} onClick={() => next(1)}>
                 <SkipForward weight="fill" />
@@ -4999,6 +5224,15 @@ export default function App() {
             onClick={toggleQueuePanel}
           >
             <Queue />
+          </button>
+          <button
+            className={remoteDLNAActive ? "cast-toggle active" : "cast-toggle"}
+            title={dlnaCastLabel}
+            aria-label={dlnaCastLabel}
+            aria-pressed={remoteDLNAActive}
+            onClick={openDLNAPanel}
+          >
+            <Screencast />
           </button>
           <button
             className={eqPanelOpen || eqEnabled ? "eq-toggle active" : "eq-toggle"}
@@ -5260,7 +5494,7 @@ export default function App() {
         current={current}
         currentRadio={currentRadio}
         currentNetworkTrack={currentNetworkTrack}
-        playing={playing}
+        playing={playerPlaying}
         progress={progress}
         duration={playableDuration}
         volume={volume}
@@ -5277,10 +5511,7 @@ export default function App() {
         onPlayAlbum={(album) => void playAlbum(album)}
         onFavoriteSong={(song) => void toggleFavorite(song)}
         onFavoriteAlbum={(album) => void toggleAlbumFavorite(album)}
-        onTogglePlayback={() => setPlaying((value) => {
-          playUISound(value ? "pause" : "play");
-          return !value;
-        })}
+        onTogglePlayback={() => void togglePlaybackOutput()}
         onPrevious={() => next(-1)}
         onNext={() => next(1)}
         onSeek={seekTo}
@@ -10114,6 +10345,28 @@ function SettingsPanel({
                   onChange={(e) => setSettings({ ...settings, subsonic_server_enabled: e.target.checked })}
                 />
               </label>
+              <label className="switch-row">
+                <span>
+                  <span>{t("dlnaCast")}</span>
+                  <small>{t("dlnaCastHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.dlna_cast_enabled}
+                  onChange={(e) => setSettings({ ...settings, dlna_cast_enabled: e.target.checked })}
+                />
+              </label>
+              <label className="switch-row">
+                <span>
+                  <span>{t("dlnaLibrary")}</span>
+                  <small>{t("dlnaLibraryHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={settings.dlna_library_enabled}
+                  onChange={(e) => setSettings({ ...settings, dlna_library_enabled: e.target.checked })}
+                />
+              </label>
               <div className="settings-mini-grid">
                 <label>
                   {t("sharingEndpoint")}
@@ -10122,6 +10375,38 @@ function SettingsPanel({
                 <label>
                   {t("subsonicEndpoint")}
                   <input readOnly value={subsonicEndpoint} />
+                </label>
+                <label>
+                  {t("dlnaServerName")}
+                  <input
+                    value={settings.dlna_server_name}
+                    placeholder="Lark"
+                    onChange={(e) => setSettings({ ...settings, dlna_server_name: e.target.value })}
+                  />
+                </label>
+                <label>
+                  {t("dlnaMediaBaseURL")}
+                  <input
+                    value={settings.dlna_media_base_url}
+                    placeholder={window.location.origin}
+                    onChange={(e) => setSettings({ ...settings, dlna_media_base_url: e.target.value })}
+                  />
+                </label>
+                <label>
+                  {t("dlnaAllowedIPs")}
+                  <input
+                    value={settings.dlna_allowed_ips}
+                    placeholder="192.168.1.20,*"
+                    onChange={(e) => setSettings({ ...settings, dlna_allowed_ips: e.target.value })}
+                  />
+                </label>
+                <label>
+                  {t("dlnaInterfaces")}
+                  <input
+                    value={settings.dlna_interfaces}
+                    placeholder="eth0,wlan0"
+                    onChange={(e) => setSettings({ ...settings, dlna_interfaces: e.target.value })}
+                  />
                 </label>
                 <label>
                   {t("transcodePolicy")}

@@ -23,11 +23,14 @@ export function MobilePlayerDock({
   onBack,
   onFavorite,
   onSoundEffects,
+  onCast,
   onQueue,
   onSleepTimer,
   onLyrics,
   favoriteActive,
   soundEffectsActive,
+  castActive,
+  castLabel,
   queueActive,
   sleepTimerActive,
   lyricsActive,
@@ -53,11 +56,14 @@ export function MobilePlayerDock({
   onBack?: () => void;
   onFavorite?: () => void;
   onSoundEffects?: () => void;
+  onCast?: () => void;
   onQueue?: () => void;
   onSleepTimer?: () => void;
   onLyrics?: () => void;
   favoriteActive?: boolean;
   soundEffectsActive?: boolean;
+  castActive?: boolean;
+  castLabel?: string;
   queueActive?: boolean;
   sleepTimerActive?: boolean;
   lyricsActive?: boolean;
@@ -85,11 +91,14 @@ export function MobilePlayerDock({
       onBack={onBack}
       onFavorite={onFavorite}
       onSoundEffects={onSoundEffects}
+      onCast={onCast}
       onQueue={onQueue}
       onSleepTimer={onSleepTimer}
       onLyrics={onLyrics}
       favoriteActive={favoriteActive}
       soundEffectsActive={soundEffectsActive}
+      castActive={castActive}
+      castLabel={castLabel}
       queueActive={queueActive}
       sleepTimerActive={sleepTimerActive}
       lyricsActive={lyricsActive}
