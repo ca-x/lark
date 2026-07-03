@@ -1456,6 +1456,40 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .queue-head strong::after { content:' · up next'; color:var(--muted); font-size:12px; font-weight:500; margin-left:6px; }
 @keyframes queue-in { from { transform:translateY(14px) scale(.98); opacity:0; } to { transform:translateY(0) scale(1); opacity:1; } }
 
+.dlna-cast-layer { position:fixed; inset:0; z-index:1002; pointer-events:none; }
+.dlna-cast-scrim { position:absolute; inset:0; min-width:0; min-height:0; border:0; border-radius:0; background:rgba(0,0,0,.30); backdrop-filter:blur(2px); pointer-events:auto; }
+.dlna-cast-panel { position:absolute; right:24px; bottom:calc(var(--player-h) + 24px + var(--safe-bottom)); width:min(390px, calc(100vw - 28px)); max-height:min(520px, calc(100dvh - 140px)); display:grid; grid-template-rows:auto auto minmax(0,1fr); overflow:hidden; pointer-events:auto; border:1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius:22px; background:color-mix(in srgb, var(--panel) 94%, transparent); box-shadow:var(--shadow); animation:queue-in .22s var(--ease); }
+.dlna-cast-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line); }
+.dlna-cast-head strong, .dlna-cast-head span { display:block; }
+.dlna-cast-head strong { color:var(--text); font-size:15px; font-weight:900; }
+.dlna-cast-head span { margin-top:3px; color:var(--muted); font-size:12px; line-height:1.35; }
+.dlna-cast-actions { display:flex; align-items:center; gap:8px; }
+.dlna-cast-actions button { min-height:38px; padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel2); color:var(--text); font-weight:800; }
+.dlna-cast-actions button:last-child { width:38px; min-width:38px; padding:0; display:grid; place-items:center; }
+.dlna-cast-actions button svg { width:18px; height:18px; }
+.dlna-cast-actions button:disabled { opacity:.5; cursor:not-allowed; }
+.dlna-cast-error { margin:10px 12px 0; padding:10px 12px; border:1px solid color-mix(in srgb, var(--danger) 36%, var(--line)); border-radius:14px; color:var(--danger); background:color-mix(in srgb, var(--danger) 10%, var(--panel2)); font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+.dlna-cast-list { min-height:0; overflow:auto; padding:10px; display:grid; gap:6px; }
+.dlna-cast-row { min-height:58px; display:grid; grid-template-columns:42px minmax(0,1fr) auto; align-items:center; gap:10px; width:100%; padding:8px 10px; border:1px solid transparent; border-radius:16px; background:transparent; color:var(--muted); text-align:left; }
+.dlna-cast-row:not(:disabled):hover, .dlna-cast-row.active { color:var(--text); border-color:color-mix(in srgb, var(--accent) 34%, var(--line)); background:color-mix(in srgb, var(--accent) 10%, var(--panel2)); }
+.dlna-cast-row:disabled { opacity:.48; cursor:not-allowed; }
+.dlna-cast-icon { width:42px; height:42px; display:grid; place-items:center; border-radius:14px; color:var(--text); background:color-mix(in srgb, var(--text) 8%, var(--panel2)); }
+.dlna-cast-icon svg { width:22px; height:22px; }
+.dlna-cast-row strong, .dlna-cast-row small { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dlna-cast-row strong { color:inherit; font-size:13px; font-weight:850; }
+.dlna-cast-row small { margin-top:3px; color:var(--muted); font-size:11px; }
+.dlna-cast-row em { min-width:58px; padding:5px 8px; border-radius:999px; background:var(--accent); color:var(--bg); font-style:normal; font-size:11px; font-weight:900; text-align:center; }
+.dlna-cast-empty { min-height:110px; display:grid; place-items:center; align-content:center; gap:6px; padding:18px; border:1px dashed var(--line); border-radius:18px; color:var(--muted); text-align:center; background:color-mix(in srgb, var(--panel2) 72%, transparent); }
+.dlna-cast-empty strong { color:var(--text); font-size:13px; }
+.dlna-cast-empty span { max-width:280px; font-size:12px; line-height:1.45; }
+
+@media (max-width:700px) {
+  .dlna-cast-panel { left:0; right:0; bottom:0; width:100%; max-height:min(78dvh, 620px); border-radius:24px 24px 0 0; border-left:0; border-right:0; border-bottom:0; }
+  .dlna-cast-head { padding-top:20px; }
+  .dlna-cast-head::before { content:''; position:absolute; top:8px; left:50%; width:46px; height:4px; border-radius:999px; transform:translateX(-50%); background:color-mix(in srgb, var(--text) 18%, transparent); }
+  .dlna-cast-row { min-height:62px; }
+}
+
 
 /* Huashu pass v2: home view and faster management surfaces */
 .home-view { display:grid; gap:18px; }

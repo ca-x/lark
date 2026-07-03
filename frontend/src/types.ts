@@ -431,6 +431,25 @@ export interface Settings {
   transcode_quality_kbps: number;
 }
 
+export interface DLNADevice {
+  id: string;
+  name: string;
+  protocol: "DLNA" | string;
+  state: "available" | "connecting" | "playing" | "unavailable" | string;
+  manufacturer?: string;
+  model?: string;
+  last_seen_at: string;
+}
+
+export interface DLNAStatus {
+  cast_enabled: boolean;
+  library_enabled: boolean;
+  output: "local" | "dlna" | string;
+  device_id?: string;
+  device_name?: string;
+  state: "idle" | "playing" | "paused" | "stopped" | string;
+}
+
 export interface ScrobblingSettings {
   enabled: boolean;
   provider: "listenbrainz" | "lastfm" | string;

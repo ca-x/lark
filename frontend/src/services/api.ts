@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings, DLNADevice, DLNAStatus } from '../types'
 
 function currentDeviceType() {
   if (typeof navigator === 'undefined') return 'pc'
@@ -189,6 +189,14 @@ export const api = {
     return res.json() as Promise<Settings>
   },
   deleteFont: (name: string) => request<Settings>(`/api/fonts/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  dlnaStatus: () => request<DLNAStatus>('/api/dlna/status'),
+  dlnaDevices: () => request<DLNADevice[]>('/api/dlna/devices'),
+  discoverDLNADevices: () => request<DLNADevice[]>('/api/dlna/discover', { method: 'POST' }),
+  playDLNA: (device_id: string, song_id: number) => request<DLNAStatus>('/api/dlna/play', { method: 'POST', body: JSON.stringify({ device_id, song_id }) }),
+  pauseDLNA: (device_id: string) => request<DLNAStatus>('/api/dlna/pause', { method: 'POST', body: JSON.stringify({ device_id }) }),
+  resumeDLNA: (device_id: string) => request<DLNAStatus>('/api/dlna/resume', { method: 'POST', body: JSON.stringify({ device_id }) }),
+  stopDLNA: (device_id: string) => request<DLNAStatus>('/api/dlna/stop', { method: 'POST', body: JSON.stringify({ device_id }) }),
+  switchDLNALocal: () => request<DLNAStatus>('/api/dlna/local', { method: 'POST' }),
   mcpToken: () => request<MCPTokenStatus>('/api/mcp/token'),
   setMcpToken: (token: string) => request<MCPTokenStatus>('/api/mcp/token', { method: 'PUT', body: JSON.stringify({ token }) }),
   generateMcpToken: () => request<MCPTokenStatus>('/api/mcp/token/generate', { method: 'POST' }),
