@@ -12,6 +12,17 @@ import (
 const didlNamespace = `urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/`
 
 func BuildSongDIDL(item models.Song, resource MediaResource) (string, error) {
+	didl := didlLite{
+		XMLNS: didlNamespace,
+		DC:    "http://purl.org/dc/elements/1.1/",
+		UPNP:  "urn:schemas-upnp-org:metadata-1-0/upnp/",
+		DLNA:  "urn:schemas-dlna-org:metadata-1-0/",
+		Items: []didlItem{buildSongDIDLItem(item, resource)},
+	}
+	return marshalDIDL(didl)
+}
+
+func buildSongDIDLItem(item models.Song, resource MediaResource) didlItem {
 	title := strings.TrimSpace(item.Title)
 	if title == "" {
 		title = strings.TrimSpace(item.FileName)
@@ -39,27 +50,21 @@ func BuildSongDIDL(item models.Song, resource MediaResource) (string, error) {
 		Bitrate:      bitRate,
 		Value:        resource.AudioURL,
 	}
-	didl := didlLite{
-		XMLNS: didlNamespace,
-		DC:    "http://purl.org/dc/elements/1.1/",
-		UPNP:  "urn:schemas-upnp-org:metadata-1-0/upnp/",
-		Items: []didlItem{{
-			ID:         fmt.Sprintf("song:%d", item.ID),
-			ParentID:   parentSongContainer(item),
-			Restricted: "1",
-			Title:      title,
-			Creator:    item.Artist,
-			Class:      "object.item.audioItem.musicTrack",
-			Album:      item.Album,
-			Artist:     item.Artist,
-			AlbumArtURI: didlAlbumArtURI{
-				DLNAProfileID: "JPEG_TN",
-				Value:         resource.CoverURL,
-			},
-			Resources: []didlResource{res},
-		}},
+	return didlItem{
+		ID:         fmt.Sprintf("song:%d", item.ID),
+		ParentID:   parentSongContainer(item),
+		Restricted: "1",
+		Title:      title,
+		Creator:    item.Artist,
+		Class:      "object.item.audioItem.musicTrack",
+		Album:      item.Album,
+		Artist:     item.Artist,
+		AlbumArtURI: didlAlbumArtURI{
+			DLNAProfileID: "JPEG_TN",
+			Value:         resource.CoverURL,
+		},
+		Resources: []didlResource{res},
 	}
-	return marshalDIDL(didl)
 }
 
 func BuildContainerDIDL(items []Container) (string, error) {
@@ -87,6 +92,7 @@ func BuildContainerDIDL(items []Container) (string, error) {
 		XMLNS:      didlNamespace,
 		DC:         "http://purl.org/dc/elements/1.1/",
 		UPNP:       "urn:schemas-upnp-org:metadata-1-0/upnp/",
+		DLNA:       "urn:schemas-dlna-org:metadata-1-0/",
 		Containers: containers,
 	})
 }
@@ -96,17 +102,10 @@ func SongsDIDL(items []models.Song, resource func(models.Song) MediaResource) (s
 		XMLNS: didlNamespace,
 		DC:    "http://purl.org/dc/elements/1.1/",
 		UPNP:  "urn:schemas-upnp-org:metadata-1-0/upnp/",
+		DLNA:  "urn:schemas-dlna-org:metadata-1-0/",
 	}
 	for _, item := range items {
-		didlText, err := BuildSongDIDL(item, resource(item))
-		if err != nil {
-			return "", err
-		}
-		var parsed didlLite
-		if err := xml.Unmarshal([]byte(didlText), &parsed); err != nil {
-			return "", err
-		}
-		out.Items = append(out.Items, parsed.Items...)
+		out.Items = append(out.Items, buildSongDIDLItem(item, resource(item)))
 	}
 	return marshalDIDL(out)
 }
@@ -176,6 +175,7 @@ type didlLite struct {
 	XMLNS      string          `xml:"xmlns,attr"`
 	DC         string          `xml:"xmlns:dc,attr"`
 	UPNP       string          `xml:"xmlns:upnp,attr"`
+	DLNA       string          `xml:"xmlns:dlna,attr,omitempty"`
 	Items      []didlItem      `xml:"item,omitempty"`
 	Containers []didlContainer `xml:"container,omitempty"`
 }

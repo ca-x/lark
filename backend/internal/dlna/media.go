@@ -25,10 +25,14 @@ const (
 
 func (s *Service) RegisterPublicRoutes(mux interface {
 	GET(string, echo.HandlerFunc, ...echo.MiddlewareFunc) *echo.Route
+	POST(string, echo.HandlerFunc, ...echo.MiddlewareFunc) *echo.Route
 }) {
 	if s == nil {
 		return
 	}
+	mux.GET("/dlna/rootDesc.xml", echo.WrapHandler(http.HandlerFunc(s.handleRootDescription)))
+	mux.GET("/dlna/scpd/:service", echo.WrapHandler(http.HandlerFunc(s.handleSCPD)))
+	mux.POST("/dlna/control", echo.WrapHandler(http.HandlerFunc(s.handleSOAP)))
 	mux.GET("/dlna/audio/:token/:songID", echo.WrapHandler(http.HandlerFunc(s.handleAudio)))
 	mux.GET("/dlna/cover/:token/:songID", echo.WrapHandler(http.HandlerFunc(s.handleCover)))
 	mux.GET("/dlna/transcode/:token/:songID", echo.WrapHandler(http.HandlerFunc(s.handleTranscode)))
