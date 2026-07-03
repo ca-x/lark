@@ -1,10 +1,13 @@
-# DLNA Cast Playback Design
+# DLNA Playback And Library Design
 
 ## Goal
 
-Add "play to another device" support to Lark. The user should keep browsing and controlling playback from Lark, choose a DLNA-capable device from the player UI, and have the current song or queue play on that remote device.
+Add DLNA support to Lark in two complementary ways:
 
-This is not primarily a DLNA library-browsing feature. Lark remains the control surface. DLNA is the transport used to discover renderers, provide a playable media URL, send metadata, and control playback.
+- Play to another device: the user keeps browsing and controlling playback from Lark, chooses a DLNA-capable renderer from the player UI, and has the current song or queue play on that remote device.
+- DLNA library: external DLNA clients can discover Lark on the LAN as a MediaServer and browse/play the Lark music library directly.
+
+The Lark frontend only exposes the first user workflow: playing to another device. The DLNA library is a backend/protocol capability for TVs, speakers, receivers, and third-party DLNA clients, not a new library-browsing surface inside Lark.
 
 ## Reference Findings
 
@@ -16,12 +19,14 @@ The Stash reference implementation in `/tmp/stashapp-stash/internal/dlna` is use
 - `cms.go` implements ConnectionManager protocol information.
 - `whitelist.go` tracks allowed and recent client IPs.
 
-Lark needs a narrower audio-focused adaptation. The important parts to borrow are SSDP/UPnP service structure, DIDL-Lite generation, range-friendly resource serving, and DLNA response headers. Stash's scene/video repository model and full library browsing hierarchy should not be copied directly.
+Lark needs an audio-focused adaptation. The important parts to borrow are SSDP/UPnP service structure, device description generation, ContentDirectory browsing, ConnectionManager responses, DIDL-Lite generation, range-friendly resource serving, and DLNA response headers. Stash's scene/video repository model should not be copied directly.
 
 ## Scope
 
 In scope:
 
+- A backend DLNA MediaServer that advertises Lark and exposes a browsable music library.
+- ContentDirectory containers for all songs, albums, artists, playlists, and folders.
 - A backend DLNA casting subsystem that can discover MediaRenderer devices.
 - A backend media endpoint that exposes selected songs to DLNA devices without requiring browser cookies.
 - A backend controller that can send `SetAVTransportURI`, `Play`, `Pause`, and `Stop` to a selected device.
@@ -31,7 +36,7 @@ In scope:
 
 Out of scope for the first implementation:
 
-- Browsing the full Lark library from a TV's built-in DLNA browser.
+- A DLNA library browser inside the Lark Web frontend.
 - Remote volume control.
 - Reliable remote progress tracking on every renderer.
 - Multi-room or simultaneous playback.
@@ -39,7 +44,7 @@ Out of scope for the first implementation:
 
 ## Product Model
 
-The user-facing model is "playback output", not "DLNA".
+The Lark frontend model is "playback output", not "DLNA".
 
 Output targets:
 
@@ -48,7 +53,11 @@ Output targets:
 
 When the user chooses a DLNA target, Lark pauses local audio and becomes the remote controller for the selected target. The current queue stays in Lark. The remote device receives one playable URL and metadata item at a time.
 
+Separately, external DLNA clients see Lark as a MediaServer. They can browse Lark's library from their own UI. This does not add a second music-browsing experience to the Lark frontend.
+
 ## Frontend Interaction
+
+The normal player UI only exposes casting: choosing where the current Lark playback should go. It does not expose a DLNA library browser.
 
 ### Entry
 
@@ -123,6 +132,20 @@ Recoverable states:
 - Device rejected playback: show `Retry` and `This device`.
 - Format unsupported: backend retries once with a transcoded MP3 URL, then shows `This device` if that fails.
 
+### Settings Entry
+
+Add a site-settings section near Sharing and Subsonic.
+
+Controls:
+
+- `Play to DLNA devices`: enables renderer discovery and the player cast button behavior.
+- `Expose Lark as a DLNA library`: lets TVs, receivers, speakers, and third-party DLNA clients discover Lark as a LAN media source.
+- `DLNA library name`: display name used by external DLNA clients when library exposure is enabled.
+- `Media base URL`: optional advanced field for the URL sent to DLNA devices when automatic LAN address detection is wrong.
+- `Allowed client IPs`: optional advanced allowlist for devices that may browse or fetch DLNA media.
+
+`Expose Lark as a DLNA library` should default off for existing installs because it publishes library metadata to LAN devices. Turning it on starts SSDP MediaServer announcements. Turning it off stops announcements and rejects ContentDirectory browse requests, while `Play to DLNA devices` can still remain enabled.
+
 ## Backend Architecture
 
 Add `backend/internal/dlna`.
@@ -131,13 +154,45 @@ Add `backend/internal/dlna`.
 
 `Service` owns lifecycle and shared state:
 
-- Starts and stops discovery/controller support with the main server.
+- Starts and stops MediaServer advertisement, ContentDirectory handlers, discovery, and controller support with the main server.
 - Maintains discovered device cache with last-seen timestamps.
 - Maintains the currently selected renderer per authenticated user or session.
 - Issues and validates short-lived media tokens.
 - Exposes methods used by API handlers.
 
-The service should support ordered shutdown from `cmd/server/main.go` and must not leave discovery timers, UDP sockets, or controller goroutines running after server shutdown.
+The service should support ordered shutdown from `cmd/server/main.go` and must not leave SSDP announcement loops, discovery timers, UDP sockets, HTTP callbacks, or controller goroutines running after server shutdown.
+
+### MediaServer
+
+The MediaServer runs on the existing backend HTTP server and advertises a UPnP root device through SSDP. It does not need a separate TCP port in the first version.
+
+MediaServer responsibilities:
+
+- Serve the root device description XML.
+- Serve SCPD XML for `ContentDirectory`, `ConnectionManager`, and a minimal `X_MS_MediaReceiverRegistrar` compatibility service.
+- Handle SOAP control requests for ContentDirectory and ConnectionManager.
+- Announce `urn:schemas-upnp-org:device:MediaServer:1` and related services over SSDP.
+- Serve album art and audio resources with DLNA-friendly headers.
+
+ContentDirectory root containers:
+
+- `All Songs`
+- `Albums`
+- `Artists`
+- `Playlists`
+- `Folders`
+
+ContentDirectory rules:
+
+- Use stable object IDs, for example `song:<id>`, `album:<id>`, `artist:<id>`, `playlist:<id>`, `folder:<escaped-path>`, and `songs/page:<n>`.
+- Page large song lists to keep browse responses bounded.
+- Return `object.item.audioItem.musicTrack` for songs.
+- Return `object.container.album.musicAlbum` for albums when supported by the UPnP AV types; otherwise use `object.container.storageFolder`.
+- Return `object.container.person.musicArtist` for artists when supported; otherwise use `object.container.storageFolder`.
+- Use Lark's existing catalog methods and direct ent queries where catalog methods do not expose the exact paged shape needed by DLNA.
+- Expose the server-wide catalog, not user-specific favorites or per-user playback state.
+
+ConnectionManager should advertise audio formats Lark can serve directly or through the fallback transcode path, including MP3, FLAC, WAV, AAC/MP4, OGG/Opus, AIFF, APE, and WMA where available.
 
 ### Discovery
 
@@ -154,7 +209,7 @@ For each response, the service fetches the device description XML and extracts:
 - Service control URLs for `AVTransport` and optionally `RenderingControl`.
 - Last seen time.
 
-Discovery should be explicit and cached. The UI's `Refresh` action triggers active discovery, while a background refresh can run at a low interval when DLNA is enabled.
+Discovery should be explicit and cached. The UI's `Refresh` action triggers active discovery, while a background refresh can run at a low interval when `dlna_cast_enabled` is true.
 
 ### Controller
 
@@ -170,7 +225,7 @@ Controller operations:
 1. `AVTransport.SetAVTransportURI`
 2. `AVTransport.Play`
 
-DIDL-Lite metadata uses an `object.item.audioItem.musicTrack` item with title, artist, album, duration, size, MIME type, bitrate when available, and album art URI when available.
+DIDL-Lite metadata uses the same song item builder as ContentDirectory, with title, artist, album, duration, size, MIME type, bitrate when available, and album art URI when available.
 
 ### Media Endpoint
 
@@ -178,13 +233,14 @@ Expose unauthenticated but token-protected DLNA endpoints under the backend HTTP
 
 - `GET /dlna/audio/:token/:songID`
 - `GET /dlna/cover/:token/:songID`
+- `GET /dlna/transcode/:token/:songID`
 
 The token binds:
 
 - Song ID.
 - Issuing user ID or casting session ID.
 - Expiry timestamp.
-- Purpose: audio or cover.
+- Purpose: audio, cover, or transcode.
 
 The endpoint must support:
 
@@ -196,6 +252,8 @@ The endpoint must support:
 - Cache headers that are useful for devices but do not make long-lived tokens permanent.
 
 Raw playback is preferred when the file is likely compatible. If the target rejects playback or the configured policy requires compatibility mode, the controller sends a transcoded MP3 URL using the existing ffmpeg transcode path.
+
+ContentDirectory browse responses also use tokenized media URLs. Those tokens can have a longer but still bounded lifetime than cast-control tokens so DLNA clients can browse and then start playback without immediately expiring the resource URL.
 
 ### API
 
@@ -223,7 +281,8 @@ Representative status:
 
 ```json
 {
-  "enabled": true,
+  "cast_enabled": true,
+  "library_enabled": false,
   "output": "dlna",
   "device_id": "uuid:device",
   "device_name": "Living Room TV",
@@ -231,16 +290,24 @@ Representative status:
 }
 ```
 
+These API routes are for Lark's own frontend cast controls. They are separate from the UPnP/SOAP routes used by DLNA clients.
+
 ### Settings
 
 Add settings fields:
 
-- `dlna_enabled`
+- `dlna_cast_enabled`
+- `dlna_library_enabled`, default false for existing installs.
+- `dlna_server_name`
 - `dlna_media_base_url`, optional override for the URL sent to renderers when auto-detecting the backend LAN address is not reliable.
+- `dlna_allowed_ips`, optional LAN allowlist for browsing and media endpoints. A wildcard is convenient but should be explicit.
+- `dlna_interfaces`, optional interface names for SSDP announcements and discovery.
 
 The settings UI can place this near the existing Sharing and Subsonic service settings. The player cast button can still be visible when disabled, but selecting it should point the user to enable DLNA if they have permission.
 
-The first implementation does not need a separate DLNA HTTP port or a user-visible DLNA server name because Lark is not exposing a browsable MediaServer library. Renderers receive direct, token-protected media URLs from the existing backend HTTP server.
+`dlna_cast_enabled` controls renderer discovery and remote playback control. `dlna_library_enabled` controls whether Lark announces and serves itself as a browsable DLNA MediaServer. The two settings are independent so users can cast to devices without publishing the library, or publish the library without using Lark's player-side cast controls.
+
+The first implementation does not need a separate DLNA HTTP port because Lark can serve UPnP descriptions, SOAP handlers, covers, and audio resources from the existing backend HTTP server.
 
 ## Data Flow
 
@@ -263,6 +330,18 @@ The first implementation does not need a separate DLNA HTTP port or a user-visib
 6. Backend calls `Play`.
 7. Frontend pauses local audio and marks remote output active.
 
+### Browse From External DLNA Client
+
+1. Lark announces itself as a DLNA MediaServer.
+2. A TV, receiver, speaker, or third-party DLNA client opens Lark from its own media-source UI.
+3. The client calls `ContentDirectory.Browse` on root object `0`.
+4. Backend returns `All Songs`, `Albums`, `Artists`, `Playlists`, and `Folders`.
+5. The client browses containers and receives DIDL-Lite song items with tokenized audio and cover URLs.
+6. The client requests the audio resource URL.
+7. Backend validates the token and allowed client IP, then serves raw audio or the fallback transcode stream with range and DLNA headers.
+
+This flow only runs when `dlna_library_enabled` is true.
+
 ### Next Song
 
 1. User presses next in Lark.
@@ -274,6 +353,7 @@ The first implementation does not need a separate DLNA HTTP port or a user-visib
 
 - Discovery failures return an empty list plus an error message only when the discovery request itself failed.
 - Device description fetch failures do not fail the whole discovery run.
+- ContentDirectory browse failures return UPnP errors with a valid SOAP fault, not JSON.
 - SOAP errors are mapped to user-facing states: timeout, rejected playback, unavailable, or unsupported.
 - Media token errors return 403 and are logged at debug level, not exposed as internal details.
 - If the selected device disappears, Lark keeps the local queue and offers `This device` and `Refresh`.
@@ -283,7 +363,8 @@ The first implementation does not need a separate DLNA HTTP port or a user-visib
 - DLNA devices cannot use the normal authenticated `/api/songs/:id/stream` route because they do not carry browser cookies.
 - DLNA media URLs must be scoped and short-lived.
 - Tokens must not grant library-wide access.
-- The first version should avoid a wildcard permanent IP whitelist. Network-level restrictions can be added after the token-protected path is working.
+- DLNA library browsing exposes metadata to LAN clients, so it must be gated by the explicit `dlna_library_enabled` setting and the allowed IP policy.
+- The first version should avoid an implicit wildcard permanent IP whitelist. If wildcard access is supported, it should be an explicit setting.
 - Log device IPs and SOAP errors without logging media tokens.
 
 ## Accessibility
@@ -298,6 +379,9 @@ The first implementation does not need a separate DLNA HTTP port or a user-visib
 Backend:
 
 - Unit test DIDL-Lite metadata generation for title, artist, album, MIME type, duration, resource URL, and cover URL.
+- Unit test ContentDirectory browse results for root, all songs, album songs, artist songs, playlists, and folders.
+- Unit test UPnP root device description and service descriptor XML routes.
+- Unit test ConnectionManager protocol info.
 - Unit test token creation, expiry, purpose checks, and song binding.
 - Unit test device description parsing with sample XML.
 - Use `httptest` to verify SOAP request bodies for `SetAVTransportURI`, `Play`, `Pause`, and `Stop`.
@@ -312,6 +396,7 @@ Frontend:
 Manual:
 
 - Verify with at least one DLNA renderer on the LAN.
+- Verify Lark appears as a DLNA media source in a DLNA client and can browse/play songs.
 - Verify no device found state on a network with no renderers.
 - Verify raw MP3 playback and fallback MP3 transcode for a non-MP3 source.
 - Verify mobile bottom sheet and desktop panel do not overlap player controls.
@@ -320,12 +405,13 @@ Manual:
 
 Build the feature in this order:
 
-1. Backend device discovery and parsing.
-2. Token-protected audio and cover endpoints.
-3. SOAP controller for play, pause, resume, and stop.
-4. Authenticated API routes.
-5. Frontend API client and cast state.
-6. Player cast button and device panel.
-7. Settings entry and error polish.
+1. Shared DLNA metadata, token, resource URL, and media endpoint foundation.
+2. Backend MediaServer device description, SSDP announcements, ContentDirectory, and ConnectionManager.
+3. Backend renderer discovery and device-description parsing.
+4. SOAP controller for play, pause, resume, and stop.
+5. Authenticated API routes for the Lark cast controls.
+6. Frontend API client and cast state.
+7. Player cast button and device panel.
+8. Settings entry and error polish.
 
-This sequence keeps the protocol work testable before the UI depends on it.
+This sequence keeps the DLNA protocol surface testable before the frontend depends on it, and lets the library-browsing and cast-control paths share the same media resource implementation.
