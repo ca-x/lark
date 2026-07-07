@@ -20,6 +20,8 @@ Thanks to the [LinuxDo Community](https://linux.do) for discussion and feedback.
 
 The Mineradio Stage player theme and its optional dark-stage effects adapt visual-effect code and interaction models from [Mineradio](https://github.com/XxHuberrr/Mineradio) by XxHuberrr, including the startup shader, cover-particle motion, 3D playlist shelf, lyric glow, and render-loop dynamics. Lark is not affiliated with Mineradio.
 
+The Walkman desktop player theme adapts the 3D cassette-player model, smoked door, mechanical controls, reel animation, and amber dot-matrix display concepts from [Walkman](https://github.com/GordenSun/Walkman) by GordenSun. Lark is not affiliated with Walkman.
+
 The fullscreen lyrics direction also references [folia-major](https://github.com/chthollyphile/folia-major) by chthollyphile for lyric timing, rail, and glow interaction ideas.
 
 ---

@@ -5,6 +5,32 @@
 
 ---
 
+## 0.9.34 — 修复 Walkman 3D 拖拽旋转
+
+发布日期 / Released: 2026-07-07
+
+### 修复
+
+- **恢复 Walkman 3D 拖拽旋转。** 3D 随身听画布现在支持拖拽旋转机身视角，点击磁带/仓门仍会开合，点击机械按钮仍会触发播放、上一首、下一首和停止等控制。
+- **补充 Walkman 引用仓库。** README、README_ZH 和 NOTICE 中补充 [GordenSun/Walkman](https://github.com/GordenSun/Walkman) 项目链接，明确 PC 版 Walkman 主题的参考来源。
+
+完整 diff：`git log v0.9.33..v0.9.34`
+
+---
+
+## v0.9.34 — Fix Walkman 3D drag rotation
+
+Released: 2026-07-07
+
+### Fixed
+
+- **Restored 3D drag rotation for the Walkman theme.** The 3D player canvas now rotates the body view on drag while short clicks on the cassette or door still toggle the tape bay and mechanical buttons still control playback.
+- **Added the Walkman source attribution link.** README, README_ZH, and NOTICE now link to [GordenSun/Walkman](https://github.com/GordenSun/Walkman) as the referenced project for the desktop Walkman theme.
+
+Full diff: `git log v0.9.33..v0.9.34`
+
+---
+
 ## 0.9.33 — Walkman 桌面播放主题
 
 发布日期 / Released: 2026-07-07

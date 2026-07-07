@@ -4599,6 +4599,8 @@ body, button, input, select { font-family: var(--app-font); }
   height:100%;
   min-height:calc(var(--walkman-hero-height) - 56px);
   outline:none;
+  cursor:grab;
+  touch-action:none;
 }
 .walkman-webgl-fallback {
   position:absolute;

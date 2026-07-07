@@ -15,11 +15,18 @@ const types = readFileSync(join(root, "src/types.ts"), "utf8");
 const i18n = readFileSync(join(root, "src/i18n.ts"), "utf8");
 const css = readFileSync(join(root, "src/styles.css"), "utf8");
 const backendLibrary = readFileSync(join(repo, "backend/internal/library/service.go"), "utf8");
+const readme = readFileSync(join(repo, "README.md"), "utf8");
+const readmeZh = readFileSync(join(repo, "README_ZH.md"), "utf8");
+const notice = readFileSync(join(repo, "NOTICE.md"), "utf8");
 
 for (const needle of [
   "createWalkmanScene",
   "class DotDisplay",
   "class WalkmanModel",
+  "WalkmanRotationOffset",
+  "rotationDrag",
+  "targetRotationOffset",
+  "clampWalkmanRotation",
   "RoundedBoxGeometry",
   "webglUnavailable",
   "hasWebGLSupport",
@@ -39,6 +46,10 @@ assert.match(i18n, /homePlayerWalkman/);
 assert.match(css, /\.hero\.walkman-hero/);
 assert.match(css, /\.walkman-player/);
 assert.match(css, /prefers-reduced-motion: reduce/);
+assert.match(css, /\.walkman-canvas\s*\{[\s\S]*touch-action:none;/);
 assert.match(backendLibrary, /"mineradio-stage", "walkman"/);
+assert.match(readme, /https:\/\/github\.com\/GordenSun\/Walkman/);
+assert.match(readmeZh, /https:\/\/github\.com\/GordenSun\/Walkman/);
+assert.match(notice, /https:\/\/github\.com\/GordenSun\/Walkman/);
 
 console.log("walkman theme checks passed");

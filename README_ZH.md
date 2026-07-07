@@ -20,6 +20,8 @@
 
 暗场电台播放器样式及可选的 3D 歌单架 / 歌词舞台效果，直接适配了 XxHuberrr 的 [Mineradio](https://github.com/XxHuberrr/Mineradio) 中的启动幕 shader、封面粒子运动、3D 歌单架、歌词溢光和渲染循环动态。百灵与 Mineradio 官方无从属关系。
 
+Walkman 桌面播放主题参考并适配了 GordenSun 的 [Walkman](https://github.com/GordenSun/Walkman) 中的 3D 随身听模型、烟熏仓门、机械控制、卷轴动画和琥珀点阵屏概念。百灵与 Walkman 官方无从属关系。
+
 全屏歌词方向也参考了 chthollyphile 的 [folia-major](https://github.com/chthollyphile/folia-major)，用于歌词时序、歌词轨道和溢光交互设计。
 
 ---

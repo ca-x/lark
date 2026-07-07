@@ -40,6 +40,11 @@ type WalkmanFrameState = {
   playMode: PlayerThemePlayMode;
 };
 
+type WalkmanRotationOffset = {
+  x: number;
+  y: number;
+};
+
 type WalkmanSceneHandle = {
   dispose: () => void;
 };
@@ -326,6 +331,16 @@ function createWalkmanScene(
   let activeAction: WalkmanAction | null = null;
   let hoverAction: WalkmanAction | null = null;
   let lastTapeLabel = "";
+  let rotationDrag: {
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startRotation: WalkmanRotationOffset;
+    action: WalkmanAction | null;
+    moved: boolean;
+  } | null = null;
+  const rotationOffset: WalkmanRotationOffset = { x: 0, y: 0 };
+  const targetRotationOffset: WalkmanRotationOffset = { x: 0, y: 0 };
 
   const updateReduced = () => {
     reduced = reducedQuery.matches;
@@ -361,6 +376,20 @@ function createWalkmanScene(
   };
 
   const onPointerMove = (event: PointerEvent) => {
+    if (rotationDrag) {
+      const dx = event.clientX - rotationDrag.startX;
+      const dy = event.clientY - rotationDrag.startY;
+      const next = clampWalkmanRotation({
+        x: rotationDrag.startRotation.x + dy * 0.0038,
+        y: rotationDrag.startRotation.y + dx * 0.0064,
+      });
+      targetRotationOffset.x = next.x;
+      targetRotationOffset.y = next.y;
+      rotationDrag.moved ||= Math.abs(dx) + Math.abs(dy) > 6;
+      canvas.style.cursor = "grabbing";
+      event.preventDefault();
+      return;
+    }
     const action = pickAction(event);
     if (action === hoverAction) return;
     hoverAction = action;
@@ -369,12 +398,40 @@ function createWalkmanScene(
   };
   const onPointerDown = (event: PointerEvent) => {
     const action = pickAction(event);
-    if (!action) return;
-    activeAction = action;
     canvas.setPointerCapture(event.pointerId);
-    walkman.pressVisual(action);
+    if (action && isButtonAction(action)) {
+      activeAction = action;
+      walkman.pressVisual(action);
+      return;
+    }
+    activeAction = action;
+    hoverAction = null;
+    walkman.setHover(null);
+    rotationDrag = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startRotation: { ...targetRotationOffset },
+      action,
+      moved: false,
+    };
+    canvas.style.cursor = "grabbing";
+    event.preventDefault();
   };
   const onPointerUp = (event: PointerEvent) => {
+    if (rotationDrag?.pointerId === event.pointerId) {
+      const drag = rotationDrag;
+      rotationDrag = null;
+      activeAction = null;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+      canvas.style.cursor = "";
+      if (drag.moved) return;
+      if (drag.action === "door" || drag.action === "cassette") {
+        walkman.toggleDoor();
+        display.flash(walkman.tapeIn ? "TAPE READY" : "TAPE VIEW");
+      }
+      return;
+    }
     if (!activeAction) return;
     const action = activeAction;
     activeAction = null;
@@ -388,13 +445,16 @@ function createWalkmanScene(
     onAction(action);
   };
   const onPointerCancel = (event: PointerEvent) => {
+    rotationDrag = null;
     if (activeAction) {
       walkman.releaseVisual(activeAction);
       activeAction = null;
     }
     if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    canvas.style.cursor = "";
   };
   const onPointerLeave = () => {
+    if (rotationDrag) return;
     hoverAction = null;
     walkman.setHover(null);
     canvas.style.cursor = "";
@@ -415,6 +475,8 @@ function createWalkmanScene(
     const seekDir = activeAction === "ff" ? 1 : activeAction === "rew" ? -1 : 0;
     const vu = makeVu(now / 1000, state.playing);
     const tapeLabel = `${state.title} / ${state.artist}`.trim();
+    rotationOffset.x = damp(rotationOffset.x, targetRotationOffset.x, 12, dt);
+    rotationOffset.y = damp(rotationOffset.y, targetRotationOffset.y, 12, dt);
     if (tapeLabel !== lastTapeLabel) {
       lastTapeLabel = tapeLabel;
       walkman.setTapeName(tapeLabel || state.album);
@@ -433,7 +495,7 @@ function createWalkmanScene(
       seekDir,
       progress: progressRatio,
       vu,
-    }, reduced);
+    }, reduced, rotationOffset);
     renderer.render(scene, camera);
     raf = requestAnimationFrame(frame);
   };
@@ -762,13 +824,13 @@ class WalkmanModel {
     this.labelTexture.needsUpdate = true;
   }
 
-  update(dt: number, state: { playing: boolean; seekDir: number; progress: number; vu: number[] }, reduced: boolean) {
+  update(dt: number, state: { playing: boolean; seekDir: number; progress: number; vu: number[] }, reduced: boolean, rotationOffset: WalkmanRotationOffset) {
     this.time += dt;
-    if (!reduced) {
-      this.group.position.y = Math.sin(this.time * 0.85) * 0.05;
-      this.group.rotation.y = Math.sin(this.time * 0.21) * 0.028;
-      this.group.rotation.x = Math.sin(this.time * 0.3) * 0.011;
-    }
+    const idleY = reduced ? 0 : Math.sin(this.time * 0.21) * 0.028;
+    const idleX = reduced ? 0 : Math.sin(this.time * 0.3) * 0.011;
+    this.group.position.y = reduced ? 0 : Math.sin(this.time * 0.85) * 0.05;
+    this.group.rotation.y = rotationOffset.y + idleY;
+    this.group.rotation.x = rotationOffset.x + idleX;
     if (!this.tapeIn) {
       this.cassette.position.y = this.cassetteOutPos.y + Math.sin(this.time * 1.25) * 0.06;
       this.cassette.rotation.z = Math.sin(this.time * 0.6) * 0.012;
@@ -1262,6 +1324,13 @@ function isWalkmanAction(value: unknown): value is WalkmanAction {
 
 function isButtonAction(value: WalkmanAction): value is WalkmanButtonAction {
   return value === "rew" || value === "play" || value === "ff" || value === "stop" || value === "eject";
+}
+
+function clampWalkmanRotation(offset: WalkmanRotationOffset): WalkmanRotationOffset {
+  return {
+    x: Math.min(0.34, Math.max(-0.34, offset.x)),
+    y: Math.min(0.82, Math.max(-0.82, offset.y)),
+  };
 }
 
 function lerp(a: number, b: number, t: number) {
