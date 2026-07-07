@@ -10,5 +10,6 @@ export { PaperShaderLayer } from "./PaperShaderLayer";
 export { RunningKittenTurntable } from "./RunningKittenTurntable";
 export { SmartisanTurntable } from "./SmartisanTurntable";
 export { VinylTurntable } from "./VinylTurntable";
+export { WalkmanPlayer } from "./WalkmanPlayer";
 export type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode } from "./types";
 export type { PaperShaderVariant } from "./PaperShaderLayer";

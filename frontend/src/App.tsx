@@ -144,7 +144,7 @@ import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
 import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
-import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, PaperShaderLayer, RunningKittenTurntable, SmartisanTurntable, VinylTurntable } from "./components/player-themes";
+import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, PaperShaderLayer, RunningKittenTurntable, SmartisanTurntable, VinylTurntable, WalkmanPlayer } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -321,7 +321,8 @@ function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
     value === "album-slide" ||
     value === "gramophone" ||
     value === "running-kitten" ||
-    value === "mineradio-stage"
+    value === "mineradio-stage" ||
+    value === "walkman"
     ? value
     : "vinyl";
 }
@@ -5751,7 +5752,7 @@ function HomeView({
 
   return (
     <section className="home-view">
-      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : homePlayerStyle === "mineradio-stage" ? "hero mineradio-stage-hero" : "hero"}>
+      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : homePlayerStyle === "mineradio-stage" ? "hero mineradio-stage-hero" : homePlayerStyle === "walkman" ? "hero walkman-hero" : "hero"}>
         {currentRadio ? (
           <RadioReceiver
             title={currentRadio.name || t("onlineRadio")}
@@ -5894,6 +5895,23 @@ function HomeView({
             onCyclePlayMode={onCyclePlayMode}
             onSeek={heroActive ? onSeek : undefined}
             onOpenPlaylist={onOpenPlaylist}
+          />
+        ) : homePlayerStyle === "walkman" ? (
+          <WalkmanPlayer
+            cover={coverUrl(displaySong)}
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
+            album={displaySong?.album}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
+            onCyclePlayMode={onCyclePlayMode}
+            onSeek={heroActive ? onSeek : undefined}
           />
         ) : (
           <VinylTurntable
@@ -9653,6 +9671,13 @@ function SettingsPanel({
                 onClick={() => onHomePlayerStyleChange("mineradio-stage")}
               >
                 {t("homePlayerMineradioStage")}
+              </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "walkman" ? "active" : ""}
+                onClick={() => onHomePlayerStyleChange("walkman")}
+              >
+                {t("homePlayerWalkman")}
               </button>
                 </div>
               </SettingsSection>

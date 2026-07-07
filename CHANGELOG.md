@@ -5,6 +5,34 @@
 
 ---
 
+## 0.9.33 — Walkman 桌面播放主题
+
+发布日期 / Released: 2026-07-07
+
+### 新功能
+
+- **新增 PC 版 Walkman 随身听主题。** 首页播放样式新增 `Walkman 随身听`，完整接入 3D 机身、烟熏透明仓门、磁带卷轴、琥珀点阵屏和机械按钮反馈；播放、上一首、下一首、播放模式和进度仍复用 Lark 统一播放内核。
+- **补齐 Walkman 偏好持久化。** 前端、本地缓存、后端用户偏好归一化和设置入口都支持 `walkman`，刷新或重新登录后不会回退到默认黑胶主题。
+- **增加 WebGL 不可用降级。** 浏览器无法创建 WebGL context 时会显示静态 Walkman 轮廓 fallback，避免首页出现空白或控制台 WebGL 创建错误。
+
+完整 diff：`git log v0.9.32..v0.9.33`
+
+---
+
+## v0.9.33 — Walkman desktop player theme
+
+Released: 2026-07-07
+
+### Features
+
+- **Added the desktop Walkman player theme.** The home player style picker now includes `Walkman`, with a 3D body, smoked transparent door, cassette reels, amber dot-matrix display, and mechanical button feedback while playback, previous/next, play mode, and seeking remain driven by Lark's shared playback engine.
+- **Persisted the Walkman preference end to end.** Frontend state, local cache, backend user-preference normalization, and the settings entry now accept `walkman`, so refreshes and new sessions no longer fall back to vinyl.
+- **Added a WebGL-unavailable fallback.** Browsers that cannot create a WebGL context render a static Walkman fallback instead of a blank hero or WebGL creation errors.
+
+Full diff: `git log v0.9.32..v0.9.33`
+
+---
+
 ## 0.9.32 — 增加 DLNA 选项隐藏开关
 
 发布日期 / Released: 2026-07-03

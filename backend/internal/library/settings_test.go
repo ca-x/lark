@@ -318,7 +318,7 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	}
 
 	saved, err := service.SaveUserPreferences(ctx, 7, models.UserPreferences{
-		HomePlayerStyle:         "mineradio-stage",
+		HomePlayerStyle:         "walkman",
 		MobileHomePlayerStyle:   "smartisan-classic",
 		MineradioStageEnabled:   true,
 		ArtistAlbumDisplayStyle: "showcase",
@@ -329,14 +329,14 @@ func TestUserPreferencesPersistPerUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.HomePlayerStyle != "mineradio-stage" || saved.MobileHomePlayerStyle != "smartisan-classic" || !saved.MineradioStageEnabled || saved.ArtistAlbumDisplayStyle != "showcase" || saved.LyricsDisplayStyle != "folia-monet" || saved.LyricsDragSeekEnabled || saved.TerminalShellTheme != "dusk" {
+	if saved.HomePlayerStyle != "walkman" || saved.MobileHomePlayerStyle != "smartisan-classic" || !saved.MineradioStageEnabled || saved.ArtistAlbumDisplayStyle != "showcase" || saved.LyricsDisplayStyle != "folia-monet" || saved.LyricsDragSeekEnabled || saved.TerminalShellTheme != "dusk" {
 		t.Fatalf("expected saved user preferences to persist, got %#v", saved)
 	}
 	loaded, err := service.GetUserPreferences(ctx, 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.HomePlayerStyle != "mineradio-stage" || loaded.MobileHomePlayerStyle != "smartisan-classic" || !loaded.MineradioStageEnabled || loaded.ArtistAlbumDisplayStyle != "showcase" || loaded.LyricsDisplayStyle != "folia-monet" || loaded.LyricsDragSeekEnabled || loaded.TerminalShellTheme != "dusk" {
+	if loaded.HomePlayerStyle != "walkman" || loaded.MobileHomePlayerStyle != "smartisan-classic" || !loaded.MineradioStageEnabled || loaded.ArtistAlbumDisplayStyle != "showcase" || loaded.LyricsDisplayStyle != "folia-monet" || loaded.LyricsDragSeekEnabled || loaded.TerminalShellTheme != "dusk" {
 		t.Fatalf("expected user preferences to load from database, got %#v", loaded)
 	}
 

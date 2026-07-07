@@ -28,6 +28,7 @@ export type PaperShaderVariant =
   | "gramophone"
   | "running-kitten"
   | "mineradio"
+  | "walkman"
   | "mini"
   | "player-mood"
   | "lyrics"
@@ -277,6 +278,37 @@ function renderPaperShader(
             offset={0.1}
             size={0.58}
             speed={speed * 0.36}
+          />
+        </>
+      );
+    case "walkman":
+      return (
+        <>
+          <GrainGradient
+            {...shaderBase}
+            fit="cover"
+            colorBack="#07080d"
+            colors={["#ff9e3d", "#c7cbd2", "#2d3340", "#090a0f"]}
+            softness={0.62}
+            intensity={0.52}
+            noise={0.42}
+            shape="corners"
+            speed={speed * 0.32}
+          />
+          <GodRays
+            {...shaderBase}
+            className="paper-shader-canvas paper-shader-canvas-secondary"
+            fit="cover"
+            colorBack="#00000000"
+            colorBloom="#ffb054"
+            colors={["#ffb054", "#c7cbd2", "#111827"]}
+            spotty={0.24}
+            midSize={0.28}
+            midIntensity={0.36}
+            density={0.42}
+            intensity={0.48}
+            bloom={0.22}
+            speed={speed * 0.28}
           />
         </>
       );
