@@ -15,6 +15,12 @@ import { api } from "../services/api";
 import type { Album, MetadataCandidate, MetadataWritebackResult, Song } from "../types";
 import { readableErrorMessage } from "../utils/app";
 import { useDialogLifecycle } from "../hooks/useDialogLifecycle";
+import {
+  getCandidateCache,
+  invalidateMetadataCandidateCache,
+  loadCandidateCache,
+  metadataCandidateCacheKey,
+} from "../services/candidateCache";
 
 export type MetadataEditorTarget =
   | { type: "song"; song: Song }
@@ -67,8 +73,11 @@ export function MetadataEditorDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<MetadataWritebackResult | null>(null);
-  const [candidates, setCandidates] = useState<MetadataCandidate[]>([]);
-  const [candidatesLoading, setCandidatesLoading] = useState(false);
+  const [pathCandidates, setPathCandidates] = useState<MetadataCandidate[]>([]);
+  const [onlineCandidates, setOnlineCandidates] = useState<MetadataCandidate[]>([]);
+  const [pathCandidatesLoading, setPathCandidatesLoading] = useState(false);
+  const [onlineCandidatesLoading, setOnlineCandidatesLoading] = useState(false);
+  const [onlineCandidatesError, setOnlineCandidatesError] = useState(false);
   const dialogRef = useDialogLifecycle<HTMLFormElement>(onClose);
   const finalConfirmCancelRef = useRef<HTMLButtonElement | null>(null);
   const previewCover = coverPreview || coverURL.trim() || currentCover;
@@ -87,6 +96,10 @@ export function MetadataEditorDialog({
     Boolean(coverFile) ||
     pathAssist;
   const canWrite = dirty || isAlbum;
+  const candidates = useMemo(
+    () => mergeMetadataCandidates(pathCandidates, onlineCandidates),
+    [onlineCandidates, pathCandidates],
+  );
 
   useEffect(() => {
     setTitle(initial.title);
@@ -121,21 +134,47 @@ export function MetadataEditorDialog({
 
   useEffect(() => {
     let canceled = false;
-    setCandidates([]);
-    setCandidatesLoading(true);
-    const load = isAlbum
-      ? api.albumMetadataCandidates(target.album.id)
-      : api.songMetadataCandidates(target.song.id);
-    load
-      .then((items) => {
-        if (!canceled) setCandidates(items);
-      })
-      .catch(() => {
-        if (!canceled) setCandidates([]);
-      })
-      .finally(() => {
-        if (!canceled) setCandidatesLoading(false);
-      });
+    const targetType = isAlbum ? "album" : "song";
+    const targetID = isAlbum ? target.album.id : target.song.id;
+    const pathKey = metadataCandidateCacheKey(targetType, targetID, "path");
+    const onlineKey = metadataCandidateCacheKey(targetType, targetID, "online");
+    const cachedPath = getCandidateCache<MetadataCandidate>(pathKey);
+    const cachedOnline = getCandidateCache<MetadataCandidate>(onlineKey);
+
+    setPathCandidates(cachedPath || []);
+    setOnlineCandidates(cachedOnline || []);
+    setPathCandidatesLoading(cachedPath === undefined);
+    setOnlineCandidatesLoading(false);
+    setOnlineCandidatesError(false);
+
+    const loadScope = (scope: "path" | "online") =>
+      isAlbum
+        ? api.albumMetadataCandidates(target.album.id, scope)
+        : api.songMetadataCandidates(target.song.id, scope);
+
+    void (async () => {
+      if (cachedPath === undefined) {
+        try {
+          const items = await loadCandidateCache(pathKey, () => loadScope("path"));
+          if (!canceled) setPathCandidates(items);
+        } catch {
+          if (!canceled) setPathCandidates([]);
+        } finally {
+          if (!canceled) setPathCandidatesLoading(false);
+        }
+      }
+      if (canceled || cachedOnline !== undefined) return;
+
+      setOnlineCandidatesLoading(true);
+      try {
+        const items = await loadCandidateCache(onlineKey, () => loadScope("online"));
+        if (!canceled) setOnlineCandidates(items);
+      } catch {
+        if (!canceled) setOnlineCandidatesError(true);
+      } finally {
+        if (!canceled) setOnlineCandidatesLoading(false);
+      }
+    })();
     return () => {
       canceled = true;
     };
@@ -185,6 +224,7 @@ export function MetadataEditorDialog({
       const saved = isAlbum
         ? await api.updateAlbumMetadata(target.album.id, body)
         : await api.updateSongMetadata(target.song.id, body);
+      invalidateMetadataCandidateCache(isAlbum ? "album" : "song", isAlbum ? target.album.id : target.song.id);
       setResult(saved);
       onSaved(saved);
       setConfirmed(false);
@@ -358,34 +398,61 @@ export function MetadataEditorDialog({
           <div className="metadata-candidates">
             <div className="metadata-section-head">
               <strong>{t("metadataCandidates")}</strong>
-              <span>{candidatesLoading ? t("loading") : `${candidates.length} ${t("candidate")}`}</span>
+              <span>
+                {pathCandidatesLoading
+                  ? t("loading")
+                  : onlineCandidatesLoading
+                    ? t("metadataOnlineLoading")
+                    : `${candidates.length} ${t("candidate")}`}
+              </span>
             </div>
             {candidates.length ? (
-              <div className="metadata-candidate-list">
-                {candidates.map((candidate) => (
-                  <button
-                    key={`${candidate.source}-${candidate.id}`}
-                    type="button"
-                    onClick={() => applyCandidate(candidate)}
-                  >
-                    {candidate.source === "path"
-                      ? <FolderSimple />
-                      : candidate.cover
-                        ? <img src={candidate.cover} alt="" loading="lazy" />
-                        : <ImageSquare />}
-                    <span>
-                      <strong>{candidate.source === "path" ? t("metadataPathCandidate") : candidate.title}</strong>
-                      <em>
-                        {candidate.source === "path"
-                          ? metadataPathCandidateSummary(candidate, isAlbum, t)
-                          : [candidate.artist, candidate.album, candidate.year || candidate.release_date].filter(Boolean).join(" · ")}
-                      </em>
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="metadata-candidate-list">
+                  {candidates.map((candidate) => (
+                    <button
+                      key={`${candidate.source}-${candidate.id}`}
+                      type="button"
+                      onClick={() => applyCandidate(candidate)}
+                    >
+                      {candidate.source === "path"
+                        ? <FolderSimple />
+                        : candidate.cover
+                          ? <img src={candidate.cover} alt="" loading="lazy" />
+                          : <ImageSquare />}
+                      <span>
+                        <strong>{candidate.source === "path" ? t("metadataPathCandidate") : candidate.title}</strong>
+                        <em>
+                          {candidate.source === "path"
+                            ? metadataPathCandidateSummary(candidate, isAlbum, t)
+                            : [candidate.artist, candidate.album, candidate.year || candidate.release_date].filter(Boolean).join(" · ")}
+                        </em>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {onlineCandidatesLoading ? (
+                  <div className="metadata-online-status" data-state="loading" role="status">
+                    <CircleNotch weight="bold" className="offline-cache-spinner" />
+                    <span>{t("metadataOnlineLoading")}</span>
+                  </div>
+                ) : onlineCandidatesError ? (
+                  <div className="metadata-online-status" data-state="error" role="status">
+                    <WarningCircle weight="fill" />
+                    <span>{t("metadataOnlineError")}</span>
+                  </div>
+                ) : null}
+              </>
             ) : (
-              <span className="metadata-empty">{candidatesLoading ? t("loadingContent") : t("metadataNoCandidates")}</span>
+              <span className="metadata-empty">
+                {pathCandidatesLoading || onlineCandidatesLoading
+                  ? onlineCandidatesLoading
+                    ? t("metadataOnlineLoading")
+                    : t("loadingContent")
+                  : onlineCandidatesError
+                    ? t("metadataOnlineError")
+                    : t("metadataNoCandidates")}
+              </span>
             )}
           </div>
 
@@ -472,6 +539,18 @@ function metadataStatusLabel(status: string, t: ReturnType<typeof createT>) {
   if (status === "skipped") return t("metadataStatusSkipped");
   if (status === "failed") return t("metadataStatusFailed");
   return status;
+}
+
+function mergeMetadataCandidates(pathItems: MetadataCandidate[], onlineItems: MetadataCandidate[]) {
+  const seen = new Set<string>();
+  const merged: MetadataCandidate[] = [];
+  for (const candidate of [...pathItems, ...onlineItems]) {
+    const key = `${candidate.source}:${candidate.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(candidate);
+  }
+  return merged;
 }
 
 function metadataPathCandidateSummary(candidate: MetadataCandidate, isAlbum: boolean, t: ReturnType<typeof createT>) {

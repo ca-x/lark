@@ -1862,7 +1862,15 @@ body, button, input, select { font-family: var(--app-font); }
 .metadata-candidate-list span, .metadata-candidate-list strong, .metadata-candidate-list em { min-width:0; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .metadata-candidate-list strong { font-size:13px; }
 .metadata-candidate-list em { margin-top:3px; color:var(--muted); font-size:12px; font-style:normal; }
+.metadata-online-status { min-height:36px; display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:12px; color:var(--muted); background:color-mix(in srgb, var(--panel2) 76%, transparent); opacity:1; transition:opacity 160ms cubic-bezier(.23,1,.32,1); }
+.metadata-online-status svg { width:16px; height:16px; flex:0 0 16px; }
+.metadata-online-status span { font-size:12px; line-height:1.4; }
+.metadata-online-status[data-state='error'] { color:var(--danger); }
 .metadata-empty { min-height:44px; display:flex; align-items:center; padding:10px 12px; border-radius:14px; color:var(--muted); background:var(--panel2); border:1px solid var(--line); }
+
+@media (prefers-reduced-motion:reduce) {
+  .metadata-online-status { transition:none; }
+}
 .metadata-confirm { display:grid !important; grid-template-columns:auto minmax(0,1fr); align-items:flex-start; gap:10px !important; padding:12px; border-radius:16px; border:1px solid color-mix(in srgb, #d29321 42%, var(--line)); background:color-mix(in srgb, #d29321 12%, var(--panel2)); color:var(--text) !important; }
 .metadata-confirm input { width:20px !important; height:20px; margin:2px 0 0; accent-color:var(--accent); }
 .metadata-confirm strong { display:flex; align-items:center; gap:8px; color:var(--text); }

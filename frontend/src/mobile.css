@@ -208,6 +208,7 @@
   .metadata-cover-preview { width:68px; }
   .metadata-editor-grid, .metadata-candidate-list { grid-template-columns:1fr; }
   .metadata-candidate-list { max-height:clamp(112px, 24dvh, 180px); overflow:auto; padding-right:0; }
+  .metadata-candidate-list button { min-height:64px; }
   .metadata-result-list { max-height:clamp(96px, 22dvh, 160px); overflow:auto; padding-right:0; }
   .metadata-editor-actions {
     display:grid;
