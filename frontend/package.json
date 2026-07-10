@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:candidate-cache": "node --test src/services/candidateCache.test.mjs",
     "test:dlna-api": "node scripts/check-dlna-api.mjs",
     "test:mineradio-motion": "node scripts/check-mineradio-motion.mjs",
     "test:paper-shaders": "node scripts/check-paper-shader-effects.mjs",
