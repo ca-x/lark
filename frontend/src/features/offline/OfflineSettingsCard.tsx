@@ -10,6 +10,7 @@ type OfflineSettingsCardProps = {
   formatBytes: (bytes: number) => string;
   onRefresh: () => void;
   onManage: () => void;
+  owner?: string;
 };
 
 export function OfflineSettingsCard({
@@ -21,9 +22,10 @@ export function OfflineSettingsCard({
   formatBytes,
   onRefresh,
   onManage,
+  owner,
 }: OfflineSettingsCardProps) {
   return (
-    <div className="offline-settings-card settings-wide-row">
+    <div className="offline-settings-card settings-wide-row" data-settings-owner={owner}>
       <div>
         <strong>{usageLabel}</strong>
         <span>{description}</span>

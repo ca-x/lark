@@ -160,6 +160,7 @@ import { EQ_FREQUENCIES, EQ_STORAGE_KEY, TONE_STORAGE_KEY, clampEqGain, storedEq
 import { SkeletonSongList } from "./components/Skeleton";
 import { EmptyState } from "./components/EmptyState";
 import { SettingsSection } from "./components/SettingsSection";
+import { SettingsNavigation } from "./components/settings/SettingsNavigation";
 import { CardGrid } from "./components/CardGrid";
 import { LazyCoverImage } from "./components/LazyCoverImage";
 import { PaginationControls, type PageLike } from "./components/PaginationControls";
@@ -967,7 +968,7 @@ export default function App() {
   const [playMode, setPlayMode] = useState<PlayMode>("sequence");
   const [view, setView] = useState<View>("home");
   const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>(storedInterfaceMode);
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>("profile");
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("account");
   const [query, setQuery] = useState("");
   const [albumArtistFilter, setAlbumArtistFilter] = useState(0);
   const [albumArtistQuery, setAlbumArtistQuery] = useState("");
@@ -1457,7 +1458,7 @@ export default function App() {
   useEffect(() => {
     if (mobileViewport && !MOBILE_PLAYBACK_VIEWS.has(view)) {
       setView("home");
-      setSettingsTab("profile");
+      setSettingsTab("account");
     }
   }, [mobileViewport, view]);
 
@@ -4487,7 +4488,7 @@ export default function App() {
                   profileEnabled
                   onOpenProfile={() => {
                     setLyricsFullScreen(false);
-                    setSettingsTab("profile");
+                    setSettingsTab("account");
                     setView("settings");
                   }}
                   onOpenShellMode={enterShellMode}
@@ -9316,9 +9317,16 @@ function SettingsPanel({
   const subsonicEndpoint = `${window.location.origin}/rest`;
   const mcpTokenExample = mcpToken?.token || mcpToken?.hint || "lark_mcp_...";
   const tabs: { id: SettingsTab; label: string }[] = [
-    { id: "profile", label: t("profileSettings") },
-    { id: "users", label: t("userManagement") },
-    { id: "site", label: t("siteSettings") },
+    { id: "account", label: t("accountSettings") },
+    { id: "playback", label: t("playbackAppearanceSettings") },
+    { id: "library", label: t("mediaLibrarySettings") },
+    { id: "services", label: t("servicesConnectionsSettings") },
+    ...(user.role === "admin"
+      ? [
+          { id: "system" as const, label: t("systemSettings") },
+          { id: "users" as const, label: t("userManagement") },
+        ]
+      : []),
   ];
   const settingsActiveTab: SettingsTab = activeTab;
 
@@ -9328,14 +9336,11 @@ function SettingsPanel({
   }, [user]);
 
   useEffect(() => {
-  }, [activeTab, mobileViewport, onTabChange]);
-
-  useEffect(() => {
     setWebFontFamily(settings.web_font_family || "");
   }, [settings.web_font_family]);
 
   useEffect(() => {
-    if (settingsActiveTab !== "site") return;
+    if (settingsActiveTab !== "playback") return;
     setFontsLoading(true);
     void api
       .fonts()
@@ -9355,7 +9360,7 @@ function SettingsPanel({
   }, [settingsActiveTab, user.role]);
 
   useEffect(() => {
-    if (settingsActiveTab !== "profile") return;
+    if (settingsActiveTab !== "services") return;
     void api
       .mcpToken()
       .then(setMcpToken)
@@ -9556,25 +9561,16 @@ function SettingsPanel({
 
   return (
     <section className="settings-page">
-      {tabs.length > 1 ? (
-        <div className="settings-tabs" role="tablist" aria-label={t("settings")}>
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              role="tab"
-              aria-selected={settingsActiveTab === tab.id}
-              className={settingsActiveTab === tab.id ? "active" : ""}
-              onClick={() => onTabChange(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <SettingsNavigation
+        activeTab={settingsActiveTab}
+        tabs={tabs}
+        label={t("settings")}
+        onTabChange={onTabChange}
+      />
 
-      {settingsActiveTab === "profile" && (
-        <div className="settings-grid settings-tab-panel" role="tabpanel">
-          <div className="profile-settings-card">
+      {(["account", "playback", "library", "services"] as SettingsTab[]).includes(settingsActiveTab) && (
+        <div className="settings-grid settings-tab-panel" data-active-category={settingsActiveTab} role="tabpanel">
+          <div className="profile-settings-card" data-settings-owner="account">
             <div className="profile-settings-head">
               <UserAvatar user={{ ...user, nickname, avatar_data_url: avatarDataURL }} />
               <div>
@@ -9604,6 +9600,7 @@ function SettingsPanel({
           </div>
           <SettingsSection
             wideRow
+            owner="playback"
             title={t("playbackResumeSetting")}
             description={t("playbackResumeHint")}
           >
@@ -9628,6 +9625,7 @@ function SettingsPanel({
             <>
               <SettingsSection
                 wideRow
+                owner="playback"
                 title={t("homePlayerStyle")}
                 description={t("homePlayerStyleHint")}
               >
@@ -9706,6 +9704,7 @@ function SettingsPanel({
               </SettingsSection>
               <SettingsSection
                 wideRow
+                owner="playback"
                 title={t("mineradioStageEffects")}
                 description={t("mineradioStageEffectsHint")}
               >
@@ -9726,6 +9725,7 @@ function SettingsPanel({
           {mobileViewport ? (
           <SettingsSection
             wideRow
+            owner="playback"
             title={t("mobileHomePlayerStyle")}
             description={t("mobileHomePlayerStyleHint")}
           >
@@ -9791,6 +9791,7 @@ function SettingsPanel({
           ) : null}
           <SettingsSection
             wideRow
+            owner="playback"
             title={t("artistAlbumDisplayStyle")}
             description={t("artistAlbumDisplayStyleHint")}
           >
@@ -9813,6 +9814,7 @@ function SettingsPanel({
           </SettingsSection>
           <SettingsSection
             wideRow
+            owner="playback"
             title={t("lyricsDisplayStyle")}
             description={t("lyricsDisplayStyleHint")}
           >
@@ -9829,7 +9831,7 @@ function SettingsPanel({
               ))}
             </div>
           </SettingsSection>
-          <label className="switch-row settings-wide-row">
+          <label className="switch-row settings-wide-row" data-settings-owner="playback">
             <span>
               <span>{t("lyricsDragSeek")}</span>
               <small>{t("lyricsDragSeekHint")}</small>
@@ -9840,7 +9842,7 @@ function SettingsPanel({
               onChange={(e) => onLyricsDragSeekEnabledChange(e.target.checked)}
             />
           </label>
-          <label className="switch-row settings-wide-row">
+          <label className="switch-row settings-wide-row" data-settings-owner="playback">
             <span>
               <span>{t("persistentQueue")}</span>
               <small>{t("persistentQueueHint")}</small>
@@ -9852,6 +9854,7 @@ function SettingsPanel({
             />
           </label>
           <OfflineSettingsCard
+            owner="library"
             usage={offlineUsage}
             usageLabel={t("offlineCacheUsage")}
             description={t("offlineCacheUsageHint")}
@@ -9861,7 +9864,7 @@ function SettingsPanel({
             onRefresh={onRefreshOfflineUsage}
             onManage={onManageOfflineCache}
           />
-          <label className="switch-row settings-wide-row">
+          <label className="switch-row settings-wide-row" data-settings-owner="library">
             <span>
               <span>{t("offlineCacheAutoPlayed")}</span>
               <small>{t("offlineCacheAutoPlayedHint")}</small>
@@ -9872,7 +9875,7 @@ function SettingsPanel({
               onChange={(e) => onAutoCachePlayedChange(e.target.checked)}
             />
           </label>
-          <div className="switch-row settings-wide-row">
+          <div className="switch-row settings-wide-row" data-settings-owner="playback">
             <span>
               <span>{t("uiSounds")}</span>
               <small>{t("uiSoundsHint")}</small>
@@ -9904,7 +9907,7 @@ function SettingsPanel({
               />
             </div>
           </div>
-          <label className="switch-row settings-wide-row">
+          <label className="switch-row settings-wide-row" data-settings-owner="playback">
             <span>
               <span>{t("separatePlaybackHistory")}</span>
               <small>{t("separatePlaybackHistoryHint")}</small>
@@ -9916,7 +9919,7 @@ function SettingsPanel({
             />
           </label>
           {scrobblingSettings ? (
-            <div className="scrobbling-card settings-wide-row">
+            <div className="scrobbling-card settings-wide-row" data-settings-owner="services">
               <div className="scrobbling-head">
                 <div>
                   <strong>{t("scrobbling")}</strong>
@@ -9985,7 +9988,7 @@ function SettingsPanel({
               </div>
             </div>
           ) : null}
-          <div className="mcp-card settings-wide-row">
+          <div className="mcp-card settings-wide-row" data-settings-owner="services">
             <div className="mcp-card-head">
               <div>
                 <strong>{t("mcpToken")}</strong>
@@ -10028,7 +10031,7 @@ function SettingsPanel({
               </button>
             </div>
           </div>
-          <div className="subsonic-card settings-wide-row">
+          <div className="subsonic-card settings-wide-row" data-settings-owner="services">
             <div className="subsonic-card-head">
               <div>
                 <strong>{t("subsonicAccount")}</strong>
@@ -10136,9 +10139,9 @@ function SettingsPanel({
         </div>
       )}
 
-      {settingsActiveTab === "site" && (
-        <div className="settings-grid settings-tab-panel" role="tabpanel">
-          <label>
+      {(["playback", "library", "services", "system"] as SettingsTab[]).includes(settingsActiveTab) && (
+        <div className="settings-grid settings-tab-panel" data-active-category={settingsActiveTab} role="tabpanel">
+          <label data-settings-owner="playback">
             {t("language")}
             <select
               value={settings.language}
@@ -10150,7 +10153,7 @@ function SettingsPanel({
               <option value="en-US">English</option>
             </select>
           </label>
-          <div className="settings-wide-row theme-swatch-grid-wrap">
+          <div className="settings-wide-row theme-swatch-grid-wrap" data-settings-owner="playback">
             <div className="theme-swatch-grid-head">
               <strong>{t("theme")}</strong>
               <span>{t("themeHint")}</span>
@@ -10176,7 +10179,7 @@ function SettingsPanel({
             </div>
           </div>
           {user.role === "admin" ? (
-            <label className="switch-row settings-wide-row">
+            <label className="switch-row settings-wide-row" data-settings-owner="system">
               <span>
                 <span>{t("diagnosticsEnabled")}</span>
                 <small>{t("diagnosticsHint")}</small>
@@ -10191,7 +10194,7 @@ function SettingsPanel({
             </label>
           ) : null}
           {user.role === "admin" ? (
-            <label className="settings-number-row settings-wide-row">
+            <label className="settings-number-row settings-wide-row" data-settings-owner="system">
               <span className="settings-label-with-info">
                 <span>{t("playbackSourceRetention")}</span>
                 <span
@@ -10222,7 +10225,7 @@ function SettingsPanel({
             </label>
           ) : null}
           {user.role === "admin" ? (
-            <label className="settings-number-row settings-wide-row">
+            <label className="settings-number-row settings-wide-row" data-settings-owner="system">
               <span className="settings-label-with-info">
                 <span>{t("playbackHistoryRetention")}</span>
                 <span
@@ -10253,7 +10256,7 @@ function SettingsPanel({
             </label>
           ) : null}
           {user.role === "admin" ? (
-            <div className="feature-settings-card settings-wide-row">
+            <div className="feature-settings-card settings-wide-row" data-settings-owner="library">
               <label className="switch-row">
                 <span>
                   <span>{t("metadataGrouping")}</span>
@@ -10307,22 +10310,24 @@ function SettingsPanel({
             </div>
           ) : null}
           {user.role === "admin" ? (
-            <div className="font-settings-card settings-wide-row">
+            <label className="switch-row settings-wide-row" data-settings-owner="library">
+              <span>
+                <span>{t("lyricsAutoSave")}</span>
+                <small>{t("lyricsAutoSaveHint")}</small>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.lyrics_auto_save_to_song_dir}
+                onChange={(e) => setSettings({ ...settings, lyrics_auto_save_to_song_dir: e.target.checked })}
+              />
+            </label>
+          ) : null}
+          {user.role === "admin" ? (
+            <div className="font-settings-card settings-wide-row" data-settings-owner="playback">
               <div>
                 <strong>{t("lyricsSettings")}</strong>
-                <span>{t("lyricsAutoSaveHint")}</span>
+                <span>{t("lyricsDisplayStyleHint")}</span>
               </div>
-              <label className="switch-row">
-                <span>
-                  <span>{t("lyricsAutoSave")}</span>
-                  <small>{t("lyricsAutoSaveHint")}</small>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={settings.lyrics_auto_save_to_song_dir}
-                  onChange={(e) => setSettings({ ...settings, lyrics_auto_save_to_song_dir: e.target.checked })}
-                />
-              </label>
               <div className="settings-mini-grid">
                 <label>
                   {t("lyricsFontFamily")}
@@ -10377,7 +10382,7 @@ function SettingsPanel({
             </div>
           ) : null}
           {user.role === "admin" ? (
-            <div className="feature-settings-card settings-wide-row">
+            <div className="feature-settings-card settings-wide-row" data-settings-owner="services">
               <label className="switch-row">
                 <span>
                   <span>{t("sharingFeature")}</span>
@@ -10512,7 +10517,7 @@ function SettingsPanel({
               </div>
             </div>
           ) : null}
-          <div className="font-settings-card settings-wide-row">
+          <div className="font-settings-card settings-wide-row" data-settings-owner="playback">
             <div>
               <strong>{t("webFontSettings")}</strong>
               <span>{t("webFontHint")}</span>
@@ -10605,7 +10610,7 @@ function SettingsPanel({
               )}
             </div>
           </div>
-          <div className="library-dir-card settings-wide-row">
+          <div className="library-dir-card settings-wide-row" data-settings-owner="library">
             <div className="library-dir-head">
               <div>
                 <strong>{t("libraryDirectories")}</strong>

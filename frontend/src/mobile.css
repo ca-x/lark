@@ -6034,52 +6034,44 @@
 }
 
 @media (max-width:720px) {
-  /* Settings accordion layout on mobile */
+  /* Compact task navigation for settings on mobile. */
   .settings-tabs {
     width: 100%;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 6px;
-    border-radius: 18px;
+    flex-direction: row;
+    gap: 6px;
+    padding: 5px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 16px;
     background: color-mix(in srgb, var(--panel) 86%, var(--bg));
     border: 1px solid var(--line);
   }
+  .settings-tabs::-webkit-scrollbar { display:none; }
   .settings-tabs button {
-    flex: none;
-    width: 100%;
-    min-height: 52px;
-    padding: 12px 16px;
-    border-radius: 14px;
-    font-size: 14px;
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 44px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
     font-weight: 800;
-    justify-content: space-between;
-    display: flex;
-    align-items: center;
+    scroll-snap-align: start;
   }
-  .settings-tabs button::after {
-    content: '';
-    width: 8px;
-    height: 8px;
-    border-right: 2px solid currentColor;
-    border-bottom: 2px solid currentColor;
-    transform: rotate(45deg);
-    opacity: .5;
-    transition: transform .2s var(--ease);
-    flex-shrink: 0;
-  }
-  .settings-tabs button.active::after {
-    transform: rotate(-135deg);
-    opacity: .9;
-  }
-  /* Stack settings sections as accordion panels */
   .settings-page > .settings-tab-panel {
     border: 1px solid var(--line);
     border-radius: 18px;
     padding: 16px;
     background: color-mix(in srgb, var(--panel) 88%, var(--bg));
-    animation: fade-up .22s var(--ease);
+    animation: none;
   }
+}
+
+@media (max-width:720px) and (prefers-reduced-motion:reduce) {
+  .settings-tabs button:active { scale:1; transform:none; }
 }
 
 /* v0.6.6 mobile typography pass — pairs with the desktop block in styles.css.

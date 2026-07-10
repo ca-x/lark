@@ -73,7 +73,7 @@ export type ThemeLabel =
   | "foobarLight";
 
 export type ThemeMode = "dark" | "light";
-export type SettingsTab = "profile" | "users" | "site";
+export type SettingsTab = "account" | "playback" | "library" | "services" | "system" | "users";
 export type LibraryTab = "songs" | "offline" | "folders" | "network" | "radio" | "manage";
 
 export type Collection = {

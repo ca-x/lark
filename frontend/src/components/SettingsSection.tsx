@@ -8,6 +8,7 @@ type SettingsSectionProps = {
   children: ReactNode;
   className?: string;
   wideRow?: boolean;
+  owner?: string;
 };
 
 export function SettingsSection({
@@ -17,11 +18,16 @@ export function SettingsSection({
   children,
   className,
   wideRow,
+  owner,
 }: SettingsSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   const classes = ["settings-section", wideRow ? "settings-wide-row" : ""].filter(Boolean).join(" ");
   return (
-    <div className={`${classes}${className ? ` ${className}` : ""}`} data-open={open ? "true" : "false"}>
+    <div
+      className={`${classes}${className ? ` ${className}` : ""}`}
+      data-open={open ? "true" : "false"}
+      data-settings-owner={owner}
+    >
       <button
         type="button"
         className="settings-section-head"
