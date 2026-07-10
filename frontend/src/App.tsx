@@ -49,6 +49,12 @@ import {
 } from "@phosphor-icons/react";
 import WavesurferPlayer from "@wavesurfer/react";
 import { api } from "./services/api";
+import {
+  getCandidateCache,
+  invalidateLyricCandidateCache,
+  loadCandidateCache,
+  lyricCandidateCacheKey,
+} from "./services/candidateCache";
 import { prependOptimisticPlaybackHistoryEntry, shouldLoadPlaybackHistory } from "./playbackHistory";
 import {
   hasClientMediaSession,
@@ -3372,12 +3378,23 @@ export default function App() {
 
   async function openLyricCandidates() {
     if (!current) return;
+    const songID = current.id;
+    const key = lyricCandidateCacheKey(songID);
+    const cached = getCandidateCache<LyricCandidate>(key);
     setLyricCandidatesOpen(true);
+    if (cached !== undefined) {
+      setLyricCandidates(cached);
+      setLyricCandidatesLoading(false);
+      return;
+    }
     setLyricCandidatesLoading(true);
     try {
-      setLyricCandidates(await api.lyricCandidates(current.id));
+      const items = await loadCandidateCache(key, () => api.lyricCandidates(songID));
+      if (currentRef.current?.id === songID) setLyricCandidates(items);
+    } catch {
+      if (currentRef.current?.id === songID) setLyricCandidates([]);
     } finally {
-      setLyricCandidatesLoading(false);
+      if (currentRef.current?.id === songID) setLyricCandidatesLoading(false);
     }
   }
 
@@ -3546,6 +3563,12 @@ export default function App() {
   }
 
   function applyMetadataWritebackResult(result: MetadataWritebackResult, target: MetadataEditorTarget) {
+    const affectedSongIDs = new Set<number>();
+    if (target.type === "song") affectedSongIDs.add(target.song.id);
+    else target.songs.forEach((song) => affectedSongIDs.add(song.id));
+    if (result.song) affectedSongIDs.add(result.song.id);
+    result.songs?.forEach((song) => affectedSongIDs.add(song.id));
+    invalidateLyricCandidateCache([...affectedSongIDs]);
     if (result.song) {
       updateSongState(result.song);
     }
