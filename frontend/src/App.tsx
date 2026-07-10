@@ -4213,7 +4213,7 @@ export default function App() {
       : view === "my"
         ? t("my")
       : view === "settings"
-        ? t("profileSettings")
+        ? t("settings")
         : (playbackNav.find((item) => item.id === view)?.label ?? t("brand"));
   const topbarHasScreenTitle = !([
     "favorites",

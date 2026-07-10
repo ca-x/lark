@@ -1,6 +1,6 @@
 # Settings and Candidate Loading Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Reorganize settings into task-oriented categories, make metadata candidates path-first, and reuse lyric and metadata candidate requests for the browser session.
 
@@ -53,7 +53,7 @@
 - Changes: `SongMetadataCandidates(context.Context, int, MetadataCandidateScope) ([]models.MetadataCandidate, error)`
 - Changes: `AlbumMetadataCandidates(context.Context, int, MetadataCandidateScope) ([]models.MetadataCandidate, error)`
 
-- [ ] **Step 1: Write failing scope tests**
+- [x] **Step 1: Write failing scope tests**
 
 Add tests using an `online.Provider` fake whose `SearchSongs` and `SearchAlbums` methods increment counters. Create Ent song/album fixtures with paths such as `/music/Artist/Album/01 - Title.flac`, then assert:
 
@@ -81,13 +81,13 @@ if len(allItems) < 2 || allItems[0].Source != metadataPathCandidateSource {
 
 Add equivalent album assertions for `SearchAlbums`.
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 Run: `go test ./internal/library -run 'Test(Song|Album)MetadataCandidatesScope' -count=1`
 
 Expected: compile failure because the scope type and new signatures do not exist.
 
-- [ ] **Step 3: Implement scope parsing and provider isolation**
+- [x] **Step 3: Implement scope parsing and provider isolation**
 
 Add:
 
@@ -123,13 +123,13 @@ items, err := s.lib.SongMetadataCandidates(c.Request().Context(), id, scope)
 
 and the equivalent album call.
 
-- [ ] **Step 4: Run backend tests**
+- [x] **Step 4: Run backend tests**
 
 Run: `go test ./internal/library ./internal/api -count=1`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit backend scope support**
+- [x] **Step 5: Commit backend scope support**
 
 ```bash
 git add backend/internal/library/metadata_writeback.go backend/internal/library/metadata_writeback_test.go backend/internal/api/server.go
@@ -152,7 +152,7 @@ git commit -m "feat: scope metadata candidate queries"
 - Produces: `metadataCandidateCacheKey(type, id, scope): string`
 - Produces: `lyricCandidateCacheKey(songID): string`
 
-- [ ] **Step 1: Write the cache tests**
+- [x] **Step 1: Write the cache tests**
 
 Create Node tests that assert one loader call for two concurrent requests, cache reuse afterward, empty-array reuse, rejected-loader retry, and targeted invalidation:
 
@@ -166,13 +166,13 @@ assert.deepEqual(await loadCandidateCache("lyrics:7", loader), [{ id: "a" }]);
 assert.equal(calls, 1);
 ```
 
-- [ ] **Step 2: Run the test and confirm failure**
+- [x] **Step 2: Run the test and confirm failure**
 
 Run: `node --test src/services/candidateCache.test.mjs`
 
 Expected: module-not-found failure.
 
-- [ ] **Step 3: Implement the cache**
+- [x] **Step 3: Implement the cache**
 
 Use module-level maps and delete only the in-flight entry in `finally`:
 
@@ -201,7 +201,7 @@ export function loadCandidateCache<T>(key: string, loader: () => Promise<T[]>): 
 
 Add key helpers and invalidation without adding TTL or local storage.
 
-- [ ] **Step 4: Register and run the test**
+- [x] **Step 4: Register and run the test**
 
 Add `"test:candidate-cache": "node --test src/services/candidateCache.test.mjs"` to `frontend/package.json`.
 
@@ -209,7 +209,7 @@ Run: `pnpm test:candidate-cache`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the cache**
+- [x] **Step 5: Commit the cache**
 
 ```bash
 git add frontend/src/services/candidateCache.ts frontend/src/services/candidateCache.test.mjs frontend/package.json
@@ -231,17 +231,17 @@ git commit -m "feat: cache candidate searches per session"
 - Consumes: cache helpers from Task 2.
 - Produces: scoped API calls `songMetadataCandidates(id, scope)` and `albumMetadataCandidates(id, scope)`.
 
-- [ ] **Step 1: Add a focused source contract check**
+- [x] **Step 1: Add a focused source contract check**
 
 In `frontend/scripts/check-settings-organization.mjs`, assert that `api.ts` contains `scope=${encodeURIComponent(scope)}`, and that the metadata editor requests `"path"` before `"online"`, imports `loadCandidateCache`, and retains existing candidates while online loading.
 
-- [ ] **Step 2: Run the source check and confirm failure**
+- [x] **Step 2: Run the source check and confirm failure**
 
 Run: `node scripts/check-settings-organization.mjs`
 
 Expected: assertion failure for missing scoped API/cache wiring.
 
-- [ ] **Step 3: Add scoped API methods**
+- [x] **Step 3: Add scoped API methods**
 
 Use:
 
@@ -252,7 +252,7 @@ songMetadataCandidates: (id: number, scope: "path" | "online" | "all" = "all") =
 
 and the equivalent album method.
 
-- [ ] **Step 4: Implement path-first dialog loading**
+- [x] **Step 4: Implement path-first dialog loading**
 
 Track separate `pathCandidates`, `onlineCandidates`, `onlineLoading`, and `onlineError` state. On target change, synchronously seed state from cache, then load missing path data. After committing the path result, load missing online data. Guard every state update with the existing cancellation flag.
 
@@ -260,17 +260,17 @@ Merge by `source:id`, keeping path entries first. Do not replace a populated lis
 
 After successful writeback, invalidate both metadata scope keys for the target before calling `onSaved`.
 
-- [ ] **Step 5: Add responsive candidate styling**
+- [x] **Step 5: Add responsive candidate styling**
 
 Ensure candidate buttons have `min-height:44px` on mobile, long text uses ellipsis, and the online status is an inline row. Use opacity-only transition at most 180ms and disable it under `prefers-reduced-motion: reduce`.
 
-- [ ] **Step 6: Run frontend checks**
+- [x] **Step 6: Run frontend checks**
 
 Run: `pnpm test:candidate-cache && node scripts/check-settings-organization.mjs && pnpm build`
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit path-first metadata loading**
+- [x] **Step 7: Commit path-first metadata loading**
 
 ```bash
 git add frontend/src/services/api.ts frontend/src/components/MetadataEditorDialog.tsx frontend/src/i18n.ts frontend/src/styles.css frontend/src/mobile.css frontend/scripts/check-settings-organization.mjs
@@ -288,17 +288,17 @@ git commit -m "feat: show path metadata before online matches"
 **Interfaces:**
 - Consumes: `lyricCandidateCacheKey`, `getCandidateCache`, `loadCandidateCache`, and `invalidateCandidateCache`.
 
-- [ ] **Step 1: Extend the source contract check**
+- [x] **Step 1: Extend the source contract check**
 
 Assert that `openLyricCandidates` checks cached results before setting loading, calls `loadCandidateCache`, and no longer calls `api.lyricCandidates` directly on every opening.
 
-- [ ] **Step 2: Run the check and confirm failure**
+- [x] **Step 2: Run the check and confirm failure**
 
 Run: `node scripts/check-settings-organization.mjs`
 
 Expected: failure for lyric cache wiring.
 
-- [ ] **Step 3: Implement cache-first lyric opening**
+- [x] **Step 3: Implement cache-first lyric opening**
 
 Use the song ID captured before awaiting:
 
@@ -323,13 +323,13 @@ try {
 
 Do not clear the cache when the candidate panel closes or a lyric is selected. When metadata writeback returns song IDs, invalidate their lyric keys.
 
-- [ ] **Step 4: Run frontend verification**
+- [x] **Step 4: Run frontend verification**
 
 Run: `pnpm test:candidate-cache && node scripts/check-settings-organization.mjs && pnpm build`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit lyric request reuse**
+- [x] **Step 5: Commit lyric request reuse**
 
 ```bash
 git add frontend/src/App.tsx frontend/src/services/candidateCache.ts frontend/scripts/check-settings-organization.mjs
@@ -353,21 +353,21 @@ git commit -m "fix: reuse lyric candidate searches"
 - Produces: `SettingsTab = "account" | "playback" | "library" | "services" | "system" | "users"`.
 - Produces: `SettingsNavigation({ activeTab, tabs, onTabChange })`.
 
-- [ ] **Step 1: Add settings organization assertions**
+- [x] **Step 1: Add settings organization assertions**
 
 Make the script assert all six IDs and labels exist, old `profile/site` tab IDs are absent from the settings tab list, user management is admin-only, and mobile CSS uses horizontal overflow rather than `flex-direction:column` for `.settings-tabs`.
 
-- [ ] **Step 2: Run the check and confirm failure**
+- [x] **Step 2: Run the check and confirm failure**
 
 Run: `node scripts/check-settings-organization.mjs`
 
 Expected: failure for missing category IDs and old mobile layout.
 
-- [ ] **Step 3: Add the navigation component and type**
+- [x] **Step 3: Add the navigation component and type**
 
 Render a `role="tablist"` container with buttons using `aria-selected`, `aria-controls`, and a ref callback that calls `scrollIntoView({ block: "nearest", inline: "nearest" })` for the selected item after a category change. Do not animate category panel movement.
 
-- [ ] **Step 4: Reassign existing controls without changing persistence**
+- [x] **Step 4: Reassign existing controls without changing persistence**
 
 Move the existing JSX blocks into these conditions:
 
@@ -382,11 +382,11 @@ users    -> registration and user list
 
 Keep administrator checks on global switches and hide the `system` and `users` tabs from regular users. Use existing `SettingsSection` for dense groups; default the primary group open and secondary advanced groups closed where the page would otherwise become a long wall.
 
-- [ ] **Step 5: Add bilingual category copy**
+- [x] **Step 5: Add bilingual category copy**
 
 Add Chinese and English keys for account, playback/appearance, media library, services/connections, and system settings. Reuse `userManagement` for users.
 
-- [ ] **Step 6: Implement desktop and mobile styling**
+- [x] **Step 6: Implement desktop and mobile styling**
 
 Desktop keeps a compact pill rail. Mobile uses:
 
@@ -409,13 +409,13 @@ Desktop keeps a compact pill rail. Mobile uses:
 
 Remove the current mobile chevron accordion styling for top-level categories. Add `:active { transform:scale(.97) }` with a 140–160ms transform transition and disable transforms for reduced motion.
 
-- [ ] **Step 7: Run UI verification**
+- [x] **Step 7: Run UI verification**
 
 Run: `node scripts/check-settings-organization.mjs && pnpm lint && pnpm build`
 
 Expected: PASS.
 
-- [ ] **Step 8: Commit settings reorganization**
+- [x] **Step 8: Commit settings reorganization**
 
 ```bash
 git add frontend/src/components/settings/SettingsNavigation.tsx frontend/src/types/app.ts frontend/src/App.tsx frontend/src/i18n.ts frontend/src/styles.css frontend/src/mobile.css frontend/scripts/check-settings-organization.mjs
@@ -435,27 +435,27 @@ git commit -m "feat: reorganize settings by task"
 **Interfaces:**
 - Produces release version `0.9.35`.
 
-- [ ] **Step 1: Run the complete backend suite**
+- [x] **Step 1: Run the complete backend suite**
 
 Run: `go test ./... -count=1` from `backend`.
 
 Expected: PASS.
 
-- [ ] **Step 2: Run the complete frontend verification**
+- [x] **Step 2: Run the complete frontend verification**
 
 Run: `pnpm test:candidate-cache && node scripts/check-settings-organization.mjs && pnpm lint && pnpm build` from `frontend`.
 
 Expected: PASS and a fresh `dist` directory.
 
-- [ ] **Step 3: Bump version and changelog**
+- [x] **Step 3: Bump version and changelog**
 
 Set both package manifest and lockfile importer version to `0.9.35`. Add bilingual changelog entries dated `2026-07-10` covering settings categories/mobile navigation, path-first metadata candidates, and lyric/metadata request reuse.
 
-- [ ] **Step 4: Rebuild embedded assets**
+- [x] **Step 4: Rebuild embedded assets**
 
 Run: `pnpm build` from `frontend`, then copy the generated `frontend/dist` contents into `backend/web/dist` using the repository's existing build workflow. Confirm stale hashed assets are removed only from `backend/web/dist/assets` and user source files are untouched.
 
-- [ ] **Step 5: Verify the release tree**
+- [x] **Step 5: Verify the release tree**
 
 Run:
 
@@ -469,14 +469,14 @@ from the appropriate backend/repository directories, followed by the frontend ve
 
 Expected: only intended source, changelog, version, plan, and generated dist changes; all tests PASS.
 
-- [ ] **Step 6: Commit the release**
+- [x] **Step 6: Commit the release**
 
 ```bash
 git add CHANGELOG.md frontend/package.json frontend/pnpm-lock.yaml backend/web/dist
 git commit -m "chore: release v0.9.35"
 ```
 
-- [ ] **Step 7: Push main**
+- [x] **Step 7: Push main**
 
 Run: `git push origin main`
 

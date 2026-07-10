@@ -5,6 +5,40 @@
 
 ---
 
+## 0.9.35 — 设置分组与候选加载优化
+
+发布日期 / Released: 2026-07-10
+
+### 新功能
+
+- **按实际任务重新规划设置页。** 设置现分为账户、播放与外观、媒体库、服务与连接、系统和用户管理六类；管理员项目按权限显示，移动端改用紧凑的横向分类栏和单列内容，不再被纵向设置导航占满首屏。
+- **歌曲和专辑元信息优先显示路径解析结果。** 编辑器会先加载本地文件路径候选，立即允许选择，再异步追加在线曲目信息；在线查询失败不会清空本地候选或阻塞手动编辑。
+
+### 修复
+
+- **避免重复查询歌词和元信息候选。** 同一浏览器会话内会按歌曲或专辑复用成功结果和进行中的请求，空候选也会缓存；元信息写回后会主动失效相关缓存，页面刷新后仍会重新查询最新在线结果。
+
+完整 diff：`git log v0.9.34..v0.9.35`
+
+---
+
+## v0.9.35 — Settings organization and candidate loading improvements
+
+Released: 2026-07-10
+
+### Features
+
+- **Reorganized settings around real user tasks.** Settings are now divided into Account, Playback & appearance, Media library, Services & connections, System, and User management. Administrative categories remain permission-aware, while mobile uses a compact horizontal category rail and single-column content instead of a viewport-filling vertical menu.
+- **Show path-derived song and album metadata first.** The editor loads the local file-path candidate immediately and appends online track information asynchronously. Online lookup failures no longer clear local candidates or block manual editing.
+
+### Fixed
+
+- **Prevented repeated lyric and metadata candidate searches.** Successful results, empty results, and in-flight requests are reused per song or album during the browser session. Metadata writeback invalidates affected entries, while a page reload still performs a fresh online lookup.
+
+Full diff: `git log v0.9.34..v0.9.35`
+
+---
+
 ## 0.9.34 — 修复 Walkman 3D 拖拽旋转
 
 发布日期 / Released: 2026-07-07
