@@ -871,7 +871,11 @@ func (s *Server) handleSongMetadataCandidates(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.SongMetadataCandidates(c.Request().Context(), id)
+	items, err := s.lib.SongMetadataCandidates(
+		c.Request().Context(),
+		id,
+		library.ParseMetadataCandidateScope(c.QueryParam("scope")),
+	)
 	if err != nil {
 		return mapError(err)
 	}
@@ -1897,7 +1901,11 @@ func (s *Server) handleAlbumMetadataCandidates(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.AlbumMetadataCandidates(c.Request().Context(), id)
+	items, err := s.lib.AlbumMetadataCandidates(
+		c.Request().Context(),
+		id,
+		library.ParseMetadataCandidateScope(c.QueryParam("scope")),
+	)
 	if err != nil {
 		return mapError(err)
 	}

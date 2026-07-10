@@ -6,12 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"lark/backend/ent"
 	"lark/backend/ent/album"
 	"lark/backend/ent/enttest"
 	"lark/backend/ent/song"
+	"lark/backend/internal/online"
 
 	_ "github.com/lib-x/entsqlite"
 	taglib "go.senan.xyz/taglib"
@@ -571,6 +573,130 @@ func TestMetadataPathCandidateFromAlbumInfersMultidiscFolder(t *testing.T) {
 	}
 }
 
+func TestSongMetadataCandidatesScopeSeparatesPathAndOnline(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	client := enttest.Open(t, "sqlite3", "file:song-metadata-candidate-scope?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	artistItem, err := client.Artist.Create().SetName("周杰伦").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	albumItem, err := client.Album.Create().SetTitle("叶惠美").SetAlbumArtist("周杰伦").SetArtist(artistItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	songItem, err := client.Song.Create().
+		SetTitle("晴天").
+		SetPath(filepath.Join(root, "周杰伦", "叶惠美", "01 - 周杰伦 - 晴天.flac")).
+		SetFileName("01 - 周杰伦 - 晴天.flac").
+		SetArtist(artistItem).
+		SetAlbum(albumItem).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &metadataCandidateScopeProvider{}
+	service := &Service{client: client, libraryDir: root, online: []online.Provider{provider}}
+
+	pathItems, err := service.SongMetadataCandidates(ctx, songItem.ID, MetadataCandidateScopePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := provider.songSearches.Load(); got != 0 {
+		t.Fatalf("path scope called the song provider %d times", got)
+	}
+	if len(pathItems) != 1 || pathItems[0].Source != metadataPathCandidateSource {
+		t.Fatalf("unexpected path candidates: %#v", pathItems)
+	}
+
+	onlineItems, err := service.SongMetadataCandidates(ctx, songItem.ID, MetadataCandidateScopeOnline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := provider.songSearches.Load(); got != 1 {
+		t.Fatalf("online scope song searches = %d, want 1", got)
+	}
+	if len(onlineItems) != 1 || onlineItems[0].Source != provider.Name() {
+		t.Fatalf("unexpected online candidates: %#v", onlineItems)
+	}
+	for _, item := range onlineItems {
+		if item.Source == metadataPathCandidateSource {
+			t.Fatalf("online scope included a path candidate: %#v", onlineItems)
+		}
+	}
+
+	allItems, err := service.SongMetadataCandidates(ctx, songItem.ID, MetadataCandidateScopeAll)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allItems) != 2 || allItems[0].Source != metadataPathCandidateSource {
+		t.Fatalf("combined scope did not preserve path-first response: %#v", allItems)
+	}
+}
+
+func TestAlbumMetadataCandidatesScopeSeparatesPathAndOnline(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	client := enttest.Open(t, "sqlite3", "file:album-metadata-candidate-scope?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	artistItem, err := client.Artist.Create().SetName("周杰伦").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	albumItem, err := client.Album.Create().SetTitle("范特西").SetAlbumArtist("周杰伦").SetArtist(artistItem).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.Song.Create().
+		SetTitle("爱在西元前").
+		SetPath(filepath.Join(root, "周杰伦", "范特西", "01 - 爱在西元前.flac")).
+		SetFileName("01 - 爱在西元前.flac").
+		SetArtist(artistItem).
+		SetAlbum(albumItem).
+		Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &metadataCandidateScopeProvider{}
+	service := &Service{client: client, libraryDir: root, online: []online.Provider{provider}}
+
+	pathItems, err := service.AlbumMetadataCandidates(ctx, albumItem.ID, MetadataCandidateScopePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := provider.albumSearches.Load(); got != 0 {
+		t.Fatalf("path scope called the album provider %d times", got)
+	}
+	if len(pathItems) != 1 || pathItems[0].Source != metadataPathCandidateSource {
+		t.Fatalf("unexpected album path candidates: %#v", pathItems)
+	}
+
+	onlineItems, err := service.AlbumMetadataCandidates(ctx, albumItem.ID, MetadataCandidateScopeOnline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := provider.albumSearches.Load(); got == 0 {
+		t.Fatal("online scope did not call the album provider")
+	}
+	if len(onlineItems) != 1 || onlineItems[0].Source != provider.Name() {
+		t.Fatalf("unexpected album online candidates: %#v", onlineItems)
+	}
+	for _, item := range onlineItems {
+		if item.Source == metadataPathCandidateSource {
+			t.Fatalf("online album scope included a path candidate: %#v", onlineItems)
+		}
+	}
+
+	allItems, err := service.AlbumMetadataCandidates(ctx, albumItem.ID, MetadataCandidateScopeAll)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allItems) != 2 || allItems[0].Source != metadataPathCandidateSource {
+		t.Fatalf("combined album scope did not preserve path-first response: %#v", allItems)
+	}
+}
+
 func TestParseFilenameMetadataTreatsTrackNumberTitleAsTitleOnly(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "周杰伦", "范特西", "01 - 爱在西元前.flac")
@@ -584,6 +710,35 @@ func TestParseFilenameMetadataTreatsTrackNumberTitleAsTitleOnly(t *testing.T) {
 	if parsed.Album != "范特西" {
 		t.Fatalf("album = %q, want 范特西", parsed.Album)
 	}
+}
+
+type metadataCandidateScopeProvider struct {
+	songSearches  atomic.Int32
+	albumSearches atomic.Int32
+}
+
+func (p *metadataCandidateScopeProvider) Name() string { return "scope-test" }
+
+func (p *metadataCandidateScopeProvider) SearchSongs(context.Context, string, string) ([]online.Song, error) {
+	p.songSearches.Add(1)
+	return []online.Song{{ID: "song-online", Source: p.Name(), Title: "晴天", Artist: "周杰伦", Album: "叶惠美"}}, nil
+}
+
+func (p *metadataCandidateScopeProvider) Lyrics(context.Context, online.Song) (string, error) {
+	return "", nil
+}
+
+func (p *metadataCandidateScopeProvider) SearchAlbums(context.Context, string, string) ([]online.AlbumCandidate, error) {
+	p.albumSearches.Add(1)
+	return []online.AlbumCandidate{{ID: "album-online", Source: p.Name(), Title: "范特西", Artist: "周杰伦", Year: 2001}}, nil
+}
+
+func (p *metadataCandidateScopeProvider) AlbumInfo(context.Context, string) (online.AlbumInfo, error) {
+	return online.AlbumInfo{}, nil
+}
+
+func (p *metadataCandidateScopeProvider) SearchArtists(context.Context, string) ([]online.ArtistCandidate, error) {
+	return nil, nil
 }
 
 func copyTaglibTestdata(t *testing.T, name string) string {

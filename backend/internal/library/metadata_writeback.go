@@ -27,6 +27,25 @@ import (
 const metadataCoverMaxBytes = 8 << 20
 const metadataPathCandidateSource = "path"
 
+type MetadataCandidateScope string
+
+const (
+	MetadataCandidateScopeAll    MetadataCandidateScope = "all"
+	MetadataCandidateScopePath   MetadataCandidateScope = "path"
+	MetadataCandidateScopeOnline MetadataCandidateScope = "online"
+)
+
+func ParseMetadataCandidateScope(value string) MetadataCandidateScope {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case string(MetadataCandidateScopePath):
+		return MetadataCandidateScopePath
+	case string(MetadataCandidateScopeOnline):
+		return MetadataCandidateScopeOnline
+	default:
+		return MetadataCandidateScopeAll
+	}
+}
+
 type MetadataWritebackInput struct {
 	Title            string
 	Artist           string
@@ -42,7 +61,7 @@ type MetadataWritebackInput struct {
 
 var errMetadataWritebackConfirmationRequired = errors.New("metadata writeback confirmation is required")
 
-func (s *Service) SongMetadataCandidates(ctx context.Context, id int) ([]models.MetadataCandidate, error) {
+func (s *Service) SongMetadataCandidates(ctx context.Context, id int, scope MetadataCandidateScope) ([]models.MetadataCandidate, error) {
 	item, err := s.client.Song.Query().
 		Where(song.ID(id)).
 		WithArtist().
@@ -57,8 +76,14 @@ func (s *Service) SongMetadataCandidates(ctx context.Context, id int) ([]models.
 		artistName = strings.TrimSpace(item.Edges.Artist.Name)
 	}
 	pathCandidate, hasPathCandidate := metadataPathCandidateFromSong(item, s.libraryDir)
-	if title == "" {
+	if scope == MetadataCandidateScopePath {
 		if hasPathCandidate {
+			return []models.MetadataCandidate{pathCandidate}, nil
+		}
+		return []models.MetadataCandidate{}, nil
+	}
+	if title == "" {
+		if scope == MetadataCandidateScopeAll && hasPathCandidate {
 			return []models.MetadataCandidate{pathCandidate}, nil
 		}
 		return []models.MetadataCandidate{}, nil
@@ -123,13 +148,13 @@ func (s *Service) SongMetadataCandidates(ctx context.Context, id int) ([]models.
 	if len(out) > 12 {
 		out = out[:12]
 	}
-	if hasPathCandidate {
+	if scope == MetadataCandidateScopeAll && hasPathCandidate {
 		out = append([]models.MetadataCandidate{pathCandidate}, out...)
 	}
 	return out, nil
 }
 
-func (s *Service) AlbumMetadataCandidates(ctx context.Context, id int) ([]models.MetadataCandidate, error) {
+func (s *Service) AlbumMetadataCandidates(ctx context.Context, id int, scope MetadataCandidateScope) ([]models.MetadataCandidate, error) {
 	item, err := s.client.Album.Query().
 		Where(album.ID(id)).
 		WithArtist().
@@ -139,6 +164,13 @@ func (s *Service) AlbumMetadataCandidates(ctx context.Context, id int) ([]models
 		Only(ctx)
 	if err != nil {
 		return nil, err
+	}
+	pathCandidate, hasPathCandidate := metadataPathCandidateFromAlbum(item, s.libraryDir)
+	if scope == MetadataCandidateScopePath {
+		if hasPathCandidate {
+			return []models.MetadataCandidate{pathCandidate}, nil
+		}
+		return []models.MetadataCandidate{}, nil
 	}
 	remote := s.searchRemoteAlbums(ctx, item.Title, albumSearchArtistName(item))
 	out := make([]models.MetadataCandidate, 0, len(remote))
@@ -154,8 +186,8 @@ func (s *Service) AlbumMetadataCandidates(ctx context.Context, id int) ([]models
 			Link:        strings.TrimSpace(candidate.Link),
 		})
 	}
-	if candidate, ok := metadataPathCandidateFromAlbum(item, s.libraryDir); ok {
-		out = append([]models.MetadataCandidate{candidate}, out...)
+	if scope == MetadataCandidateScopeAll && hasPathCandidate {
+		out = append([]models.MetadataCandidate{pathCandidate}, out...)
 	}
 	return out, nil
 }
