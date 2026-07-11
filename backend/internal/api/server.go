@@ -361,6 +361,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.POST("/api/library/scan/cancel", s.handleCancelScan, admin)
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
 	e.GET("/api/library/stats", s.handleLibraryStats, auth)
+	e.GET("/api/library/review-summary", s.handleLibraryReviewSummary, auth)
 	e.GET("/api/library/sources", s.handleLibrarySources, auth)
 	e.GET("/api/library/directories", s.handleLibraryDirectories, auth)
 	e.POST("/api/library/directories/check", s.handleCheckLibraryDirectories, auth)
@@ -799,7 +800,9 @@ func (s *Server) handleSongs(c *echo.Context) error {
 func (s *Server) handleSongsPage(c *echo.Context) error {
 	limit := queryInt(c, "limit", 100)
 	favorites := c.QueryParam("favorites") == "true"
-	items, err := s.lib.SongsPage(c.Request().Context(), currentUserID(c), c.QueryParam("q"), favorites, limit, pageOffset(c))
+	items, err := s.lib.SongsPageWithOptions(c.Request().Context(), currentUserID(c), c.QueryParam("q"), favorites, limit, pageOffset(c), library.SongBrowseOptions{
+		Sort: library.ParseSongSort(c.QueryParam("sort")), Review: library.ParseSongReview(c.QueryParam("review")),
+	})
 	if err != nil {
 		return mapError(err)
 	}
@@ -907,6 +910,14 @@ func (s *Server) handleLibraryStats(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, stats)
+}
+
+func (s *Server) handleLibraryReviewSummary(c *echo.Context) error {
+	summary, err := s.lib.ReviewSummary(c.Request().Context(), currentUserID(c))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, summary)
 }
 
 func (s *Server) handleToggleSongFavorite(c *echo.Context) error {

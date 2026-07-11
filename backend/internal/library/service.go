@@ -791,8 +791,13 @@ func (s *Service) Songs(ctx context.Context, userID int, q string, favorites boo
 }
 
 func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites bool, limit, offset int) (models.SongPage, error) {
+	return s.SongsPageWithOptions(ctx, userID, q, favorites, limit, offset, SongBrowseOptions{})
+}
+
+func (s *Service) SongsPageWithOptions(ctx context.Context, userID int, q string, favorites bool, limit, offset int, options SongBrowseOptions) (models.SongPage, error) {
 	term := strings.TrimSpace(q)
 	limit, offset = normalizePage(limit, offset)
+	options = normalizeSongBrowseOptions(options)
 	deviceScope, err := s.playbackHistoryDeviceScope(ctx, userID)
 	if err != nil {
 		return models.SongPage{}, err
@@ -800,7 +805,11 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 	cacheable := limit <= 500
 	key := ""
 	if cacheable {
-		key = cacheKey("songs-page", userID, s.userCacheVersion(ctx, userID), deviceScope, term, favorites, limit, offset)
+		if options.Sort == SongSortAddedDesc && options.Review == "" {
+			key = cacheKey("songs-page", userID, s.userCacheVersion(ctx, userID), deviceScope, term, favorites, limit, offset)
+		} else {
+			key = cacheKey("songs-page", userID, s.userCacheVersion(ctx, userID), deviceScope, term, favorites, limit, offset, options.Sort, options.Review)
+		}
 		var cached models.SongPage
 		if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 			return models.SongPage{}, err
@@ -826,7 +835,7 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 				}
 				return inner, nil
 			}
-			page, e := s.loadSongsPage(bgCtx, userID, term, favorites, deviceScope, limit, offset)
+			page, e := s.loadSongsPage(bgCtx, userID, term, favorites, deviceScope, limit, offset, options)
 			if e != nil {
 				return models.SongPage{}, e
 			}
@@ -842,14 +851,17 @@ func (s *Service) SongsPage(ctx context.Context, userID int, q string, favorites
 		}
 		return v.(models.SongPage), nil
 	}
-	return s.loadSongsPage(ctx, userID, term, favorites, deviceScope, limit, offset)
+	return s.loadSongsPage(ctx, userID, term, favorites, deviceScope, limit, offset, options)
 }
 
 // loadSongsPage executes the actual DB queries for SongsPage.
-func (s *Service) loadSongsPage(ctx context.Context, userID int, term string, favorites bool, deviceScope string, limit, offset int) (models.SongPage, error) {
+func (s *Service) loadSongsPage(ctx context.Context, userID int, term string, favorites bool, deviceScope string, limit, offset int, options SongBrowseOptions) (models.SongPage, error) {
 	predicates, err := s.songListPredicates(ctx, userID, term, favorites)
 	if err != nil {
 		return models.SongPage{}, err
+	}
+	if options.Review == SongReviewIncomplete {
+		predicates = append(predicates, incompleteSongPredicate())
 	}
 	totalQuery := s.client.Song.Query()
 	if len(predicates) > 0 {
@@ -859,7 +871,7 @@ func (s *Service) loadSongsPage(ctx context.Context, userID int, term string, fa
 	if err != nil {
 		return models.SongPage{}, err
 	}
-	query := s.client.Song.Query().Select(browseSongColumns...).WithArtist().WithAlbum().Order(ent.Desc(song.FieldCreatedAt), ent.Desc(song.FieldID))
+	query := s.client.Song.Query().Select(browseSongColumns...).WithArtist().WithAlbum().Order(songBrowseOrder(options.Sort)...)
 	if len(predicates) > 0 {
 		query = query.Where(predicates...)
 	}
@@ -874,6 +886,9 @@ func (s *Service) loadSongsPage(ctx context.Context, userID int, term string, fa
 	out, err := s.applySongUserStateWithDevice(ctx, userID, mapSongs(items), deviceScope)
 	if err != nil {
 		return models.SongPage{}, err
+	}
+	if options.Review == SongReviewIncomplete {
+		out = addMetadataIssues(out)
 	}
 	return models.SongPage{
 		Items:  out,

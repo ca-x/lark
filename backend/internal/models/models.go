@@ -29,6 +29,11 @@ type Song struct {
 	CoverVersion    int64      `json:"cover_version,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
+	MetadataIssues  []string   `json:"metadata_issues,omitempty"`
+}
+
+type LibraryReviewSummary struct {
+	IncompleteSongs int `json:"incomplete_songs"`
 }
 
 type Album struct {
