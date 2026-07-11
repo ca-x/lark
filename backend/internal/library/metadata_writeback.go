@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -62,6 +63,50 @@ type MetadataWritebackInput struct {
 var errMetadataWritebackConfirmationRequired = errors.New("metadata writeback confirmation is required")
 
 func (s *Service) SongMetadataCandidates(ctx context.Context, id int, scope MetadataCandidateScope) ([]models.MetadataCandidate, error) {
+	return s.SongMetadataCandidatesForUser(ctx, 0, id, scope, false)
+}
+
+func (s *Service) SongMetadataCandidatesForUser(ctx context.Context, userID, id int, scope MetadataCandidateScope, refresh bool) ([]models.MetadataCandidate, error) {
+	if scope == MetadataCandidateScopePath {
+		return s.songMetadataCandidatesUncached(ctx, id, scope)
+	}
+	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().WithAlbum().Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	artistName, albumTitle := "", ""
+	if item.Edges.Artist != nil {
+		artistName = item.Edges.Artist.Name
+	}
+	if item.Edges.Album != nil {
+		albumTitle = item.Edges.Album.Title
+	}
+	snapshot := fmt.Sprintf("v1\x00%s\x00%s\x00%s\x00%.3f\x00%s", strings.TrimSpace(item.Title), strings.TrimSpace(artistName), strings.TrimSpace(albumTitle), item.DurationSeconds, strings.TrimSpace(item.Path))
+	payload, err := s.loadCandidateJSON(ctx, CandidateCacheRequest{UserID: userID, TargetType: "song", TargetID: id, Kind: candidateQueryKindMetadataOnline, Snapshot: snapshot, TTL: 7 * 24 * time.Hour, Refresh: refresh}, func(loadCtx context.Context) ([]byte, error) {
+		items, loadErr := s.songMetadataCandidatesUncached(loadCtx, id, MetadataCandidateScopeOnline)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		return json.Marshal(items)
+	})
+	if err != nil {
+		return nil, err
+	}
+	onlineItems := []models.MetadataCandidate{}
+	if err := json.Unmarshal(payload, &onlineItems); err != nil {
+		return nil, err
+	}
+	if scope != MetadataCandidateScopeAll {
+		return onlineItems, nil
+	}
+	pathItems, err := s.songMetadataCandidatesUncached(ctx, id, MetadataCandidateScopePath)
+	if err != nil {
+		return nil, err
+	}
+	return append(pathItems, onlineItems...), nil
+}
+
+func (s *Service) songMetadataCandidatesUncached(ctx context.Context, id int, scope MetadataCandidateScope) ([]models.MetadataCandidate, error) {
 	item, err := s.client.Song.Query().
 		Where(song.ID(id)).
 		WithArtist().
@@ -155,6 +200,43 @@ func (s *Service) SongMetadataCandidates(ctx context.Context, id int, scope Meta
 }
 
 func (s *Service) AlbumMetadataCandidates(ctx context.Context, id int, scope MetadataCandidateScope) ([]models.MetadataCandidate, error) {
+	return s.AlbumMetadataCandidatesForUser(ctx, 0, id, scope, false)
+}
+
+func (s *Service) AlbumMetadataCandidatesForUser(ctx context.Context, userID, id int, scope MetadataCandidateScope, refresh bool) ([]models.MetadataCandidate, error) {
+	if scope == MetadataCandidateScopePath {
+		return s.albumMetadataCandidatesUncached(ctx, id, scope)
+	}
+	item, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	snapshot := fmt.Sprintf("v1\x00%s\x00%s\x00%d", strings.TrimSpace(item.Title), strings.TrimSpace(albumSearchArtistName(item)), item.Year)
+	payload, err := s.loadCandidateJSON(ctx, CandidateCacheRequest{UserID: userID, TargetType: "album", TargetID: id, Kind: candidateQueryKindMetadataOnline, Snapshot: snapshot, TTL: 7 * 24 * time.Hour, Refresh: refresh}, func(loadCtx context.Context) ([]byte, error) {
+		items, loadErr := s.albumMetadataCandidatesUncached(loadCtx, id, MetadataCandidateScopeOnline)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		return json.Marshal(items)
+	})
+	if err != nil {
+		return nil, err
+	}
+	onlineItems := []models.MetadataCandidate{}
+	if err := json.Unmarshal(payload, &onlineItems); err != nil {
+		return nil, err
+	}
+	if scope != MetadataCandidateScopeAll {
+		return onlineItems, nil
+	}
+	pathItems, err := s.albumMetadataCandidatesUncached(ctx, id, MetadataCandidateScopePath)
+	if err != nil {
+		return nil, err
+	}
+	return append(pathItems, onlineItems...), nil
+}
+
+func (s *Service) albumMetadataCandidatesUncached(ctx context.Context, id int, scope MetadataCandidateScope) ([]models.MetadataCandidate, error) {
 	item, err := s.client.Album.Query().
 		Where(album.ID(id)).
 		WithArtist().
@@ -300,6 +382,9 @@ func (s *Service) UpdateSongMetadata(ctx context.Context, userID, id int, input 
 	})
 	s.invalidateLibraryCache(ctx)
 	s.invalidateSearchCatalogs(ctx)
+	if err := s.invalidateCandidateCache(ctx, userID, "song", id, candidateQueryKindMetadataOnline, candidateQueryKindLyrics); err != nil {
+		fmt.Printf("candidate cache invalidation failed: %v\n", err)
+	}
 	return result, nil
 }
 
@@ -445,6 +530,12 @@ func (s *Service) UpdateAlbumMetadata(ctx context.Context, userID, id int, input
 			return result, err
 		}
 		result.Songs = songModels
+	}
+	if err := s.invalidateCandidateCache(ctx, userID, "album", id, candidateQueryKindMetadataOnline); err != nil {
+		fmt.Printf("candidate cache invalidation failed: %v\n", err)
+	}
+	for _, songID := range updatedSongIDs {
+		_ = s.invalidateCandidateCache(ctx, userID, "song", songID, candidateQueryKindMetadataOnline, candidateQueryKindLyrics)
 	}
 	return result, nil
 }

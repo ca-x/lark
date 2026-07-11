@@ -2,8 +2,10 @@ package library
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"lark/backend/ent"
 	"lark/backend/ent/song"
@@ -80,6 +82,40 @@ func preferredEmbeddedLyrics(item *ent.Song, fileLyrics string) string {
 	return strings.TrimSpace(fileLyrics)
 }
 func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCandidate, error) {
+	return s.LyricCandidatesForUser(ctx, 0, id, false)
+}
+
+func (s *Service) LyricCandidatesForUser(ctx context.Context, userID, id int, refresh bool) ([]models.LyricCandidate, error) {
+	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().WithAlbum().Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	artistName, albumTitle := "", ""
+	if item.Edges.Artist != nil {
+		artistName = item.Edges.Artist.Name
+	}
+	if item.Edges.Album != nil {
+		albumTitle = item.Edges.Album.Title
+	}
+	snapshot := fmt.Sprintf("v1\x00%s\x00%s\x00%s\x00%.3f", strings.TrimSpace(item.Title), strings.TrimSpace(artistName), strings.TrimSpace(albumTitle), item.DurationSeconds)
+	payload, err := s.loadCandidateJSON(ctx, CandidateCacheRequest{UserID: userID, TargetType: "song", TargetID: id, Kind: candidateQueryKindLyrics, Snapshot: snapshot, TTL: 24 * time.Hour, Refresh: refresh}, func(loadCtx context.Context) ([]byte, error) {
+		items, loadErr := s.lyricCandidatesUncached(loadCtx, id)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		return json.Marshal(items)
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := []models.LyricCandidate{}
+	if err := json.Unmarshal(payload, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Service) lyricCandidatesUncached(ctx context.Context, id int) ([]models.LyricCandidate, error) {
 	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().Only(ctx)
 	if err != nil {
 		return nil, err
@@ -130,6 +166,10 @@ func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCa
 	return out, nil
 }
 func (s *Service) SelectLyrics(ctx context.Context, id int, source, sourceID string) (models.Lyrics, error) {
+	return s.SelectLyricsForUser(ctx, 0, id, source, sourceID)
+}
+
+func (s *Service) SelectLyricsForUser(ctx context.Context, userID, id int, source, sourceID string) (models.Lyrics, error) {
 	source = strings.ToLower(strings.TrimSpace(source))
 	sourceID = strings.TrimSpace(sourceID)
 	if sourceID == "" {
@@ -155,6 +195,7 @@ func (s *Service) SelectLyrics(ctx context.Context, id int, source, sourceID str
 		return models.Lyrics{}, err
 	}
 	s.invalidateSongCatalog(ctx)
+	_ = s.invalidateCandidateCache(ctx, userID, "song", id, candidateQueryKindLyrics)
 	return models.Lyrics{SongID: id, Source: source, Lyrics: lyric, Fetched: true}, nil
 }
 func (s *Service) matchOnlineLyrics(ctx context.Context, title, artist, preferredID string) (string, string, string, error) {

@@ -874,10 +874,12 @@ func (s *Server) handleSongMetadataCandidates(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.SongMetadataCandidates(
+	items, err := s.lib.SongMetadataCandidatesForUser(
 		c.Request().Context(),
+		currentUserID(c),
 		id,
 		library.ParseMetadataCandidateScope(c.QueryParam("scope")),
+		strings.EqualFold(strings.TrimSpace(c.QueryParam("refresh")), "true"),
 	)
 	if err != nil {
 		return mapError(err)
@@ -1764,7 +1766,7 @@ func (s *Server) handleLyricCandidates(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	candidates, err := s.lib.LyricCandidates(c.Request().Context(), id)
+	candidates, err := s.lib.LyricCandidatesForUser(c.Request().Context(), currentUserID(c), id, strings.EqualFold(strings.TrimSpace(c.QueryParam("refresh")), "true"))
 	if err != nil {
 		return mapError(err)
 	}
@@ -1780,7 +1782,7 @@ func (s *Server) handleSelectLyrics(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	lyrics, err := s.lib.SelectLyrics(c.Request().Context(), id, req.Source, req.ID)
+	lyrics, err := s.lib.SelectLyricsForUser(c.Request().Context(), currentUserID(c), id, req.Source, req.ID)
 	if err != nil {
 		return mapError(err)
 	}
@@ -1912,10 +1914,12 @@ func (s *Server) handleAlbumMetadataCandidates(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.AlbumMetadataCandidates(
+	items, err := s.lib.AlbumMetadataCandidatesForUser(
 		c.Request().Context(),
+		currentUserID(c),
 		id,
 		library.ParseMetadataCandidateScope(c.QueryParam("scope")),
+		strings.EqualFold(strings.TrimSpace(c.QueryParam("refresh")), "true"),
 	)
 	if err != nil {
 		return mapError(err)
