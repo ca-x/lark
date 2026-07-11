@@ -5,6 +5,7 @@ import {
   getCandidateCache,
   invalidateCandidateCache,
   loadCandidateCache,
+  reloadCandidateCache,
   lyricCandidateCacheKey,
   metadataCandidateCacheKey,
 } from "./candidateCache.ts";
@@ -29,6 +30,16 @@ test("reuses one in-flight request and caches the resolved candidates", async ()
   assert.deepEqual(await first, [{ id: "candidate-a" }]);
   assert.deepEqual(await loadCandidateCache(key, loader), [{ id: "candidate-a" }]);
   assert.equal(calls, 1);
+  invalidateCandidateCache(key);
+});
+
+test("reload replaces only after success and preserves old candidates on failure", async () => {
+  const key = "test:reload";
+  await loadCandidateCache(key, async () => [{ id: "old" }]);
+  await assert.rejects(reloadCandidateCache(key, async () => { throw new Error("offline"); }), /offline/);
+  assert.deepEqual(getCandidateCache(key), [{ id: "old" }]);
+  assert.deepEqual(await reloadCandidateCache(key, async () => [{ id: "new" }]), [{ id: "new" }]);
+  assert.deepEqual(getCandidateCache(key), [{ id: "new" }]);
   invalidateCandidateCache(key);
 });
 

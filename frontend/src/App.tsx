@@ -53,6 +53,7 @@ import {
   getCandidateCache,
   invalidateLyricCandidateCache,
   loadCandidateCache,
+  reloadCandidateCache,
   lyricCandidateCacheKey,
 } from "./services/candidateCache";
 import { prependOptimisticPlaybackHistoryEntry, shouldLoadPlaybackHistory } from "./playbackHistory";
@@ -3456,10 +3457,23 @@ export default function App() {
         candidate.id,
       );
       setLyrics(selected);
+      invalidateLyricCandidateCache([current.id]);
       setLyricCandidatesOpen(false);
       setProgress(0);
     } finally {
       setLyricsLoading(false);
+    }
+  }
+
+  async function refreshLyricCandidates() {
+    if (!current || lyricCandidatesLoading) return;
+    const songID = current.id;
+    setLyricCandidatesLoading(true);
+    try {
+      const items = await reloadCandidateCache(lyricCandidateCacheKey(songID), () => api.lyricCandidates(songID, true));
+      if (currentRef.current?.id === songID) setLyricCandidates(items);
+    } finally {
+      if (currentRef.current?.id === songID) setLyricCandidatesLoading(false);
     }
   }
 
@@ -4486,6 +4500,7 @@ export default function App() {
             candidatesOpen={lyricCandidatesOpen}
             candidatesLoading={lyricCandidatesLoading}
             onOpenCandidates={() => void openLyricCandidates()}
+            onRefreshCandidates={() => void refreshLyricCandidates()}
             onSelectCandidate={(candidate) => void selectLyricCandidate(candidate)}
             onCloseCandidates={() => setLyricCandidatesOpen(false)}
             onUserScroll={() => {
@@ -8291,6 +8306,7 @@ function FullLyrics({
   candidatesOpen,
   candidatesLoading,
   onOpenCandidates,
+  onRefreshCandidates,
   onSelectCandidate,
   onCloseCandidates,
   onUserScroll,
@@ -8319,6 +8335,7 @@ function FullLyrics({
   candidatesOpen: boolean;
   candidatesLoading: boolean;
   onOpenCandidates: () => void;
+  onRefreshCandidates: () => void;
   onSelectCandidate: (candidate: LyricCandidate) => void;
   onCloseCandidates: () => void;
   onUserScroll: () => void;
@@ -8624,7 +8641,10 @@ function FullLyrics({
         <div className="lyrics-candidates lyrics-tools">
           <div className="lyrics-tools-head">
             <strong>{t("chooseLyrics")}</strong>
-            <button onClick={onCloseCandidates}>{t("close")}</button>
+            <span>
+              <button type="button" onClick={onRefreshCandidates} disabled={candidatesLoading}><ArrowClockwise /> {t("refresh")}</button>
+              <button onClick={onCloseCandidates}>{t("close")}</button>
+            </span>
           </div>
           <div className="lyrics-tools-tabs" role="tablist" aria-label={t("chooseLyrics")}>
             <button

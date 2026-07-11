@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   CircleNotch,
+  ArrowClockwise,
   FolderSimple,
   ImageSquare,
   PencilSimple,
@@ -19,6 +20,7 @@ import {
   getCandidateCache,
   invalidateMetadataCandidateCache,
   loadCandidateCache,
+  reloadCandidateCache,
   metadataCandidateCacheKey,
 } from "../services/candidateCache";
 
@@ -100,6 +102,9 @@ export function MetadataEditorDialog({
     () => mergeMetadataCandidates(pathCandidates, onlineCandidates),
     [onlineCandidates, pathCandidates],
   );
+  const targetType = isAlbum ? "album" : "song";
+  const targetID = isAlbum ? target.album.id : target.song.id;
+  const onlineKey = metadataCandidateCacheKey(targetType, targetID, "online");
 
   useEffect(() => {
     setTitle(initial.title);
@@ -179,6 +184,22 @@ export function MetadataEditorDialog({
       canceled = true;
     };
   }, [isAlbum, target]);
+
+  const refreshOnlineCandidates = async () => {
+    if (onlineCandidatesLoading) return;
+    setOnlineCandidatesLoading(true);
+    setOnlineCandidatesError(false);
+    try {
+      const items = await reloadCandidateCache(onlineKey, () => isAlbum
+        ? api.albumMetadataCandidates(target.album.id, "online", true)
+        : api.songMetadataCandidates(target.song.id, "online", true));
+      setOnlineCandidates(items);
+    } catch {
+      setOnlineCandidatesError(true);
+    } finally {
+      setOnlineCandidatesLoading(false);
+    }
+  };
 
   const applyCandidate = (candidate: MetadataCandidate) => {
     const usePathAssist = candidate.source === "path" && isAlbum;
@@ -398,12 +419,15 @@ export function MetadataEditorDialog({
           <div className="metadata-candidates">
             <div className="metadata-section-head">
               <strong>{t("metadataCandidates")}</strong>
-              <span>
+              <span className="metadata-candidate-head-actions">
                 {pathCandidatesLoading
                   ? t("loading")
                   : onlineCandidatesLoading
                     ? t("metadataOnlineLoading")
                     : `${candidates.length} ${t("candidate")}`}
+                <button type="button" onClick={() => void refreshOnlineCandidates()} disabled={onlineCandidatesLoading} aria-label={t("refreshOnlineCandidates")}>
+                  <ArrowClockwise /> {t("refresh")}
+                </button>
               </span>
             </div>
             {candidates.length ? (

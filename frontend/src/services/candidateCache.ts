@@ -27,6 +27,23 @@ export function loadCandidateCache<T>(key: string, loader: () => Promise<T[]>): 
   return request;
 }
 
+export function reloadCandidateCache<T>(key: string, loader: () => Promise<T[]>): Promise<T[]> {
+  const requestKey = `reload:${key}`;
+  const existing = requests.get(requestKey);
+  if (existing) return existing as Promise<T[]>;
+  const generation = generations.get(key) || 0;
+  const request = loader()
+    .then((items) => {
+      if ((generations.get(key) || 0) === generation) values.set(key, items);
+      return items;
+    })
+    .finally(() => {
+      if (requests.get(requestKey) === request) requests.delete(requestKey);
+    });
+  requests.set(requestKey, request);
+  return request;
+}
+
 export function invalidateCandidateCache(...keys: string[]) {
   for (const key of keys) {
     values.delete(key);

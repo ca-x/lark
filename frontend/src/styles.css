@@ -572,6 +572,9 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .library-review-empty { min-height:260px; gap:10px; }
 .library-review-empty svg { width:36px; height:36px; color:var(--success,#4ca87a); }
 .library-review-empty strong, .library-review-empty span { display:block; }
+.metadata-candidate-head-actions, .lyrics-tools-head > span { display:inline-flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+.metadata-candidate-head-actions button, .lyrics-tools-head > span button { min-height:36px; display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); }
+.metadata-candidate-head-actions button:disabled, .lyrics-tools-head > span button:disabled { opacity:.5; }
 @keyframes library-sort-in { from { opacity:0; transform:scale(.97); } to { opacity:1; transform:scale(1); } }
 @media (hover:hover) and (pointer:fine) {
   .library-sort-trigger:hover, .library-review-filter:hover { color:var(--text); border-color:color-mix(in srgb,var(--accent) 30%,var(--line)); }
