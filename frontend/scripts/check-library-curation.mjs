@@ -16,6 +16,8 @@ for (const value of ["added_desc", "added_asc", "filename_asc", "filename_desc"]
 assert.match(api, /\/api\/library\/review-summary/);
 assert.match(api, /refresh=true/);
 assert.match(app, /metadata_issues/);
+assert.match(app, /onEditMetadata=\{auth\.user\.role === "admin"/);
+assert.match(app, /className="song-metadata-issues" onClick/);
 for (const key of ["sortAddedDesc", "sortAddedAsc", "sortFilenameAsc", "sortFilenameDesc", "libraryReview", "searchSettings", "refreshOnlineCandidates"]) {
   assert.equal((i18n.match(new RegExp(`${key}:`, "g")) || []).length, 2, `${key} must have Chinese and English copy`);
 }

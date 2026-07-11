@@ -4721,6 +4721,7 @@ export default function App() {
                 onOpenArtist={(song) =>
                   void openArtistById(song.artist_id, song.artist)
                 }
+                onEditMetadata={auth.user.role === "admin" ? openSongMetadataEditor : undefined}
                 onScan={() => void scan()}
                 onUpload={upload}
                 onPlayFolder={playFolder}
@@ -7406,6 +7407,7 @@ function LibraryView({
   onShareSong,
   onOpenAlbum,
   onOpenArtist,
+  onEditMetadata,
   onScan,
   onUpload,
   onPlayFolder,
@@ -7447,6 +7449,7 @@ function LibraryView({
   onShareSong?: (song: Song) => void;
   onOpenAlbum: (song: Song) => void;
   onOpenArtist: (song: Song) => void;
+  onEditMetadata?: (song: Song) => void;
   onScan: () => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onPlayFolder: (folder: Folder) => void;
@@ -7669,6 +7672,7 @@ function LibraryView({
             onShare={onShareSong}
             onOpenAlbum={onOpenAlbum}
             onOpenArtist={onOpenArtist}
+            onEditMetadata={onEditMetadata}
             selectedIds={selected}
             onToggleSelected={toggleSelected}
           />
@@ -10849,6 +10853,7 @@ type SongRowProps = {
   canShare: boolean;
   canOpenAlbum: boolean;
   canOpenArtist: boolean;
+  canEditMetadata: boolean;
   hasOffline: boolean;
   onPlay: (song: Song) => void;
   onFavorite: (song: Song) => void;
@@ -10857,6 +10862,7 @@ type SongRowProps = {
   onShare: (song: Song) => void;
   onOpenAlbum: (song: Song) => void;
   onOpenArtist: (song: Song) => void;
+  onEditMetadata: (song: Song) => void;
   onToggleSelected: (song: Song) => void;
   onCacheSong: (song: Song) => void;
   onToggleMenu: (song: Song) => void;
@@ -10871,6 +10877,7 @@ const SongRow = memo(function SongRow({
   song, index, active, selected, menuOpen, virtual, t, offlineState,
   canSelect, canInsertNext, canShare, canOpenAlbum, canOpenArtist, hasOffline,
   onPlay, onFavorite, onAdd, onInsertNext, onShare, onOpenAlbum, onOpenArtist,
+  canEditMetadata, onEditMetadata,
   onToggleSelected, onCacheSong, onToggleMenu, registerMoreButton,
 }: SongRowProps) {
   return (
@@ -10898,11 +10905,11 @@ const SongRow = memo(function SongRow({
         <small className="song-mobile-meta">
           {[song.artist, song.album].filter(Boolean).join(" · ")}
         </small>
-        {song.metadata_issues?.length ? (
-          <small className="song-metadata-issues">
+        {song.metadata_issues?.length ? (canEditMetadata ? (
+          <button type="button" className="song-metadata-issues" onClick={() => onEditMetadata(song)}>
             {song.metadata_issues.map((issue) => t(issue === "missing_title" ? "missingTitle" : issue === "missing_artist" ? "missingArtist" : "missingAlbum")).join(" · ")}
-          </small>
-        ) : null}
+          </button>
+        ) : <small className="song-metadata-issues">{song.metadata_issues.map((issue) => t(issue === "missing_title" ? "missingTitle" : issue === "missing_artist" ? "missingArtist" : "missingAlbum")).join(" · ")}</small>) : null}
         {canOpenArtist && song.artist_id ? (
           <button className="artist-link" onClick={() => onOpenArtist(song)}>{song.artist}</button>
         ) : (
@@ -10977,6 +10984,7 @@ function SongTable({
   onShare,
   onOpenAlbum,
   onOpenArtist,
+  onEditMetadata,
   selectedIds,
   onToggleSelected,
 }: {
@@ -10991,6 +10999,7 @@ function SongTable({
   onShare?: (song: Song) => void;
   onOpenAlbum?: (song: Song) => void;
   onOpenArtist?: (song: Song) => void;
+  onEditMetadata?: (song: Song) => void;
   selectedIds?: Set<number>;
   onToggleSelected?: (song: Song) => void;
 }) {
@@ -11072,9 +11081,9 @@ function SongTable({
   };
   // Stabilize the callbacks via a latest-ref so SongRow's memo comparison stays
   // effective (stable identities) while always invoking the freshest props/closures.
-  const latest = useRef({ songs, current, onPlay, onFavorite, onAdd, onInsertNext, onShare, onOpenAlbum, onOpenArtist, onToggleSelected, offlineCache });
+  const latest = useRef({ songs, current, onPlay, onFavorite, onAdd, onInsertNext, onShare, onOpenAlbum, onOpenArtist, onEditMetadata, onToggleSelected, offlineCache });
   useEffect(() => {
-    latest.current = { songs, current, onPlay, onFavorite, onAdd, onInsertNext, onShare, onOpenAlbum, onOpenArtist, onToggleSelected, offlineCache };
+    latest.current = { songs, current, onPlay, onFavorite, onAdd, onInsertNext, onShare, onOpenAlbum, onOpenArtist, onEditMetadata, onToggleSelected, offlineCache };
   });
   const rowPlay = useCallback((song: Song) => latest.current.onPlay(song, latest.current.songs), []);
   const rowFavorite = useCallback((song: Song) => latest.current.onFavorite(song), []);
@@ -11083,6 +11092,7 @@ function SongTable({
   const rowShare = useCallback((song: Song) => latest.current.onShare?.(song), []);
   const rowOpenAlbum = useCallback((song: Song) => latest.current.onOpenAlbum?.(song), []);
   const rowOpenArtist = useCallback((song: Song) => latest.current.onOpenArtist?.(song), []);
+  const rowEditMetadata = useCallback((song: Song) => latest.current.onEditMetadata?.(song), []);
   const rowToggleSelected = useCallback((song: Song) => latest.current.onToggleSelected?.(song), []);
   const rowCacheSong = useCallback((song: Song) => latest.current.offlineCache?.onCacheSong(song), []);
   const rowToggleMenu = useCallback((song: Song) => setMoreMenuSongId((cur) => (cur === song.id ? null : song.id)), []);
@@ -11103,6 +11113,7 @@ function SongTable({
       canShare={!!onShare}
       canOpenAlbum={!!onOpenAlbum}
       canOpenArtist={!!onOpenArtist}
+      canEditMetadata={!!onEditMetadata}
       hasOffline={!!offlineCache}
       onPlay={rowPlay}
       onFavorite={rowFavorite}
@@ -11111,6 +11122,7 @@ function SongTable({
       onShare={rowShare}
       onOpenAlbum={rowOpenAlbum}
       onOpenArtist={rowOpenArtist}
+      onEditMetadata={rowEditMetadata}
       onToggleSelected={rowToggleSelected}
       onCacheSong={rowCacheSong}
       onToggleMenu={rowToggleMenu}
@@ -11157,6 +11169,12 @@ function SongTable({
         <button role="menuitem" onClick={() => { onShare(moreMenuSong); setMoreMenuSongId(null); }}>
           <ShareNetwork />
           <span>{t("share")}</span>
+        </button>
+      ) : null}
+      {onEditMetadata ? (
+        <button role="menuitem" onClick={() => { onEditMetadata(moreMenuSong); setMoreMenuSongId(null); }}>
+          <PencilSimple />
+          <span>{t("editMetadata")}</span>
         </button>
       ) : null}
     </div>

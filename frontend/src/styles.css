@@ -581,7 +581,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .library-sort-menu > button { min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 11px; border-radius:12px; color:var(--text); text-align:left; }
 .library-sort-menu > button[aria-checked='true'] { color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); }
 .library-sort-backdrop { display:none; }
-.song-metadata-issues { display:block; margin-top:3px; color:var(--warning,#d99b35); font-weight:700; }
+.song-metadata-issues { display:block; width:max-content; max-width:100%; margin-top:3px; padding:0; color:var(--warning,#d99b35); font-size:12px; font-weight:700; text-align:left; }
 .library-review-empty { min-height:260px; gap:10px; }
 .library-review-empty svg { width:36px; height:36px; color:var(--success,#4ca87a); }
 .library-review-empty strong, .library-review-empty span { display:block; }

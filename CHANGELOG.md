@@ -5,6 +5,44 @@
 
 ---
 
+## 0.9.36 — 曲库整理闭环与持久候选缓存
+
+发布日期 / Released: 2026-07-11
+
+### 新功能
+
+- **增加曲库排序和待整理筛选。** 歌曲现在支持按加入曲库时间或文件名升降序排列，分页顺序稳定；待整理入口会自动收录缺少标题、艺术家或专辑信息的歌曲，并显示具体缺失原因。
+- **跨刷新复用在线候选。** 元信息候选缓存 7 天、歌词候选缓存 24 小时，成功的空结果也会复用；缓存按用户和查询快照隔离，元信息变化后会自动失效。
+- **支持主动重新在线查询。** 元信息和歌词候选都可以手动刷新，刷新失败时继续保留已有结果，不会让路径候选或编辑内容闪烁消失。
+- **增加设置搜索。** 可直接搜索当前用户有权限查看的设置并跳转到对应分类和控件，普通用户不会在结果中看到管理员项目。
+
+### 移动端与体验
+
+- **优化移动端排序和设置搜索。** 排序使用触摸友好的底部选择层，主要控件保持至少 44px 触控区域；高频排序不播放列表重排动画，并完整支持减少动态效果偏好。
+
+完整 diff：`git log v0.9.35..v0.9.36`
+
+---
+
+## v0.9.36 — Library curation workflow and persistent candidate cache
+
+Released: 2026-07-11
+
+### Features
+
+- **Added library sorting and an automatic review filter.** Songs can be ordered by library-added time or filename in either direction with stable pagination. The review filter detects missing title, artist, or album information and explains each issue.
+- **Reused online candidates across reloads.** Metadata candidates are cached for seven days and lyric candidates for 24 hours, including successful empty results. Entries are isolated by user and query snapshot and expire when relevant metadata changes.
+- **Added explicit online refresh.** Metadata and lyric candidate panels can refresh on demand while preserving existing results when the refresh fails.
+- **Added settings search.** Users can search settings they are allowed to see and jump to the relevant category and control; administrative settings are excluded for regular users before matching.
+
+### Mobile and experience
+
+- **Polished mobile sorting and settings search.** Sorting uses a touch-friendly bottom sheet, primary controls retain at least 44px targets, frequent sorting avoids list-reordering animation, and reduced-motion preferences are respected.
+
+Full diff: `git log v0.9.35..v0.9.36`
+
+---
+
 ## 0.9.35 — 设置分组与候选加载优化
 
 发布日期 / Released: 2026-07-10
