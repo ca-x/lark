@@ -121,6 +121,9 @@ import type {
   Settings,
   Song,
   SongPage,
+  SongSort,
+  SongReview,
+  LibraryReviewSummary,
   SubsonicCredentialStatus,
   TerminalShellTheme,
   Theme,
@@ -161,6 +164,7 @@ import { SkeletonSongList } from "./components/Skeleton";
 import { EmptyState } from "./components/EmptyState";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsNavigation } from "./components/settings/SettingsNavigation";
+import { LibrarySortControl } from "./components/LibrarySortControl";
 import { CardGrid } from "./components/CardGrid";
 import { LazyCoverImage } from "./components/LazyCoverImage";
 import { PaginationControls, type PageLike } from "./components/PaginationControls";
@@ -992,6 +996,9 @@ export default function App() {
   const [librarySongPage, setLibrarySongPage] = useState<SongPage | null>(null);
   const [libraryPage, setLibraryPage] = useState(1);
   const [libraryPageLoading, setLibraryPageLoading] = useState(false);
+  const [librarySort, setLibrarySort] = useState<SongSort>("added_desc");
+  const [libraryReview, setLibraryReview] = useState<SongReview>("");
+  const [libraryReviewSummary, setLibraryReviewSummary] = useState<LibraryReviewSummary | null>(null);
   const [albumPageData, setAlbumPageData] = useState<AlbumPage | null>(null);
   const [albumPage, setAlbumPage] = useState(1);
   const [albumPageLoading, setAlbumPageLoading] = useState(false);
@@ -1240,6 +1247,11 @@ export default function App() {
   useEffect(() => {
     void bootstrap();
   }, []);
+
+  useEffect(() => {
+    if (view !== "library" || offlineMode) return;
+    void api.libraryReviewSummary().then(setLibraryReviewSummary).catch(() => setLibraryReviewSummary(null));
+  }, [view, offlineMode, librarySongPage?.total]);
 
   useEffect(() => {
     const updateNetworkState = () => setNetworkReachable(navigator.onLine);
@@ -2370,7 +2382,7 @@ export default function App() {
 
     // Layer 1: critical data needed for first render - block on these.
     const [songPageItem, dailyItems, libraryStatsItem, playbackQueueItem] = await Promise.all([
-      api.songsPage(query, libraryPage, libraryPageSize),
+      api.songsPage(query, libraryPage, libraryPageSize, false, { sort: librarySort, review: libraryReview }),
       api.dailyMix(24).catch(() => []),
       api.libraryStats().catch(() => null),
       options.initializeQueue
@@ -2528,7 +2540,7 @@ export default function App() {
       return;
     }
     const [songPageItem, recentAddedItems, folderItems, libraryStatsItem] = await Promise.all([
-      api.songsPage(query, libraryPage, libraryPageSize),
+      api.songsPage(query, libraryPage, libraryPageSize, false, { sort: librarySort, review: libraryReview }),
       api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => recentAddedSongs),
       api.folders(STARTUP_FOLDER_LIMIT).catch(() => folders),
       api.libraryStats().catch(() => libraryStats),
@@ -2540,17 +2552,26 @@ export default function App() {
     setLibraryStats(libraryStatsItem);
   }
 
-  async function loadLibrarySongsPage(page: number, search = query) {
+  async function loadLibrarySongsPage(page: number, search = query, sort = librarySort, review = libraryReview) {
     const nextPage = Math.max(1, page);
     setLibraryPageLoading(true);
     try {
       if (offlineModeRef.current) {
-        const cachedSongs = uniqueSongs(offlineSongEntries(readOfflineSongIndex()).map((entry) => entry.song), MAX_PLAYBACK_QUEUE_SIZE)
+        let cachedSongs = uniqueSongs(offlineSongEntries(readOfflineSongIndex()).map((entry) => entry.song), MAX_PLAYBACK_QUEUE_SIZE)
           .filter((song) => {
             const q = search.trim().toLowerCase();
             if (!q) return true;
             return [song.title, song.artist, song.album].some((value) => value.toLowerCase().includes(q));
           });
+        if (review === "incomplete") cachedSongs = cachedSongs.filter((song) => !song.artist || !song.album || /^(unknown|未知)/i.test(song.artist) || /^(unknown|未知)/i.test(song.album));
+        cachedSongs.sort((a, b) => {
+          if (sort === "filename_asc" || sort === "filename_desc") {
+            const compared = a.file_name.localeCompare(b.file_name, undefined, { sensitivity: "base", numeric: true });
+            return sort === "filename_desc" ? -compared : compared;
+          }
+          const compared = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+          return sort === "added_asc" ? compared : -compared;
+        });
         const offset = (nextPage - 1) * libraryPageSize;
         setLibraryPage(nextPage);
         setSongs(cachedSongs.slice(offset, offset + libraryPageSize));
@@ -2563,12 +2584,38 @@ export default function App() {
         });
         return;
       }
-      const pageItem = await api.songsPage(search, nextPage, libraryPageSize);
+      const pageItem = await api.songsPage(search, nextPage, libraryPageSize, false, { sort, review });
       setLibraryPage(pageItem.page);
       setLibrarySongPage(pageItem);
       setSongs(pageItem.items);
     } finally {
       setLibraryPageLoading(false);
+    }
+  }
+
+  async function changeLibrarySort(next: SongSort) {
+    if (next === librarySort) return;
+    const previous = librarySort;
+    setLibrarySort(next);
+    setLibraryPage(1);
+    try {
+      await loadLibrarySongsPage(1, query, next, libraryReview);
+    } catch {
+      setLibrarySort(previous);
+      showMessage(t("librarySortFailed"));
+    }
+  }
+
+  async function toggleLibraryReview() {
+    const next: SongReview = libraryReview === "incomplete" ? "" : "incomplete";
+    const previous = libraryReview;
+    setLibraryReview(next);
+    setLibraryPage(1);
+    try {
+      await loadLibrarySongsPage(1, query, librarySort, next);
+    } catch {
+      setLibraryReview(previous);
+      showMessage(t("libraryReviewFailed"));
     }
   }
 
@@ -4680,6 +4727,11 @@ export default function App() {
                 songPage={librarySongPage}
                 pageLoading={libraryPageLoading}
                 searchQuery={query}
+                sort={librarySort}
+                review={libraryReview}
+                reviewCount={libraryReviewSummary?.incomplete_songs}
+                onSortChange={(next) => void changeLibrarySort(next)}
+                onReviewToggle={() => void toggleLibraryReview()}
                 onSongSearch={(value) => {
                   setQuery(value);
                   setLibraryPage(1);
@@ -7325,6 +7377,9 @@ function LibraryView({
   songPage,
   pageLoading,
   searchQuery,
+  sort,
+  review,
+  reviewCount,
   current,
   t,
   onPlay,
@@ -7347,6 +7402,8 @@ function LibraryView({
   onDismissScan,
   onSongSearch,
   onPageChange,
+  onSortChange,
+  onReviewToggle,
 }: {
   songs: Song[];
   folders: Folder[];
@@ -7361,6 +7418,9 @@ function LibraryView({
   songPage: SongPage | null;
   pageLoading: boolean;
   searchQuery: string;
+  sort: SongSort;
+  review: SongReview;
+  reviewCount?: number;
   current: Song | null;
   t: ReturnType<typeof createT>;
   onPlay: (song: Song, list: Song[]) => void;
@@ -7383,6 +7443,8 @@ function LibraryView({
   onDismissScan: () => void;
   onSongSearch: (value: string) => void;
   onPageChange: (page: number) => void | Promise<void>;
+  onSortChange: (sort: SongSort) => void;
+  onReviewToggle: () => void;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [tab, setTabState] = useState<LibraryTab>(() => storedLibraryTab());
@@ -7425,6 +7487,19 @@ function LibraryView({
         <div>
           {activeTab === "songs" ? (
             <SongSearchBox t={t} value={searchQuery} onSearch={onSongSearch} />
+          ) : null}
+          {activeTab === "songs" ? (
+            <LibrarySortControl
+              value={sort}
+              mobile={mobileBasic}
+              labels={{ sort: t("sort"), addedDesc: t("sortAddedDesc"), addedAsc: t("sortAddedAsc"), filenameAsc: t("sortFilenameAsc"), filenameDesc: t("sortFilenameDesc") }}
+              onChange={onSortChange}
+            />
+          ) : null}
+          {activeTab === "songs" ? (
+            <button type="button" className={review === "incomplete" ? "library-review-filter active" : "library-review-filter"} aria-pressed={review === "incomplete"} onClick={onReviewToggle}>
+              <WarningCircle /> {t(reviewCount === 0 ? "libraryReviewComplete" : "libraryReview")}{reviewCount == null ? "" : ` · ${reviewCount}`}
+            </button>
           ) : null}
           {activeTab === "songs" && selectedSongs.length ? (
             <div className="selection-actions">
@@ -7583,6 +7658,13 @@ function LibraryView({
           />
           <PaginationControls page={songPage} itemCount={songs.length} loading={pageLoading} t={t} onPageChange={onPageChange} />
         </>
+      ) : review === "incomplete" ? (
+        <div className="empty library-review-empty">
+          <CheckCircle weight="fill" />
+          <strong>{t("libraryReviewComplete")}</strong>
+          <span>{t("libraryReviewCompleteHint")}</span>
+          <button type="button" onClick={onReviewToggle}>{t("showAllSongs")}</button>
+        </div>
       ) : (
         <EmptyLibrary t={t} mobileBasic={mobileBasic} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
       )}
@@ -10786,6 +10868,11 @@ const SongRow = memo(function SongRow({
         <small className="song-mobile-meta">
           {[song.artist, song.album].filter(Boolean).join(" · ")}
         </small>
+        {song.metadata_issues?.length ? (
+          <small className="song-metadata-issues">
+            {song.metadata_issues.map((issue) => t(issue === "missing_title" ? "missingTitle" : issue === "missing_artist" ? "missingArtist" : "missingAlbum")).join(" · ")}
+          </small>
+        ) : null}
         {canOpenArtist && song.artist_id ? (
           <button className="artist-link" onClick={() => onOpenArtist(song)}>{song.artist}</button>
         ) : (

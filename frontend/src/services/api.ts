@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings, DLNADevice, DLNAStatus } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, SongSort, SongReview, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, LibraryReviewSummary, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings, DLNADevice, DLNAStatus } from '../types'
 
 function currentDeviceType() {
   if (typeof navigator === 'undefined') return 'pc'
@@ -62,14 +62,17 @@ export const api = {
     const qs = params.toString()
     return request<Song[]>(`/api/songs${qs ? `?${qs}` : ''}`)
   },
-  songsPage: (q = '', page = 1, limit = 100, favorites = false) => {
+  songsPage: (q = '', page = 1, limit = 100, favorites = false, options: { sort?: SongSort; review?: SongReview } = {}) => {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (favorites) params.set('favorites', 'true')
     params.set('page', String(page))
     params.set('limit', String(limit))
+    if (options.sort && options.sort !== 'added_desc') params.set('sort', options.sort)
+    if (options.review) params.set('review', options.review)
     return request<SongPage>(`/api/songs/page?${params.toString()}`)
   },
+  libraryReviewSummary: () => request<LibraryReviewSummary>('/api/library/review-summary'),
   recentPlayedSongs: (limit = 12) => request<Song[]>(`/api/songs/recent-played?limit=${limit}`),
   playbackHistory: (limit = 100) => request<PlaybackHistoryEntry[]>(`/api/playback/history?limit=${limit}`),
   recentAddedSongs: (limit = 12) => request<Song[]>(`/api/songs/recent-added?limit=${limit}`),

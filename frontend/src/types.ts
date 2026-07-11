@@ -49,6 +49,7 @@ export interface Song {
   cover_version?: number;
   created_at?: string;
   updated_at?: string;
+  metadata_issues?: MetadataIssue[];
 }
 export interface SongPage {
   items: Song[];
@@ -57,6 +58,11 @@ export interface SongPage {
   offset: number;
   page: number;
 }
+
+export type SongSort = 'added_desc' | 'added_asc' | 'filename_asc' | 'filename_desc'
+export type SongReview = '' | 'incomplete'
+export type MetadataIssue = 'missing_title' | 'missing_artist' | 'missing_album'
+export interface LibraryReviewSummary { incomplete_songs: number }
 
 export interface Album {
   id: number;
