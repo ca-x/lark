@@ -165,6 +165,7 @@ import { SkeletonSongList } from "./components/Skeleton";
 import { EmptyState } from "./components/EmptyState";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsNavigation } from "./components/settings/SettingsNavigation";
+import { SettingsSearch } from "./components/settings/SettingsSearch";
 import { LibrarySortControl } from "./components/LibrarySortControl";
 import { CardGrid } from "./components/CardGrid";
 import { LazyCoverImage } from "./components/LazyCoverImage";
@@ -9390,6 +9391,7 @@ function SettingsPanel({
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
   t: ReturnType<typeof createT>;
 }) {
+  const settingsRootRef = useRef<HTMLElement | null>(null);
   const darkThemes = themes.filter((theme) => theme.mode === "dark");
   const lightThemes = themes.filter((theme) => theme.mode === "light");
   const [users, setUsers] = useState<User[]>([]);
@@ -9662,7 +9664,15 @@ function SettingsPanel({
   }
 
   return (
-    <section className="settings-page">
+    <section className="settings-page" ref={settingsRootRef}>
+      <SettingsSearch
+        root={settingsRootRef}
+        tabs={tabs}
+        label={t("searchSettings")}
+        placeholder={t("searchSettingsPlaceholder")}
+        emptyLabel={t("searchSettingsEmpty")}
+        onTabChange={onTabChange}
+      />
       <SettingsNavigation
         activeTab={settingsActiveTab}
         tabs={tabs}

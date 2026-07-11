@@ -558,6 +558,19 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .queue-list em { font-style:normal; font-size:12px; }
 
 .settings-page { display:grid; gap:18px; min-width:0; }
+.settings-search { position:relative; z-index:80; width:min(620px,100%); }
+.settings-search > label { min-height:46px; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:10px; padding:0 14px; border:1px solid var(--line); border-radius:16px; background:var(--panel2); color:var(--muted); }
+.settings-search > label:focus-within { border-color:color-mix(in srgb,var(--accent) 55%,var(--line)); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent); }
+.settings-search > label input { min-width:0; width:100%; border:0; outline:0; background:transparent; color:var(--text); }
+.settings-search > label button { width:36px; height:36px; display:grid; place-items:center; border-radius:999px; color:var(--muted); transition:transform 150ms cubic-bezier(.23,1,.32,1); }
+.settings-search > label button:active { transform:scale(.97); }
+.settings-search-results { position:absolute; top:calc(100% + 8px); left:0; right:0; max-height:min(480px,60vh); overflow:auto; display:grid; gap:4px; padding:8px; border:1px solid var(--line); border-radius:18px; background:var(--panel); box-shadow:0 18px 48px color-mix(in srgb,var(--bg) 42%,transparent); }
+.settings-search-results > button { min-height:54px; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:9px 11px; border-radius:12px; color:var(--text); text-align:left; }
+.settings-search-results > button span { min-width:0; display:grid; gap:3px; }
+.settings-search-results > button strong, .settings-search-results > button small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.settings-search-results > button small, .settings-search-results > button em { color:var(--muted); font-size:12px; font-style:normal; }
+.settings-search-empty { padding:20px; color:var(--muted); text-align:center; }
+@media (hover:hover) and (pointer:fine) { .settings-search-results > button:hover { background:color-mix(in srgb,var(--accent) 10%,transparent); } }
 .library-sort-control { position:relative; flex:0 0 auto; }
 .library-sort-trigger, .library-review-filter { min-height:40px; display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--line); border-radius:999px; color:var(--muted); background:var(--panel2); font-weight:800; transition:transform 150ms cubic-bezier(.23,1,.32,1), color 150ms ease, border-color 150ms ease; }
 .library-sort-trigger svg, .library-review-filter svg { width:18px; height:18px; }
