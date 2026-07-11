@@ -15,6 +15,9 @@ type AppSetting func(*sql.Selector)
 // Artist is the predicate function for artist builders.
 type Artist func(*sql.Selector)
 
+// CandidateCache is the predicate function for candidatecache builders.
+type CandidateCache func(*sql.Selector)
+
 // LibraryDirectory is the predicate function for librarydirectory builders.
 type LibraryDirectory func(*sql.Selector)
 

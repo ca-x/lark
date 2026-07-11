@@ -86,6 +86,42 @@ var (
 			},
 		},
 	}
+	// CandidateCachesColumns holds the columns for the "candidate_caches" table.
+	CandidateCachesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "target_type", Type: field.TypeString},
+		{Name: "target_id", Type: field.TypeInt},
+		{Name: "query_kind", Type: field.TypeString},
+		{Name: "snapshot_hash", Type: field.TypeString},
+		{Name: "payload", Type: field.TypeString, Size: 2147483647, Default: "[]"},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// CandidateCachesTable holds the schema information for the "candidate_caches" table.
+	CandidateCachesTable = &schema.Table{
+		Name:       "candidate_caches",
+		Columns:    CandidateCachesColumns,
+		PrimaryKey: []*schema.Column{CandidateCachesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "candidatecache_user_id_target_type_target_id_query_kind_snapshot_hash",
+				Unique:  true,
+				Columns: []*schema.Column{CandidateCachesColumns[1], CandidateCachesColumns[2], CandidateCachesColumns[3], CandidateCachesColumns[4], CandidateCachesColumns[5]},
+			},
+			{
+				Name:    "candidatecache_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{CandidateCachesColumns[7]},
+			},
+			{
+				Name:    "candidatecache_user_id_target_type_target_id",
+				Unique:  false,
+				Columns: []*schema.Column{CandidateCachesColumns[1], CandidateCachesColumns[2], CandidateCachesColumns[3]},
+			},
+		},
+	}
 	// LibraryDirectoriesColumns holds the columns for the "library_directories" table.
 	LibraryDirectoriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -549,6 +585,7 @@ var (
 		AlbumsTable,
 		AppSettingsTable,
 		ArtistsTable,
+		CandidateCachesTable,
 		LibraryDirectoriesTable,
 		PlayHistoriesTable,
 		PlaylistsTable,

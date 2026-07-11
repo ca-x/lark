@@ -44,6 +44,18 @@ func (f ArtistFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, erro
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ArtistMutation", m)
 }
 
+// The CandidateCacheFunc type is an adapter to allow the use of ordinary
+// function as CandidateCache mutator.
+type CandidateCacheFunc func(context.Context, *ent.CandidateCacheMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CandidateCacheFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CandidateCacheMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CandidateCacheMutation", m)
+}
+
 // The LibraryDirectoryFunc type is an adapter to allow the use of ordinary
 // function as LibraryDirectory mutator.
 type LibraryDirectoryFunc func(context.Context, *ent.LibraryDirectoryMutation) (ent.Value, error)

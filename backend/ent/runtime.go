@@ -6,6 +6,7 @@ import (
 	"lark/backend/ent/album"
 	"lark/backend/ent/appsetting"
 	"lark/backend/ent/artist"
+	"lark/backend/ent/candidatecache"
 	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
@@ -98,6 +99,34 @@ func init() {
 	artist.DefaultUpdatedAt = artistDescUpdatedAt.Default.(func() time.Time)
 	// artist.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	artist.UpdateDefaultUpdatedAt = artistDescUpdatedAt.UpdateDefault.(func() time.Time)
+	candidatecacheFields := schema.CandidateCache{}.Fields()
+	_ = candidatecacheFields
+	// candidatecacheDescTargetType is the schema descriptor for target_type field.
+	candidatecacheDescTargetType := candidatecacheFields[1].Descriptor()
+	// candidatecache.TargetTypeValidator is a validator for the "target_type" field. It is called by the builders before save.
+	candidatecache.TargetTypeValidator = candidatecacheDescTargetType.Validators[0].(func(string) error)
+	// candidatecacheDescQueryKind is the schema descriptor for query_kind field.
+	candidatecacheDescQueryKind := candidatecacheFields[3].Descriptor()
+	// candidatecache.QueryKindValidator is a validator for the "query_kind" field. It is called by the builders before save.
+	candidatecache.QueryKindValidator = candidatecacheDescQueryKind.Validators[0].(func(string) error)
+	// candidatecacheDescSnapshotHash is the schema descriptor for snapshot_hash field.
+	candidatecacheDescSnapshotHash := candidatecacheFields[4].Descriptor()
+	// candidatecache.SnapshotHashValidator is a validator for the "snapshot_hash" field. It is called by the builders before save.
+	candidatecache.SnapshotHashValidator = candidatecacheDescSnapshotHash.Validators[0].(func(string) error)
+	// candidatecacheDescPayload is the schema descriptor for payload field.
+	candidatecacheDescPayload := candidatecacheFields[5].Descriptor()
+	// candidatecache.DefaultPayload holds the default value on creation for the payload field.
+	candidatecache.DefaultPayload = candidatecacheDescPayload.Default.(string)
+	// candidatecacheDescCreatedAt is the schema descriptor for created_at field.
+	candidatecacheDescCreatedAt := candidatecacheFields[7].Descriptor()
+	// candidatecache.DefaultCreatedAt holds the default value on creation for the created_at field.
+	candidatecache.DefaultCreatedAt = candidatecacheDescCreatedAt.Default.(func() time.Time)
+	// candidatecacheDescUpdatedAt is the schema descriptor for updated_at field.
+	candidatecacheDescUpdatedAt := candidatecacheFields[8].Descriptor()
+	// candidatecache.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	candidatecache.DefaultUpdatedAt = candidatecacheDescUpdatedAt.Default.(func() time.Time)
+	// candidatecache.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	candidatecache.UpdateDefaultUpdatedAt = candidatecacheDescUpdatedAt.UpdateDefault.(func() time.Time)
 	librarydirectoryFields := schema.LibraryDirectory{}.Fields()
 	_ = librarydirectoryFields
 	// librarydirectoryDescPath is the schema descriptor for path field.

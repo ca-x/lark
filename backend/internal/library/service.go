@@ -93,6 +93,8 @@ type Service struct {
 	loadSF singleflight.Group
 	// yearRefreshSF dedupes background album-year online lookups (see online.go).
 	yearRefreshSF singleflight.Group
+	candidateSF   singleflight.Group
+	candidateNow  func() time.Time
 	// userVersionMu serializes bumpUserCacheVersion read-modify-write so concurrent
 	// favorite/playlist toggles don't lose a version bump.
 	userVersionMu sync.Mutex

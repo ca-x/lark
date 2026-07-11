@@ -14,6 +14,7 @@ import (
 	"lark/backend/ent/album"
 	"lark/backend/ent/appsetting"
 	"lark/backend/ent/artist"
+	"lark/backend/ent/candidatecache"
 	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
@@ -42,6 +43,8 @@ type Client struct {
 	AppSetting *AppSettingClient
 	// Artist is the client for interacting with the Artist builders.
 	Artist *ArtistClient
+	// CandidateCache is the client for interacting with the CandidateCache builders.
+	CandidateCache *CandidateCacheClient
 	// LibraryDirectory is the client for interacting with the LibraryDirectory builders.
 	LibraryDirectory *LibraryDirectoryClient
 	// PlayHistory is the client for interacting with the PlayHistory builders.
@@ -76,6 +79,7 @@ func (c *Client) init() {
 	c.Album = NewAlbumClient(c.config)
 	c.AppSetting = NewAppSettingClient(c.config)
 	c.Artist = NewArtistClient(c.config)
+	c.CandidateCache = NewCandidateCacheClient(c.config)
 	c.LibraryDirectory = NewLibraryDirectoryClient(c.config)
 	c.PlayHistory = NewPlayHistoryClient(c.config)
 	c.Playlist = NewPlaylistClient(c.config)
@@ -181,6 +185,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Album:              NewAlbumClient(cfg),
 		AppSetting:         NewAppSettingClient(cfg),
 		Artist:             NewArtistClient(cfg),
+		CandidateCache:     NewCandidateCacheClient(cfg),
 		LibraryDirectory:   NewLibraryDirectoryClient(cfg),
 		PlayHistory:        NewPlayHistoryClient(cfg),
 		Playlist:           NewPlaylistClient(cfg),
@@ -213,6 +218,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Album:              NewAlbumClient(cfg),
 		AppSetting:         NewAppSettingClient(cfg),
 		Artist:             NewArtistClient(cfg),
+		CandidateCache:     NewCandidateCacheClient(cfg),
 		LibraryDirectory:   NewLibraryDirectoryClient(cfg),
 		PlayHistory:        NewPlayHistoryClient(cfg),
 		Playlist:           NewPlaylistClient(cfg),
@@ -252,9 +258,9 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Album, c.AppSetting, c.Artist, c.LibraryDirectory, c.PlayHistory, c.Playlist,
-		c.Session, c.Song, c.User, c.UserAlbumFavorite, c.UserArtistFavorite,
-		c.UserRadioFavorite, c.UserSongFavorite,
+		c.Album, c.AppSetting, c.Artist, c.CandidateCache, c.LibraryDirectory,
+		c.PlayHistory, c.Playlist, c.Session, c.Song, c.User, c.UserAlbumFavorite,
+		c.UserArtistFavorite, c.UserRadioFavorite, c.UserSongFavorite,
 	} {
 		n.Use(hooks...)
 	}
@@ -264,9 +270,9 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Album, c.AppSetting, c.Artist, c.LibraryDirectory, c.PlayHistory, c.Playlist,
-		c.Session, c.Song, c.User, c.UserAlbumFavorite, c.UserArtistFavorite,
-		c.UserRadioFavorite, c.UserSongFavorite,
+		c.Album, c.AppSetting, c.Artist, c.CandidateCache, c.LibraryDirectory,
+		c.PlayHistory, c.Playlist, c.Session, c.Song, c.User, c.UserAlbumFavorite,
+		c.UserArtistFavorite, c.UserRadioFavorite, c.UserSongFavorite,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -281,6 +287,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AppSetting.mutate(ctx, m)
 	case *ArtistMutation:
 		return c.Artist.mutate(ctx, m)
+	case *CandidateCacheMutation:
+		return c.CandidateCache.mutate(ctx, m)
 	case *LibraryDirectoryMutation:
 		return c.LibraryDirectory.mutate(ctx, m)
 	case *PlayHistoryMutation:
@@ -798,6 +806,139 @@ func (c *ArtistClient) mutate(ctx context.Context, m *ArtistMutation) (Value, er
 		return (&ArtistDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Artist mutation op: %q", m.Op())
+	}
+}
+
+// CandidateCacheClient is a client for the CandidateCache schema.
+type CandidateCacheClient struct {
+	config
+}
+
+// NewCandidateCacheClient returns a client for the CandidateCache from the given config.
+func NewCandidateCacheClient(c config) *CandidateCacheClient {
+	return &CandidateCacheClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `candidatecache.Hooks(f(g(h())))`.
+func (c *CandidateCacheClient) Use(hooks ...Hook) {
+	c.hooks.CandidateCache = append(c.hooks.CandidateCache, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `candidatecache.Intercept(f(g(h())))`.
+func (c *CandidateCacheClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CandidateCache = append(c.inters.CandidateCache, interceptors...)
+}
+
+// Create returns a builder for creating a CandidateCache entity.
+func (c *CandidateCacheClient) Create() *CandidateCacheCreate {
+	mutation := newCandidateCacheMutation(c.config, OpCreate)
+	return &CandidateCacheCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CandidateCache entities.
+func (c *CandidateCacheClient) CreateBulk(builders ...*CandidateCacheCreate) *CandidateCacheCreateBulk {
+	return &CandidateCacheCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CandidateCacheClient) MapCreateBulk(slice any, setFunc func(*CandidateCacheCreate, int)) *CandidateCacheCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CandidateCacheCreateBulk{err: fmt.Errorf("calling to CandidateCacheClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CandidateCacheCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CandidateCacheCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CandidateCache.
+func (c *CandidateCacheClient) Update() *CandidateCacheUpdate {
+	mutation := newCandidateCacheMutation(c.config, OpUpdate)
+	return &CandidateCacheUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CandidateCacheClient) UpdateOne(_m *CandidateCache) *CandidateCacheUpdateOne {
+	mutation := newCandidateCacheMutation(c.config, OpUpdateOne, withCandidateCache(_m))
+	return &CandidateCacheUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CandidateCacheClient) UpdateOneID(id int) *CandidateCacheUpdateOne {
+	mutation := newCandidateCacheMutation(c.config, OpUpdateOne, withCandidateCacheID(id))
+	return &CandidateCacheUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CandidateCache.
+func (c *CandidateCacheClient) Delete() *CandidateCacheDelete {
+	mutation := newCandidateCacheMutation(c.config, OpDelete)
+	return &CandidateCacheDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CandidateCacheClient) DeleteOne(_m *CandidateCache) *CandidateCacheDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CandidateCacheClient) DeleteOneID(id int) *CandidateCacheDeleteOne {
+	builder := c.Delete().Where(candidatecache.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CandidateCacheDeleteOne{builder}
+}
+
+// Query returns a query builder for CandidateCache.
+func (c *CandidateCacheClient) Query() *CandidateCacheQuery {
+	return &CandidateCacheQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCandidateCache},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CandidateCache entity by its id.
+func (c *CandidateCacheClient) Get(ctx context.Context, id int) (*CandidateCache, error) {
+	return c.Query().Where(candidatecache.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CandidateCacheClient) GetX(ctx context.Context, id int) *CandidateCache {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CandidateCacheClient) Hooks() []Hook {
+	return c.hooks.CandidateCache
+}
+
+// Interceptors returns the client interceptors.
+func (c *CandidateCacheClient) Interceptors() []Interceptor {
+	return c.inters.CandidateCache
+}
+
+func (c *CandidateCacheClient) mutate(ctx context.Context, m *CandidateCacheMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CandidateCacheCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CandidateCacheUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CandidateCacheUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CandidateCacheDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CandidateCache mutation op: %q", m.Op())
 	}
 }
 
@@ -2550,13 +2691,13 @@ func (c *UserSongFavoriteClient) mutate(ctx context.Context, m *UserSongFavorite
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Album, AppSetting, Artist, LibraryDirectory, PlayHistory, Playlist, Session,
-		Song, User, UserAlbumFavorite, UserArtistFavorite, UserRadioFavorite,
-		UserSongFavorite []ent.Hook
+		Album, AppSetting, Artist, CandidateCache, LibraryDirectory, PlayHistory,
+		Playlist, Session, Song, User, UserAlbumFavorite, UserArtistFavorite,
+		UserRadioFavorite, UserSongFavorite []ent.Hook
 	}
 	inters struct {
-		Album, AppSetting, Artist, LibraryDirectory, PlayHistory, Playlist, Session,
-		Song, User, UserAlbumFavorite, UserArtistFavorite, UserRadioFavorite,
-		UserSongFavorite []ent.Interceptor
+		Album, AppSetting, Artist, CandidateCache, LibraryDirectory, PlayHistory,
+		Playlist, Session, Song, User, UserAlbumFavorite, UserArtistFavorite,
+		UserRadioFavorite, UserSongFavorite []ent.Interceptor
 	}
 )
