@@ -109,6 +109,18 @@ function ArtistAlbumShowcase({
       const offset = ((((rawOffset + total / 2) % total) + total) % total) - total / 2;
       const side = offset < 0 ? -1 : 1;
       const distance = Math.abs(offset);
+      if (distance > 5) {
+        card.dataset.coverFlowHidden = "true";
+        card.dataset.active = "false";
+        if (card.style.opacity !== "0") {
+          card.style.opacity = "0";
+          card.style.pointerEvents = "none";
+          card.style.filter = "none";
+        }
+        return;
+      }
+
+      card.dataset.coverFlowHidden = "false";
       const centerProgress = 1 - Math.min(distance, 1);
       const centerEase = centerProgress * centerProgress * (3 - 2 * centerProgress);
       const xBase = distance < 1
@@ -119,14 +131,14 @@ function ArtistAlbumShowcase({
       const z = 190 - distance * 54;
       const rotation = side * -60 * Math.pow(Math.min(distance, 1), 1.6);
       const scale = Math.max(0.68, 0.8 + centerEase * 0.2 - Math.max(0, distance - 1) * 0.025);
-      const opacity = distance > 5 ? 0 : Math.max(0.2, 1 - distance * 0.15);
+      const opacity = Math.max(0.2, 1 - distance * 0.15);
       const filter = distance > 4 ? "blur(4px)" : distance > 3 ? "blur(2px)" : "none";
 
       card.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${rotation}deg) scale(${scale})`;
       card.style.zIndex = String(60 - Math.round(distance));
       card.style.opacity = String(opacity);
       card.style.filter = filter;
-      card.style.pointerEvents = distance > 5 ? "none" : "";
+      card.style.pointerEvents = "";
       card.dataset.active = distance < 0.5 ? "true" : "false";
     });
   }, [total]);

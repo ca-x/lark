@@ -47,6 +47,7 @@ for (const needle of [
   "artist-album-cover-flow",
   "wrapPosition",
   "styleCards",
+  "coverFlowHidden",
   "animateToTarget",
   "scheduleSettle",
   "onWheel",
