@@ -4,6 +4,7 @@ import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import {
   ArrowClockwise,
+  CardsThree,
   ClockCounterClockwise,
   Disc,
   DotsThree,
@@ -41,6 +42,7 @@ import {
   SkipBack,
   SkipForward,
   SpeakerSimpleHigh,
+  SquaresFour,
   Timer,
   UploadSimple,
   UserCircle,
@@ -4780,6 +4782,7 @@ export default function App() {
                 current={current}
                 t={t}
                 artistAlbumDisplayStyle={artistAlbumDisplayStyle}
+                onArtistAlbumDisplayStyleChange={setArtistAlbumDisplayStyle}
                 backLabel={
                   collection.type === "album" && collectionBack
                     ? collectionBack.title
@@ -6913,6 +6916,7 @@ function CollectionView({
   current,
   t,
   artistAlbumDisplayStyle,
+  onArtistAlbumDisplayStyleChange,
   backLabel,
   onBack,
   onPlayAll,
@@ -6938,6 +6942,7 @@ function CollectionView({
   current: Song | null;
   t: ReturnType<typeof createT>;
   artistAlbumDisplayStyle: ArtistAlbumDisplayStyle;
+  onArtistAlbumDisplayStyleChange: (style: ArtistAlbumDisplayStyle) => void;
   backLabel?: string;
   onBack: () => void;
   onPlayAll: () => void;
@@ -7065,19 +7070,49 @@ function CollectionView({
         </div>
       </div>
       {collection.type === "artist" ? (
-        <div className="collection-tabs">
-          <button
-            className={artistView === "songs" ? "active" : ""}
-            onClick={() => setArtistView("songs")}
-          >
-            {t("songs")}
-          </button>
-          <button
-            className={artistView === "albums" ? "active" : ""}
-            onClick={() => setArtistView("albums")}
-          >
-            {t("albums")}
-          </button>
+        <div className="artist-collection-toolbar">
+          <div className="collection-tabs">
+            <button
+              className={artistView === "songs" ? "active" : ""}
+              onClick={() => setArtistView("songs")}
+            >
+              {t("songs")}
+            </button>
+            <button
+              className={artistView === "albums" ? "active" : ""}
+              onClick={() => setArtistView("albums")}
+            >
+              {t("albums")}
+            </button>
+          </div>
+          {artistView === "albums" ? (
+            <div
+              className="artist-album-view-switcher"
+              role="group"
+              aria-label={t("artistAlbumViewLabel")}
+            >
+              <button
+                type="button"
+                className={artistAlbumDisplayStyle === "classic" ? "active" : ""}
+                aria-pressed={artistAlbumDisplayStyle === "classic"}
+                title={t("artistAlbumDisplayClassic")}
+                onClick={() => onArtistAlbumDisplayStyleChange("classic")}
+              >
+                <SquaresFour aria-hidden="true" />
+                <span>{t("artistAlbumDisplayClassic")}</span>
+              </button>
+              <button
+                type="button"
+                className={artistAlbumDisplayStyle === "showcase" ? "active" : ""}
+                aria-pressed={artistAlbumDisplayStyle === "showcase"}
+                title={t("artistAlbumDisplayShowcase")}
+                onClick={() => onArtistAlbumDisplayStyleChange("showcase")}
+              >
+                <CardsThree aria-hidden="true" />
+                <span>{t("artistAlbumDisplayShowcase")}</span>
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {collection.loading ? (

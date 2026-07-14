@@ -1,0 +1,43 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const app = readFileSync(join(root, "src/App.tsx"), "utf8");
+const i18n = readFileSync(join(root, "src/i18n.ts"), "utf8");
+const css = readFileSync(join(root, "src/styles.css"), "utf8");
+const mobileCss = readFileSync(join(root, "src/mobile.css"), "utf8");
+const failures = [];
+
+function requireInSource(source, needle, label) {
+  if (!source.includes(needle)) failures.push(`${label}: missing ${needle}`);
+}
+
+for (const needle of [
+  "onArtistAlbumDisplayStyleChange",
+  "artist-album-view-switcher",
+  'aria-pressed={artistAlbumDisplayStyle === "classic"}',
+  'aria-pressed={artistAlbumDisplayStyle === "showcase"}',
+]) {
+  requireInSource(app, needle, "App.tsx");
+}
+
+for (const needle of [
+  "artistAlbumViewLabel",
+  "artistAlbumDisplayClassic",
+  "artistAlbumDisplayShowcase",
+  "封面流",
+  "Cover Flow",
+]) {
+  requireInSource(i18n, needle, "i18n.ts");
+}
+
+requireInSource(css, ".artist-album-view-switcher", "styles.css");
+requireInSource(mobileCss, ".artist-album-view-switcher", "mobile.css");
+
+if (failures.length) {
+  console.error(failures.join("\n"));
+  process.exit(1);
+}
+
+console.log("Artist album Cover Flow checks passed");

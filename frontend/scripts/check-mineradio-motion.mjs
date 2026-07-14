@@ -5,7 +5,6 @@ import { dirname, join } from "node:path";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const component = readFileSync(join(root, "src/components/player-themes/MineradioStagePlayer.tsx"), "utf8");
 const app = readFileSync(join(root, "src/App.tsx"), "utf8");
-const artistAlbumBrowser = readFileSync(join(root, "src/components/ArtistAlbumBrowser.tsx"), "utf8");
 const css = readFileSync(join(root, "src/styles.css"), "utf8");
 const mobileCss = readFileSync(join(root, "src/mobile.css"), "utf8");
 const i18n = readFileSync(join(root, "src/i18n.ts"), "utf8");
@@ -129,14 +128,6 @@ for (const needle of [
 }
 
 for (const needle of [
-  "data-showcase-motion-card",
-  "--album-showcase-distance",
-  "--album-showcase-parity",
-]) {
-  requireInSource(artistAlbumBrowser, needle, "ArtistAlbumBrowser.tsx");
-}
-
-for (const needle of [
   "@keyframes mineradio-stage-card-breathe",
   "@keyframes mineradio-stage-lyric-river",
   "@keyframes mineradio-stage-signal-sweep",
@@ -162,9 +153,6 @@ for (const needle of [
   "@keyframes lyrics-depth-ring-pulse",
   "@keyframes lyrics-depth-particle-drift",
   "@keyframes lyrics-folia-smoke",
-  "@keyframes artist-album-showcase-card-breathe",
-  "@keyframes artist-album-showcase-sweep",
-  "@keyframes artist-album-showcase-cover-drift",
   "prefers-reduced-motion: reduce",
 ]) {
   requireInSource(css, needle, "styles.css");
