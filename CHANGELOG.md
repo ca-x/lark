@@ -5,6 +5,50 @@
 
 ---
 
+## 0.9.37：歌手专辑封面流
+
+发布日期 / Released: 2026-07-14
+
+### 新功能
+
+- **新增歌手专辑视图切换。** 歌手详情页的专辑标签现在可以直接在紧凑网格和封面流之间切换，选择会继续通过现有用户偏好在刷新和重新登录后保持同步。
+- **移植环形 3D 封面流。** 单份专辑列表支持循环浏览、景深、倒影、侧封面居中和大曲库计数，同时保留打开专辑与立即播放操作。
+
+### 交互与体验
+
+- **完善拖拽、滚轮和键盘操作。** 支持鼠标与触摸拖拽、滚轮吸附、左右键导航、Enter 打开和 Space 播放；键盘操作即时响应，减少动态模式取消位移动画，多点触控不会抢占当前手势。
+- **适配桌面与移动端。** 视图按钮提供清晰焦点和至少 44px 的触控区域，封面流按舞台尺寸响应布局，移动端不会产生横向页面溢出。
+
+### 致谢
+
+- **补充封面流参考来源。** README、README_ZH 和 NOTICE 已注明 [opc8838-hub/cover-flow-showcase](https://github.com/opc8838-hub/cover-flow-showcase) 的参考范围、固定提交与 MIT 许可。
+
+完整 diff：`git log v0.9.36..v0.9.37`
+
+---
+
+## v0.9.37: Artist album Cover Flow
+
+Released: 2026-07-14
+
+### Features
+
+- **Added an in-page artist album view switcher.** The Albums tab can now switch directly between Compact grid and Cover Flow while continuing to sync the existing user preference across reloads and signed-in sessions.
+- **Ported a circular 3D Cover Flow.** A single album list now provides continuous wrapping, depth, reflections, side-cover centering, and compact counting for large discographies while preserving separate open and play actions.
+
+### Interaction and experience
+
+- **Polished drag, wheel, and keyboard navigation.** Mouse and touch dragging, wheel snapping, arrow navigation, Enter to open, and Space to play are supported; keyboard actions stay immediate, reduced-motion mode removes positional animation, and secondary touch points cannot take over an active gesture.
+- **Adapted the layout for desktop and mobile.** The view controls have visible focus and at least 44px touch targets, stage geometry responds to available space, and the mobile page does not overflow horizontally.
+
+### Acknowledgements
+
+- **Documented the Cover Flow reference.** README, README_ZH, and NOTICE now record the adapted scope, pinned commit, and MIT license for [opc8838-hub/cover-flow-showcase](https://github.com/opc8838-hub/cover-flow-showcase).
+
+Full diff: `git log v0.9.36..v0.9.37`
+
+---
+
 ## 0.9.36 — 曲库整理闭环与持久候选缓存
 
 发布日期 / Released: 2026-07-11
