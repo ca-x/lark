@@ -8,6 +8,9 @@ const browser = readFileSync(join(root, "src/components/ArtistAlbumBrowser.tsx")
 const i18n = readFileSync(join(root, "src/i18n.ts"), "utf8");
 const css = readFileSync(join(root, "src/styles.css"), "utf8");
 const mobileCss = readFileSync(join(root, "src/mobile.css"), "utf8");
+const readme = readFileSync(join(root, "../README.md"), "utf8");
+const readmeZh = readFileSync(join(root, "../README_ZH.md"), "utf8");
+const notice = readFileSync(join(root, "../NOTICE.md"), "utf8");
 const failures = [];
 
 function requireInSource(source, needle, label) {
@@ -90,6 +93,13 @@ for (const needle of [
 }
 
 requireInSource(mobileCss, ".artist-album-cover-flow", "mobile.css");
+
+const referenceUrl = "https://github.com/opc8838-hub/cover-flow-showcase";
+requireInSource(readme, referenceUrl, "README.md");
+requireInSource(readmeZh, referenceUrl, "README_ZH.md");
+requireInSource(notice, referenceUrl, "NOTICE.md");
+requireInSource(notice, "MIT", "NOTICE.md");
+requireInSource(notice, "eda6308e7e936a0d51b3602640dd870ce76693bd", "NOTICE.md");
 
 if (failures.length) {
   console.error(failures.join("\n"));

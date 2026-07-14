@@ -22,6 +22,8 @@
 
 Walkman 桌面播放主题参考并适配了 GordenSun 的 [Walkman](https://github.com/GordenSun/Walkman) 中的 3D 随身听模型、烟熏仓门、机械控制、卷轴动画和琥珀点阵屏概念。百灵与 Walkman 官方无从属关系。
 
+歌手专辑封面流参考并适配了 opc8838-hub 的 [cover-flow-showcase](https://github.com/opc8838-hub/cover-flow-showcase) 中的环形 3D 定位、景深、倒影、滚轮导航和吸附交互。百灵与该项目官方无从属关系。
+
 全屏歌词方向也参考了 chthollyphile 的 [folia-major](https://github.com/chthollyphile/folia-major)，用于歌词时序、歌词轨道和溢光交互设计。
 
 ---

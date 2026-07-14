@@ -22,6 +22,8 @@ The Mineradio Stage player theme and its optional dark-stage effects adapt visua
 
 The Walkman desktop player theme adapts the 3D cassette-player model, smoked door, mechanical controls, reel animation, and amber dot-matrix display concepts from [Walkman](https://github.com/GordenSun/Walkman) by GordenSun. Lark is not affiliated with Walkman.
 
+The artist album Cover Flow adapts the circular 3D positioning, depth, reflection, wheel navigation, and snap behavior from [cover-flow-showcase](https://github.com/opc8838-hub/cover-flow-showcase) by opc8838-hub. Lark is not affiliated with that project.
+
 The fullscreen lyrics direction also references [folia-major](https://github.com/chthollyphile/folia-major) by chthollyphile for lyric timing, rail, and glow interaction ideas.
 
 ---
