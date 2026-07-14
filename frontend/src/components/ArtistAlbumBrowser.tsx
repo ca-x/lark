@@ -335,7 +335,7 @@ function ArtistAlbumShowcase({
     : "";
 
   return (
-    <section className="artist-album-cover-flow" aria-label={t("artistAlbumDisplayShowcase")}>
+    <section className="artist-album-cover-flow">
       <div
         ref={stageRef}
         className="artist-album-cover-flow-stage"
@@ -407,7 +407,11 @@ function ArtistAlbumShowcase({
         </div>
 
         {activeAlbum ? (
-          <div className="artist-album-cover-flow-info" aria-live="polite">
+          <div
+            className="artist-album-cover-flow-info"
+            aria-live="polite"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
             <button
               type="button"
               className="artist-album-cover-flow-open"
@@ -431,7 +435,11 @@ function ArtistAlbumShowcase({
         ) : null}
 
         {total > 1 ? (
-          <div className="artist-album-cover-flow-pagination" aria-label={t("albums")}>
+          <div
+            className="artist-album-cover-flow-pagination"
+            aria-label={t("albums")}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
             {total <= 12 ? albums.map((album, index) => (
               <button
                 key={album.id}

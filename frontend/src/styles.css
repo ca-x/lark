@@ -718,7 +718,6 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
   transition:transform 140ms cubic-bezier(.23,1,.32,1), color 160ms ease, background 160ms ease, border-color 160ms ease;
 }
 .artist-album-view-switcher button svg { width:18px; height:18px; flex:0 0 auto; }
-.artist-album-view-switcher button:hover { color:var(--text); background:color-mix(in srgb, var(--accent) 9%, transparent); }
 .artist-album-view-switcher button.active {
   color:var(--text);
   border-color:color-mix(in srgb, var(--accent) 34%, var(--line));
@@ -6966,8 +6965,6 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   transition:transform 140ms cubic-bezier(.23,1,.32,1), filter 160ms ease, background 160ms ease;
 }
 .artist-album-cover-flow-play svg { width:17px; height:17px; }
-.artist-album-cover-flow-open:hover { background:rgba(255,255,255,.08); }
-.artist-album-cover-flow-play:hover { filter:brightness(1.08); }
 .artist-album-cover-flow-open:active,
 .artist-album-cover-flow-play:active { transform:scale(.97); }
 .artist-album-cover-flow-open:focus-visible,
@@ -7028,7 +7025,10 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   text-align:center;
 }
 @media (hover:hover) and (pointer:fine) {
+  .artist-album-view-switcher button:hover { color:var(--text); background:color-mix(in srgb, var(--accent) 9%, transparent); }
   .artist-album-cover-flow-card:hover .artist-album-cover-flow-shine { opacity:.94; }
+  .artist-album-cover-flow-open:hover { background:rgba(255,255,255,.08); }
+  .artist-album-cover-flow-play:hover { filter:brightness(1.08); }
 }
 @media (prefers-reduced-motion:reduce) {
   .artist-album-cover-flow-card {

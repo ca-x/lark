@@ -98,8 +98,10 @@ const referenceUrl = "https://github.com/opc8838-hub/cover-flow-showcase";
 requireInSource(readme, referenceUrl, "README.md");
 requireInSource(readmeZh, referenceUrl, "README_ZH.md");
 requireInSource(notice, referenceUrl, "NOTICE.md");
-requireInSource(notice, "MIT", "NOTICE.md");
+requireInSource(notice, "cover-flow-showcase by opc8838-hub, licensed under MIT", "NOTICE.md");
 requireInSource(notice, "eda6308e7e936a0d51b3602640dd870ce76693bd", "NOTICE.md");
+requireInSource(notice, "Permission is hereby granted, free of charge", "NOTICE.md");
+requireInSource(notice, 'THE SOFTWARE IS PROVIDED "AS IS"', "NOTICE.md");
 
 if (failures.length) {
   console.error(failures.join("\n"));
