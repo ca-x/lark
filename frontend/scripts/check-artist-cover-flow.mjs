@@ -46,6 +46,7 @@ requireInSource(mobileCss, ".artist-album-view-switcher", "mobile.css");
 for (const needle of [
   "artist-album-cover-flow",
   "wrapPosition",
+  "coverFlowFrameBlend",
   "styleCards",
   "coverFlowHidden",
   "animateToTarget",
@@ -53,6 +54,7 @@ for (const needle of [
   "onWheel",
   "onPointerDown",
   "setPointerCapture",
+  "event.isPrimary",
   'event.key === "ArrowRight"',
   'event.key === "ArrowLeft"',
   'event.key === "Enter"',

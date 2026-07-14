@@ -6784,10 +6784,7 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   outline-offset:3px;
 }
 .artist-album-cover-flow-stage[data-dragging='true'] { cursor:grabbing; }
-.artist-album-cover-flow-stage[data-dragging='true'] .artist-album-cover-flow-card {
-  transition-duration:0ms;
-  cursor:grabbing;
-}
+.artist-album-cover-flow-stage[data-dragging='true'] .artist-album-cover-flow-card { cursor:grabbing; }
 .artist-album-cover-flow-ambience {
   position:absolute;
   inset:0;
@@ -6826,10 +6823,6 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   transform-style:preserve-3d;
   backface-visibility:hidden;
   will-change:transform, opacity, filter;
-  transition:
-    transform 180ms cubic-bezier(.23,1,.32,1),
-    filter 180ms cubic-bezier(.23,1,.32,1),
-    opacity 180ms cubic-bezier(.23,1,.32,1);
 }
 .artist-album-cover-flow-card[data-active='true'] { cursor:pointer; }
 .artist-album-cover-flow-face {

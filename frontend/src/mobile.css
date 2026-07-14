@@ -1175,7 +1175,7 @@
   .daily-song-panel { padding:12px; border-radius:18px; }
   .daily-song-panel-head button { min-height:44px; }
   .daily-song-list { grid-template-columns:1fr; }
-.artist-album-cover-flow-stage {
+  .artist-album-cover-flow-stage {
     --cover-flow-size:min(68vw, 270px);
     height:clamp(410px, 124vw, 510px);
     border-radius:24px;

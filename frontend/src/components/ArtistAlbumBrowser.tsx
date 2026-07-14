@@ -17,6 +17,8 @@ type ArtistAlbumBrowserProps = {
 };
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const coverFlowFrameBlend = (elapsedMs: number) =>
+  1 - Math.pow(0.68, Math.max(0, elapsedMs) / (1000 / 60));
 
 export function ArtistAlbumBrowser({
   albums,
@@ -68,6 +70,7 @@ function ArtistAlbumShowcase({
   const targetRef = useRef(0);
   const activeIndexRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
+  const animationTimeRef = useRef<number | null>(null);
   const settleTimerRef = useRef<number | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
   const reduceMotionRef = useRef(false);
@@ -110,9 +113,9 @@ function ArtistAlbumShowcase({
       const side = offset < 0 ? -1 : 1;
       const distance = Math.abs(offset);
       if (distance > 5) {
-        card.dataset.coverFlowHidden = "true";
-        card.dataset.active = "false";
-        if (card.style.opacity !== "0") {
+        if (card.dataset.coverFlowHidden !== "true") {
+          card.dataset.coverFlowHidden = "true";
+          card.dataset.active = "false";
           card.style.opacity = "0";
           card.style.pointerEvents = "none";
           card.style.filter = "none";
@@ -120,7 +123,10 @@ function ArtistAlbumShowcase({
         return;
       }
 
-      card.dataset.coverFlowHidden = "false";
+      if (card.dataset.coverFlowHidden !== "false") {
+        card.dataset.coverFlowHidden = "false";
+        card.style.pointerEvents = "";
+      }
       const centerProgress = 1 - Math.min(distance, 1);
       const centerEase = centerProgress * centerProgress * (3 - 2 * centerProgress);
       const xBase = distance < 1
@@ -135,11 +141,12 @@ function ArtistAlbumShowcase({
       const filter = distance > 4 ? "blur(4px)" : distance > 3 ? "blur(2px)" : "none";
 
       card.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${rotation}deg) scale(${scale})`;
-      card.style.zIndex = String(60 - Math.round(distance));
+      const zIndex = String(60 - Math.round(distance));
+      if (card.style.zIndex !== zIndex) card.style.zIndex = zIndex;
       card.style.opacity = String(opacity);
       card.style.filter = filter;
-      card.style.pointerEvents = "";
-      card.dataset.active = distance < 0.5 ? "true" : "false";
+      const nextActive = distance < 0.5 ? "true" : "false";
+      if (card.dataset.active !== nextActive) card.dataset.active = nextActive;
     });
   }, [total]);
 
@@ -161,21 +168,27 @@ function ArtistAlbumShowcase({
 
   const animateToTarget = useCallback(() => {
     if (reduceMotionRef.current) {
+      animationTimeRef.current = null;
       syncPosition(targetRef.current);
       return;
     }
     if (animationFrameRef.current !== null || total < 2) return;
 
-    const tick = () => {
+    const tick = (now: number) => {
+      const previous = animationTimeRef.current ?? now - 1000 / 60;
+      animationTimeRef.current = now;
       let delta = targetRef.current - positionRef.current;
       if (delta > total / 2) delta -= total;
       if (delta < -total / 2) delta += total;
       if (Math.abs(delta) < 0.002) {
         syncPosition(targetRef.current);
         animationFrameRef.current = null;
+        animationTimeRef.current = null;
         return;
       }
-      positionRef.current = wrapPosition(positionRef.current + delta * 0.18);
+      positionRef.current = wrapPosition(
+        positionRef.current + delta * coverFlowFrameBlend(now - previous),
+      );
       styleCards(positionRef.current);
       updateActiveIndex(positionRef.current);
       animationFrameRef.current = window.requestAnimationFrame(tick);
@@ -203,6 +216,7 @@ function ArtistAlbumShowcase({
     if (animationFrameRef.current !== null) {
       window.cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
+      animationTimeRef.current = null;
     }
     if (settleTimerRef.current !== null) {
       window.clearTimeout(settleTimerRef.current);
@@ -225,6 +239,7 @@ function ArtistAlbumShowcase({
     if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
     if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
     animationFrameRef.current = null;
+    animationTimeRef.current = null;
     settleTimerRef.current = null;
     positionRef.current = 0;
     targetRef.current = 0;
@@ -241,6 +256,7 @@ function ArtistAlbumShowcase({
       if (query.matches) {
         if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
+        animationTimeRef.current = null;
         syncPosition(Math.round(positionRef.current));
       }
     };
@@ -269,14 +285,17 @@ function ArtistAlbumShowcase({
 
   useEffect(() => () => {
     if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
+    animationTimeRef.current = null;
     if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
   }, []);
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0 || total < 2) return;
+    if (event.button !== 0 || total < 2 || pointerRef.current.dragging) return;
+    if (event.pointerType !== "mouse" && !event.isPrimary) return;
     if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
     if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
     animationFrameRef.current = null;
+    animationTimeRef.current = null;
     settleTimerRef.current = null;
     pointerRef.current = {
       pointerId: event.pointerId,
