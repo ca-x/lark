@@ -68,6 +68,29 @@ for (const needle of [
   forbidInSource(browser, needle, "ArtistAlbumBrowser.tsx");
 }
 
+for (const needle of [
+  ".artist-album-cover-flow",
+  ".artist-album-cover-flow-stage",
+  ".artist-album-cover-flow-card",
+  ".artist-album-cover-flow-reflection",
+  ".artist-album-cover-flow-info",
+  ".artist-album-cover-flow-play",
+  "prefers-reduced-motion:reduce",
+]) {
+  requireInSource(css, needle, "styles.css");
+}
+
+for (const needle of [
+  "@keyframes artist-album-showcase-card-breathe",
+  "@keyframes artist-album-showcase-sweep",
+  "@keyframes artist-album-showcase-cover-drift",
+  "@keyframes artist-album-showcase-control-pulse",
+]) {
+  forbidInSource(css, needle, "styles.css");
+}
+
+requireInSource(mobileCss, ".artist-album-cover-flow", "mobile.css");
+
 if (failures.length) {
   console.error(failures.join("\n"));
   process.exit(1);

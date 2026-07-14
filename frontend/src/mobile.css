@@ -1175,33 +1175,35 @@
   .daily-song-panel { padding:12px; border-radius:18px; }
   .daily-song-panel-head button { min-height:44px; }
   .daily-song-list { grid-template-columns:1fr; }
-  .artist-album-grid-showcase {
-    --album-showcase-width:min(420px, 78vw);
-    --album-showcase-height:220px;
-    --album-showcase-overlap:46px;
-    gap:0;
-    padding-bottom:18px;
+.artist-album-cover-flow-stage {
+    --cover-flow-size:min(68vw, 270px);
+    height:clamp(410px, 124vw, 510px);
+    border-radius:24px;
   }
-  .artist-album-grid-showcase .artist-album-card {
-    flex-basis:var(--album-showcase-width);
-    height:var(--album-showcase-height);
+  .artist-album-cover-flow-cards { top:39%; }
+  .artist-album-cover-flow-reflection {
+    top:calc(100% + 10px);
+    height:52px;
+    border-radius:12px;
   }
-  .artist-album-grid-showcase .artist-album-title {
-    left:20px;
-    right:20px;
-    bottom:74px;
-    font-size:24px;
+  .artist-album-cover-flow-info {
+    bottom:48px;
+    width:calc(100% - 24px);
+    min-height:56px;
+    padding:6px;
+    border-radius:16px;
   }
-  .artist-album-grid-showcase .artist-album-meta {
-    left:20px;
-    right:20px;
-    bottom:54px;
+  .artist-album-cover-flow-open {
+    min-width:0;
+    min-height:44px;
+    padding-inline:9px;
   }
-  .artist-album-grid-showcase .artist-album-card .card-play {
-    left:20px;
-    bottom:20px;
-    min-width:108px;
+  .artist-album-cover-flow-play {
+    min-width:44px;
+    min-height:44px;
+    padding-inline:12px;
   }
+  .artist-album-cover-flow-pagination { bottom:10px; }
   .public-share-deck .audio-scope-player,
   .public-share-deck .album-slide-player { width:min(100%,340px); }
 }
