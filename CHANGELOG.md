@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.38：暗场电台重构与奔跑小猫优化
+
+发布日期 / Released: 2026-07-15
+
+### 播放主题
+
+- **把暗场电台重构为全屏舞台。** 桌面首页不再把效果放在普通卡片里，启动幕、封面粒子、歌词溢光、3D 歌单架和边缘导航现在共同组成一套完整的暗场空间。
+- **提高暗场电台的播放稳定性。** 播放与暂停不会重建 WebGL 场景，WebGL 不可用时会显示静态兜底，减少动态模式会保留包含真实封面的稳定静帧。
+- **保留外部播放来源的原有控制。** 在线电台和 Subsonic、Jellyfin、Plex 等网络曲库播放继续使用原来的接收器和底部播放器，不会被不兼容的全屏舞台抢占。
+- **让奔跑的小猫真正沿唱片跑动。** 小猫改为独立的上半圈往返轨道，折返时保持直立并切换朝向，播放暂停后停在当前位置，按钮也增加了更短、更清晰的按压反馈。
+
+完整 diff：`git log v0.9.37..v0.9.38`
+
+---
+
+## v0.9.38: Mineradio rebuild and Running kitten polish
+
+Released: 2026-07-15
+
+### Player themes
+
+- **Rebuilt Mineradio as a full-screen stage.** The desktop home no longer places the effect inside a standard card, so the launch screen, cover particles, lyric glow, 3D playlist shelf, and edge navigation now form one complete dark-stage composition.
+- **Improved Mineradio playback stability.** Play and pause no longer rebuild the WebGL scene, browsers without WebGL receive a static fallback, and reduced-motion mode keeps a stable frame containing the real cover.
+- **Preserved the existing controls for external playback sources.** Online radio and Subsonic, Jellyfin, or Plex library playback continue to use their original receiver and bottom player instead of being taken over by an incompatible full-screen stage.
+- **Made the Running kitten follow a real record path.** The kitten now runs back and forth along an independent upper groove, stays upright and changes direction at each turn, freezes in place when paused, and uses shorter, clearer button feedback.
+
+Full diff: `git log v0.9.37..v0.9.38`
+
+---
+
 ## 0.9.37：歌手专辑封面流
 
 发布日期 / Released: 2026-07-14
