@@ -13,6 +13,7 @@
     "test:dlna-api": "node scripts/check-dlna-api.mjs",
     "test:artist-cover-flow": "node scripts/check-artist-cover-flow.mjs",
     "test:mineradio-motion": "node scripts/check-mineradio-motion.mjs",
+    "test:running-kitten": "node scripts/check-running-kitten-theme.mjs",
     "test:paper-shaders": "node scripts/check-paper-shader-effects.mjs",
     "test:smartisan-tonearm": "node scripts/check-smartisan-tonearm.mjs",
     "test:walkman-theme": "node scripts/check-walkman-theme.mjs",

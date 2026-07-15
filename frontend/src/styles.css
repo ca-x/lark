@@ -2775,7 +2775,6 @@ body, button, input, select { font-family: var(--app-font); }
   color:var(--running-kitten-paper);
   background:linear-gradient(145deg, rgba(28,18,11,.82), rgba(11,9,8,.68));
   box-shadow:0 26px 70px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,244,220,.22);
-  backdrop-filter:blur(6px);
 }
 .running-kitten-scene {
   position:relative;
@@ -2909,50 +2908,65 @@ body, button, input, select { font-family: var(--app-font); }
   box-shadow:0 0 0 2px rgba(0,0,0,.56);
   z-index:3;
 }
-.running-kitten-cat-track {
+.running-kitten-cat-orbit {
+  --running-kitten-lap-duration:8.8s;
   position:absolute;
-  inset:0;
+  inset:7%;
   border-radius:50%;
   pointer-events:none;
   z-index:4;
+  transform:rotate(-68deg);
+  transform-origin:center;
+  animation:running-kitten-lap var(--running-kitten-lap-duration) cubic-bezier(.45,.02,.55,.98) infinite paused;
 }
-.running-kitten-cat-track::before {
+.running-kitten-cat-orbit::before {
   content:'';
   position:absolute;
-  inset:20%;
+  inset:2%;
   border-radius:50%;
   border:1px solid rgba(255,239,188,.2);
-  border-bottom-color:transparent;
+  border-bottom-color:rgba(255,239,188,.045);
   border-left-color:rgba(255,239,188,.08);
-  transform:rotate(-21deg);
+  box-shadow:0 0 20px rgba(239,179,79,.045);
 }
 .running-kitten-cat-runner {
   position:absolute;
-  left:66%;
-  top:24%;
+  left:50%;
+  top:3%;
   width:1px;
   height:1px;
-  transform:rotate(14deg);
+  transform:rotate(68deg);
+  transform-origin:center;
+  animation:running-kitten-counter-lap var(--running-kitten-lap-duration) cubic-bezier(.45,.02,.55,.98) infinite paused;
 }
+.running-kitten-cat-facing {
+  width:1px;
+  height:1px;
+  transform:scaleX(1);
+  animation:running-kitten-facing var(--running-kitten-lap-duration) steps(1,end) infinite paused;
+}
+.running-kitten-player[data-playing='true'] .running-kitten-cat-orbit,
+.running-kitten-player[data-playing='true'] .running-kitten-cat-runner,
+.running-kitten-player[data-playing='true'] .running-kitten-cat-facing,
 .running-kitten-player[data-playing='true'] .running-kitten-cat {
   animation-play-state:running;
 }
 .running-kitten-cat {
   display:block;
-  width:60px;
-  height:60px;
+  width:56px;
+  height:56px;
   overflow:visible;
   transform:translate(-50%,-50%) scaleX(-1) rotate(-8deg);
   transform-origin:center;
   filter:
-    drop-shadow(0 2px 0 rgba(255,239,188,.34))
-    drop-shadow(0 10px 10px rgba(0,0,0,.42));
+    drop-shadow(0 1px 0 rgba(255,239,188,.26))
+    drop-shadow(0 8px 9px rgba(0,0,0,.38));
   animation:running-kitten-bob .42s ease-in-out infinite alternate paused;
 }
 .running-kitten-cat path {
   fill:var(--running-kitten-ink);
   stroke:rgba(255,239,188,.88);
-  stroke-width:28;
+  stroke-width:15;
   stroke-linecap:round;
   stroke-linejoin:round;
   paint-order:stroke fill;
@@ -3052,14 +3066,11 @@ body, button, input, select { font-family: var(--app-font); }
   background:linear-gradient(180deg, rgba(255,241,207,.16), rgba(16,11,8,.62));
   box-shadow:0 8px 18px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.14);
   cursor:pointer;
-  transition:transform .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease);
-}
-.running-kitten-controls button:not(:disabled):hover {
-  border-color:rgba(239,179,79,.72);
-  background:linear-gradient(180deg, rgba(239,179,79,.34), rgba(42,22,11,.72));
+  touch-action:manipulation;
+  transition:transform 140ms cubic-bezier(.23,1,.32,1), border-color 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 .running-kitten-controls button:not(:disabled):active {
-  transform:translateY(2px);
+  transform:scale(.97);
 }
 .running-kitten-controls button:disabled {
   opacity:.42;
@@ -3077,9 +3088,30 @@ body, button, input, select { font-family: var(--app-font); }
 @keyframes running-kitten-spin {
   to { transform:rotate(360deg); }
 }
+@keyframes running-kitten-lap {
+  0%, 6% { transform:rotate(-68deg); }
+  44%, 50% { transform:rotate(68deg); }
+  94%, 100% { transform:rotate(-68deg); }
+}
+@keyframes running-kitten-counter-lap {
+  0%, 6% { transform:rotate(68deg); }
+  44%, 50% { transform:rotate(-68deg); }
+  94%, 100% { transform:rotate(68deg); }
+}
+@keyframes running-kitten-facing {
+  0%, 49.999% { transform:scaleX(1); }
+  50%, 100% { transform:scaleX(-1); }
+}
 @keyframes running-kitten-bob {
   from { transform:translate(-50%,-50%) scaleX(-1) rotate(-10deg) translateY(0); }
   to { transform:translate(-50%,-50%) scaleX(-1) rotate(-5deg) translateY(-5px); }
+}
+@media (hover:hover) and (pointer:fine) {
+  .running-kitten-controls button:not(:disabled):hover {
+    border-color:rgba(239,179,79,.72);
+    background:linear-gradient(180deg, rgba(239,179,79,.34), rgba(42,22,11,.72));
+    transform:translateY(-1px);
+  }
 }
 @media (min-width:901px) and (max-width:1180px) {
   .hero.running-kitten-hero {

@@ -60,8 +60,10 @@ export function RunningKittenTurntable({
               {coverState.displayUrl ? <img src={coverState.displayUrl} alt="" onError={coverState.onCoverError} /> : null}
               <span>{title}</span>
             </div>
-            <div className="running-kitten-cat-track">
-              <div className="running-kitten-cat-runner">
+          </div>
+          <div className="running-kitten-cat-orbit" data-motion-model="upper-groove-lap">
+            <div className="running-kitten-cat-runner">
+              <div className="running-kitten-cat-facing">
                 <KittenSilhouette />
               </div>
             </div>
