@@ -12,10 +12,11 @@
 
 - Reference source: `/home/czyt/code/ref/Mineradio` commit `6b130103f759e5dcd1e133700071c8216b8fa5a6`.
 - Preserve Lark playback, library data, preferences, navigation semantics, and mobile player.
+- Preserve the existing receiver/player shell while online-radio or network-library playback is active; the full-stage branch only owns the local-song home surface.
 - Do not copy Mineradio authentication, media sources, or Electron shell.
 - No new frontend dependency.
 - Repeated controls stay immediate; cinematic timing is limited to the rare launch sequence.
-- Reduced motion keeps readable material and opacity transitions while stopping camera travel and continuous particle motion.
+- Reduced motion keeps readable material and opacity transitions while stopping camera travel and continuous particle motion, then redraws once when an asynchronous cover payload arrives.
 - Release version is `v0.9.38`.
 
 ---
@@ -69,7 +70,7 @@ Expected: non-zero with missing full-stage contract markers.
 Use the existing playback props and callbacks:
 
 ```tsx
-if (homePlayerStyle === "mineradio-stage") {
+if (homePlayerStyle === "mineradio-stage" && !currentRadio && !currentNetworkTrack) {
   return (
     <section className="home-view home-view-mineradio" data-mineradio-home="true">
       <section className="hero mineradio-stage-hero">

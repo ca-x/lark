@@ -101,6 +101,9 @@ for (const needle of [
 for (const needle of [
   'home-view home-view-mineradio',
   'data-mineradio-home="true"',
+  'currentNetworkTrack={currentNetworkTrack}',
+  'homePlayerStyle === "mineradio-stage" && !currentRadio && !currentNetworkTrack',
+  'homePlayerStyle === "mineradio-stage" && !lyricsFullScreen && !currentRadio && !currentNetworkTrack',
 ]) {
   requireInSource(app, needle, "App.tsx Mineradio full-stage branch");
 }
@@ -111,6 +114,9 @@ for (const needle of [
   "performance.now()",
   "playingRef.current",
   'getContext("webgl2"',
+  'data-cover-static-frame',
+  'coverUniforms.uColorMixT.value = 1',
+  'coverBloomUniforms.uColorMixT.value = 1',
 ]) {
   requireInSource(component, needle, "MineradioStagePlayer.tsx full-stage contract");
 }

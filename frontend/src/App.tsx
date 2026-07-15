@@ -4388,7 +4388,7 @@ export default function App() {
   } as React.CSSProperties;
   const publicShareToken = publicShareTokenFromRoute(route);
   const effectiveInterfaceMode: InterfaceMode = mobileViewport ? "standard" : interfaceMode;
-  const mineradioDesktopHome = !mobileViewport && view === "home" && homePlayerStyle === "mineradio-stage" && !lyricsFullScreen && effectiveInterfaceMode === "standard";
+  const mineradioDesktopHome = !mobileViewport && view === "home" && homePlayerStyle === "mineradio-stage" && !lyricsFullScreen && !currentRadio && !currentNetworkTrack && effectiveInterfaceMode === "standard";
 
   function enterShellMode() {
     if (mobileViewport) return;
@@ -4580,6 +4580,7 @@ export default function App() {
                 playlists={playlists}
                 stats={libraryStats}
                 currentRadio={currentRadio}
+                currentNetworkTrack={currentNetworkTrack}
                 heroSong={heroSong}
                 current={current}
                 playing={playerPlaying}
@@ -5708,6 +5709,7 @@ function HomeView({
   playlists,
   stats,
   currentRadio,
+  currentNetworkTrack,
   heroSong,
   current,
   playing,
@@ -5757,6 +5759,7 @@ function HomeView({
   playlists: Playlist[];
   stats: LibraryStats | null;
   currentRadio: RadioStation | null;
+  currentNetworkTrack: NetworkTrack | null;
   heroSong?: Song | null;
   current: Song | null;
   playing: boolean;
@@ -5848,7 +5851,7 @@ function HomeView({
     );
   }
 
-  if (homePlayerStyle === "mineradio-stage") {
+  if (homePlayerStyle === "mineradio-stage" && !currentRadio && !currentNetworkTrack) {
     return (
       <section className="home-view home-view-mineradio" data-mineradio-home="true">
         <section className="hero mineradio-stage-hero">

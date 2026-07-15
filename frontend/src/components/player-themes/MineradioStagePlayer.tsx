@@ -578,6 +578,7 @@ function useMineradioStageScene(
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const rootElement = canvas.parentElement;
     canvas.removeAttribute("data-webgl-unavailable");
+    canvas.removeAttribute("data-cover-static-frame");
     rootElement?.removeAttribute("data-webgl-unavailable");
     const contextAttributes: WebGLContextAttributes = {
       alpha: true,
@@ -858,7 +859,14 @@ function useMineradioStageScene(
       canvas.setAttribute("data-cover-depth", payload.hasCover ? "edge-texture" : "fallback-depth");
       canvas.setAttribute("data-cover-crossfade", "prev-cover-texture");
       canvas.setAttribute("data-cover-grid", String(coverParticleGeometry.userData.coverGrid || ""));
-      startCoverColorMix(payload.hasCover ? 820 : 360);
+      if (reduceMotion) {
+        coverUniforms.uColorMixT.value = 1;
+        coverBloomUniforms.uColorMixT.value = 1;
+        renderer.render(scene, camera);
+        canvas.setAttribute("data-cover-static-frame", "payload");
+      } else {
+        startCoverColorMix(payload.hasCover ? 820 : 360);
+      }
     };
 
     let coverLoadCancelled = false;

@@ -33,6 +33,7 @@ The entry screen is rare and explanatory, so it may use a longer cinematic seque
 On desktop home with `mineradio-stage` selected:
 
 - the ordinary home dashboard, discovery cards, and shelves are not rendered;
+- active online-radio and network-library playback keep their existing receiver/player shell, because those sources do not expose the local-song contract the stage controls require;
 - the main region fills the viewport with no rounded container, outer padding, or clipped hero height;
 - the standard top bar and player bar leave the primary composition;
 - the existing sidebar becomes a narrow edge navigation layer with low idle opacity and full visibility on hover or keyboard focus;
@@ -80,6 +81,7 @@ With `prefers-reduced-motion: reduce`:
 - the dark material, readable wordmark, cover, lyrics, shelf, and opacity reveals remain;
 - camera travel, large rotations, fracture flight, and continuous particle drift stop;
 - the scene renders a stable frame and all controls stay fully usable.
+- when an asynchronous cover payload arrives, WebGL renders that payload once so the stable frame shows the real cover instead of the initial fallback geometry.
 
 If WebGL creation fails, the DOM cover and particle fallback become visible and the rest of the stage remains usable.
 
@@ -104,9 +106,11 @@ Mineradio selectors define the desktop shell takeover, full-viewport layout, lau
 `check-mineradio-motion.mjs` is extended from motion-string presence checks to assert the structural invariants introduced by this pass:
 
 - dedicated Mineradio home branch;
+- online-radio and network-library playback excluded from the full-stage takeover;
 - ordinary home dashboard excluded from that branch;
 - full-stage takeover selectors;
 - WebGL-primary / DOM-fallback markers;
+- one-shot reduced-motion cover payload rendering;
 - wall-clock render loop with no `new THREE.Clock()`;
 - reduced-motion and scoped shelf interaction rules.
 
