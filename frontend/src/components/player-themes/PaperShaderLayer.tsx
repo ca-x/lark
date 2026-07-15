@@ -43,6 +43,27 @@ type PaperShaderLayerProps = {
   style?: CSSProperties;
 };
 
+let cachedWebGLSupport: boolean | undefined;
+
+function detectWebGLSupport() {
+  if (typeof document === "undefined") return false;
+  if (cachedWebGLSupport !== undefined) return cachedWebGLSupport;
+  try {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("webgl2") || canvas.getContext("webgl");
+    cachedWebGLSupport = Boolean(context);
+    context?.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    cachedWebGLSupport = false;
+  }
+  return cachedWebGLSupport;
+}
+
+function useWebGLSupport() {
+  const [supported] = useState(detectWebGLSupport);
+  return supported;
+}
+
 function useReducedMotion() {
   const [reduced, setReduced] = useState(() =>
     typeof window !== "undefined" &&
@@ -71,6 +92,7 @@ export function PaperShaderLayer({
   style,
 }: PaperShaderLayerProps) {
   const reduced = useReducedMotion();
+  const webglSupported = useWebGLSupport();
   const speed = reduced ? 0 : playing ? 0.58 : 0.06;
   const maxPixelCount = compact ? 180000 : 760000;
   const image = cover || undefined;
@@ -88,13 +110,14 @@ export function PaperShaderLayer({
     height: "100%",
   };
 
-  const content = reduced ? null : renderPaperShader(variant, speed, image, shaderBase);
+  const content = reduced || !webglSupported ? null : renderPaperShader(variant, speed, image, shaderBase);
 
   return (
     <span
       className={layerClass}
       data-paper-shader-variant={variant}
       data-paper-shader-playing={playing ? "true" : "false"}
+      data-paper-shader-supported={webglSupported ? "true" : "false"}
       aria-hidden="true"
       style={style}
     >

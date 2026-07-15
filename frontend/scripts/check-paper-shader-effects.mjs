@@ -39,9 +39,12 @@ requireDependency("@paper-design/shaders-react");
 requireInSource(JSON.stringify(packageJson.scripts || {}), "test:paper-shaders", "package.json scripts");
 requireInSource(shaderLayer, 'from "@paper-design/shaders-react"', "PaperShaderLayer.tsx");
 requireInSource(shaderLayer, "useReducedMotion", "PaperShaderLayer.tsx");
+requireInSource(shaderLayer, "useWebGLSupport", "PaperShaderLayer.tsx");
 requireInSource(shaderLayer, "prefers-reduced-motion: reduce", "PaperShaderLayer.tsx");
 requireInSource(shaderLayer, "maxPixelCount", "PaperShaderLayer.tsx");
 requireInSource(shaderLayer, "data-paper-shader-variant", "PaperShaderLayer.tsx");
+requireInSource(shaderLayer, "data-paper-shader-supported", "PaperShaderLayer.tsx");
+requireInSource(shaderLayer, "reduced || !webglSupported ? null", "PaperShaderLayer.tsx");
 
 for (const symbol of [
   "MeshGradient",
