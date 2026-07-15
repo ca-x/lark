@@ -1,4 +1,4 @@
-import type { CSSProperties, KeyboardEvent, RefObject, WheelEvent } from "react";
+import type { AnimationEvent, CSSProperties, KeyboardEvent, RefObject, WheelEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 import * as THREE from "three";
@@ -104,6 +104,7 @@ export function MineradioStagePlayer({
   const splashCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const coverDragMovedRef = useRef(false);
   const [stageEntered, setStageEntered] = useState(false);
+  const [splashReady, setSplashReady] = useState(false);
   const [selectedShelfIndex, setSelectedShelfIndex] = useState(0);
   const displayTitle = title?.trim() || "Lark";
   const displayArtist = artist?.trim() || "Unknown artist";
@@ -131,6 +132,16 @@ export function MineradioStagePlayer({
     if (selectedShelfIndex >= shelfItems.length) setSelectedShelfIndex(0);
   }, [selectedShelfIndex, shelfItems.length]);
 
+  useEffect(() => {
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (motionQuery.matches) setSplashReady(true);
+    const handleMotionChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setSplashReady(true);
+    };
+    motionQuery.addEventListener("change", handleMotionChange);
+    return () => motionQuery.removeEventListener("change", handleMotionChange);
+  }, []);
+
   const enterStage = () => {
     setStageEntered(true);
   };
@@ -139,6 +150,10 @@ export function MineradioStagePlayer({
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     enterStage();
+  };
+
+  const handleSplashWordmarkEnd = (event: AnimationEvent<HTMLSpanElement>) => {
+    if (event.animationName === "mineradio-stage-splash-radio") setSplashReady(true);
   };
 
   const moveShelfSelection = (direction: number) => {
@@ -176,7 +191,9 @@ export function MineradioStagePlayer({
       data-playing={playing ? "true" : "false"}
       data-immersive={immersiveStage ? "true" : "false"}
       data-entered={stageEntered ? "true" : "false"}
+      data-splash-ready={splashReady ? "true" : "false"}
       data-has-shelf={shelfItems.length ? "true" : "false"}
+      data-cover-renderer="webgl-primary"
       style={stageStyle}
     >
       <span className="mineradio-stage-backdrop" aria-hidden="true" />
@@ -260,7 +277,7 @@ export function MineradioStagePlayer({
         </span>
         <span className="mineradio-stage-splash-word" aria-hidden="true">
           <span className="mineradio-stage-splash-mine">Lark</span>
-          <span className="mineradio-stage-splash-radio">radio</span>
+          <span className="mineradio-stage-splash-radio" onAnimationEnd={handleSplashWordmarkEnd}>radio</span>
         </span>
         <span className="mineradio-stage-splash-line" aria-hidden="true" />
         <span className="mineradio-stage-splash-sub">Private visual radio</span>
@@ -404,6 +421,7 @@ export function MineradioStagePlayer({
           {shelfItems.length ? (
             <div
               className="mineradio-stage-shelf"
+              data-shelf-hit-layer="webgl"
               aria-label="3D playlist shelf"
               tabIndex={0}
               onWheel={handleShelfWheel}
@@ -541,8 +559,13 @@ function useMineradioStageScene(
   },
 ) {
   const { playing, immersiveStage, coverUrl, audioElement, playlistSignature, playlists, selectedShelfIndex, coverDragMovedRef } = options;
+  const playingRef = useRef(playing);
   const selectedShelfIndexRef = useRef(selectedShelfIndex);
   const previousCoverCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    playingRef.current = playing;
+  }, [playing]);
 
   useEffect(() => {
     selectedShelfIndexRef.current = selectedShelfIndex;
@@ -556,9 +579,22 @@ function useMineradioStageScene(
     const rootElement = canvas.parentElement;
     canvas.removeAttribute("data-webgl-unavailable");
     rootElement?.removeAttribute("data-webgl-unavailable");
+    const contextAttributes: WebGLContextAttributes = {
+      alpha: true,
+      antialias: true,
+      powerPreference: "high-performance",
+      preserveDrawingBuffer: true,
+    };
+    const context = canvas.getContext("webgl2", contextAttributes) || canvas.getContext("webgl", contextAttributes);
+    if (!context) {
+      canvas.setAttribute("data-webgl-unavailable", "true");
+      rootElement?.setAttribute("data-webgl-unavailable", "true");
+      console.warn("Mineradio Stage WebGL unavailable; using DOM motion layers only.");
+      return;
+    }
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: true });
+      renderer = new THREE.WebGLRenderer({ canvas, context, ...contextAttributes });
     } catch (error) {
       canvas.setAttribute("data-webgl-unavailable", "true");
       rootElement?.setAttribute("data-webgl-unavailable", "true");
@@ -665,7 +701,7 @@ function useMineradioStageScene(
       new THREE.MeshBasicMaterial({
         color: 0xfff0b8,
         transparent: true,
-        opacity: playing ? 0.16 : 0.1,
+        opacity: playingRef.current ? 0.16 : 0.1,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         side: THREE.DoubleSide,
@@ -731,7 +767,7 @@ function useMineradioStageScene(
       vertexColors: true,
       size: 0.024,
       transparent: true,
-      opacity: playing ? 0.78 : 0.52,
+      opacity: playingRef.current ? 0.78 : 0.52,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
@@ -838,8 +874,9 @@ function useMineradioStageScene(
 
     const shelf = new THREE.Group();
     shelf.visible = immersiveStage;
-    shelf.position.set(2.85, -0.2, -0.72);
+    shelf.position.set(3.28, -0.2, -0.72);
     shelf.rotation.set(-0.06, -0.58, 0.025);
+    shelf.scale.setScalar(0.88);
     playlists.forEach((playlist, index) => {
       const card = makeShelfCard(playlist, index);
       const baseY = (index - 2.5) * -0.38;
@@ -855,8 +892,8 @@ function useMineradioStageScene(
     });
     scene.add(shelf);
     const shelfExtras = makeShelfExtras(dotTexture);
-    shelfExtras.connector.position.set(1.72, -2.1, -0.34);
-    shelfExtras.floor.position.set(1.78, -2.58, -0.22);
+    shelfExtras.connector.position.set(2.08, -2.1, -0.34);
+    shelfExtras.floor.position.set(2.14, -2.58, -0.22);
     scene.add(shelfExtras.connector, shelfExtras.floor);
     canvas.setAttribute("data-shelf-extras", "connector-floor");
 
@@ -876,8 +913,9 @@ function useMineradioStageScene(
     if (canvas.parentElement) observer.observe(canvas.parentElement);
     resize();
 
-    const clock = new THREE.Clock();
-    let visualEnergy = playing ? 0.72 : 0.28;
+    let previousFrameAt = performance.now();
+    let elapsed = 0;
+    let visualEnergy = playingRef.current ? 0.72 : 0.28;
     let beatPulse = 0;
     let bass = 0;
     let vocal = 0;
@@ -908,14 +946,15 @@ function useMineradioStageScene(
     let analyserRetryAt = 0;
     let raf = 0;
     const sampleAudioMetrics = (elapsed: number, delta: number) => {
-      if (!analyserState.analyser && audioElement && playing && !audioElement.paused && elapsed - analyserRetryAt > 0.45) {
+      const isPlaying = playingRef.current;
+      if (!analyserState.analyser && audioElement && isPlaying && !audioElement.paused && elapsed - analyserRetryAt > 0.45) {
         analyserRetryAt = elapsed;
         analyserState.dispose();
         analyserState = makeAudioAnalyser(audioElement);
         syncAudioReactiveMarker();
       }
-      if (analyserState.context?.state === "suspended" && playing) void analyserState.context.resume().catch(() => undefined);
-      if (analyserState.analyser && analyserState.frequencyData && analyserState.timeDomainData && audioElement && playing && !audioElement.paused) {
+      if (analyserState.context?.state === "suspended" && isPlaying) void analyserState.context.resume().catch(() => undefined);
+      if (analyserState.analyser && analyserState.frequencyData && analyserState.timeDomainData && audioElement && isPlaying && !audioElement.paused) {
         analyserState.analyser.getByteFrequencyData(analyserState.frequencyData);
         analyserState.analyser.getByteTimeDomainData(analyserState.timeDomainData);
         const freq = analyserState.frequencyData;
@@ -963,8 +1002,8 @@ function useMineradioStageScene(
         treble += (nextTreble - treble) * (nextTreble > treble ? 0.18 : 0.055);
         visualEnergy += (Math.min(1, nextEnergy * 0.74 + bass * 0.14 + vocal * 0.06 + mid * 0.08) - visualEnergy) * 0.13;
       } else {
-        const fallbackEnergy = playing ? 0.58 + Math.sin(elapsed * 1.18) * 0.08 + Math.sin(elapsed * 2.74) * 0.035 : 0.22;
-        const fallbackBeat = playing ? Math.pow(Math.max(0, Math.sin(elapsed * 2.45) * 0.72 + Math.sin(elapsed * 5.1) * 0.28), 4) : 0;
+        const fallbackEnergy = isPlaying ? 0.58 + Math.sin(elapsed * 1.18) * 0.08 + Math.sin(elapsed * 2.74) * 0.035 : 0.22;
+        const fallbackBeat = isPlaying ? Math.pow(Math.max(0, Math.sin(elapsed * 2.45) * 0.72 + Math.sin(elapsed * 5.1) * 0.28), 4) : 0;
         if (fallbackBeat > 0.62 && elapsed - lastBeatAt > 0.42) {
           lastBeatAt = elapsed;
           cameraPunch = Math.max(cameraPunch, 0.24);
@@ -973,10 +1012,10 @@ function useMineradioStageScene(
           rippleCursor = triggerCoverRegionRipples(coverRipples, rippleCursor, elapsed, fallbackBeat, 2);
         }
         beatPulse += (fallbackBeat - beatPulse) * (fallbackBeat > beatPulse ? 0.34 : 0.08);
-        bass += ((playing ? fallbackBeat * 0.52 + 0.16 : 0) - bass) * 0.08;
-        vocal += ((playing ? 0.18 + Math.max(0, Math.sin(elapsed * 1.34 + 0.2)) * 0.16 : 0) - vocal) * 0.06;
-        mid += ((playing ? 0.22 + Math.max(0, Math.sin(elapsed * 1.7 + 0.5)) * 0.18 : 0) - mid) * 0.07;
-        treble += ((playing ? 0.16 + Math.max(0, Math.sin(elapsed * 2.6 + 1.8)) * 0.16 : 0) - treble) * 0.065;
+        bass += ((isPlaying ? fallbackBeat * 0.52 + 0.16 : 0) - bass) * 0.08;
+        vocal += ((isPlaying ? 0.18 + Math.max(0, Math.sin(elapsed * 1.34 + 0.2)) * 0.16 : 0) - vocal) * 0.06;
+        mid += ((isPlaying ? 0.22 + Math.max(0, Math.sin(elapsed * 1.7 + 0.5)) * 0.18 : 0) - mid) * 0.07;
+        treble += ((isPlaying ? 0.16 + Math.max(0, Math.sin(elapsed * 2.6 + 1.8)) * 0.16 : 0) - treble) * 0.065;
         visualEnergy += (fallbackEnergy - visualEnergy) * (fallbackEnergy > visualEnergy ? 0.09 : 0.045);
       }
       if (elapsed - spectrumPaintAt > 0.055) {
@@ -998,10 +1037,12 @@ function useMineradioStageScene(
       rootRef.current?.style.setProperty("--mineradio-lyric-solar", lyricSun.toFixed(3));
       rootRef.current?.style.setProperty("--mineradio-lyric-glow", Math.min(1, lyricSun * 0.72 + beatPulse * 0.28).toFixed(3));
     };
-    const tick = () => {
-      const delta = Math.min(clock.getDelta(), 0.05);
-      const elapsed = clock.elapsedTime;
+    const tick = (frameAt = performance.now()) => {
+      const delta = Math.min(Math.max((frameAt - previousFrameAt) / 1000, 0), 0.05);
+      previousFrameAt = frameAt;
+      elapsed += delta;
       sampleAudioMetrics(elapsed, delta);
+      const isPlaying = playingRef.current;
 
       for (let index = 0; index < particlePositions.length / 3; index += 1) {
         const offset = index * 3;
@@ -1014,10 +1055,10 @@ function useMineradioStageScene(
       }
       particlePositionAttribute.needsUpdate = true;
 
-      particles.rotation.z += (playing ? 0.12 : 0.046) * delta;
+      particles.rotation.z += (isPlaying ? 0.12 : 0.046) * delta;
       particles.rotation.y = Math.sin(elapsed * 0.72) * (0.06 + visualEnergy * 0.025);
       particles.rotation.x = Math.cos(elapsed * 0.52) * (0.018 + visualEnergy * 0.02);
-      particleMaterial.opacity = playing ? 0.66 + visualEnergy * 0.22 + beatPulse * 0.08 : 0.44;
+      particleMaterial.opacity = isPlaying ? 0.66 + visualEnergy * 0.22 + beatPulse * 0.08 : 0.44;
       particleMaterial.size = 0.022 + visualEnergy * 0.008 + beatPulse * 0.008;
 
       if (Math.abs(particleSpin.x) > 0.0001 || Math.abs(particleSpin.y) > 0.0001) {
@@ -1083,7 +1124,7 @@ function useMineradioStageScene(
 
       aura.scale.x = 1.52 + Math.sin(elapsed * 1.08) * (0.04 + visualEnergy * 0.035) + beatPulse * 0.08;
       aura.scale.y = 0.64 + Math.cos(elapsed * 0.88) * 0.022 + beatPulse * 0.034;
-      aura.material.opacity = playing ? 0.10 + visualEnergy * 0.08 + beatPulse * 0.05 : 0.09;
+      aura.material.opacity = isPlaying ? 0.10 + visualEnergy * 0.08 + beatPulse * 0.05 : 0.09;
       const beamSweepPulse = (0.5 + Math.sin(elapsed * 0.82) * 0.5) * (0.55 + visualEnergy * 0.45) + beatPulse * 0.35;
       animateLightBeamGeometry(cyanBeamMotion, elapsed, visualEnergy, beatPulse);
       animateLightBeamGeometry(goldBeamMotion, elapsed, visualEnergy, beatPulse);
@@ -1103,18 +1144,18 @@ function useMineradioStageScene(
       camera.position.z = 8.6 - cameraPunch * (immersiveStage ? 0.34 : 0.22) - beatPulse * 0.035;
       camera.lookAt(0, 0, 0);
       shelf.visible = immersiveStage;
-      shelf.position.y = -0.2 + Math.sin(elapsed * 1.2) * (playing ? 0.05 : 0.022);
+      shelf.position.y = -0.2 + Math.sin(elapsed * 1.2) * (isPlaying ? 0.05 : 0.022);
       shelf.position.z = -0.72 + Math.cos(elapsed * 0.8) * 0.035;
       shelfExtras.connector.visible = immersiveStage && playlists.length > 0;
       shelfExtras.floor.visible = shelfExtras.connector.visible;
       shelfExtras.uniforms.uTime.value = elapsed;
       shelfExtras.uniforms.uBass.value = bass;
       shelfExtras.uniforms.uBeat.value = beatPulse;
-      shelfExtras.connector.position.x = 1.72 + pointerParallax.x * 0.14;
+      shelfExtras.connector.position.x = 2.08 + pointerParallax.x * 0.14;
       shelfExtras.connector.position.y = -2.1 + Math.sin(elapsed * 0.3) * 0.035 + pointerParallax.y * 0.045;
       shelfExtras.connector.rotation.y = -0.16 + pointerParallax.x * 0.035;
       shelfExtras.connector.rotation.x = pointerParallax.y * -0.018;
-      shelfExtras.floor.position.x = 1.78 + pointerParallax.x * 0.1;
+      shelfExtras.floor.position.x = 2.14 + pointerParallax.x * 0.1;
       shelfExtras.floor.material.opacity = immersiveStage ? Math.min(0.58, 0.34 + visualEnergy * 0.12 + beatPulse * 0.08) : 0;
       shelf.children.forEach((child, index) => {
         const mesh = child as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
@@ -1166,7 +1207,7 @@ function useMineradioStageScene(
       });
       renderer.dispose();
     };
-  }, [rootRef, canvasRef, immersiveStage, playing, coverUrl, audioElement, playlistSignature, playlists, coverDragMovedRef]);
+  }, [rootRef, canvasRef, immersiveStage, coverUrl, audioElement, playlistSignature, playlists, coverDragMovedRef]);
 }
 
 type MineradioAnalyserState = {

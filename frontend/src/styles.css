@@ -4514,6 +4514,378 @@ body, button, input, select { font-family: var(--app-font); }
     min-height:286px;
   }
 }
+
+/* v0.9.38 Mineradio fidelity pass: the desktop theme owns the viewport instead of living inside the home dashboard. */
+@media (min-width:901px) {
+  .app-shell[data-mineradio-stage-active='true'],
+  .app-shell:has(.home-view-mineradio) {
+    position:relative;
+    display:block;
+    height:100dvh;
+    padding:0;
+    overflow:hidden;
+    background:#010202;
+  }
+  .app-shell[data-mineradio-stage-active='true'] .main,
+  .app-shell:has(.home-view-mineradio) .main {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    padding:0;
+    overflow:hidden;
+    border:0;
+    border-radius:0;
+    background:#010202;
+    box-shadow:none;
+  }
+  .app-shell[data-mineradio-stage-active='true'] .topbar,
+  .app-shell[data-mineradio-stage-active='true'] .player,
+  .app-shell:has(.home-view-mineradio) .topbar,
+  .app-shell:has(.home-view-mineradio) .player {
+    display:none;
+  }
+  .app-shell[data-mineradio-stage-active='true'] .app-toast {
+    position:fixed;
+    z-index:60;
+    top:18px;
+    left:50%;
+    transform:translateX(-50%);
+  }
+  .mineradio-stage-edge-nav {
+    position:fixed;
+    z-index:50;
+    left:max(16px, env(safe-area-inset-left));
+    top:50%;
+    width:64px;
+    max-height:calc(100dvh - 32px);
+    padding:10px 8px;
+    gap:10px;
+    overflow-x:hidden;
+    overflow-y:auto;
+    border:1px solid rgba(210,235,229,.08);
+    border-radius:20px;
+    background:rgba(4,7,8,.88);
+    box-shadow:0 20px 60px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.035);
+    opacity:.1;
+    transform:translate3d(0, -50%, 0);
+    transition:opacity 180ms cubic-bezier(.23,1,.32,1), transform 180ms cubic-bezier(.23,1,.32,1);
+  }
+  .mineradio-stage-edge-nav .brand {
+    min-height:44px;
+    display:grid;
+    place-items:center;
+  }
+  .mineradio-stage-edge-nav .brand img {
+    width:40px;
+    height:40px;
+    object-fit:contain;
+  }
+  .mineradio-stage-edge-nav .brand span,
+  .mineradio-stage-edge-nav .nav-section-label,
+  .mineradio-stage-edge-nav nav button span {
+    display:none;
+  }
+  .mineradio-stage-edge-nav nav {
+    gap:4px;
+  }
+  .mineradio-stage-edge-nav nav button {
+    width:46px;
+    min-width:46px;
+    min-height:46px;
+    justify-content:center;
+    padding:0;
+    border-radius:14px;
+  }
+  .mineradio-stage-edge-nav .nav-divider {
+    width:32px;
+    margin:5px auto;
+    border-color:rgba(210,235,229,.09);
+  }
+  .app-shell:has(.mineradio-stage-player[data-entered='false']) .mineradio-stage-edge-nav {
+    visibility:hidden;
+    opacity:0;
+    pointer-events:none;
+    transform:translate3d(-10px, -50%, 0);
+  }
+  .home-view-mineradio {
+    display:block;
+    width:100%;
+    height:100dvh;
+    min-height:100dvh;
+    overflow:hidden;
+  }
+  .hero.mineradio-stage-hero {
+    --mineradio-stage-height:100dvh;
+    width:100%;
+    height:100dvh;
+    min-height:100dvh;
+    border:0;
+    border-radius:0;
+    background:
+      radial-gradient(ellipse at 36% 54%, rgba(165,217,205,.055), transparent 31%),
+      radial-gradient(ellipse at 72% 62%, rgba(224,202,139,.035), transparent 32%),
+      #010202;
+    box-shadow:none;
+  }
+  .hero.mineradio-stage-hero::before {
+    inset:-10%;
+    opacity:.42;
+  }
+  .mineradio-stage-player {
+    width:100%;
+    height:100dvh;
+    min-height:100dvh;
+    padding:0;
+    border-radius:0;
+    background:
+      radial-gradient(ellipse at 34% 52%, rgba(165,217,205,.05), transparent 28%),
+      linear-gradient(180deg, rgba(255,255,255,.012), transparent 24%),
+      #010202;
+    box-shadow:none;
+  }
+  .mineradio-stage-player[data-entered='true'] .mineradio-stage-vignette {
+    background:
+      radial-gradient(ellipse at 36% 54%, transparent 0 24%, rgba(2,3,4,.28) 58%, rgba(0,0,0,.9) 100%),
+      linear-gradient(90deg, rgba(0,0,0,.42), transparent 26%, rgba(0,0,0,.5));
+  }
+  .mineradio-stage-player[data-entered='true'] > .paper-shader-mineradio {
+    opacity:.24;
+  }
+  .mineradio-stage-player[data-cover-renderer='webgl-primary']:not([data-webgl-unavailable='true']) .mineradio-stage-disc,
+  .mineradio-stage-player[data-cover-renderer='webgl-primary']:not([data-webgl-unavailable='true']) .mineradio-stage-cover-cloud,
+  .mineradio-stage-player[data-cover-renderer='webgl-primary']:not([data-webgl-unavailable='true']) .mineradio-stage-cover {
+    visibility:hidden;
+    opacity:0;
+  }
+  .mineradio-stage-player[data-webgl-unavailable='true'] .mineradio-stage-disc,
+  .mineradio-stage-player[data-webgl-unavailable='true'] .mineradio-stage-cover {
+    visibility:visible;
+    opacity:1;
+  }
+  .mineradio-stage-player[data-webgl-unavailable='true'] .mineradio-stage-cover-cloud {
+    visibility:visible;
+    opacity:.96;
+  }
+  .mineradio-stage-title {
+    top:clamp(38px, 5.8vh, 68px);
+    left:clamp(96px, 8vw, 136px);
+    right:clamp(350px, 27vw, 430px);
+    gap:8px;
+  }
+  .mineradio-stage-title h2 {
+    max-width:min(760px, 58vw);
+    color:rgba(245,247,243,.94);
+    background:none;
+    -webkit-text-fill-color:currentColor;
+    font-size:clamp(50px, 5.6vw, 82px);
+    font-weight:900;
+    line-height:.94;
+    letter-spacing:-.022em;
+    text-wrap:balance;
+    text-shadow:0 20px 54px rgba(0,0,0,.64), 0 0 32px rgba(165,217,205,.09);
+  }
+  .mineradio-stage-title h2::before,
+  .mineradio-stage-title h2::after {
+    display:none;
+  }
+  .mineradio-stage-title p {
+    max-width:min(620px, 54vw);
+    color:rgba(218,230,226,.62);
+    font-size:14px;
+  }
+  .mineradio-stage-core,
+  .mineradio-stage-player[data-immersive='true'] .mineradio-stage-core,
+  .mineradio-stage-player[data-immersive='true'][data-has-shelf='false'] .mineradio-stage-core {
+    position:absolute;
+    inset:0;
+    min-height:0;
+    display:block;
+    padding:0;
+  }
+  .mineradio-stage-art {
+    position:absolute;
+    left:clamp(92px, 7.4vw, 128px);
+    top:52%;
+    width:min(41vw, 560px);
+    transform:translate3d(0, -50%, 0);
+    cursor:grab;
+  }
+  .mineradio-stage-console {
+    position:absolute;
+    left:clamp(590px, 47vw, 760px);
+    bottom:clamp(38px, 6.2vh, 68px);
+    width:min(28vw, 410px);
+    gap:11px;
+    padding:0;
+  }
+  .mineradio-stage-spectrum {
+    height:40px;
+    padding-block:6px;
+  }
+  .mineradio-stage-controls button {
+    transition:transform 140ms cubic-bezier(.23,1,.32,1), border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+    touch-action:manipulation;
+  }
+  .mineradio-stage-controls button:not(:disabled):active {
+    transform:scale(.97);
+  }
+  .mineradio-stage-controls .mineradio-stage-play {
+    width:56px;
+    height:56px;
+  }
+  .mineradio-stage-immersive {
+    position:absolute;
+    inset:0;
+    display:block;
+    margin:0;
+  }
+  .mineradio-stage-lyrics,
+  .mineradio-stage-player[data-has-shelf='false'] .mineradio-stage-lyrics {
+    position:absolute;
+    left:43vw;
+    right:calc(5vw + 294px);
+    bottom:40vh;
+    width:auto;
+    max-width:540px;
+    gap:7px;
+    border-top-color:rgba(165,217,205,.22);
+  }
+  .mineradio-stage-player[data-has-shelf='false'] .mineradio-stage-lyrics {
+    right:8vw;
+    bottom:36vh;
+  }
+  .mineradio-stage-lyrics strong {
+    font-size:clamp(21px, 2vw, 30px);
+    line-height:1.18;
+    letter-spacing:-.012em;
+  }
+  .mineradio-stage-shelf {
+    position:absolute;
+    top:clamp(138px, 20vh, 190px);
+    right:clamp(42px, 5vw, 78px);
+    bottom:clamp(48px, 8vh, 80px);
+    width:282px;
+    min-height:0;
+  }
+  .mineradio-stage-shelf button {
+    min-height:78px;
+    border-radius:7px;
+    background:
+      linear-gradient(105deg, rgba(255,255,255,.07), transparent 28%),
+      linear-gradient(145deg, rgba(15,21,23,.9), rgba(3,5,6,.8));
+    transition:transform 180ms cubic-bezier(.23,1,.32,1), border-color 160ms ease, background-color 160ms ease, opacity 160ms ease;
+  }
+  .mineradio-stage-shelf[data-shelf-hit-layer='webgl'] button,
+  .mineradio-stage-shelf[data-shelf-hit-layer='webgl'] button[data-selected='true'],
+  .mineradio-stage-shelf[data-shelf-hit-layer='webgl'] button:not(:disabled):hover {
+    border-color:transparent;
+    color:transparent;
+    background:transparent;
+    box-shadow:none;
+    opacity:.001;
+    filter:none;
+    animation:none;
+  }
+  .mineradio-stage-shelf[data-shelf-hit-layer='webgl'] button span,
+  .mineradio-stage-shelf[data-shelf-hit-layer='webgl'] button small {
+    visibility:hidden;
+  }
+  .mineradio-stage-shelf[data-shelf-hit-layer='webgl'] button:focus-visible {
+    color:var(--mineradio-ivory);
+    border-color:rgba(165,217,205,.66);
+    background:rgba(5,10,11,.9);
+    box-shadow:0 16px 40px rgba(0,0,0,.42);
+    opacity:.96;
+  }
+  .mineradio-stage-shelf[data-shelf-hit-layer='webgl'] button:focus-visible span,
+  .mineradio-stage-shelf[data-shelf-hit-layer='webgl'] button:focus-visible small {
+    visibility:visible;
+  }
+  .mineradio-stage-splash {
+    min-height:100dvh;
+    border-radius:0;
+    background:
+      linear-gradient(90deg, rgba(0,0,0,.94), transparent 22%, transparent 78%, rgba(0,0,0,.94)),
+      linear-gradient(180deg, rgba(0,0,0,.88), transparent 30%, rgba(0,0,0,.86)),
+      radial-gradient(ellipse at 50% 50%, rgba(165,217,205,.075), transparent 30%),
+      #010202;
+  }
+  .mineradio-stage-splash-word {
+    font-family:Arial, Helvetica, sans-serif;
+    font-size:clamp(62px, 9.4vw, 126px);
+    font-weight:900;
+    letter-spacing:-.045em;
+  }
+  .mineradio-stage-splash-sub,
+  .mineradio-stage-splash-enter {
+    opacity:0;
+    transform:translate3d(0, 6px, 0);
+    animation:none;
+    transition:opacity 420ms cubic-bezier(.23,1,.32,1), transform 420ms cubic-bezier(.23,1,.32,1);
+  }
+  .mineradio-stage-player[data-splash-ready='true'] .mineradio-stage-splash-sub {
+    opacity:.4;
+    transform:translate3d(0, 0, 0);
+  }
+  .mineradio-stage-player[data-splash-ready='true'] .mineradio-stage-splash-enter {
+    opacity:.68;
+    transform:translate3d(0, 0, 0);
+  }
+}
+
+@media (hover:hover) and (pointer:fine) {
+  .mineradio-stage-edge-nav:hover,
+  .mineradio-stage-edge-nav:focus-within {
+    opacity:.92;
+    transform:translate3d(4px, -50%, 0);
+  }
+  .mineradio-stage-controls button:not(:disabled):hover {
+    transform:translateY(-1px);
+  }
+  .mineradio-stage-shelf button:not(:disabled):hover {
+    border-color:rgba(165,217,205,.58);
+  }
+}
+
+@keyframes mineradio-stage-splash-mine {
+  0%, 18% {
+    opacity:0;
+    clip-path:inset(48% 0 49% 0);
+    transform:translate(-50%, -44%) skewX(-9deg) scaleX(1.05);
+  }
+  30% {
+    opacity:1;
+    clip-path:inset(0);
+    transform:translate(-50%, -50%) skewX(0) scaleX(1);
+  }
+  62% {
+    transform:translate(-50%, -50%);
+  }
+  100% {
+    opacity:1;
+    transform:translate(calc(-50% - clamp(62px, 8.4vw, 122px)), -50%);
+  }
+}
+
+@keyframes mineradio-stage-splash-radio {
+  0%, 46% {
+    opacity:0;
+    clip-path:inset(48% 0 48% 0);
+    transform:translate(calc(-50% + clamp(58px, 8vw, 112px)), -50%) skewX(8deg) scaleX(1.04);
+  }
+  72% {
+    opacity:.88;
+    clip-path:inset(16% 0 16% 0);
+    transform:translate(calc(-50% + clamp(58px, 8vw, 112px)), -50%) skewX(1deg);
+  }
+  100% {
+    opacity:1;
+    clip-path:inset(0);
+    transform:translate(calc(-50% + clamp(58px, 8vw, 112px)), -50%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mineradio-stage-player *,
   .mineradio-stage-player *::before,

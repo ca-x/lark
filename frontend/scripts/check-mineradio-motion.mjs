@@ -50,6 +50,7 @@ for (const needle of [
   "drag-inertia",
   "makeShelfExtras",
   "data-shelf-extras",
+  "data-shelf-hit-layer",
   "audioElement",
   "makeAudioAnalyser",
   "analyserRetryAt",
@@ -95,6 +96,32 @@ for (const needle of [
   "THREE.AdditiveBlending",
 ]) {
   requireInSource(component, needle, "MineradioStagePlayer.tsx");
+}
+
+for (const needle of [
+  'home-view home-view-mineradio',
+  'data-mineradio-home="true"',
+]) {
+  requireInSource(app, needle, "App.tsx Mineradio full-stage branch");
+}
+
+for (const needle of [
+  'data-cover-renderer="webgl-primary"',
+  "data-splash-ready",
+  "performance.now()",
+  "playingRef.current",
+  'getContext("webgl2"',
+]) {
+  requireInSource(component, needle, "MineradioStagePlayer.tsx full-stage contract");
+}
+
+for (const needle of [
+  ".app-shell:has(.home-view-mineradio)",
+  ".home-view-mineradio",
+  ".mineradio-stage-edge-nav",
+  "@media (hover:hover) and (pointer:fine)",
+]) {
+  requireInSource(css, needle, "styles.css Mineradio takeover");
 }
 
 for (const needle of [
@@ -171,6 +198,13 @@ for (const [source, label] of [
 ]) {
   forbidInSource(source, "mineradio-stage-empty-shelf", label);
   forbidInSource(source, "makeGhostShelfCard", label);
+}
+
+forbidInSource(component, "new THREE.Clock()", "MineradioStagePlayer.tsx");
+
+const mineradioComponentUsages = app.match(/<MineradioStagePlayer\b/g) || [];
+if (mineradioComponentUsages.length !== 1) {
+  failures.push(`App.tsx Mineradio full-stage branch: expected 1 MineradioStagePlayer usage, found ${mineradioComponentUsages.length}`);
 }
 
 if (failures.length) {

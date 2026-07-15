@@ -4388,6 +4388,7 @@ export default function App() {
   } as React.CSSProperties;
   const publicShareToken = publicShareTokenFromRoute(route);
   const effectiveInterfaceMode: InterfaceMode = mobileViewport ? "standard" : interfaceMode;
+  const mineradioDesktopHome = !mobileViewport && view === "home" && homePlayerStyle === "mineradio-stage" && !lyricsFullScreen && effectiveInterfaceMode === "standard";
 
   function enterShellMode() {
     if (mobileViewport) return;
@@ -4435,12 +4436,13 @@ export default function App() {
       data-view={view}
       data-mobile-player-expanded={mobilePlayerExpanded ? "true" : "false"}
       data-mobile-theme={mobileHomePlayerStyle}
+      data-mineradio-stage-active={mineradioDesktopHome ? "true" : "false"}
       aria-hidden={effectiveInterfaceMode === "shell" ? "true" : undefined}
     >
       <a className="skip-link" href="#main-content">
         {t("skipToContent")}
       </a>
-      <aside className="sidebar desktop-sidebar">
+      <aside className={mineradioDesktopHome ? "sidebar desktop-sidebar mineradio-stage-edge-nav" : "sidebar desktop-sidebar"}>
         <div className="brand">
           <img src="/logo.png" alt={t("brand")} /> <span>{t("brand")}</span>
         </div>
@@ -5846,9 +5848,39 @@ function HomeView({
     );
   }
 
+  if (homePlayerStyle === "mineradio-stage") {
+    return (
+      <section className="home-view home-view-mineradio" data-mineradio-home="true">
+        <section className="hero mineradio-stage-hero">
+          <MineradioStagePlayer
+            cover={coverUrl(displaySong)}
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+            title={displaySong?.title}
+            artist={displaySong?.artist}
+            album={displaySong?.album}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            immersiveStage={mineradioStageEnabled}
+            activeLyricText={activeLyricText}
+            audioElement={audioElement}
+            playlists={playlists}
+            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onPrevious={heroActive ? onPrevious : undefined}
+            onNext={heroActive ? onNext : undefined}
+            onCyclePlayMode={onCyclePlayMode}
+            onSeek={heroActive ? onSeek : undefined}
+            onOpenPlaylist={onOpenPlaylist}
+          />
+        </section>
+      </section>
+    );
+  }
+
   return (
     <section className="home-view">
-      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : homePlayerStyle === "mineradio-stage" ? "hero mineradio-stage-hero" : homePlayerStyle === "walkman" ? "hero walkman-hero" : "hero"}>
+      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : homePlayerStyle === "walkman" ? "hero walkman-hero" : "hero"}>
         {currentRadio ? (
           <RadioReceiver
             title={currentRadio.name || t("onlineRadio")}
@@ -5969,28 +6001,6 @@ function HomeView({
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
             onSeek={heroActive ? onSeek : undefined}
-          />
-        ) : homePlayerStyle === "mineradio-stage" ? (
-          <MineradioStagePlayer
-            cover={coverUrl(displaySong)}
-            playing={heroPlaying}
-            progress={heroActive ? progress : 0}
-            duration={heroActive ? duration : displaySong?.duration_seconds || 0}
-            title={displaySong?.title}
-            artist={displaySong?.artist}
-            album={displaySong?.album}
-            playMode={playMode}
-            playModeLabel={playModeLabel}
-            immersiveStage={mineradioStageEnabled}
-            activeLyricText={activeLyricText}
-            audioElement={audioElement}
-            playlists={playlists}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
-            onPrevious={heroActive ? onPrevious : undefined}
-            onNext={heroActive ? onNext : undefined}
-            onCyclePlayMode={onCyclePlayMode}
-            onSeek={heroActive ? onSeek : undefined}
-            onOpenPlaylist={onOpenPlaylist}
           />
         ) : homePlayerStyle === "walkman" ? (
           <WalkmanPlayer
