@@ -10765,3 +10765,45 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   width:22px;
   height:40px;
 }
+
+/* Reduced-motion playback cues.
+   Windows maps its Animation effects switch to prefers-reduced-motion. Keep
+   navigation, shaders, parallax, pulses, and large transitions still, but do
+   not erase the one mechanical cue that tells listeners playback is active. */
+@media (prefers-reduced-motion: reduce) {
+  .vinyl-component[data-playing='true'] .vinyl-record {
+    animation:vinyl-spin 12s linear infinite !important;
+  }
+
+  .running-kitten-player[data-playing='true'] .running-kitten-record {
+    animation:running-kitten-spin 14s linear infinite !important;
+  }
+
+  .mineradio-stage-player[data-playing='true'] .mineradio-stage-disc {
+    animation:mineradio-stage-spin 16s linear infinite !important;
+  }
+
+  .cassette-component[data-playing='true'] .cassette-hub {
+    animation:cassette-spin 4.4s linear infinite !important;
+  }
+
+  .ipod-component[data-playing='true'] .ipod-eq-row i {
+    animation:ipod-eq 1.4s ease-in-out infinite alternate !important;
+  }
+
+  .audio-scope-player[data-playing='true'] .audio-scope-disc {
+    animation:audio-scope-spin 8s linear infinite !important;
+  }
+
+  .album-slide-player[data-playing='true'] .album-slide-vinyl {
+    animation:album-slide-spin 8s linear infinite !important;
+  }
+
+  .smartisan-turntable-player[data-playing='true'] .smartisan-turntable-record {
+    animation:smartisan-turntable-spin 24s linear infinite !important;
+  }
+
+  .gramophone-player[data-playing='true'] .gramophone-record {
+    animation:gramophone-record-spin 18s linear infinite !important;
+  }
+}

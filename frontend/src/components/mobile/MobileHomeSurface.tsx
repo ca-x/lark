@@ -163,6 +163,7 @@ export function MobileHomeSurface({
         <button
           type="button"
           disabled={!highlightSong}
+          aria-label={highlightSong ? `${t("play")}: ${highlightSong.title}` : t("play")}
           onClick={() => highlightSong && onPlay(highlightSong, highlightQueue)}
         >
           <MobileSongCover song={highlightSong} playing={Boolean(highlightSong && playing && highlightSong.id === current?.id)} />

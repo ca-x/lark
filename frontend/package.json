@@ -1,7 +1,7 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.9.38",
+  "version": "0.9.39",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
@@ -15,6 +15,7 @@
     "test:mineradio-motion": "node scripts/check-mineradio-motion.mjs",
     "test:running-kitten": "node scripts/check-running-kitten-theme.mjs",
     "test:paper-shaders": "node scripts/check-paper-shader-effects.mjs",
+    "test:player-motion": "node scripts/check-player-motion.mjs",
     "test:smartisan-tonearm": "node scripts/check-smartisan-tonearm.mjs",
     "test:walkman-theme": "node scripts/check-walkman-theme.mjs",
     "preview": "vite preview"

@@ -1,4 +1,4 @@
-@media (max-width: 720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .settings-search { width:100%; }
   .settings-search > label { min-height:48px; }
   .settings-search-results { position:fixed; z-index:1250; top:calc(env(safe-area-inset-top) + 70px); left:10px; right:10px; max-height:calc(100dvh - 100px - env(safe-area-inset-bottom)); }
@@ -106,7 +106,7 @@
   .transport-controls { grid-template-columns:40px minmax(132px,1fr) 40px; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .card-play { opacity:1; transform:none; width:40px; height:40px; right:8px; bottom:8px; }
   .queue-scrim { background:rgba(0,0,0,.34); }
   .app-toast { bottom:calc(var(--player-h) + var(--nav-h) + var(--safe-bottom) + 14px); }
@@ -117,7 +117,7 @@
   .public-share-list { max-height:36dvh; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .home-view { gap:12px; }
   .home-dashboard { gap:10px; }
   .summary-panel, .quick-panel { padding:12px; border-radius:20px; }
@@ -167,7 +167,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .public-share-card { gap:12px; }
   .public-share-kicker-row { align-items:stretch; }
   .public-share-theme-toggle { width:100%; flex-wrap:wrap; border-radius:18px; }
@@ -180,13 +180,13 @@
   .public-share-list button { min-height:44px; padding:8px 10px; }
 }
 
-@media (max-width: 720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .about-hero { padding:18px; border-radius:22px; }
   .about-hero img { width:66px; height:66px; }
   .about-grid { grid-template-columns:1fr; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .modal-layer { padding:10px; align-items:end; }
   .modal-card { width:100%; max-height:88dvh; border-radius:22px; padding:18px; }
   .sleep-timer-layer { padding:0; }
@@ -288,7 +288,7 @@
   .mcp-card-head, .subsonic-card-head, .subsonic-form { display:grid; grid-template-columns:1fr; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .user-menu { justify-self:stretch; grid-column:1; grid-row:auto; }
   .user-menu-trigger { max-width:none; width:100%; justify-content:space-between; }
   .user-menu-popover { left:0; right:auto; width:100%; }
@@ -297,12 +297,12 @@
   .font-upload-control { width:100%; justify-self:stretch; justify-content:center; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .font-picker-item { grid-template-columns:1fr; }
   .font-item-actions { display:grid; grid-template-columns:1fr 1fr; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   body { overscroll-behavior:none; }
   .settings-number-row { grid-template-columns:1fr; }
   .offline-settings-card { grid-template-columns:1fr; }
@@ -348,9 +348,9 @@
   .volume > svg, .volume input[type='range'] { display:none; }
   .sleep-control span { right:0; bottom:0; }
   .queue-layer { z-index:1600; pointer-events:auto; }
-  .queue-scrim { background:rgba(0,0,0,.62); backdrop-filter:blur(8px); }
+  .queue-scrim { background:rgba(0,0,0,.58); backdrop-filter:none; }
   .queue-layer .queue-panel,
-  .queue-panel { left:0; right:0; bottom:0; width:auto; max-height:min(72dvh, 620px); min-height:min(46dvh, 420px); border-radius:28px 28px 0 0; background:color-mix(in srgb, var(--panel) 99%, var(--bg)); border-color:color-mix(in srgb, var(--accent) 28%, var(--line)); box-shadow:0 -28px 90px rgba(0,0,0,.62); animation:mobile-queue-sheet .24s var(--ease); }
+  .queue-panel { left:0; right:0; bottom:0; width:auto; max-height:min(72dvh, 620px); min-height:min(46dvh, 420px); border-radius:28px 28px 0 0; background:color-mix(in srgb, var(--panel) 99%, var(--bg)); border-color:color-mix(in srgb, var(--accent) 28%, var(--line)); box-shadow:0 -8px 24px rgba(0,0,0,.32); animation:mobile-queue-sheet .24s var(--ease); }
   .queue-head { padding:16px 18px 12px; }
   .queue-head::before { content:''; position:absolute; top:8px; left:50%; width:46px; height:4px; border-radius:999px; transform:translateX(-50%); background:color-mix(in srgb, var(--text) 18%, transparent); }
   .queue-head button { min-width:42px; min-height:42px; }
@@ -384,7 +384,7 @@
   .segmented-control { grid-template-columns:1fr; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell {
     --player-h:202px;
     --nav-h:68px;
@@ -492,16 +492,16 @@
   .queue-list button.active { background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 24%, var(--panel2)), color-mix(in srgb, var(--panel2) 92%, var(--panel))); }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .daily-mix-grid { gap:10px; }
   .folder-card-grid { grid-template-columns:1fr 1fr; gap:8px; }
   .folder-card { min-height:126px; padding:10px; border-radius:18px; }
   .folder-cover { width:52px; height:52px; border-radius:15px; }
 }
 
-@media (max-width:720px) { .library-folder-panel { padding:12px; border-radius:20px; } .library-folder-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) { .library-folder-panel { padding:12px; border-radius:20px; } .library-folder-grid { grid-template-columns:1fr 1fr; } }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .folder-browser-head { padding:12px; border-radius:20px; display:grid; }
   .folder-browser-actions { justify-content:flex-start; }
   .folder-browser-actions button { flex:1 1 auto; justify-content:center; }
@@ -510,22 +510,22 @@
   .folder-tree-icon { width:44px; height:44px; }
 }
 
-@media (max-width:720px) { .turntable-speed { right:12px; bottom:12px; } .vinyl-stage { width:220px; height:220px; transform:scale(.92); } .vinyl-canvas { width:240px; height:240px; } .wave-lane { grid-template-columns:minmax(0,1fr) 42px; gap:6px; } .vu-meter { min-width:42px; padding:3px 2px; gap:2px; } .vu-meter .vu-bar:nth-child(n+9) { display:none; } }
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) { .turntable-speed { right:12px; bottom:12px; } .vinyl-stage { width:220px; height:220px; transform:scale(.92); } .vinyl-canvas { width:240px; height:240px; } .wave-lane { grid-template-columns:minmax(0,1fr) 42px; gap:6px; } .vu-meter { min-width:42px; padding:3px 2px; gap:2px; } .vu-meter .vu-bar:nth-child(n+9) { display:none; } }
 
-@media (max-width: 720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .collection-title-row { gap: 8px; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .eq-popover { right:10px; left:10px; width:auto; bottom:calc(100% + 8px); padding:12px; border-radius:18px; }
   .eq-bands { grid-template-columns:repeat(5, minmax(38px, 1fr)); row-gap:18px; min-height:260px; }
   .eq-bands input { width:112px; }
   .volume { grid-template-columns:40px 40px 40px 40px 40px 20px minmax(96px, 36vw); }
 }
 
-@media (max-width:720px) { .vinyl-label { width:106px; height:106px; } }
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) { .vinyl-label { width:106px; height:106px; } }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .eq-popover.eq-shell { right:8px; left:8px; width:auto; }
   .eq-topbar, .eq-presets, .eq-viz, .eq-footer { padding-left:14px; padding-right:14px; }
   .eq-vertical-bands { padding-left:10px; padding-right:10px; }
@@ -534,22 +534,22 @@
   .band-label, .band-val { font-size:10px; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .compact-radio-vu { display:none; }
   .radio-source-head > button { min-width:42px; min-height:42px; }
   .compact-action { width:100%; justify-content:center; }
 }
 
-@media (max-width:720px) { .eq-layer { justify-content:center; padding:0 8px calc(var(--player-h, 172px) + 8px); } }
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) { .eq-layer { justify-content:center; padding:0 8px calc(var(--player-h, 172px) + 8px); } }
 
-@media (max-width:720px) { .loading-stage { width:100%; min-height:360px; border-radius:20px; } .loading-bars-row { gap:4px; } .loading-bars-row i { width:4px; } }
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) { .loading-stage { width:100%; min-height:360px; border-radius:20px; } .loading-bars-row { gap:4px; } .loading-bars-row i { width:4px; } }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .eq-layer { justify-content:center; padding:0 8px calc(var(--player-h, 172px) + 8px); }
   .topbar-search-spacer { display:none; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .loading-disc img { width:44px; height:44px; }
   .loading-wordmark { font-size:28px; }
 }
@@ -570,9 +570,9 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .queue-layer-root { z-index:9500; }
-  .queue-layer-root .queue-scrim { background:rgba(0,0,0,.62); backdrop-filter:blur(8px); }
+  .queue-layer-root .queue-scrim { background:rgba(0,0,0,.58); backdrop-filter:none; }
   .queue-layer-root .queue-panel {
     left:0;
     right:0;
@@ -637,7 +637,7 @@
   .scrobbling-form button { width:100%; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell {
     --player-h:64px;
     grid-template-rows:minmax(0,1fr) var(--player-h);
@@ -776,7 +776,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell.lyrics-mode,
   .app-shell.lyrics-mode[data-mobile-player-expanded='true'] {
     --player-h:64px;
@@ -861,7 +861,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .player button,
   .player .sleep-control {
     touch-action:manipulation;
@@ -1071,7 +1071,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .home-view .hero .ipod-component { width:min(100%, 300px); }
   .home-view .hero .ipod-shell { width:250px; min-height:430px; padding:22px 18px 23px; }
   .home-view .hero .ipod-screen { height:162px; }
@@ -1092,7 +1092,7 @@
   .cassette-controls button.cassette-play { min-width:0; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .hero .vinyl-component { width:min(100%, 340px); }
   .hero .vinyl-component .vinyl-plinth { padding:10px 12px 12px; border-width:2px; box-shadow:inset 0 2px 0 color-mix(in srgb, var(--text) 12%, transparent), inset 0 -2px 0 rgba(0,0,0,.42), 2px 4px 0 var(--vinyl-border); }
   .hero .vinyl-top-row { gap:10px; }
@@ -1116,7 +1116,7 @@
   .hero .vinyl-power-status { left:8px; bottom:8px; width:28px; height:28px; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .home-view .hero .cassette-component {
     width:min(100%, 340px);
     min-height:clamp(420px, 64dvh, 540px);
@@ -1162,7 +1162,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .home-view .hero .audio-scope-player { width:min(100%,330px); }
   .audio-scope-plate { width:min(260px,68vw); }
   .audio-scope-hover-label { display:none; }
@@ -1262,23 +1262,19 @@
   overflow:hidden;
   padding:14px 18px 22px;
   border-radius:38px;
-  background:
-    radial-gradient(circle at 50% 16%, color-mix(in srgb, var(--mobile-art-accent) 18%, transparent), transparent 35%),
-    linear-gradient(165deg, var(--mobile-art-phone-bg), var(--mobile-art-phone-bg-2));
+  background:var(--mobile-art-phone-bg);
   border:1px solid rgba(255,255,255,.13);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.18),
-    inset 0 -20px 50px rgba(0,0,0,.24),
-    0 24px 70px rgba(0,0,0,.42);
+    inset 0 -10px 24px rgba(0,0,0,.18),
+    0 10px 28px rgba(0,0,0,.26);
 }
 .mobile-art-bg {
   position:absolute;
   inset:0;
   z-index:-1;
-  background:
-    linear-gradient(115deg, transparent 0 18%, rgba(255,255,255,.06) 18.5% 19%, transparent 19.5% 100%),
-    radial-gradient(circle at 18% 84%, color-mix(in srgb, var(--mobile-art-accent) 18%, transparent), transparent 30%);
-  opacity:.8;
+  background:none;
+  opacity:0;
   pointer-events:none;
 }
 .mobile-art-blur-bg {
@@ -1478,16 +1474,18 @@
 }
 .mobile-art-volume-bars i {
   width:3px;
-  height:10px;
+  height:20px;
   border-radius:999px;
   background:color-mix(in srgb, var(--mobile-art-text) 18%, transparent);
-  transition:height .18s var(--ease), background-color .18s var(--ease), box-shadow .18s var(--ease);
+  transform:scaleY(.5);
+  transform-origin:50% 100%;
+  transition:transform .18s var(--ease), background-color .18s var(--ease), opacity .18s var(--ease);
 }
-.mobile-art-volume-bars i:nth-child(3n) { height:15px; }
-.mobile-art-volume-bars i:nth-child(6n) { height:20px; }
+.mobile-art-volume-bars i:nth-child(3n) { transform:scaleY(.75); }
+.mobile-art-volume-bars i:nth-child(6n) { transform:scaleY(1); }
 .mobile-art-volume-bars i.active {
   background:var(--mobile-art-accent);
-  box-shadow:0 0 14px var(--mobile-art-glow);
+  box-shadow:none;
 }
 .mobile-art-volume[data-muted='true'] .mobile-art-volume-bars i {
   opacity:.48;
@@ -1561,9 +1559,7 @@
   --mobile-art-glow:rgba(214,179,106,.24);
 }
 .mobile-art-neon-console .mobile-art-phone {
-  background:
-    radial-gradient(circle at 50% 10%, rgba(214,179,106,.16), transparent 30%),
-    linear-gradient(180deg, #12161B, #0B0D10);
+  background:#0B0D10;
 }
 .mobile-pa-visual {
   position:relative;
@@ -1613,7 +1609,7 @@
   background-size:cover;
   background-position:center;
   border:1px solid rgba(242,238,230,.14);
-  box-shadow:0 26px 70px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.12);
+  box-shadow:0 8px 22px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.12);
 }
 .mobile-pa-cover img {
   position:absolute;
@@ -1787,13 +1783,11 @@
 .mobile-art-indiewave .mobile-art-phone {
   background:#fffefa;
   border:10px solid #fff;
-  box-shadow:0 22px 72px rgba(11,44,99,.28);
+  box-shadow:0 8px 22px rgba(11,44,99,.16);
 }
 .mobile-art-indiewave .mobile-art-bg {
-  opacity:1;
-  background:
-    linear-gradient(#fffefa 0 73%, rgba(21,71,142,.05) 73% 100%),
-    radial-gradient(circle at 100% 0, rgba(227,111,99,.16), transparent 28%);
+  opacity:0;
+  background:none;
 }
 .mobile-art-indiewave .mobile-art-topbar,
 .mobile-art-indiewave .mobile-art-time,
@@ -1909,7 +1903,7 @@
   grid-template-rows:auto minmax(260px, 1fr) auto auto auto auto auto;
   background:linear-gradient(#ffb313 0 56%, #f3f3f1 56% 100%);
   border-color:rgba(0,0,0,.16);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.34), 0 24px 70px rgba(0,0,0,.28);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.34), 0 8px 22px rgba(0,0,0,.2);
 }
 .mobile-art-editorial-pulse .mobile-art-bg {
   opacity:.34;
@@ -2133,10 +2127,8 @@
   --mobile-art-glow:rgba(74,111,165,.28);
 }
 .mobile-art-soft-vinyl .mobile-art-phone {
-  background:
-    radial-gradient(circle at 50% 14%, rgba(74,111,165,.16), transparent 38%),
-    linear-gradient(160deg, #f7f2ea 0%, #e7dfd2 100%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.76), 0 24px 62px rgba(84,70,49,.22);
+  background:#f1ece3;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.76), 0 8px 22px rgba(84,70,49,.14);
 }
 .mobile-art-soft-vinyl .mobile-art-bg {
   opacity:.22;
@@ -2326,8 +2318,8 @@
   border-color:rgba(255,244,224,.18);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.22),
-    inset 0 -26px 58px rgba(32,18,13,.32),
-    0 26px 74px rgba(31,18,12,.46);
+    inset 0 -14px 32px rgba(32,18,13,.24),
+    0 10px 28px rgba(31,18,12,.3);
 }
 .mobile-art-gramophone .mobile-art-bg {
   opacity:.42;
@@ -2749,7 +2741,7 @@
   background:
     radial-gradient(circle at 50% 50%, #1b1c32 0 12%, transparent 12.5%),
     conic-gradient(from 35deg, #f8d56d, #e77eae, #18223e, #f8d56d);
-  box-shadow:0 22px 70px rgba(0,0,0,.34);
+  box-shadow:0 8px 20px rgba(0,0,0,.24);
   animation:mobile-art-spin 8s linear infinite;
   animation-play-state:paused;
 }
@@ -2909,10 +2901,8 @@
   background-size:cover;
   background-position:center;
   box-shadow:
-    0 0 0 10px rgba(255,255,255,.14),
-    0 0 0 18px rgba(117,237,255,.24),
-    0 0 44px rgba(117,237,255,.65),
-    0 20px 60px rgba(39,62,84,.42);
+    0 0 0 8px rgba(255,255,255,.12),
+    0 8px 20px rgba(39,62,84,.24);
   animation:mobile-art-spin 10s linear infinite;
   animation-play-state:paused;
 }
@@ -3165,7 +3155,7 @@
   .player > .mobile-art-player { display:none !important; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   :root { --nav-h:72px; }
   .desktop-sidebar { display:none !important; }
   .desktop-only-action { display:none !important; }
@@ -3899,7 +3889,7 @@
     border-radius:30px;
     background:transparent;
     border-color:transparent;
-    box-shadow:0 -24px 70px rgba(0,0,0,.36);
+    box-shadow:0 -8px 22px rgba(0,0,0,.24);
   }
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > :not(.mobile-art-player):not(audio) {
     display:none !important;
@@ -3980,9 +3970,9 @@
     inset:-4px;
     z-index:0;
     border-radius:24px;
-    background:color-mix(in srgb, var(--panel) 78%, transparent);
-    backdrop-filter:blur(20px) saturate(1.6);
-    -webkit-backdrop-filter:blur(20px) saturate(1.6);
+    background:var(--panel);
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
     box-shadow:var(--mobile-pa-inner, inset 0 1px 0 rgba(255,255,255,.08));
     pointer-events:none;
   }
@@ -4242,7 +4232,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .mobile-home-now {
     min-width:0;
     display:grid;
@@ -4335,7 +4325,7 @@
     background:linear-gradient(180deg, color-mix(in srgb, var(--panel) 98%, transparent), color-mix(in srgb, var(--panel2) 94%, transparent));
     border:1px solid color-mix(in srgb, var(--line) 92%, transparent);
     border-bottom:0;
-    box-shadow:0 -26px 76px rgba(0,0,0,.38), var(--mobile-pa-inner, inset 0 1px 0 rgba(255,255,255,.08));
+    box-shadow:0 -8px 24px rgba(0,0,0,.26), var(--mobile-pa-inner, inset 0 1px 0 rgba(255,255,255,.08));
     animation:mobile-queue-sheet .28s cubic-bezier(0.32,0.72,0,1);
   }
   .mobile-sound-panel > * {
@@ -4463,7 +4453,7 @@
   to { transform:rotate(360deg); }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell.lyrics-mode,
   .app-shell.lyrics-mode[data-mobile-player-expanded='true'] {
     --player-h:0px;
@@ -4812,7 +4802,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-theme] {
     --mobile-shell-x:8px;
     --mobile-active-text:var(--bg);
@@ -5424,7 +5414,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell.lyrics-mode[data-mobile-theme] {
     --mobile-lyrics-rest:color-mix(in srgb, var(--text) 72%, transparent);
     --mobile-lyrics-muted:color-mix(in srgb, var(--text) 70%, transparent);
@@ -5798,16 +5788,20 @@
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.live .lyric-line-text {
-    background:
-      linear-gradient(90deg, var(--lyrics-live-start), var(--lyrics-live-mid) 52%, var(--lyrics-live-end)),
-      linear-gradient(90deg, var(--lyrics-pending-text), var(--lyrics-pending-text));
-    background-size:var(--lyric-progress, 100%) 100%, 100% 100%;
-    background-repeat:no-repeat;
-    -webkit-background-clip:text;
-    background-clip:text;
-    color:transparent;
-    -webkit-text-fill-color:transparent;
-    filter:drop-shadow(0 12px 26px var(--mobile-lyrics-shadow));
+    position:relative;
+    display:block;
+    color:var(--lyrics-pending-text);
+    -webkit-text-fill-color:currentColor;
+    filter:drop-shadow(0 4px 10px color-mix(in srgb, var(--mobile-lyrics-shadow) 54%, transparent));
+  }
+
+  .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.live .lyric-line-text::after {
+    content:attr(data-text);
+    position:absolute;
+    inset:0;
+    color:var(--lyrics-live-mid);
+    clip-path:inset(0 calc(100% - var(--lyric-progress, 100%)) 0 0);
+    pointer-events:none;
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.live::before {
@@ -5929,7 +5923,7 @@
   }
 }
 
-@media (max-width:720px) and (max-height:740px) {
+@media (max-width:720px) and (max-height:740px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player .mobile-art-phone {
     grid-template-rows:minmax(40px, auto) minmax(110px, 1fr) auto 42px 30px 48px max(64px, calc(56px + var(--safe-bottom)));
     gap:6px;
@@ -6005,7 +5999,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   /* Mobile UX hardening: prevent accidental selection and double-tap zoom */
   .app-shell[data-mobile-theme] button,
   .app-shell[data-mobile-theme] .mobile-bottom-nav,
@@ -6029,14 +6023,14 @@
 }
 
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   /* Hide decorative turntable in mobile lyrics mode — it reads as rendering artifact */
   .app-shell.lyrics-mode .full-lyrics > .turntable.decorative {
     display: none !important;
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   /* Allow native pull-to-refresh on the main scroll area */
   body:has(.app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode)) {
     overscroll-behavior-y: auto;
@@ -6046,7 +6040,7 @@
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   /* Song row actions: horizontal scroll instead of clipping */
   .song-row-actions {
     max-width: none;
@@ -6058,7 +6052,7 @@
   .song-row-actions::-webkit-scrollbar { display: none; }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   /* Compact task navigation for settings on mobile. */
   .settings-tabs {
     width: 100%;
@@ -6095,14 +6089,14 @@
   }
 }
 
-@media (max-width:720px) and (prefers-reduced-motion:reduce) {
+@media (max-width:720px) and (prefers-reduced-motion:reduce), (max-width:960px) and (max-height:500px) and (orientation:landscape) and (prefers-reduced-motion:reduce) {
   .settings-tabs button:active { scale:1; transform:none; }
 }
 
 /* v0.6.6 mobile typography pass — pairs with the desktop block in styles.css.
    Fixes the bottom-nav micro-label legibility, hero/CJK heading rhythm, mobile
    player meta line-heights, and lyrics readability on phone screens. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   /* Bottom-nav labels were 9px and tight — barely legible at arm's length. Bump to a true 10.5px
      with looser tracking and a mid weight. Touch target stays 56px high. */
   .sidebar nav button {
@@ -6187,7 +6181,7 @@
 /* v0.6.6 mobile native-feel pass — pairs with the desktop block in styles.css.
    Mobile-specific hardening: kill iOS long-press previews, lock down text selection
    on chrome, provide tap-state feedback, and keep momentum scroll intact. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   /* --- iOS long-press / force-touch suppression --- */
   .app-shell img,
   .app-shell svg,
@@ -6305,14 +6299,14 @@
 /* --- System font stack for mobile ---
    iOS uses San Francisco, Android uses Roboto via system-ui fallback.
    Guarded to avoid stomping theme-specific faces. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   :root:not([data-custom-font='true']):not([data-theme='amber-film']):not([data-theme='mountain-mist']):not([data-theme='oat-latte']):not([data-theme='carbon-volt']):not([data-theme='plum-silk']):not([data-theme='matcha-frost']) {
     --font-body: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'Roboto', system-ui, ui-sans-serif, sans-serif;
     --font-head: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'Roboto', system-ui, ui-sans-serif, sans-serif;
   }
 }
 
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .mobile-home-surface[data-mobile-theme='smartisan-classic'] {
     width:100%;
     max-width:100%;
@@ -6360,7 +6354,7 @@
 }
 
 /* --- prefers-reduced-motion: snap all mobile transitions to instant --- */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   @media (prefers-reduced-motion: reduce) {
     .app-shell *,
     .app-shell *::before,
@@ -6373,7 +6367,7 @@
 }
 
 /* --- mobile song row: collapse secondary actions into a "more" menu --- */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .song-row { grid-template-columns:auto auto minmax(0, 1fr) auto; }
   .song-row > .song-quality,
   .song-row > .song-duration,
@@ -6390,7 +6384,7 @@
 /* v0.8.17 mobile music-app pass.
    Preserve the existing player themes, but make the mobile shell, nav, home, and
    no-cover states follow one quieter music-app interaction model. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-theme] {
     --mobile-ui-bg:var(--bg);
     --mobile-ui-surface:var(--panel);
@@ -7181,7 +7175,7 @@
 }
 
 /* Mobile player theme refresh: desktop-derived visual anchors with mobile-safe bounds. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player .mobile-art-phone {
     grid-template-rows:44px minmax(168px, 1fr) auto 44px 34px 52px max(72px, calc(62px + var(--safe-bottom)));
   }
@@ -7896,7 +7890,7 @@
   }
 }
 
-@media (max-width:720px) and (max-height:740px) {
+@media (max-width:720px) and (max-height:740px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player .mobile-art-phone {
     grid-template-rows:40px minmax(132px, 1fr) auto 42px 30px 48px max(64px, calc(56px + var(--safe-bottom)));
   }
@@ -7927,7 +7921,7 @@
 }
 
 /* Mobile home density cleanup only; player theme visuals are defined above. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-library-hub,
   .app-shell[data-view='home'] .mobile-home-library-hub {
     grid-template-columns:1fr !important;
@@ -7942,7 +7936,7 @@
 /* v0.8.18 mobile-only player correction pass.
    Keep the shell and PC themes separate, but bring the mobile visuals back to
    the same interaction model and record layering as the desktop players. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .mobile-bottom-nav {
     grid-template-columns:repeat(var(--mobile-bottom-nav-count, 4), minmax(0, 1fr)) !important;
     justify-items:stretch;
@@ -8330,7 +8324,7 @@
 /* Final mobile player readability layer.
    Theme blocks keep defining --mobile-art-*; this layer maps them to a
    consistent foreground/control system for the expanded mobile player. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player {
     --mobile-player-title:color-mix(in srgb, var(--mobile-art-text) 92%, var(--mobile-art-accent) 8%);
     --mobile-player-secondary:color-mix(in srgb, var(--mobile-art-text) 72%, transparent);
@@ -8518,7 +8512,7 @@
 /* Final mobile player motion layer.
    Every mobile theme needs a playing-state cue, but motion stays tied to the
    music object: vinyl rotation, tape reels, VU meters, or device display. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   @keyframes mobile-theme-vu-pulse {
     0% { transform:scaleY(.42); opacity:.5; }
     100% { transform:scaleY(1); opacity:1; }
@@ -8568,7 +8562,7 @@
 
 /* v0.9.0 mobile player theme DNA correction.
    Keep controls tied to each mobile theme, not the global light/dark shell. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-neon-console {
     --mobile-player-control:#fff2c9;
     --mobile-player-action:rgba(255,242,201,.82);
@@ -8839,7 +8833,7 @@
 
 /* Lyrics tools live inside the candidate popover; keep offset controls out of the
    lyrics header on mobile so they do not cover the active lyric line. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell.lyrics-mode .lyrics-candidates.lyrics-tools {
     position:relative;
     inset:auto;
@@ -8995,7 +8989,7 @@
 /* Mobile control contrast and record motion guard.
    Earlier theme blocks own the visual mood; this final layer keeps critical
    playback controls readable and keeps vinyl rotation on one continuous clock. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-theme] .mobile-mini-player > button:not(.mobile-mini-main):not(.mobile-mini-play) {
     color:var(--mobile-mini-control) !important;
     background:var(--mobile-mini-control-bg) !important;
@@ -9099,7 +9093,7 @@
   }
 }
 
-@media (max-width:720px) and (prefers-reduced-motion:reduce) {
+@media (max-width:720px) and (prefers-reduced-motion:reduce), (max-width:960px) and (max-height:500px) and (orientation:landscape) and (prefers-reduced-motion:reduce) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-vu i,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-vinyl,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-cover[data-has-cover='false'],
@@ -9127,7 +9121,7 @@
 /* Smartisan mobile fidelity pass.
    The player surface now follows the reference: one large LP, optional left
    more button, and a fixed layered pivot with only the slim needle rotating. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-theme='smartisan-classic'][data-mobile-player-expanded='true']:not(.lyrics-mode) .player {
     background:#f7f7f5;
   }
@@ -9410,7 +9404,7 @@
   }
 }
 
-@media (max-width:720px) and (prefers-reduced-motion:reduce) {
+@media (max-width:720px) and (prefers-reduced-motion:reduce), (max-width:960px) and (max-height:500px) and (orientation:landscape) and (prefers-reduced-motion:reduce) {
   .mobile-smartisan-needle-arm,
   .mobile-smartisan-needle-shadow,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player.mobile-art-smartisan-classic[data-playing='true'] .mobile-art-volume-bars i.active {
@@ -9421,7 +9415,7 @@
 
 /* Smartisan mobile chrome fidelity: tabbar and mini player use the same
    white/gray pressed-button vocabulary as the reference app screens. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-theme='smartisan-classic']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player {
     background:
       url('/smartisan/titlebar-bg.png') center / 100% 100%,
@@ -9562,7 +9556,7 @@
 
 /* Final Smartisan mobile control pass: gray mechanical rails, a stamped thumb,
    and circular transport buttons across the expanded player and mini bar. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-actions button,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-controls button,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic .mobile-art-volume-icon {
@@ -9822,7 +9816,7 @@
 
 /* Mobile theme isolation: desktop Smartisan rules also match the same DOM when
    the desktop theme is Smartisan. Non-Smartisan mobile themes must win here. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .settings-page {
     margin:0 !important;
     border:0 !important;
@@ -9943,7 +9937,7 @@
 
 /* Precision Audio mobile turntable: keep the needle anchored to the centered
    record in the expanded player, with a visible cartridge and stylus tip. */
-@media (max-width:720px) {
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-neon-console .mobile-pa-tonearm {
     top:calc(50% - 154px) !important;
     right:calc(50% - 168px) !important;
@@ -10057,5 +10051,236 @@
   .app-shell.lyrics-mode .full-lyrics[data-display-style='folia-cadenza'] .full-lyrics-lines p.live,
   .app-shell.lyrics-mode .full-lyrics[data-folia-mode='true'] .full-lyrics-lines p.live {
     transform:translate3d(0, 0, 0) scale(1.02);
+  }
+}
+
+/* Reduced-motion mobile playback cues.
+   Retain one slow, playback-gated mechanical signal per theme while the
+   decorative glints, cover drift, orbit layers, VU pulses, and arm travel stay
+   disabled by the earlier accessibility rules. */
+@media (max-width:720px) and (prefers-reduced-motion:reduce), (max-width:960px) and (max-height:500px) and (orientation:landscape) and (prefers-reduced-motion:reduce) {
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-pa-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-soft-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-gramophone-stage[data-playing='true'] .mobile-gramophone-record,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-stack[data-playing='true'] .mobile-indie-vinyl,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-visual[data-playing='true'] .mobile-stage-disc,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player.mobile-art-smartisan-classic[data-playing='true'] .mobile-smartisan-rotor {
+    animation:mobile-art-spin-smooth 22s linear infinite !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-blue-visual[data-playing='true'] .mobile-blue-cassette-window .reel {
+    animation:mobile-art-spin-smooth 3.2s linear infinite !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-editorial-visual[data-playing='true'] .mobile-editorial-ipod-eq i {
+    animation:mobile-ipod-eq 1.4s ease-in-out infinite alternate !important;
+  }
+
+  .app-shell[data-mobile-theme] .mobile-mini-player[data-playing='true'] .mobile-mini-art img {
+    animation:mobile-mini-spin 18s linear infinite !important;
+  }
+}
+
+/* Mobile theme restraint and touch polish.
+   Theme identity comes from the player object and its existing palette, not
+   page-wide glow, translucent fog, or oversized shadows. */
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
+  .mobile-art-player:not(.mobile-art-smartisan-classic) .mobile-art-phone {
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 8px 22px rgba(0,0,0,.22) !important;
+  }
+
+  .mobile-art-player:not(.mobile-art-smartisan-classic) .mobile-art-bg {
+    opacity:0 !important;
+    background:none !important;
+  }
+
+  .mobile-art-blur-bg {
+    display:none !important;
+    filter:none !important;
+  }
+
+  .mobile-art-neon-console .mobile-art-phone {
+    background:#0b0d10 !important;
+  }
+
+  .mobile-art-soft-vinyl .mobile-art-phone {
+    background:#f1ece3 !important;
+  }
+
+  .mobile-art-gramophone .mobile-art-phone {
+    background:linear-gradient(165deg, #8f7968 0%, #5e4132 52%, #2c201b 100%) !important;
+  }
+
+  .mobile-art-indiewave .mobile-art-phone {
+    background:#fffefa !important;
+  }
+
+  .mobile-art-editorial-pulse .mobile-art-phone {
+    background:linear-gradient(#ffb313 0 56%, #f3f3f1 56% 100%) !important;
+  }
+
+  .mobile-art-stage-glass .mobile-art-phone {
+    background:#22243b !important;
+  }
+
+  .mobile-art-blue-halo .mobile-art-phone {
+    background:#c7d2da !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-actions button,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-controls button,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-topbar-icon {
+    width:44px !important;
+    min-width:44px !important;
+    height:44px !important;
+    min-height:44px !important;
+  }
+
+  .mobile-mini-player .mobile-mini-next,
+  .mobile-mini-player .mobile-mini-queue,
+  .queue-head button {
+    width:44px !important;
+    min-width:44px !important;
+    height:44px !important;
+    min-height:44px !important;
+  }
+
+  .mobile-home-section-head button {
+    min-height:44px !important;
+  }
+
+  .mobile-art-volume-bars i {
+    height:20px !important;
+    transform:scaleY(.5) !important;
+    transform-origin:50% 100%;
+  }
+
+  .mobile-art-volume-bars i:nth-child(3n) {
+    transform:scaleY(.75) !important;
+  }
+
+  .mobile-art-volume-bars i:nth-child(6n) {
+    transform:scaleY(1) !important;
+  }
+
+  .mobile-mini-player::before,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player::before {
+    background:var(--mobile-ui-surface) !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    box-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-actions button.active,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-controls button.active,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-progress-rail i,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-volume-bars i.active {
+    box-shadow:none !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-controls .mobile-art-play,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-play {
+    box-shadow:0 2px 6px rgba(0,0,0,.18) !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .settings-tabs button.active,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .segmented-control button.active,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-theme-picker button.active {
+    box-shadow:none !important;
+  }
+}
+
+@media (min-width:721px) and (max-width:960px) and (max-height:500px) and (orientation:landscape) {
+  .desktop-sidebar {
+    display:none !important;
+  }
+
+  .mobile-bottom-nav,
+  .mobile-home-surface,
+  .player > .mobile-art-player {
+    display:grid !important;
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player {
+    --player-h:64px;
+    height:64px;
+    min-height:64px;
+    max-height:64px;
+  }
+
+  .mobile-bottom-nav {
+    z-index:50;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player .mobile-art-phone {
+    grid-template-columns:minmax(250px, 40%) minmax(0, 1fr);
+    grid-template-rows:40px minmax(68px, auto) 44px 36px 44px 56px;
+    column-gap:18px;
+    row-gap:4px;
+    padding:8px 18px 10px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-topbar {
+    grid-column:1 / -1;
+    grid-row:1;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-pa-visual,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-soft-stage,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-gramophone-stage,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-visual,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-editorial-visual,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-visual,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-blue-visual,
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-smartisan-stage {
+    grid-column:1;
+    grid-row:2 / 7;
+    align-self:center;
+    scale:.74;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-meta {
+    grid-column:2;
+    grid-row:2;
+    align-self:end;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-meta strong {
+    font-size:20px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-actions {
+    grid-column:2;
+    grid-row:3;
+    justify-content:flex-start;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-volume {
+    grid-column:2;
+    grid-row:4;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-progress {
+    grid-column:2;
+    grid-row:5;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-controls {
+    grid-column:2;
+    grid-row:6;
+    justify-content:flex-start;
+    gap:10px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-controls .mobile-art-play {
+    width:54px !important;
+    min-width:54px !important;
+    height:54px !important;
+    min-height:54px !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-page-dots {
+    left:20%;
+    top:50px;
   }
 }

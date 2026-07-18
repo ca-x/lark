@@ -5,6 +5,42 @@
 
 ---
 
+## 0.9.39：Windows 动效修复与移动端主题整理
+
+发布日期 / Released: 2026-07-19
+
+### 播放主题
+
+- **恢复 Windows 上的播放状态动效。** 系统关闭动画效果时，唱片、磁带卷轴和均衡器仍会用更慢的机械动效表示正在播放，暂停后保持静止，装饰性动效则继续遵循减少动态偏好。
+- **清理移动端主题的多余装饰。** 移除没有信息含义的氛围光、背景模糊、彩色辉光和厚重阴影，同时保留唱片沟槽、木纹、金属和磁带等与播放器对象直接相关的质感。
+
+### 移动端体验
+
+- **统一播放器控件的触控与无障碍体验。** 主要操作区至少为 44 × 44 像素，推荐歌曲播放按钮增加本地化读屏标签，音量反馈改用不会触发布局重排的缩放动画。
+- **修复大屏手机横屏布局。** 低高度横屏现在使用移动端布局，展开播放器采用双栏结构并完整显示传输控制，页面不再出现横向溢出。
+
+完整 diff：`git log v0.9.38..v0.9.39`
+
+---
+
+## v0.9.39: Windows motion fix and mobile theme polish
+
+Released: 2026-07-19
+
+### Player themes
+
+- **Restored playback-state motion on Windows.** When system animations are disabled, records, cassette reels, and equalizers still use slower mechanical motion to show active playback, remain still when paused, and continue suppressing decorative effects under reduced-motion preferences.
+- **Removed excess decoration from mobile themes.** Ambient lighting, background blur, colored glow, and heavy shadows are gone, while record grooves, wood grain, metal, and cassette textures remain where they describe the player itself.
+
+### Mobile experience
+
+- **Standardized touch and accessibility behavior across player controls.** Primary controls now provide at least a 44 × 44 pixel target, the recommended-song play button has a localized screen-reader label, and volume feedback uses a scale animation that avoids layout reflow.
+- **Fixed large-phone landscape layouts.** Short landscape viewports now use the mobile layout, the expanded player switches to two columns with complete transport controls, and the page no longer overflows horizontally.
+
+Full diff: `git log v0.9.38..v0.9.39`
+
+---
+
 ## 0.9.38：暗场电台重构与奔跑小猫优化
 
 发布日期 / Released: 2026-07-15

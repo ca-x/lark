@@ -8824,7 +8824,7 @@ function FullLyrics({
                   .join(" ")}
                 onClick={lyricsDragSeekEnabled ? () => line.at >= 0 && onSeek(lyricTime) : undefined}
               >
-                <span className="lyric-line-text">
+                <span className="lyric-line-text" data-text={line.text}>
                   {renderLyricLineText(line.text, lyricsDisplayStyle, isLive)}
                 </span>
                 {showCursorPlay ? (
