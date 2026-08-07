@@ -5,6 +5,32 @@
 
 ---
 
+## 0.9.40：修复唱片封套的黑胶唱盘
+
+发布日期 / Released: 2026-08-07
+
+### 播放主题
+
+- **恢复唱片封套主题的黑胶唱盘。** 唱片材质改为应用内置的沟槽与反光效果，不再依赖已失效的站外图片，因此播放时会稳定显示完整、不透明的黑胶唱片。
+- **增加唱片材质回归检查。** 构建检查会阻止唱片重新依赖站外纹理，或在资源加载失败时退化成透明圆盘。
+
+完整 diff：`git log v0.9.39..v0.9.40`
+
+---
+
+## v0.9.40: Album sleeve vinyl fix
+
+Released: 2026-08-07
+
+### Player themes
+
+- **Restored the vinyl record in the Album sleeve theme.** The record now uses built-in groove and reflection effects instead of a failed remote image, so playback consistently shows a complete, opaque vinyl disc.
+- **Added a vinyl material regression check.** Build checks now prevent the record from depending on a remote texture or becoming transparent when an asset cannot load.
+
+Full diff: `git log v0.9.39..v0.9.40`
+
+---
+
 ## 0.9.39：Windows 动效修复与移动端主题整理
 
 发布日期 / Released: 2026-07-19

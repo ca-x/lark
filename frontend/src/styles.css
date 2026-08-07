@@ -6931,18 +6931,47 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   position:absolute;
   inset:0;
   border-radius:50%;
-  background-color:#050505;
   background:
-    url('https://s3-us-west-2.amazonaws.com/s.cdpn.io/83141/vinyl.png') center / cover no-repeat,
-    var(--album-slide-cover-image, var(--cover)) center / 40% auto no-repeat;
-  box-shadow:0 0 10px rgba(0,0,0,.8);
+    radial-gradient(circle at 50% 50%, transparent 0 15%, rgba(255,255,255,.05) 15.5% 16%, transparent 16.5%),
+    repeating-radial-gradient(circle at 50% 50%, #050505 0 3px, #151515 3.5px 5px, #080808 5.5px 8px, #1d1d1d 8.5px 9.5px),
+    conic-gradient(from -20deg, rgba(255,255,255,.16), transparent 12deg 58deg, rgba(255,255,255,.06) 80deg, transparent 112deg 196deg, rgba(0,0,0,.48) 228deg, transparent 268deg, rgba(255,255,255,.08) 330deg, rgba(255,255,255,.16)),
+    #050505;
+  box-shadow:0 0 10px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.09), inset 0 0 34px rgba(255,255,255,.04), inset 0 0 80px rgba(0,0,0,.72);
   overflow:hidden;
   transform-origin:50% 50%;
   animation:album-slide-spin 2s linear infinite;
   will-change:transform;
 }
+.album-slide-vinyl::before {
+  content:'';
+  position:absolute;
+  inset:30%;
+  z-index:1;
+  border-radius:50%;
+  background:var(--album-slide-cover-image, var(--cover));
+  background-size:cover;
+  background-position:center;
+  box-shadow:0 0 0 5px #080808, 0 0 0 6px rgba(255,255,255,.12), inset 0 0 18px rgba(0,0,0,.28);
+}
+.album-slide-vinyl::after {
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 38%, rgba(255,255,255,.08) 38.5% 39%, transparent 39.5% 100%),
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 10px, rgba(255,255,255,.055) 10.5px 11px),
+    conic-gradient(from 15deg, transparent 0 18deg, rgba(255,255,255,.18) 18deg 27deg, transparent 28deg 116deg, rgba(255,255,255,.08) 116deg 128deg, transparent 129deg 360deg);
+  mix-blend-mode:screen;
+  pointer-events:none;
+}
 .album-slide-vinyl span {
-  display:none;
+  position:absolute;
+  inset:48%;
+  z-index:2;
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 34%, #f4f4f4, #5a5a5a 48%, #111 100%);
+  box-shadow:0 0 0 1px rgba(0,0,0,.72), 0 1px 3px rgba(0,0,0,.55);
 }
 .album-slide-player[data-playing='true'] .album-slide-vinyl-rail {
   left:52%;
