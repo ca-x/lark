@@ -153,7 +153,16 @@ export function MobileArtPlayer({
   } as CSSProperties;
   const [swipeY, setSwipeY] = useState(0);
   const [swipeX, setSwipeX] = useState(0);
-  const swipeStart = useRef({ x: 0, y: 0, tracking: false });
+  const swipeStart = useRef({
+    x: 0,
+    y: 0,
+    lastX: 0,
+    lastY: 0,
+    startedAt: 0,
+    lastAt: 0,
+    axis: "" as "" | "x" | "y",
+    tracking: false,
+  });
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (isSwipeIgnoredTarget(e.target)) {
@@ -161,7 +170,17 @@ export function MobileArtPlayer({
       return;
     }
     const touch = e.touches[0];
-    swipeStart.current = { x: touch.clientX, y: touch.clientY, tracking: true };
+    const now = performance.now();
+    swipeStart.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      lastX: touch.clientX,
+      lastY: touch.clientY,
+      startedAt: now,
+      lastAt: now,
+      axis: "",
+      tracking: true,
+    };
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -171,26 +190,38 @@ export function MobileArtPlayer({
     const deltaX = touch.clientX - swipeStart.current.x;
     const absDeltaY = Math.abs(deltaY);
     const absDeltaX = Math.abs(deltaX);
-    if (absDeltaY > 10 && absDeltaY > absDeltaX * 1.25 && deltaY > 0) {
+    if (!swipeStart.current.axis && Math.max(absDeltaX, absDeltaY) > 10) {
+      swipeStart.current.axis = absDeltaY > absDeltaX * 1.2 ? "y" : absDeltaX > absDeltaY * 1.2 ? "x" : "";
+    }
+    swipeStart.current.lastX = touch.clientX;
+    swipeStart.current.lastY = touch.clientY;
+    swipeStart.current.lastAt = performance.now();
+    if (swipeStart.current.axis === "y" && deltaY > 0) {
       setSwipeY(deltaY);
       setSwipeX(0);
-    } else if (absDeltaX > 10 && absDeltaX > absDeltaY * 1.25) {
+    } else if (swipeStart.current.axis === "x") {
       setSwipeX(deltaX);
       setSwipeY(0);
     }
   }, []);
 
   const handleTouchEnd = useCallback(() => {
-    if (swipeY > 100) onBack?.();
-    else if (swipeX > 80) onPrevious?.();
-    else if (swipeX < -80) {
+    const gesture = swipeStart.current;
+    const elapsed = Math.max(16, gesture.lastAt - gesture.startedAt);
+    const deltaX = gesture.lastX - gesture.x;
+    const deltaY = gesture.lastY - gesture.y;
+    const projectedX = deltaX + (deltaX / elapsed) * 180;
+    const projectedY = deltaY + (deltaY / elapsed) * 180;
+    if (gesture.axis === "y" && deltaY > 54 && projectedY > 110) onBack?.();
+    else if (gesture.axis === "x" && deltaX > 48 && projectedX > 96) onPrevious?.();
+    else if (gesture.axis === "x" && deltaX < -48 && projectedX < -96) {
       if (onLyrics) onLyrics();
       else onNext?.();
     }
     swipeStart.current.tracking = false;
     setSwipeY(0);
     setSwipeX(0);
-  }, [swipeY, swipeX, onBack, onPrevious, onNext, onLyrics]);
+  }, [onBack, onPrevious, onNext, onLyrics]);
 
   const handleTouchCancel = useCallback(() => {
     swipeStart.current.tracking = false;
@@ -202,7 +233,7 @@ export function MobileArtPlayer({
 
   return (
     <div className={`mobile-art-player mobile-art-${variant}`} data-playing={playing ? "true" : "false"} style={style}>
-      <div className="mobile-art-phone" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchCancel} style={{ transform: swipeY > 0 ? `translateY(${swipeY * 0.6}px)` : swipeX !== 0 ? `translateX(${swipeX * 0.4}px)` : undefined, transition: swipeY === 0 && swipeX === 0 ? "transform .35s var(--ease)" : "none", opacity: swipeY > 0 ? Math.max(0, 1 - swipeY / 400) : undefined }}>
+      <div className="mobile-art-phone" data-swiping={swipeY !== 0 || swipeX !== 0 ? "true" : "false"} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchCancel} style={{ transform: swipeY > 0 ? `translateY(${swipeY * 0.72}px) scale(${Math.max(.97, 1 - swipeY / 5000)})` : swipeX !== 0 ? `translateX(${swipeX * 0.42}px)` : undefined, transition: swipeY === 0 && swipeX === 0 ? "transform .38s cubic-bezier(.32,.72,0,1), opacity .3s ease" : "none", opacity: swipeY > 0 ? Math.max(0, 1 - swipeY / 520) : undefined }}>
         <div className="mobile-art-bg" aria-hidden="true" />
         {coverState.displayUrl ? (
           <div className="mobile-art-blur-bg" style={{ backgroundImage: `url(${coverState.displayUrl})` }} aria-hidden="true" />
@@ -343,7 +374,11 @@ function VolumeTicks({
 }) {
   const activeCount = Math.round(value * 18);
   return (
-    <div className="mobile-art-volume" data-muted={value <= 0.01 ? "true" : "false"}>
+    <div
+      className="mobile-art-volume"
+      data-muted={value <= 0.01 ? "true" : "false"}
+      style={{ "--mobile-volume-pct": `${(value * 100).toFixed(2)}%` } as CSSProperties}
+    >
       <span className="mobile-art-volume-icon" aria-hidden="true">
         {value <= 0.01 ? <SpeakerSimpleX weight="bold" /> : <SpeakerSimpleHigh weight="bold" />}
       </span>

@@ -85,6 +85,7 @@ export function MobileSoundPanel({
             onClick={() => onApplyPreset(EQ_PRESETS[key])}
           >
             {presetIcon(key)}
+            <span>{t(`eqPreset${key[0].toUpperCase()}${key.slice(1)}` as Parameters<typeof t>[0])}</span>
           </button>
         ))}
       </div>

@@ -48,8 +48,8 @@ export function MobilePlayerDock({
   playModeLabel: string;
   labels?: MobileArtPlayerLabels;
   onToggle: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
   onCyclePlayMode: () => void;
   onSeek: (seconds: number) => void;
   onVolume: (value: number) => void;

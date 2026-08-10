@@ -847,9 +847,12 @@ function SongSearchBox({
           value={draft}
           placeholder={t("search")}
           autoComplete="off"
+          role="combobox"
+          aria-autocomplete="list"
           aria-label={t("search")}
           aria-expanded={open && trimmedDraft.length > 0}
           aria-controls="song-search-options"
+          aria-activedescendant={open && suggestions[activeIndex] ? `song-search-option-${suggestions[activeIndex].id}` : undefined}
           onFocus={() => {
             if (trimmedDraft) setOpen(true);
           }}
@@ -902,6 +905,7 @@ function SongSearchBox({
               <button
                 type="button"
                 key={song.id}
+                id={`song-search-option-${song.id}`}
                 className={index === activeIndex ? "active" : ""}
                 role="option"
                 aria-selected={index === activeIndex}
@@ -1046,7 +1050,9 @@ export default function App() {
   const [bufferedEnd, setBufferedEnd] = useState(0);
   const [buffering, setBuffering] = useState(false);
   const [radioDownloadKbps, setRadioDownloadKbps] = useState(0);
-  const mobileViewport = useMediaQuery("(max-width: 720px)");
+  const mobileViewport = useMediaQuery(
+    "(max-width: 720px), (max-width: 960px) and (max-height: 500px) and (orientation: landscape)",
+  );
   useScrollRestore(mainRef, view, mobileViewport);
   useKeyboardAware(mobileViewport);
   const [volume, setVolume] = useState(0.85);
@@ -4247,7 +4253,7 @@ export default function App() {
     view === "artists" ||
     view === "radio" ||
     view === "collection";
-  const mobilePlayerAvailable = Boolean(current || currentRadio || currentNetworkTrack);
+  const mobilePlayerAvailable = Boolean(current || currentRadio || currentNetworkTrack || heroSong || recentAddedSongs[0] || songs[0]);
   const mobileMyActive =
     view === "my" ||
     view === "history" ||
@@ -4298,7 +4304,16 @@ export default function App() {
   const playerStyle = currentArtwork
     ? ({ "--cover-url": `url(${currentArtwork})` } as React.CSSProperties)
     : undefined;
-  const mobileDisplaySong = current ?? heroSong;
+  const mobileDisplaySong = current ?? (!currentRadio && !currentNetworkTrack ? heroSong ?? recentAddedSongs[0] ?? songs[0] : null);
+  const mobilePlaybackActive = Boolean(current || currentRadio || currentNetworkTrack);
+  const toggleMobilePlayback = () => {
+    if (!mobilePlaybackActive && mobileDisplaySong) {
+      if (resumePosition(mobileDisplaySong) > 0) void resumePlayback(mobileDisplaySong);
+      else void playSong(mobileDisplaySong, songs);
+      return;
+    }
+    void togglePlaybackOutput();
+  };
   const currentOfflineEntry = current ? findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps) : undefined;
   const shouldUseOfflineAudio = Boolean(currentOfflineEntry && shouldPreferOfflinePlayback(offlineMode, networkReachable));
   const currentStreamUrl =
@@ -5108,20 +5123,20 @@ export default function App() {
             queue: queuePanelMode === "radio" ? t("onlineRadio") : t("queue"),
             next: t("next"),
           }}
-          onToggle={() => void togglePlaybackOutput()}
+          onToggle={toggleMobilePlayback}
           onExpand={() => {
             setLyricsFullScreen(false);
             setMobilePlayerExpanded(true);
           }}
           onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
-          onNext={() => next(1)}
+          onNext={mobilePlaybackActive ? () => next(1) : undefined}
         />
         <MobilePlayerDock
           theme={mobileHomePlayerStyle}
           cover={currentArtwork || coverUrl(mobileDisplaySong)}
           playing={playerPlaying}
           progress={progress}
-          duration={playableDuration}
+          duration={playableDuration || mobileDisplaySong?.duration_seconds || 0}
           volume={volume}
           title={mobileDisplaySong?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("brand")}
           artist={mobileDisplaySong?.artist ?? currentNetworkTrack?.artist ?? currentRadio?.country ?? t("nowPlaying")}
@@ -5129,9 +5144,9 @@ export default function App() {
           playMode={playMode}
           playModeLabel={playModeLabel}
           labels={mobilePlayerLabels}
-          onToggle={() => void togglePlaybackOutput()}
-          onPrevious={() => next(-1)}
-          onNext={() => next(1)}
+          onToggle={toggleMobilePlayback}
+          onPrevious={mobilePlaybackActive ? () => next(-1) : undefined}
+          onNext={mobilePlaybackActive ? () => next(1) : undefined}
           onCyclePlayMode={cyclePlayMode}
           onSeek={seekTo}
           onVolume={updateVolume}
@@ -5811,7 +5826,7 @@ function HomeView({
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
   const resumeCandidate = resumePosition(recentPlayedSongs[0]) ? recentPlayedSongs[0] : null;
-  const displaySong = current ?? heroSong ?? resumeCandidate;
+  const displaySong = current ?? heroSong ?? resumeCandidate ?? recentAddedSongs[0] ?? songs[0];
   const heroActive = Boolean(current);
   const heroCanResume = !heroActive && Boolean(resumeCandidate);
   const heroPlaying = playing && heroActive;

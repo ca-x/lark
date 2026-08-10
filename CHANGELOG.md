@@ -5,6 +5,38 @@
 
 ---
 
+## 0.9.41：移动端质感与交互重塑
+
+发布日期 / Released: 2026-08-11
+
+### 移动端体验
+
+- **重塑首页的信息层级。** 首页改为由封面主导的推荐入口，曲库、推荐专辑与歌曲列表使用更清晰的尺寸和留白关系，并在 320 像素窄屏与短横屏下自动调整布局。
+- **统一播放器控制层。** 迷你播放器移除窄屏隐式溢出，全屏播放器降低辅助操作的视觉重量，音量改为连续轨道，同时保留每种唱片、磁带与设备主题的辨识度。
+- **让手势更接近原生。** 下拉关闭和横向切换加入方向锁定与速度投影，按压反馈、触控目标、安全区、减少动态和减少透明度偏好得到统一处理。
+- **细化音效与无障碍体验。** 音效预设增加可见名称，搜索框补齐组合框语义，底部导航提高文字对比度；移动首页通过 WCAG A/AA 自动检查且无已确认违规。
+- **修复短横屏模式判定。** React 与 CSS 现在使用相同的移动端断点，避免短横屏错误渲染桌面首页后留下空白内容区。
+
+完整 diff：`git log v0.9.40..v0.9.41`
+
+---
+
+## v0.9.41: Mobile interaction and visual refinement
+
+Released: 2026-08-11
+
+### Mobile experience
+
+- **Reworked the home hierarchy.** The home screen now opens with an artwork-led recommendation, uses clearer scale and spacing for library and music sections, and adapts cleanly to 320-pixel phones and short landscape screens.
+- **Unified playback controls.** The mini player no longer creates an implicit overflow column on narrow screens, while the expanded player quiets secondary actions, uses a continuous volume track, and preserves the identity of every record, cassette, and device theme.
+- **Made gestures feel more physical.** Pull-down dismissal and horizontal navigation now use axis locking and velocity projection, with consistent press feedback, touch targets, safe areas, reduced-motion behavior, and reduced-transparency support.
+- **Polished sound controls and accessibility.** Sound presets now have visible names, search exposes correct combobox semantics, and bottom navigation labels have stronger contrast; the mobile home passes automated WCAG A/AA checks with no confirmed violations.
+- **Fixed short-landscape mode detection.** React and CSS now share the same mobile breakpoint, preventing the desktop home from rendering into an otherwise mobile shell with an empty content region.
+
+Full diff: `git log v0.9.40..v0.9.41`
+
+---
+
 ## 0.9.40：修复唱片封套的黑胶唱盘
 
 发布日期 / Released: 2026-08-07

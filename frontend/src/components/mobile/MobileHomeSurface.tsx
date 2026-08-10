@@ -134,12 +134,16 @@ export function MobileHomeSurface({
   const featuredAlbum = albums[0];
   const featuredArtist = artists[0];
   const featuredPlaylist = playlists[0];
+  const displayCover = coverUrl(displaySong);
+  const surfaceStyle = displayCover
+    ? ({ "--mobile-home-cover": `url("${displayCover.replace(/"/g, "%22")}")` } as CSSProperties)
+    : undefined;
 
   return (
-    <section className="mobile-home-surface" data-mobile-theme={theme}>
-      <section className="mobile-home-now">
+    <section className="mobile-home-surface" data-mobile-theme={theme} style={surfaceStyle}>
+      <section className="mobile-home-now" data-has-cover={displayCover ? "true" : "false"}>
         <div>
-          <span>{t("nowPlaying")}</span>
+          <span>{heroActive ? t("nowPlaying") : t("recentAdded")}</span>
           <strong>{displaySong?.title ?? t("brand")}</strong>
           <small>{displaySong ? `${displaySong.artist} · ${displaySong.album}` : t("emptyCollection")}</small>
         </div>
@@ -171,36 +175,41 @@ export function MobileHomeSurface({
         </button>
       </div>
 
-      <div className="mobile-home-library-hub" aria-label={t("mobileLibraryHub")}>
-        <button type="button" onClick={onOpenAlbums}>
-          <MobileCollectionCover src={albumCoverUrl(featuredAlbum)} fallback="album" />
-          <span>
-            <strong>{t("albums")}</strong>
-            <small>{stats ? stats.albums : albums.length} {t("album")}</small>
-          </span>
-        </button>
-        <button type="button" onClick={onOpenArtists}>
-          <MobileCollectionCover src={artistCoverUrl(featuredArtist)} fallback="artist" />
-          <span>
-            <strong>{t("artists")}</strong>
-            <small>{stats ? stats.artists : artists.length} {t("artists")}</small>
-          </span>
-        </button>
-        <button type="button" onClick={onOpenPlaylists}>
-          <MobileCollectionCover fallback="playlist" />
-          <span>
-            <strong>{t("playlists")}</strong>
-            <small>{stats ? stats.playlists : playlists.length} {t("playlists")}</small>
-          </span>
-        </button>
-        <button type="button" onClick={onOpenRadio}>
-          <MobileCollectionCover fallback="radio" />
-          <span>
-            <strong>{t("onlineRadio")}</strong>
-            <small>{t("liveRadio")}</small>
-          </span>
-        </button>
-      </div>
+      <section className="mobile-home-browse" aria-labelledby="mobile-home-browse-title">
+        <div className="mobile-home-section-head">
+          <h2 id="mobile-home-browse-title">{t("mobileLibraryHub")}</h2>
+        </div>
+        <div className="mobile-home-library-hub">
+          <button type="button" onClick={onOpenAlbums}>
+            <MobileCollectionCover src={albumCoverUrl(featuredAlbum)} fallback="album" />
+            <span>
+              <strong>{t("albums")}</strong>
+              <small>{stats ? stats.albums : albums.length} {t("album")}</small>
+            </span>
+          </button>
+          <button type="button" onClick={onOpenArtists}>
+            <MobileCollectionCover src={artistCoverUrl(featuredArtist)} fallback="artist" />
+            <span>
+              <strong>{t("artists")}</strong>
+              <small>{stats ? stats.artists : artists.length} {t("artists")}</small>
+            </span>
+          </button>
+          <button type="button" onClick={onOpenPlaylists}>
+            <MobileCollectionCover fallback="playlist" />
+            <span>
+              <strong>{t("playlists")}</strong>
+              <small>{stats ? stats.playlists : playlists.length} {t("playlists")}</small>
+            </span>
+          </button>
+          <button type="button" onClick={onOpenRadio}>
+            <MobileCollectionCover fallback="radio" />
+            <span>
+              <strong>{t("onlineRadio")}</strong>
+              <small>{t("liveRadio")}</small>
+            </span>
+          </button>
+        </div>
+      </section>
 
       <div className="mobile-home-featured">
         {featuredAlbum ? (
