@@ -5,6 +5,38 @@
 
 ---
 
+## 0.9.42：歌手与专辑收藏筛选
+
+发布日期 / Released: 2026-08-11
+
+### 收藏与浏览
+
+- **在歌手和专辑页直接筛选收藏。** 新增带数量提示的爱心按钮，开启后变为红色，并且只显示当前账号收藏的内容。
+- **保留原有组合筛选。** 收藏可以继续与歌手、首字母和分页配合使用，切换筛选或取消末页收藏时会自动回到有效页面。
+- **让快速操作与多标签页保持一致。** 连续切换筛选、收藏或详情页时，旧请求不会覆盖新选择；账号在其他标签页变化时会安全刷新，局部加载失败仍保留上一次可用列表。
+- **适配手机与窄屏。** 筛选工具栏改为单列布局，主要触控区至少为 44 × 44 像素，并补充收藏专用空状态。
+- **补齐浏览与播放控件的无障碍信息。** 歌手搜索、首字母筛选、收藏按钮、播放进度和音量现在会向辅助技术提供完整状态和标签。
+
+完整 diff：`git log v0.9.41..v0.9.42`
+
+---
+
+## v0.9.42: Favorite artist and album filters
+
+Released: 2026-08-11
+
+### Favorites and browsing
+
+- **Filter favorites directly on artist and album pages.** A heart button now shows the matching count, turns red when active, and limits results to the current account's favorites.
+- **Keep existing filters together.** Favorites continue to work with artist, initial, and page filters, while removing the last item on a page returns to a valid page automatically.
+- **Keep rapid interactions and multiple tabs consistent.** Older requests no longer replace a newer filter, favorite, or detail state; account changes in another tab reload safely, while partial load failures retain the last usable list.
+- **Adapt controls for phones and narrow screens.** The filter toolbar becomes a single column, primary touch targets are at least 44 by 44 pixels, and favorites have dedicated empty states.
+- **Expose complete state to assistive technology.** Artist search, initial filters, favorite buttons, playback progress, and volume now provide appropriate labels and state.
+
+Full diff: `git log v0.9.41..v0.9.42`
+
+---
+
 ## 0.9.41：移动端质感与交互重塑
 
 发布日期 / Released: 2026-08-11

@@ -50,7 +50,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import WavesurferPlayer from "@wavesurfer/react";
-import { api } from "./services/api";
+import { api, SESSION_CHANGED_EVENT, setExpectedSessionUserId } from "./services/api";
 import {
   getCandidateCache,
   invalidateLyricCandidateCache,
@@ -259,6 +259,41 @@ const TERMINAL_SHELL_THEME_KEY = "lark.shell-theme";
 
 type SleepTimerMode = "off" | "time" | "songs" | "album";
 type InterfaceMode = "standard" | "shell";
+type AlbumBrowseQuery = {
+  page: number;
+  limit: number;
+  artistID: number;
+  artistName: string;
+  favoritesOnly: boolean;
+};
+type ArtistBrowseQuery = {
+  page: number;
+  limit: number;
+  initial: string;
+  favoritesOnly: boolean;
+};
+type FavoriteOverride = {
+  favorite: boolean;
+  mutationEpoch: number;
+};
+type BrowseCommit<Query, Page> = {
+  query: Query;
+  data: Page;
+};
+
+function sameAlbumBrowseQuery(left: AlbumBrowseQuery, right: AlbumBrowseQuery) {
+  return left.page === right.page &&
+    left.limit === right.limit &&
+    left.artistID === right.artistID &&
+    left.favoritesOnly === right.favoritesOnly;
+}
+
+function sameArtistBrowseQuery(left: ArtistBrowseQuery, right: ArtistBrowseQuery) {
+  return left.page === right.page &&
+    left.limit === right.limit &&
+    left.initial === right.initial &&
+    left.favoritesOnly === right.favoritesOnly;
+}
 
 const defaultSettings: Settings = {
   language: "zh-CN",
@@ -598,6 +633,40 @@ function prefersLowMemoryVisuals() {
 
 const QUALITY_CLASS = "song-quality";
 
+function mergeArtists(current: Artist[], incoming: Artist[]) {
+  if (!incoming.length) return current;
+  const byID = new Map(current.map((item) => [item.id, item]));
+  incoming.forEach((item) => byID.set(item.id, item));
+  return Array.from(byID.values());
+}
+
+function FavoriteFilterToggle({
+  active,
+  count,
+  t,
+  onToggle,
+}: {
+  active: boolean;
+  count?: number;
+  t: ReturnType<typeof createT>;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="favorite-filter-toggle"
+      data-active={active ? "true" : "false"}
+      aria-pressed={active}
+      aria-busy={active && count == null}
+      onClick={onToggle}
+    >
+      <Heart weight={active ? "fill" : "regular"} aria-hidden="true" />
+      <span>{t("favoritesOnly")}</span>
+      {active ? <small aria-hidden={count == null}>{count ?? "…"}</small> : null}
+    </button>
+  );
+}
+
 function AlbumArtistFilter({
   t,
   selectedArtistId,
@@ -684,9 +753,17 @@ function AlbumArtistFilter({
             ref={inputRef}
             value={draft}
             placeholder={t("searchArtist")}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
             aria-label={t("filterByArtist")}
             aria-expanded={open && trimmedDraft.length > 0}
-            aria-controls="album-artist-filter-options"
+            aria-controls={open && trimmedDraft ? "album-artist-filter-options" : undefined}
+            aria-activedescendant={
+              open && !loading && suggestions[activeIndex]
+                ? `album-artist-filter-option-${suggestions[activeIndex].id}`
+                : undefined
+            }
             autoComplete="off"
             onFocus={() => {
               if (trimmedDraft) setOpen(true);
@@ -745,6 +822,7 @@ function AlbumArtistFilter({
               <button
                 type="button"
                 key={artistItem.id}
+                id={`album-artist-filter-option-${artistItem.id}`}
                 className={artistItem.id === selectedArtistId || index === activeIndex ? "active" : ""}
                 role="option"
                 aria-selected={artistItem.id === selectedArtistId}
@@ -851,8 +929,8 @@ function SongSearchBox({
           aria-autocomplete="list"
           aria-label={t("search")}
           aria-expanded={open && trimmedDraft.length > 0}
-          aria-controls="song-search-options"
-          aria-activedescendant={open && suggestions[activeIndex] ? `song-search-option-${suggestions[activeIndex].id}` : undefined}
+          aria-controls={open && trimmedDraft ? "song-search-options" : undefined}
+          aria-activedescendant={open && !loading && suggestions[activeIndex] ? `song-search-option-${suggestions[activeIndex].id}` : undefined}
           onFocus={() => {
             if (trimmedDraft) setOpen(true);
           }}
@@ -984,7 +1062,9 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [albumArtistFilter, setAlbumArtistFilter] = useState(0);
   const [albumArtistQuery, setAlbumArtistQuery] = useState("");
+  const [albumFavoritesOnly, setAlbumFavoritesOnly] = useState(false);
   const [artistInitialFilter, setArtistInitialFilter] = useState("");
+  const [artistFavoritesOnly, setArtistFavoritesOnly] = useState(false);
   const [lyrics, setLyrics] = useState<Lyrics | null>(null);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [lyricCandidates, setLyricCandidates] = useState<LyricCandidate[]>([]);
@@ -1000,6 +1080,7 @@ export default function App() {
     songs: DEFAULT_LIBRARY_PAGE_SIZE,
     cards: DEFAULT_GRID_PAGE_SIZE,
   });
+  const gridPageSizeRef = useRef(DEFAULT_GRID_PAGE_SIZE);
   const [message, setMessage] = useState("");
   const [librarySongPage, setLibrarySongPage] = useState<SongPage | null>(null);
   const [libraryPage, setLibraryPage] = useState(1);
@@ -1008,11 +1089,47 @@ export default function App() {
   const [libraryReview, setLibraryReview] = useState<SongReview>("");
   const [libraryReviewSummary, setLibraryReviewSummary] = useState<LibraryReviewSummary | null>(null);
   const [albumPageData, setAlbumPageData] = useState<AlbumPage | null>(null);
-  const [albumPage, setAlbumPage] = useState(1);
+  const [, setAlbumPage] = useState(1);
   const [albumPageLoading, setAlbumPageLoading] = useState(false);
+  const [shellAlbumPageData, setShellAlbumPageData] = useState<AlbumPage | null>(null);
+  const [shellAlbumPageLoading, setShellAlbumPageLoading] = useState(false);
+  const shellAlbumPageRequestRef = useRef(0);
+  const albumPageRequestRef = useRef(0);
+  const albumPageInFlightRef = useRef<number | null>(null);
+  const albumArtistFilterRef = useRef(0);
+  const albumArtistQueryRef = useRef("");
+  const albumFavoritesOnlyRef = useRef(false);
+  const albumBrowseIntentRef = useRef<AlbumBrowseQuery>({
+    page: 1,
+    limit: DEFAULT_GRID_PAGE_SIZE,
+    artistID: 0,
+    artistName: "",
+    favoritesOnly: false,
+  });
+  const albumBrowseCommittedRef = useRef<BrowseCommit<AlbumBrowseQuery, AlbumPage> | null>(null);
+  const albumFavoriteMutationRef = useRef(0);
+  const albumFavoriteStateRef = useRef(new Map<number, FavoriteOverride>());
+  const favoriteSessionRef = useRef(0);
+  const albumFavoriteQueueRef = useRef(new Map<number, Promise<Album | null>>());
+  const albumFavoriteRepeatRef = useRef(new Set<number>());
   const [artistPageData, setArtistPageData] = useState<ArtistPage | null>(null);
-  const [artistPage, setArtistPage] = useState(1);
+  const [, setArtistPage] = useState(1);
   const [artistPageLoading, setArtistPageLoading] = useState(false);
+  const artistPageRequestRef = useRef(0);
+  const artistPageInFlightRef = useRef<number | null>(null);
+  const artistInitialFilterRef = useRef("");
+  const artistFavoritesOnlyRef = useRef(false);
+  const artistBrowseIntentRef = useRef<ArtistBrowseQuery>({
+    page: 1,
+    limit: DEFAULT_GRID_PAGE_SIZE,
+    initial: "",
+    favoritesOnly: false,
+  });
+  const artistBrowseCommittedRef = useRef<BrowseCommit<ArtistBrowseQuery, ArtistPage> | null>(null);
+  const artistFavoriteMutationRef = useRef(0);
+  const artistFavoriteStateRef = useRef(new Map<number, FavoriteOverride>());
+  const artistFavoriteQueueRef = useRef(new Map<number, Promise<Artist | null>>());
+  const artistFavoriteRepeatRef = useRef(new Set<number>());
   const [playlistPageData, setPlaylistPageData] = useState<PlaylistPage | null>(null);
   const [playlistPage, setPlaylistPage] = useState(1);
   const [playlistPageLoading, setPlaylistPageLoading] = useState(false);
@@ -1149,6 +1266,7 @@ export default function App() {
   const offlineEntries = useMemo(() => offlineSongEntries(offlineIndex), [offlineIndex]);
   const libraryPageSize = pageSizing.songs;
   const gridPageSize = pageSizing.cards;
+  gridPageSizeRef.current = gridPageSize;
   const lyricLines = useMemo(() => parseLyricLines(lyrics?.lyrics), [lyrics]);
   const lyricOffsetSeconds = lyricOffsetMs / 1000;
   const activeLyric = useMemo(() => {
@@ -1256,6 +1374,12 @@ export default function App() {
 
   useEffect(() => {
     void bootstrap();
+  }, []);
+
+  useEffect(() => {
+    const reloadForSessionChange = () => window.location.reload();
+    window.addEventListener(SESSION_CHANGED_EVENT, reloadForSessionChange);
+    return () => window.removeEventListener(SESSION_CHANGED_EVENT, reloadForSessionChange);
   }, []);
 
   useEffect(() => {
@@ -1966,6 +2090,8 @@ export default function App() {
   function activateOfflineSession(index = readOfflineSongIndex()) {
     const cachedSongs = uniqueSongs(offlineSongEntries(index).map((entry) => entry.song), MAX_PLAYBACK_QUEUE_SIZE);
     if (!cachedSongs.length) return false;
+    setExpectedSessionUserId(0);
+    shellAlbumPageRequestRef.current += 1;
     setPlaybackSessionSource(null);
     setOfflineMode(true);
     setOfflineIndex(index);
@@ -1986,6 +2112,8 @@ export default function App() {
     setFavoriteAlbums([]);
     setFavoriteArtists([]);
     setAlbums([]);
+    setShellAlbumPageData(null);
+    setShellAlbumPageLoading(false);
     setArtists([]);
     setPlaylists([]);
     setSmartPlaylists([]);
@@ -2153,6 +2281,7 @@ export default function App() {
     setAuthError("");
     try {
       const status = await api.authStatus();
+      setExpectedSessionUserId(status.user?.id ?? 0);
       setAuth(status);
       void api.health().then(setHealth).catch(() => undefined);
       if (status.initialized && status.user) {
@@ -2217,7 +2346,65 @@ export default function App() {
   }
 
   async function logout() {
-    await api.logout().catch(() => undefined);
+    setAuthLoading(true);
+    shellAlbumPageRequestRef.current += 1;
+    favoriteSessionRef.current += 1;
+    refreshGenerationRef.current += 1;
+    invalidateCollectionRequest();
+    albumPageRequestRef.current += 1;
+    albumPageInFlightRef.current = null;
+    artistPageRequestRef.current += 1;
+    artistPageInFlightRef.current = null;
+    albumArtistFilterRef.current = 0;
+    albumArtistQueryRef.current = "";
+    albumFavoritesOnlyRef.current = false;
+    albumBrowseIntentRef.current = {
+      page: 1,
+      limit: gridPageSizeRef.current,
+      artistID: 0,
+      artistName: "",
+      favoritesOnly: false,
+    };
+    albumBrowseCommittedRef.current = null;
+    albumFavoriteMutationRef.current += 1;
+    albumFavoriteStateRef.current.clear();
+    albumFavoriteQueueRef.current.clear();
+    albumFavoriteRepeatRef.current.clear();
+    artistInitialFilterRef.current = "";
+    artistFavoritesOnlyRef.current = false;
+    artistBrowseIntentRef.current = {
+      page: 1,
+      limit: gridPageSizeRef.current,
+      initial: "",
+      favoritesOnly: false,
+    };
+    artistBrowseCommittedRef.current = null;
+    artistFavoriteMutationRef.current += 1;
+    artistFavoriteStateRef.current.clear();
+    artistFavoriteQueueRef.current.clear();
+    artistFavoriteRepeatRef.current.clear();
+    setAlbumPageLoading(false);
+    setArtistPageLoading(false);
+    const logoutController = new AbortController();
+    await loadWithTimeout((signal) => api.logout(signal), logoutController).catch(() => undefined);
+    setExpectedSessionUserId(0);
+    // Invalidate work that may have started while the logout request was in flight.
+    shellAlbumPageRequestRef.current += 1;
+    favoriteSessionRef.current += 1;
+    refreshGenerationRef.current += 1;
+    invalidateCollectionRequest();
+    albumPageRequestRef.current += 1;
+    albumPageInFlightRef.current = null;
+    artistPageRequestRef.current += 1;
+    artistPageInFlightRef.current = null;
+    albumFavoriteMutationRef.current += 1;
+    artistFavoriteMutationRef.current += 1;
+    albumFavoriteStateRef.current.clear();
+    artistFavoriteStateRef.current.clear();
+    albumFavoriteQueueRef.current.clear();
+    artistFavoriteQueueRef.current.clear();
+    albumFavoriteRepeatRef.current.clear();
+    artistFavoriteRepeatRef.current.clear();
     userPreferencesReadyRef.current = false;
     lastSavedUserPreferencesRef.current = null;
     setQueueSyncReady(false);
@@ -2234,8 +2421,21 @@ export default function App() {
     setCurrentRadio(null);
     setRadioQueue([]);
     setCurrentNetworkTrack(null);
+    setCollection(null);
+    setCollectionBack(null);
     setAlbums([]);
     setArtists([]);
+    setAlbumPage(1);
+    setAlbumPageData(null);
+    setShellAlbumPageData(null);
+    setShellAlbumPageLoading(false);
+    setAlbumArtistFilter(0);
+    setAlbumArtistQuery("");
+    setAlbumFavoritesOnly(false);
+    setArtistPage(1);
+    setArtistPageData(null);
+    setArtistInitialFilter("");
+    setArtistFavoritesOnly(false);
     setPlaylists([]);
     setSmartPlaylists([]);
     setScrobblingSettings(null);
@@ -2389,6 +2589,10 @@ export default function App() {
 
     const gen = ++refreshGenerationRef.current;
     const isStale = () => refreshGenerationRef.current !== gen;
+    const albumPageRequestID = albumPageRequestRef.current;
+    const artistPageRequestID = artistPageRequestRef.current;
+    const albumBrowseSnapshot = { ...albumBrowseIntentRef.current };
+    const artistBrowseSnapshot = { ...artistBrowseIntentRef.current };
 
     // Layer 1: critical data needed for first render - block on these.
     const [songPageItem, dailyItems, libraryStatsItem, playbackQueueItem] = await Promise.all([
@@ -2409,28 +2613,61 @@ export default function App() {
     // Layer 2: browse data - stagger by 80ms to reduce SQLite contention on startup.
     await new Promise((r) => setTimeout(r, 80));
     if (isStale()) return;
+    const albumPageMutationEpoch = albumFavoriteMutationRef.current;
+    const artistPageMutationEpoch = artistFavoriteMutationRef.current;
+    const albumSnapshotIsCurrent = () =>
+      albumPageRequestID === albumPageRequestRef.current &&
+      albumBrowseSnapshot.limit === gridPageSizeRef.current &&
+      sameAlbumBrowseQuery(albumBrowseSnapshot, albumBrowseIntentRef.current);
+    const artistSnapshotIsCurrent = () =>
+      artistPageRequestID === artistPageRequestRef.current &&
+      artistBrowseSnapshot.limit === gridPageSizeRef.current &&
+      sameArtistBrowseQuery(artistBrowseSnapshot, artistBrowseIntentRef.current);
+    const refreshAlbumPage = albumPageInFlightRef.current == null && albumSnapshotIsCurrent();
+    const refreshArtistPage = artistPageInFlightRef.current == null && artistSnapshotIsCurrent();
     const [recentPlayedItems, recentAddedItems, albumPageItem, artistPageItem, playlistPageItem, smartPlaylistItems] = await Promise.all([
       api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => []),
       api.recentAddedSongs(HOME_RECENT_LIMIT).catch(() => []),
-      api.albumsPage(albumPage, gridPageSize, albumArtistFilter),
-      api.artistsPage(artistPage, gridPageSize, artistInitialFilter),
-      api.playlistsPage(playlistPage, gridPageSize),
+      refreshAlbumPage
+        ? api.albumsPage(albumBrowseSnapshot.page, albumBrowseSnapshot.limit, albumBrowseSnapshot.artistID, undefined, albumBrowseSnapshot.favoritesOnly)
+            .catch(() => null)
+        : Promise.resolve(null),
+      refreshArtistPage
+        ? api.artistsPage(artistBrowseSnapshot.page, artistBrowseSnapshot.limit, artistBrowseSnapshot.initial, artistBrowseSnapshot.favoritesOnly)
+            .catch(() => null)
+        : Promise.resolve(null),
+      api.playlistsPage(playlistPage, gridPageSize).catch(() => null),
       api.smartPlaylists().catch(() => []),
     ]);
     if (isStale()) return;
     setRecentPlayedSongs(recentPlayedItems);
     setRecentAddedSongs(recentAddedItems);
-    setAlbumPageData(albumPageItem);
-    setArtistPageData(artistPageItem);
-    setPlaylistPageData(playlistPageItem);
-    setAlbums(albumPageItem.items);
-    setArtists(artistPageItem.items);
-    setPlaylists(playlistPageItem.items);
+    let acceptedAlbumPageItem: AlbumPage | null = null;
+    if (
+      albumPageItem &&
+      albumSnapshotIsCurrent() &&
+      albumPageMutationEpoch === albumFavoriteMutationRef.current
+    ) {
+      acceptedAlbumPageItem = commitAlbumBrowsePage(albumPageItem, albumBrowseSnapshot, albumPageMutationEpoch);
+    }
+    if (
+      artistPageItem &&
+      artistSnapshotIsCurrent() &&
+      artistPageMutationEpoch === artistFavoriteMutationRef.current
+    ) {
+      commitArtistBrowsePage(artistPageItem, artistBrowseSnapshot, artistPageMutationEpoch);
+    }
+    if (playlistPageItem) {
+      setPlaylistPageData(playlistPageItem);
+      setPlaylists(playlistPageItem.items);
+    }
     setSmartPlaylists(smartPlaylistItems);
 
     // Layer 3: deferred data - favorites, settings, network, radio. Stagger by 300ms.
     await new Promise((r) => setTimeout(r, 300));
     if (isStale()) return;
+    const favoriteAlbumMutationEpoch = albumFavoriteMutationRef.current;
+    const favoriteArtistMutationEpoch = artistFavoriteMutationRef.current;
     const [folderItems, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem] = await Promise.all([
       api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
       api.libraryDirectories().catch(() => []),
@@ -2441,8 +2678,8 @@ export default function App() {
         offset: 0,
         page: 1,
       })),
-      api.favoriteAlbums(FAVORITES_FETCH_LIMIT).catch(() => []),
-      api.favoriteArtists().catch(() => []),
+      api.favoriteAlbums(FAVORITES_FETCH_LIMIT).catch(() => null),
+      api.favoriteArtists().catch(() => null),
       api.networkSources().catch(() => []),
       api.radioSources().catch(() => []),
       api.topRadioStations(RADIO_STATION_LIMIT).catch(() => []),
@@ -2455,8 +2692,12 @@ export default function App() {
     setFolders(folderItems);
     setLibraryDirectories(libraryDirectoryItems);
     setFavoriteSongs(favoriteSongPageItem.items);
-    setFavoriteAlbums(favoriteAlbumItems);
-    setFavoriteArtists(favoriteArtistItems);
+    if (favoriteAlbumItems !== null && favoriteAlbumMutationEpoch === albumFavoriteMutationRef.current) {
+      setFavoriteAlbums(applyAlbumFavoriteOverrides(favoriteAlbumItems, favoriteAlbumMutationEpoch).filter((item) => item.favorite));
+    }
+    if (favoriteArtistItems !== null && favoriteArtistMutationEpoch === artistFavoriteMutationRef.current) {
+      setFavoriteArtists(applyArtistFavoriteOverrides(favoriteArtistItems, favoriteArtistMutationEpoch).filter((item) => item.favorite));
+    }
     setNetworkSources(networkSourceItems);
     const playableRadioStations = radioStationItems.map(radioStationToPlayable);
     const playableRadioFavorites = radioFavoriteItems.map(radioStationToPlayable);
@@ -2535,11 +2776,13 @@ export default function App() {
       return {
         ...old,
         songs: old.songs
-          .map((song) => songItems.find((item) => item.id === song.id))
-          .filter((song): song is Song => Boolean(song)),
-        albums: old.albums
-          ?.map((album) => albumPageItem.items.find((item) => item.id === album.id))
-          .filter((album): album is Album => Boolean(album)),
+          .map((song) => songItems.find((item) => item.id === song.id) ?? song),
+        albums: acceptedAlbumPageItem &&
+          !albumBrowseSnapshot.favoritesOnly &&
+          albumPageMutationEpoch === albumFavoriteMutationRef.current
+          ? old.albums
+              ?.map((album) => acceptedAlbumPageItem.items.find((item) => item.id === album.id) ?? album)
+          : old.albums,
       };
     });
   }
@@ -2629,61 +2872,250 @@ export default function App() {
     }
   }
 
-  async function loadAlbumPage(page: number, artistId = albumArtistFilter) {
+  function applyAlbumFavoriteOverrides(items: Album[], responseMutationEpoch?: number) {
+    return items.map((item) => {
+      const override = albumFavoriteStateRef.current.get(item.id);
+      if (!override) return item;
+      if (responseMutationEpoch != null && override.mutationEpoch <= responseMutationEpoch) {
+        albumFavoriteStateRef.current.delete(item.id);
+        return item;
+      }
+      return override.favorite === item.favorite ? item : { ...item, favorite: override.favorite };
+    });
+  }
+
+  function applyArtistFavoriteOverrides(items: Artist[], responseMutationEpoch?: number) {
+    return items.map((item) => {
+      const override = artistFavoriteStateRef.current.get(item.id);
+      if (!override) return item;
+      if (responseMutationEpoch != null && override.mutationEpoch <= responseMutationEpoch) {
+        artistFavoriteStateRef.current.delete(item.id);
+        return item;
+      }
+      return override.favorite === item.favorite ? item : { ...item, favorite: override.favorite };
+    });
+  }
+
+  function commitAlbumBrowsePage(pageItem: AlbumPage, query: AlbumBrowseQuery, responseMutationEpoch?: number) {
+    const data = { ...pageItem, items: applyAlbumFavoriteOverrides(pageItem.items, responseMutationEpoch) };
+    const committedQuery = { ...query, page: data.page, limit: data.limit };
+    albumArtistFilterRef.current = committedQuery.artistID;
+    albumArtistQueryRef.current = committedQuery.artistName;
+    albumFavoritesOnlyRef.current = committedQuery.favoritesOnly;
+    albumBrowseIntentRef.current = committedQuery;
+    albumBrowseCommittedRef.current = { query: committedQuery, data };
+    setAlbumPage(data.page);
+    setAlbumPageData(data);
+    setAlbumArtistFilter(committedQuery.artistID);
+    setAlbumArtistQuery(committedQuery.artistName);
+    setAlbumFavoritesOnly(committedQuery.favoritesOnly);
+    setAlbums((old) => mergeAlbums(old, data.items));
+    return data;
+  }
+
+  function commitArtistBrowsePage(pageItem: ArtistPage, query: ArtistBrowseQuery, responseMutationEpoch?: number) {
+    const data = { ...pageItem, items: applyArtistFavoriteOverrides(pageItem.items, responseMutationEpoch) };
+    const committedQuery = { ...query, page: data.page, limit: data.limit };
+    artistInitialFilterRef.current = committedQuery.initial;
+    artistFavoritesOnlyRef.current = committedQuery.favoritesOnly;
+    artistBrowseIntentRef.current = committedQuery;
+    artistBrowseCommittedRef.current = { query: committedQuery, data };
+    setArtistPage(data.page);
+    setArtistPageData(data);
+    setArtistInitialFilter(committedQuery.initial);
+    setArtistFavoritesOnly(committedQuery.favoritesOnly);
+    setArtists((old) => mergeArtists(old, data.items));
+    return data;
+  }
+
+  function restoreAlbumBrowse(fallback?: AlbumBrowseQuery) {
+    const committed = albumBrowseCommittedRef.current;
+    const query = committed?.query ?? fallback;
+    if (!query) return;
+    albumArtistFilterRef.current = query.artistID;
+    albumArtistQueryRef.current = query.artistName;
+    albumFavoritesOnlyRef.current = query.favoritesOnly;
+    albumBrowseIntentRef.current = query;
+    setAlbumPage(query.page);
+    setAlbumArtistFilter(query.artistID);
+    setAlbumArtistQuery(query.artistName);
+    setAlbumFavoritesOnly(query.favoritesOnly);
+    if (committed) {
+      const data = { ...committed.data, items: applyAlbumFavoriteOverrides(committed.data.items) };
+      albumBrowseCommittedRef.current = { query, data };
+      setAlbumPageData(data);
+      setAlbums((old) => mergeAlbums(old, data.items));
+    }
+  }
+
+  function restoreArtistBrowse(fallback?: ArtistBrowseQuery) {
+    const committed = artistBrowseCommittedRef.current;
+    const query = committed?.query ?? fallback;
+    if (!query) return;
+    artistInitialFilterRef.current = query.initial;
+    artistFavoritesOnlyRef.current = query.favoritesOnly;
+    artistBrowseIntentRef.current = query;
+    setArtistPage(query.page);
+    setArtistInitialFilter(query.initial);
+    setArtistFavoritesOnly(query.favoritesOnly);
+    if (committed) {
+      const data = { ...committed.data, items: applyArtistFavoriteOverrides(committed.data.items) };
+      artistBrowseCommittedRef.current = { query, data };
+      setArtistPageData(data);
+      setArtists((old) => mergeArtists(old, data.items));
+    }
+  }
+
+  async function loadAlbumPage(
+    page: number,
+    artistID = albumArtistFilterRef.current,
+    favoritesOnly = albumFavoritesOnlyRef.current,
+    artistName = albumArtistQueryRef.current,
+    limit = gridPageSizeRef.current,
+  ): Promise<AlbumPage | undefined> {
     const nextPage = Math.max(1, page);
+    const query = { page: nextPage, limit, artistID, artistName, favoritesOnly };
+    const requestID = ++albumPageRequestRef.current;
+    const mutationEpoch = albumFavoriteMutationRef.current;
+    albumBrowseIntentRef.current = query;
+    albumPageInFlightRef.current = requestID;
     if (offlineModeRef.current) {
-      setAlbumPage(nextPage);
-      setAlbumPageData({ items: [], total: 0, limit: gridPageSize, offset: 0, page: nextPage });
-      setAlbums([]);
-      return;
+      const emptyPage = { items: [], total: 0, limit, offset: 0, page: nextPage };
+      albumPageInFlightRef.current = null;
+      setAlbumPageLoading(false);
+      return commitAlbumBrowsePage(emptyPage, query);
     }
     setAlbumPageLoading(true);
     try {
-      const pageItem = await api.albumsPage(nextPage, gridPageSize, artistId);
-      setAlbumPage(pageItem.page);
-      setAlbumPageData(pageItem);
-      setAlbums(pageItem.items);
+      const pageItem = await api.albumsPage(nextPage, limit, artistID, undefined, favoritesOnly);
+      if (requestID !== albumPageRequestRef.current) return undefined;
+      if (mutationEpoch !== albumFavoriteMutationRef.current) {
+        return loadAlbumPage(nextPage, artistID, favoritesOnly, artistName, gridPageSizeRef.current);
+      }
+      const lastPage = Math.max(1, Math.ceil(pageItem.total / Math.max(1, pageItem.limit)));
+      if (nextPage > lastPage || pageItem.page > lastPage) {
+        return loadAlbumPage(lastPage, artistID, favoritesOnly, artistName, gridPageSizeRef.current);
+      }
+      return commitAlbumBrowsePage(pageItem, query, mutationEpoch);
+    } catch (error) {
+      if (requestID !== albumPageRequestRef.current) return undefined;
+      throw error;
     } finally {
-      setAlbumPageLoading(false);
+      if (requestID === albumPageRequestRef.current) {
+        albumPageInFlightRef.current = null;
+        setAlbumPageLoading(false);
+      }
+    }
+  }
+
+  async function loadArtistPage(
+    page: number,
+    initial = artistInitialFilterRef.current,
+    favoritesOnly = artistFavoritesOnlyRef.current,
+    limit = gridPageSizeRef.current,
+  ): Promise<ArtistPage | undefined> {
+    const nextPage = Math.max(1, page);
+    const query = { page: nextPage, limit, initial, favoritesOnly };
+    const requestID = ++artistPageRequestRef.current;
+    const mutationEpoch = artistFavoriteMutationRef.current;
+    artistBrowseIntentRef.current = query;
+    artistPageInFlightRef.current = requestID;
+    if (offlineModeRef.current) {
+      const emptyPage = { items: [], total: 0, limit, offset: 0, page: nextPage, initials: [] };
+      artistPageInFlightRef.current = null;
+      setArtistPageLoading(false);
+      return commitArtistBrowsePage(emptyPage, query);
+    }
+    setArtistPageLoading(true);
+    try {
+      const pageItem = await api.artistsPage(nextPage, limit, initial, favoritesOnly);
+      if (requestID !== artistPageRequestRef.current) return undefined;
+      if (mutationEpoch !== artistFavoriteMutationRef.current) {
+        return loadArtistPage(nextPage, initial, favoritesOnly, gridPageSizeRef.current);
+      }
+      const lastPage = Math.max(1, Math.ceil(pageItem.total / Math.max(1, pageItem.limit)));
+      if (nextPage > lastPage || pageItem.page > lastPage) {
+        return loadArtistPage(lastPage, initial, favoritesOnly, gridPageSizeRef.current);
+      }
+      return commitArtistBrowsePage(pageItem, query, mutationEpoch);
+    } catch (error) {
+      if (requestID !== artistPageRequestRef.current) return undefined;
+      throw error;
+    } finally {
+      if (requestID === artistPageRequestRef.current) {
+        artistPageInFlightRef.current = null;
+        setArtistPageLoading(false);
+      }
+    }
+  }
+
+  async function requestAlbumPage(
+    page: number,
+    artistID = albumArtistFilterRef.current,
+    favoritesOnly = albumFavoritesOnlyRef.current,
+    artistName = albumArtistQueryRef.current,
+    failureKey: TKey = "loadFailed",
+  ) {
+    const fallback = { ...albumBrowseIntentRef.current };
+    try {
+      await loadAlbumPage(page, artistID, favoritesOnly, artistName);
+    } catch {
+      restoreAlbumBrowse(fallback);
+      showMessage(t(failureKey));
+    }
+  }
+
+  async function requestArtistPage(
+    page: number,
+    initial = artistInitialFilterRef.current,
+    favoritesOnly = artistFavoritesOnlyRef.current,
+    failureKey: TKey = "loadFailed",
+  ) {
+    const fallback = { ...artistBrowseIntentRef.current };
+    try {
+      await loadArtistPage(page, initial, favoritesOnly);
+    } catch {
+      restoreArtistBrowse(fallback);
+      showMessage(t(failureKey));
     }
   }
 
   function selectAlbumArtistFilter(artistItem: Artist) {
+    albumArtistFilterRef.current = artistItem.id;
+    albumArtistQueryRef.current = artistItem.name;
     setAlbumArtistFilter(artistItem.id);
     setAlbumArtistQuery(artistItem.name);
-    void loadAlbumPage(1, artistItem.id);
+    void requestAlbumPage(1, artistItem.id, albumFavoritesOnlyRef.current, artistItem.name, "favoriteFilterFailed");
   }
 
   function clearAlbumArtistFilter() {
-    const hadFilter = albumArtistFilter > 0 || albumArtistQuery.trim() !== "";
+    const hadFilter = albumArtistFilterRef.current > 0 || albumArtistQueryRef.current.trim() !== "";
+    albumArtistFilterRef.current = 0;
+    albumArtistQueryRef.current = "";
     setAlbumArtistFilter(0);
     setAlbumArtistQuery("");
-    if (hadFilter) void loadAlbumPage(1, 0);
+    if (hadFilter) void requestAlbumPage(1, 0, albumFavoritesOnlyRef.current, "", "favoriteFilterFailed");
   }
 
-  async function loadArtistPage(page: number, initial = artistInitialFilter) {
-    const nextPage = Math.max(1, page);
-    if (offlineModeRef.current) {
-      setArtistPage(nextPage);
-      setArtistPageData({ items: [], total: 0, limit: gridPageSize, offset: 0, page: nextPage, initials: [] });
-      setArtists([]);
-      return;
-    }
-    setArtistPageLoading(true);
-    try {
-      const pageItem = await api.artistsPage(nextPage, gridPageSize, initial);
-      setArtistPage(pageItem.page);
-      setArtistPageData(pageItem);
-      setArtists(pageItem.items);
-    } finally {
-      setArtistPageLoading(false);
-    }
+  function toggleAlbumFavoritesFilter() {
+    const next = !albumFavoritesOnlyRef.current;
+    albumFavoritesOnlyRef.current = next;
+    setAlbumFavoritesOnly(next);
+    void requestAlbumPage(1, albumArtistFilterRef.current, next, albumArtistQueryRef.current, "favoriteFilterFailed");
   }
 
   function selectArtistInitialFilter(initial: string) {
-    const nextInitial = initial === artistInitialFilter ? "" : initial;
+    const nextInitial = initial === artistInitialFilterRef.current ? "" : initial;
+    artistInitialFilterRef.current = nextInitial;
     setArtistInitialFilter(nextInitial);
-    void loadArtistPage(1, nextInitial);
+    void requestArtistPage(1, nextInitial, artistFavoritesOnlyRef.current, "favoriteFilterFailed");
+  }
+
+  function toggleArtistFavoritesFilter() {
+    const next = !artistFavoritesOnlyRef.current;
+    artistFavoritesOnlyRef.current = next;
+    setArtistFavoritesOnly(next);
+    void requestArtistPage(1, artistInitialFilterRef.current, next, "favoriteFilterFailed");
   }
 
   async function loadPlaylistPage(page: number) {
@@ -2705,28 +3137,75 @@ export default function App() {
     }
   }
 
+  async function loadShellAlbumPage(page: number) {
+    const nextPage = Math.max(1, page);
+    const requestID = ++shellAlbumPageRequestRef.current;
+    if (offlineModeRef.current) {
+      setShellAlbumPageData({ items: [], total: 0, limit: gridPageSize, offset: 0, page: nextPage });
+      return;
+    }
+    setShellAlbumPageLoading(true);
+    try {
+      const pageItem = await api.albumsPage(nextPage, gridPageSize, 0, undefined, false);
+      if (requestID !== shellAlbumPageRequestRef.current) return;
+      setShellAlbumPageData(pageItem);
+      setAlbums((old) => mergeAlbums(old, pageItem.items));
+    } catch {
+      // Keep the last usable shell page visible when this independent surface fails.
+    } finally {
+      if (requestID === shellAlbumPageRequestRef.current) setShellAlbumPageLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!auth?.user || authLoading) return;
-    if (!librarySongPage && !albumPageData && !artistPageData && !playlistPageData) return;
-    const nextLibraryPage = librarySongPage
-      ? Math.floor(librarySongPage.offset / libraryPageSize) + 1
-      : libraryPage;
-    const nextAlbumPage = albumPageData
-      ? Math.floor(albumPageData.offset / gridPageSize) + 1
-      : albumPage;
-    const nextArtistPage = artistPageData
-      ? Math.floor(artistPageData.offset / gridPageSize) + 1
-      : artistPage;
-    const nextPlaylistPage = playlistPageData
-      ? Math.floor(playlistPageData.offset / gridPageSize) + 1
-      : playlistPage;
-    void Promise.all([
-      loadLibrarySongsPage(nextLibraryPage),
-      loadAlbumPage(nextAlbumPage),
-      loadArtistPage(nextArtistPage),
-      loadPlaylistPage(nextPlaylistPage),
-    ]);
-  }, [libraryPageSize, gridPageSize, artistInitialFilter]);
+    const pending: Promise<unknown>[] = [];
+    if (!librarySongPage) pending.push(loadLibrarySongsPage(1));
+    if (!albumPageData) pending.push(requestAlbumPage(1));
+    if (!artistPageData) pending.push(requestArtistPage(1));
+    if (!playlistPageData) pending.push(loadPlaylistPage(1));
+    if (pending.length) void Promise.allSettled(pending);
+  }, [auth?.user?.id, authLoading]);
+
+  useEffect(() => {
+    if (interfaceMode !== "shell" || mobileViewport || !auth?.user || authLoading) return;
+    void loadShellAlbumPage(shellAlbumPageData?.page ?? 1);
+  }, [interfaceMode, mobileViewport, auth?.user?.id, authLoading, gridPageSize]);
+
+  useEffect(() => {
+    if (!auth?.user || authLoading) return;
+    const pending: Promise<unknown>[] = [];
+    if (librarySongPage && librarySongPage.limit !== libraryPageSize) {
+      const nextPage = Math.floor(librarySongPage.offset / libraryPageSize) + 1;
+      pending.push(loadLibrarySongsPage(nextPage));
+    }
+    if (albumPageData && albumPageData.limit !== gridPageSize) {
+      const nextPage = albumPageInFlightRef.current != null
+        ? albumBrowseIntentRef.current.page
+        : Math.floor(albumPageData.offset / gridPageSize) + 1;
+      pending.push(requestAlbumPage(nextPage));
+    }
+    if (artistPageData && artistPageData.limit !== gridPageSize) {
+      const nextPage = artistPageInFlightRef.current != null
+        ? artistBrowseIntentRef.current.page
+        : Math.floor(artistPageData.offset / gridPageSize) + 1;
+      pending.push(requestArtistPage(nextPage));
+    }
+    if (playlistPageData && playlistPageData.limit !== gridPageSize) {
+      const nextPage = Math.floor(playlistPageData.offset / gridPageSize) + 1;
+      pending.push(loadPlaylistPage(nextPage));
+    }
+    if (pending.length) void Promise.allSettled(pending);
+  }, [
+    auth?.user?.id,
+    authLoading,
+    libraryPageSize,
+    gridPageSize,
+    librarySongPage?.limit,
+    albumPageData?.limit,
+    artistPageData?.limit,
+    playlistPageData?.limit,
+  ]);
 
   async function refreshRecentPlayed() {
     setRecentPlayedSongs(await api.recentPlayedSongs(HOME_RECENT_LIMIT).catch(() => recentPlayedSongs));
@@ -3746,7 +4225,23 @@ export default function App() {
     setShareDialogTarget({ type, id, title });
   }
 
-  function updateAlbumFavoriteState(updated: Album) {
+  function updateAlbumFavoriteState(updated: Album, previousFavorite?: boolean) {
+    const mutationEpoch = ++albumFavoriteMutationRef.current;
+    albumFavoriteStateRef.current.set(updated.id, { favorite: updated.favorite, mutationEpoch });
+    const committed = albumBrowseCommittedRef.current;
+    if (committed) {
+      const matchesArtist = committed.query.artistID <= 0 || committed.query.artistID === updated.artist_id;
+      const favoriteChanged = previousFavorite != null && previousFavorite !== updated.favorite;
+      const items = committed.data.items
+        .map((item) => (item.id === updated.id ? updated : item))
+        .filter((item) => !committed.query.favoritesOnly || item.favorite);
+      const total = committed.query.favoritesOnly && matchesArtist && favoriteChanged
+        ? Math.max(0, committed.data.total + (updated.favorite ? 1 : -1))
+        : committed.data.total;
+      const data = { ...committed.data, items, total };
+      albumBrowseCommittedRef.current = { ...committed, data };
+      setAlbumPageData(data);
+    }
     setFavoriteAlbums((old) => {
       if (!updated.favorite) return old.filter((item) => item.id !== updated.id);
       const exists = old.some((item) => item.id === updated.id);
@@ -3754,9 +4249,10 @@ export default function App() {
         ? old.map((item) => (item.id === updated.id ? updated : item))
         : [updated, ...old];
     });
-    setAlbums((old) =>
-      old.map((item) => (item.id === updated.id ? updated : item)),
-    );
+    setShellAlbumPageData((old) => old
+      ? { ...old, items: old.items.map((item) => (item.id === updated.id ? updated : item)) }
+      : old);
+    setAlbums((old) => mergeAlbums(old, [updated]));
     setCollection((old) =>
       old?.type === "album" && old.id === updated.id
         ? {
@@ -3777,23 +4273,127 @@ export default function App() {
     );
   }
 
+  function clampCommittedAlbumFavoritePage() {
+    const committed = albumBrowseCommittedRef.current;
+    if (!committed?.query.favoritesOnly) return;
+    const lastPage = Math.max(1, Math.ceil(committed.data.total / Math.max(1, committed.data.limit)));
+    if (committed.query.page <= lastPage) return;
+    const query = { ...committed.query, page: lastPage };
+    commitAlbumBrowsePage({
+      ...committed.data,
+      items: [],
+      page: lastPage,
+      offset: (lastPage - 1) * committed.data.limit,
+    }, query);
+  }
+
+  async function reconcileFavoriteAlbumPage() {
+    const query = { ...albumBrowseIntentRef.current };
+    if (!query.favoritesOnly) return;
+    try {
+      await loadAlbumPage(query.page, query.artistID, true, query.artistName);
+    } catch {
+      const committed = albumBrowseCommittedRef.current;
+      if (committed && sameAlbumBrowseQuery(committed.query, albumBrowseIntentRef.current)) {
+        const lastPage = Math.max(1, Math.ceil(committed.data.total / Math.max(1, committed.data.limit)));
+        if (query.page > lastPage) {
+          try {
+            await loadAlbumPage(lastPage, query.artistID, true, query.artistName);
+            return;
+          } catch {
+            clampCommittedAlbumFavoritePage();
+            showMessage(t("favoriteFilterFailed"));
+            return;
+          }
+        }
+      }
+      if (!committed || !sameAlbumBrowseQuery(committed.query, albumBrowseIntentRef.current)) {
+        restoreAlbumBrowse(query);
+      } else {
+        clampCommittedAlbumFavoritePage();
+      }
+      showMessage(t("favoriteFilterFailed"));
+    }
+  }
+
+  async function toggleAlbumFavoriteById(id: number, initialFavorite?: boolean) {
+    const expectedUserID = auth?.user?.id ?? 0;
+    if (!id || !expectedUserID) return;
+    if (albumFavoriteQueueRef.current.has(id)) {
+      if (albumFavoriteRepeatRef.current.has(id)) albumFavoriteRepeatRef.current.delete(id);
+      else albumFavoriteRepeatRef.current.add(id);
+      return;
+    }
+    const session = favoriteSessionRef.current;
+    let lastUpdated: Album | null = null;
+    const mutation = (async () => {
+      let previousFavorite = albumFavoriteStateRef.current.get(id)?.favorite ?? initialFavorite;
+      let updated: Album | null = null;
+      do {
+        if (session !== favoriteSessionRef.current) return null;
+        const targetFavorite = !previousFavorite;
+        const controller = new AbortController();
+        updated = await loadWithTimeout(
+          (signal) => api.favoriteAlbum(id, targetFavorite, expectedUserID, signal),
+          controller,
+        );
+        if (session !== favoriteSessionRef.current) return null;
+        updateAlbumFavoriteState(updated, previousFavorite);
+        lastUpdated = updated;
+        previousFavorite = updated.favorite;
+        playUISound(updated.favorite ? "favorite" : "toggleOff");
+      } while (albumFavoriteRepeatRef.current.delete(id));
+      return updated;
+    })();
+    albumFavoriteQueueRef.current.set(id, mutation);
+    try {
+      lastUpdated = await mutation;
+    } catch {
+      if (session === favoriteSessionRef.current) showMessage(t("favoriteUpdateFailed"));
+    } finally {
+      if (albumFavoriteQueueRef.current.get(id) === mutation) {
+        albumFavoriteQueueRef.current.delete(id);
+        albumFavoriteRepeatRef.current.delete(id);
+      }
+    }
+    if (lastUpdated) await reconcileFavoriteAlbumPage();
+  }
+
   async function toggleAlbumFavorite(album: Album) {
-    const updated = await api.favoriteAlbum(album.id);
-    updateAlbumFavoriteState(updated);
-    playUISound(updated.favorite ? "favorite" : "toggleOff");
+    await toggleAlbumFavoriteById(album.id, album.favorite);
   }
 
-  async function toggleAlbumFavoriteById(id: number) {
-    if (!id) return;
-    const updated = await api.favoriteAlbum(id);
-    updateAlbumFavoriteState(updated);
-    playUISound(updated.favorite ? "favorite" : "toggleOff");
-  }
-
-  function updateArtistFavoriteState(updated: Artist) {
-    setArtists((old) =>
-      old.map((item) => (item.id === updated.id ? updated : item)),
-    );
+  function updateArtistFavoriteState(updated: Artist, previousFavorite?: boolean) {
+    const mutationEpoch = ++artistFavoriteMutationRef.current;
+    artistFavoriteStateRef.current.set(updated.id, { favorite: updated.favorite, mutationEpoch });
+    const committed = artistBrowseCommittedRef.current;
+    if (committed) {
+      const matchesInitial = !committed.query.initial || committed.query.initial === updated.initial;
+      const favoriteChanged = previousFavorite != null && previousFavorite !== updated.favorite;
+      const items = committed.data.items
+        .map((item) => (item.id === updated.id ? updated : item))
+        .filter((item) => !committed.query.favoritesOnly || item.favorite);
+      const total = committed.query.favoritesOnly && matchesInitial && favoriteChanged
+        ? Math.max(0, committed.data.total + (updated.favorite ? 1 : -1))
+        : committed.data.total;
+      let initials = committed.data.initials;
+      if (committed.query.favoritesOnly && favoriteChanged && updated.favorite && updated.initial) {
+        initials = Array.from(new Set([...initials, updated.initial])).sort();
+      } else if (
+        committed.query.favoritesOnly &&
+        favoriteChanged &&
+        !updated.favorite &&
+        total === 0
+      ) {
+        initials = committed.query.initial
+          ? initials.filter((initial) => initial !== updated.initial)
+          : [];
+      }
+      const data = { ...committed.data, items, total, initials };
+      artistBrowseCommittedRef.current = { ...committed, data };
+      setArtistPageData(data);
+    }
+    setArtists((old) => mergeArtists(old, [updated]));
     setFavoriteArtists((old) => {
       if (!updated.favorite) return old.filter((item) => item.id !== updated.id);
       const exists = old.some((item) => item.id === updated.id);
@@ -3808,17 +4408,94 @@ export default function App() {
     );
   }
 
-  async function toggleArtistFavorite(artistItem: Artist) {
-    const updated = await api.favoriteArtist(artistItem.id);
-    updateArtistFavoriteState(updated);
-    playUISound(updated.favorite ? "favorite" : "toggleOff");
+  function clampCommittedArtistFavoritePage() {
+    const committed = artistBrowseCommittedRef.current;
+    if (!committed?.query.favoritesOnly) return;
+    const lastPage = Math.max(1, Math.ceil(committed.data.total / Math.max(1, committed.data.limit)));
+    if (committed.query.page <= lastPage) return;
+    const query = { ...committed.query, page: lastPage };
+    commitArtistBrowsePage({
+      ...committed.data,
+      items: [],
+      page: lastPage,
+      offset: (lastPage - 1) * committed.data.limit,
+    }, query);
   }
 
-  async function toggleArtistFavoriteById(id: number) {
-    if (!id) return;
-    const updated = await api.favoriteArtist(id);
-    updateArtistFavoriteState(updated);
-    playUISound(updated.favorite ? "favorite" : "toggleOff");
+  async function reconcileFavoriteArtistPage() {
+    const query = { ...artistBrowseIntentRef.current };
+    if (!query.favoritesOnly) return;
+    try {
+      await loadArtistPage(query.page, query.initial, true);
+    } catch {
+      const committed = artistBrowseCommittedRef.current;
+      if (committed && sameArtistBrowseQuery(committed.query, artistBrowseIntentRef.current)) {
+        const lastPage = Math.max(1, Math.ceil(committed.data.total / Math.max(1, committed.data.limit)));
+        if (query.page > lastPage) {
+          try {
+            await loadArtistPage(lastPage, query.initial, true);
+            return;
+          } catch {
+            clampCommittedArtistFavoritePage();
+            showMessage(t("favoriteFilterFailed"));
+            return;
+          }
+        }
+      }
+      if (!committed || !sameArtistBrowseQuery(committed.query, artistBrowseIntentRef.current)) {
+        restoreArtistBrowse(query);
+      } else {
+        clampCommittedArtistFavoritePage();
+      }
+      showMessage(t("favoriteFilterFailed"));
+    }
+  }
+
+  async function toggleArtistFavoriteById(id: number, initialFavorite?: boolean) {
+    const expectedUserID = auth?.user?.id ?? 0;
+    if (!id || !expectedUserID) return;
+    if (artistFavoriteQueueRef.current.has(id)) {
+      if (artistFavoriteRepeatRef.current.has(id)) artistFavoriteRepeatRef.current.delete(id);
+      else artistFavoriteRepeatRef.current.add(id);
+      return;
+    }
+    const session = favoriteSessionRef.current;
+    let lastUpdated: Artist | null = null;
+    const mutation = (async () => {
+      let previousFavorite = artistFavoriteStateRef.current.get(id)?.favorite ?? initialFavorite;
+      let updated: Artist | null = null;
+      do {
+        if (session !== favoriteSessionRef.current) return null;
+        const targetFavorite = !previousFavorite;
+        const controller = new AbortController();
+        updated = await loadWithTimeout(
+          (signal) => api.favoriteArtist(id, targetFavorite, expectedUserID, signal),
+          controller,
+        );
+        if (session !== favoriteSessionRef.current) return null;
+        updateArtistFavoriteState(updated, previousFavorite);
+        lastUpdated = updated;
+        previousFavorite = updated.favorite;
+        playUISound(updated.favorite ? "favorite" : "toggleOff");
+      } while (artistFavoriteRepeatRef.current.delete(id));
+      return updated;
+    })();
+    artistFavoriteQueueRef.current.set(id, mutation);
+    try {
+      lastUpdated = await mutation;
+    } catch {
+      if (session === favoriteSessionRef.current) showMessage(t("favoriteUpdateFailed"));
+    } finally {
+      if (artistFavoriteQueueRef.current.get(id) === mutation) {
+        artistFavoriteQueueRef.current.delete(id);
+        artistFavoriteRepeatRef.current.delete(id);
+      }
+    }
+    if (lastUpdated) await reconcileFavoriteArtistPage();
+  }
+
+  async function toggleArtistFavorite(artistItem: Artist) {
+    await toggleArtistFavoriteById(artistItem.id, artistItem.favorite);
   }
 
   async function toggleRadioFavorite(station: RadioStation) {
@@ -3927,6 +4604,12 @@ export default function App() {
   // beginCollectionRequest starts a fresh collection load: it aborts any in-flight
   // previous load (so rapid artist/album navigation doesn't stack orphaned requests
   // that compound server load) and bumps the request id used to ignore stale results.
+  function invalidateCollectionRequest() {
+    collectionRequestRef.current += 1;
+    collectionAbortRef.current?.abort();
+    collectionAbortRef.current = null;
+  }
+
   function beginCollectionRequest(): { requestId: number; controller: AbortController } {
     collectionAbortRef.current?.abort();
     const controller = new AbortController();
@@ -4019,6 +4702,8 @@ export default function App() {
   async function openAlbum(album: Album, backTo: Collection | null = null) {
     setCollectionBack(backTo);
     const { requestId, controller } = beginCollectionRequest();
+    const albumRequestMutationEpoch = albumFavoriteMutationRef.current;
+    const initialFavorite = albumFavoriteStateRef.current.get(album.id)?.favorite ?? album.favorite;
     const nextCollection: Collection = {
       type: "album",
       id: album.id,
@@ -4029,7 +4714,7 @@ export default function App() {
         t("loading"),
       ].filter(Boolean).join(" · "),
       loading: true,
-      favorite: album.favorite,
+      favorite: initialFavorite,
       coverUrl: albumCoverUrl(album),
       artistId: album.artist_id,
       artistName: album.artist,
@@ -4040,29 +4725,30 @@ export default function App() {
     try {
       const [items, refreshedAlbum] = await Promise.all([
         loadWithTimeout((signal) => api.albumSongs(album.id, COLLECTION_DETAIL_SONG_LIMIT, signal), controller, COLLECTION_LOAD_TIMEOUT_MS),
-        api.album(album.id, controller.signal).catch(() => album),
+        api.album(album.id, controller.signal).catch(() => null),
       ]);
-      setAlbums((old) => {
-        const exists = old.some((item) => item.id === refreshedAlbum.id);
-        return exists
-          ? old.map((item) => (item.id === refreshedAlbum.id ? refreshedAlbum : item))
-          : [refreshedAlbum, ...old];
-      });
       if (requestId !== collectionRequestRef.current) return;
+      const resolvedAlbum = applyAlbumFavoriteOverrides(
+        [refreshedAlbum ?? album],
+        refreshedAlbum ? albumRequestMutationEpoch : undefined,
+      )[0];
+      setAlbums((old) => old.map((item) =>
+        item.id === resolvedAlbum.id ? resolvedAlbum : item,
+      ));
       setCollection({
         type: "album",
-        id: refreshedAlbum.id,
-        title: refreshedAlbum.title,
+        id: resolvedAlbum.id,
+        title: resolvedAlbum.title,
         subtitle: [
-          refreshedAlbum.artist,
-          refreshedAlbum.year ? String(refreshedAlbum.year) : "",
-          `${refreshedAlbum.song_count || items.length} ${t("count")}`,
+          resolvedAlbum.artist,
+          resolvedAlbum.year ? String(resolvedAlbum.year) : "",
+          `${resolvedAlbum.song_count || items.length} ${t("count")}`,
         ].filter(Boolean).join(" · "),
-        favorite: refreshedAlbum.favorite,
+        favorite: resolvedAlbum.favorite,
         songs: items,
-        coverUrl: albumCoverUrl(refreshedAlbum),
-        artistId: refreshedAlbum.artist_id,
-        artistName: refreshedAlbum.artist,
+        coverUrl: albumCoverUrl(resolvedAlbum),
+        artistId: resolvedAlbum.artist_id,
+        artistName: resolvedAlbum.artist,
       });
     } catch (error) {
       setCollectionLoadError(nextCollection, requestId, error);
@@ -4077,7 +4763,6 @@ export default function App() {
       return;
     }
     const item = await api.album(song.album_id);
-    setAlbums((old) => (old.some((album) => album.id === item.id) ? old : [item, ...old]));
     await openAlbum(item, backTo);
   }
 
@@ -4085,16 +4770,19 @@ export default function App() {
     if (!id) return;
     setCollectionBack(null);
     const { requestId, controller } = beginCollectionRequest();
-    const artist = artists.find((item) => item.id === id);
+    const artist = artists.find((item) => item.id === id) ?? favoriteArtists.find((item) => item.id === id);
     const title = artist?.name || fallbackName || t("artists");
     const artistAlbums = albums.filter((album) => album.artist_id === id && album.song_count > 0);
+    const albumRequestMutationEpoch = albumFavoriteMutationRef.current;
+    const artistRequestMutationEpoch = artistFavoriteMutationRef.current;
+    const initialFavorite = artistFavoriteStateRef.current.get(id)?.favorite ?? artist?.favorite ?? false;
     const nextCollection: Collection = {
       type: "artist",
       id,
       title,
       subtitle: t("loading"),
       loading: true,
-      favorite: artist?.favorite ?? false,
+      favorite: initialFavorite,
       songs: [],
       albums: artistAlbums,
       coverUrl: `/api/artists/${id}/cover`,
@@ -4104,28 +4792,38 @@ export default function App() {
     setCollection(nextCollection);
     setView("collection");
     try {
-      const [items, artistAlbumPage] = await Promise.all([
+      const [items, artistAlbumPage, refreshedArtist] = await Promise.all([
         loadWithTimeout((signal) => api.artistSongs(id, COLLECTION_DETAIL_SONG_LIMIT, signal), controller),
         api.albumsPage(1, MAX_GRID_PAGE_SIZE, id, controller.signal).catch(() => null),
+        api.artist(id, controller.signal),
       ]);
       if (requestId !== collectionRequestRef.current) return;
+      const resolvedArtist = applyArtistFavoriteOverrides(
+        [refreshedArtist],
+        artistRequestMutationEpoch,
+      )[0];
       const resolvedTitle =
-        artist?.name || fallbackName || items[0]?.artist || t("artists");
-      const resolvedAlbums = artistAlbumPage?.items ?? albumsFromSongs(items, id, resolvedTitle);
+        resolvedArtist.name || fallbackName || items[0]?.artist || t("artists");
+      const resolvedAlbums = applyAlbumFavoriteOverrides(
+        artistAlbumPage?.items ?? albumsFromSongs(items, id, resolvedTitle),
+        artistAlbumPage ? albumRequestMutationEpoch : undefined,
+      );
       setCollection({
         type: "artist",
         id,
         title: resolvedTitle,
-        subtitle: `${artist?.song_count || items.length} ${t("count")}`,
-        favorite: artist?.favorite ?? false,
+        subtitle: `${resolvedArtist.song_count || items.length} ${t("count")}`,
+        favorite: resolvedArtist.favorite,
         songs: items,
         albums: resolvedAlbums,
         coverUrl: `/api/artists/${id}/cover`,
         artistId: id,
         artistName: resolvedTitle,
       });
+      setArtists((old) => mergeArtists(old, [resolvedArtist]));
       if (artistAlbumPage?.items.length) {
-        setAlbums((old) => mergeAlbums(old, artistAlbumPage.items));
+        const resolvedByID = new Map(resolvedAlbums.map((item) => [item.id, item]));
+        setAlbums((old) => old.map((item) => resolvedByID.get(item.id) ?? item));
       }
     } catch (error) {
       setCollectionLoadError(nextCollection, requestId, error);
@@ -4217,8 +4915,8 @@ export default function App() {
     setView(id);
     if (id === "library") void loadLibrarySongsPage(1);
     if (id === "playlists") void loadPlaylistPage(1);
-    if (id === "albums") void loadAlbumPage(1);
-    if (id === "artists") void loadArtistPage(1);
+    if (id === "albums") void requestAlbumPage(1);
+    if (id === "artists") void requestArtistPage(1);
   };
   const activeNav = (id: View) =>
     view === id ||
@@ -4296,6 +4994,18 @@ export default function App() {
   ] as View[]).includes(view);
   const showTopbarScreenTitle = topbarHasScreenTitle && !(mobileViewport && view === "home");
   const showUserMenu = view !== "settings" && !mobileViewport;
+  const albumCacheByID = new Map(albums.map((item) => [item.id, item]));
+  const artistCacheByID = new Map(artists.map((item) => [item.id, item]));
+  const albumBrowseItems = (albumPageData?.items ?? albums)
+    .map((item) => albumCacheByID.get(item.id) ?? item);
+  const artistBrowseItems = (artistPageData?.items ?? artists)
+    .map((item) => artistCacheByID.get(item.id) ?? item);
+  const displayedAlbums = albumFavoritesOnly
+    ? albumBrowseItems.filter((item) => item.favorite)
+    : albumBrowseItems;
+  const displayedArtists = artistFavoritesOnly
+    ? artistBrowseItems.filter((item) => item.favorite)
+    : artistBrowseItems;
   const currentAlbum =
     current && current.album_id
       ? albums.find((item) => item.id === current.album_id)
@@ -4637,11 +5347,11 @@ export default function App() {
                 onOpenFavorites={() => openNavigationView("favorites")}
                 onOpenAlbums={() => {
                   setView("albums");
-                  void loadAlbumPage(1);
+                  void requestAlbumPage(1);
                 }}
                 onOpenArtists={() => {
                   setView("artists");
-                  void loadArtistPage(1);
+                  void requestArtistPage(1);
                 }}
                 onOpenPlaylists={() => {
                   setView("playlists");
@@ -4844,11 +5554,11 @@ export default function App() {
                 onFavoriteCollection={
                   collection.type === "album"
                     ? collection.id
-                      ? () => void toggleAlbumFavoriteById(collection.id!)
+                      ? () => void toggleAlbumFavoriteById(collection.id!, collection.favorite)
                       : undefined
                     : collection.type === "artist"
                       ? collection.id
-                        ? () => void toggleArtistFavoriteById(collection.id!)
+                        ? () => void toggleArtistFavoriteById(collection.id!, collection.favorite)
                         : undefined
                       : undefined
                 }
@@ -4919,17 +5629,25 @@ export default function App() {
                   t={t}
                   title={t("albums")}
                   variant="album"
-                  actionKey={`${settings.language}|${albumArtistFilter}|${albumArtistQuery}`}
+                  actionKey={`${settings.language}|${albumArtistFilter}|${albumArtistQuery}|${albumFavoritesOnly}|${albumPageData?.total ?? 0}|${albumPageLoading}`}
                   action={
-                    <AlbumArtistFilter
-                      t={t}
-                      selectedArtistId={albumArtistFilter}
-                      selectedArtistName={albumArtistQuery}
-                      onSelect={selectAlbumArtistFilter}
-                      onClear={clearAlbumArtistFilter}
-                    />
+                    <div className="collection-browse-actions">
+                      <FavoriteFilterToggle
+                        active={albumFavoritesOnly}
+                        count={albumPageLoading ? undefined : albumPageData?.total}
+                        t={t}
+                        onToggle={toggleAlbumFavoritesFilter}
+                      />
+                      <AlbumArtistFilter
+                        t={t}
+                        selectedArtistId={albumArtistFilter}
+                        selectedArtistName={albumArtistQuery}
+                        onSelect={selectAlbumArtistFilter}
+                        onClear={clearAlbumArtistFilter}
+                      />
+                    </div>
                   }
-                  items={albums.map((a) => ({
+                  items={displayedAlbums.map((a) => ({
                     id: a.id,
                     title: a.title,
                     subtitle: [a.year ? String(a.year) : "", `${a.song_count} ${t("count")}`]
@@ -4946,8 +5664,11 @@ export default function App() {
                     onPlay: () => void playAlbum(a),
                     onFavorite: () => void toggleAlbumFavorite(a),
                   }))}
+                  loading={albumPageLoading}
+                  emptyTitle={albumFavoritesOnly ? t("emptyFavoriteAlbums") : undefined}
+                  emptyDescription={albumFavoritesOnly ? t("emptyFavoriteAlbumsHint") : undefined}
                 />
-                <PaginationControls page={albumPageData} itemCount={albums.length} loading={albumPageLoading} t={t} onPageChange={loadAlbumPage} />
+                <PaginationControls page={albumPageData} itemCount={displayedAlbums.length} loading={albumPageLoading} t={t} onPageChange={requestAlbumPage} />
               </>
             )}
             {view === "artists" && (
@@ -4957,16 +5678,24 @@ export default function App() {
                   title={t("artists")}
                   variant="artist"
                   action={
-                    <ArtistInitialFilter
-                      active={artistInitialFilter}
-                      available={artistPageData?.initials ?? []}
-                      loading={artistPageLoading}
-                      t={t}
-                      onSelect={selectArtistInitialFilter}
-                    />
+                    <div className="collection-browse-actions">
+                      <FavoriteFilterToggle
+                        active={artistFavoritesOnly}
+                        count={artistPageLoading ? undefined : artistPageData?.total}
+                        t={t}
+                        onToggle={toggleArtistFavoritesFilter}
+                      />
+                      <ArtistInitialFilter
+                        active={artistInitialFilter}
+                        available={artistPageData?.initials ?? []}
+                        loading={artistPageLoading}
+                        t={t}
+                        onSelect={selectArtistInitialFilter}
+                      />
+                    </div>
                   }
-                  actionKey={`${artistInitialFilter}:${artistPageData?.initials?.join("") ?? ""}:${artistPageLoading ? "loading" : "ready"}`}
-                  items={artists.map((a) => ({
+                  actionKey={`${artistInitialFilter}:${artistPageData?.initials?.join("") ?? ""}:${artistPageLoading ? "loading" : "ready"}:${artistFavoritesOnly}:${artistPageData?.total ?? 0}`}
+                  items={displayedArtists.map((a) => ({
                     id: a.id,
                     title: a.name,
                     subtitle: `${a.song_count} ${t("count")} · ${a.album_count} ${t("album")}`,
@@ -4977,8 +5706,11 @@ export default function App() {
                     onPlay: () => void playArtist(a),
                     onFavorite: () => void toggleArtistFavorite(a),
                   }))}
+                  loading={artistPageLoading}
+                  emptyTitle={artistFavoritesOnly ? t("emptyFavoriteArtists") : undefined}
+                  emptyDescription={artistFavoritesOnly ? t("emptyFavoriteArtistsHint") : undefined}
                 />
-                <PaginationControls page={artistPageData} itemCount={artists.length} loading={artistPageLoading} t={t} onPageChange={loadArtistPage} />
+                <PaginationControls page={artistPageData} itemCount={displayedArtists.length} loading={artistPageLoading} t={t} onPageChange={requestArtistPage} />
               </>
             )}
             {view === "settings" && (
@@ -5248,6 +5980,8 @@ export default function App() {
           <button
             className="player-favorite"
             data-active={(currentRadio?.favorite || current?.favorite) ? "true" : "false"}
+            aria-label={t(currentRadio?.favorite || current?.favorite ? "removeFavorite" : "addFavorite")}
+            aria-pressed={Boolean(currentRadio?.favorite || current?.favorite)}
             disabled={!canFavoriteCurrent}
             onClick={toggleCurrentFavorite}
           >
@@ -5282,6 +6016,7 @@ export default function App() {
             max={playableDuration || 0}
             step="0.01"
             value={Math.min(progress, playableDuration || progress || 0)}
+            aria-label={t("position")}
             disabled={!playableDuration || Boolean(currentRadio)}
             style={seekStyle}
             onChange={(e) => {
@@ -5379,6 +6114,7 @@ export default function App() {
             max="1"
             step="0.01"
             value={volume}
+            aria-label={t("volume")}
             style={volumeStyle}
             onChange={(e) => {
               updateVolume(Number(e.target.value));
@@ -5605,9 +6341,9 @@ export default function App() {
         songs={songs}
         librarySongPage={librarySongPage}
         libraryPageLoading={libraryPageLoading}
-        albums={albums}
-        albumPage={albumPageData}
-        albumPageLoading={albumPageLoading}
+        albums={(shellAlbumPageData?.items ?? []).map((item) => albumCacheByID.get(item.id) ?? item)}
+        albumPage={shellAlbumPageData}
+        albumPageLoading={shellAlbumPageLoading}
         favoriteSongs={favoriteSongs}
         favoriteAlbums={favoriteAlbums}
         recentPlayedSongs={recentPlayedSongs}
@@ -5639,7 +6375,7 @@ export default function App() {
         onSeek={seekTo}
         onVolume={updateVolume}
         onLoadLibrarySongsPage={(page, search) => void loadLibrarySongsPage(page, search)}
-        onLoadAlbumPage={(page) => void loadAlbumPage(page)}
+        onLoadAlbumPage={(page) => void loadShellAlbumPage(page)}
       />
     ) : null}
     </>
@@ -7079,7 +7815,8 @@ function CollectionView({
               <button
                 className={collection.favorite ? "active" : ""}
                 onClick={onFavoriteCollection}
-                aria-label={t("favorites")}
+                aria-label={t(collection.favorite ? "removeFavorite" : "addFavorite")}
+                aria-pressed={Boolean(collection.favorite)}
               >
                 <Heart weight={collection.favorite ? "fill" : "regular"} /> {t("favorites")}
               </button>
@@ -7384,7 +8121,12 @@ function HistoryView({
                           <button onClick={() => onInsertNext([song])} title={t("playNext")} aria-label={t("playNext")}>
                             <SkipForward />
                           </button>
-                          <button onClick={() => onFavorite(song)} title={t("favorites")} aria-label={t("favorites")}>
+                          <button
+                            onClick={() => onFavorite(song)}
+                            title={t(song.favorite ? "removeFavorite" : "addFavorite")}
+                            aria-label={t(song.favorite ? "removeFavorite" : "addFavorite")}
+                            aria-pressed={song.favorite}
+                          >
                             <Heart weight={song.favorite ? "fill" : "regular"} />
                           </button>
                           <OfflineCacheButton
@@ -8674,7 +9416,8 @@ function FullLyrics({
             <button
               className={song.favorite ? "lyrics-pick lyrics-favorite active" : "lyrics-pick lyrics-favorite"}
               onClick={() => onFavoriteSong(song)}
-              aria-label={t("favorites")}
+              aria-label={t(song.favorite ? "removeFavorite" : "addFavorite")}
+              aria-pressed={song.favorite}
             >
               <Heart weight={song.favorite ? "fill" : "regular"} />
               <span>{t("favorites")}</span>
@@ -10989,7 +11732,12 @@ const SongRow = memo(function SongRow({
       <div className={QUALITY_CLASS} title={formatQuality(song)}>{formatQuality(song)}</div>
       <div className="song-duration">{formatDuration(song.duration_seconds)}</div>
       <div className="song-row-actions" aria-label={t("selected")}>
-        <button onClick={() => onFavorite(song)} title={t("favorites")} aria-label={t("favorites")}>
+        <button
+          onClick={() => onFavorite(song)}
+          title={t(song.favorite ? "removeFavorite" : "addFavorite")}
+          aria-label={t(song.favorite ? "removeFavorite" : "addFavorite")}
+          aria-pressed={song.favorite}
+        >
           <Heart weight={song.favorite ? "fill" : "regular"} />
         </button>
         <span className="song-row-actions-primary">
@@ -11286,11 +12034,15 @@ function ArtistInitialFilter({
 }) {
   const availableSet = new Set(available);
   return (
-    <div className="artist-initial-filter" aria-label={t("artistInitials")}>
+    <div
+      className="artist-initial-filter"
+      role="group"
+      aria-label={t("artistInitials")}
+      aria-busy={loading}
+    >
       <button
         type="button"
         className={active ? "" : "active"}
-        disabled={loading}
         aria-pressed={!active}
         onClick={() => active && onSelect(active)}
       >
@@ -11303,7 +12055,7 @@ function ArtistInitialFilter({
             type="button"
             key={initial}
             className={active === initial ? "active" : ""}
-            disabled={loading || !enabled}
+            disabled={!enabled && active !== initial}
             aria-pressed={active === initial}
             onClick={() => onSelect(initial)}
           >

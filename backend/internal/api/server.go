@@ -95,7 +95,15 @@ type playlistRequest struct {
 	CoverTheme  string `json:"cover_theme"`
 }
 
-const sessionCookieName = "lark_session"
+type favoriteRequest struct {
+	Favorite *bool `json:"favorite"`
+}
+
+const (
+	sessionCookieName     = "lark_session"
+	expectedUserIDHeader  = "X-Lark-Expected-User-ID"
+	sessionMismatchHeader = "X-Lark-Session-Mismatch"
+)
 
 const transcodeChunkSize = 512 * 1024
 
@@ -265,7 +273,12 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e := echo.New()
 	e.Use(middleware.Recover())
 	e.Use(middleware.RequestID())
-	cors := middleware.CORSConfig{AllowOrigins: []string{frontendOrigin}, AllowHeaders: []string{"Content-Type", "Range", "Authorization", "X-Lark-Device-Type"}, AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions}}
+	cors := middleware.CORSConfig{
+		AllowOrigins:  []string{frontendOrigin},
+		AllowHeaders:  []string{"Content-Type", "Range", "Authorization", "X-Lark-Device-Type", expectedUserIDHeader},
+		ExposeHeaders: []string{sessionMismatchHeader},
+		AllowMethods:  []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
+	}
 	if frontendOrigin != "*" {
 		cors.AllowCredentials = true
 	}
@@ -298,7 +311,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.POST("/api/auth/setup", s.handleSetupAdmin)
 	e.POST("/api/auth/login", s.handleLogin)
 	e.POST("/api/auth/register", s.handleRegister)
-	e.POST("/api/auth/logout", s.handleLogout)
+	e.POST("/api/auth/logout", s.handleLogout, auth)
 	e.GET("/api/public/shares/:token", s.handlePublicShare)
 	e.GET("/api/public/shares/:token/stream/:id", s.handlePublicShareStream)
 	e.GET("/api/public/shares/:token/cover/:id", s.handlePublicShareCover)
@@ -403,6 +416,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/artists/favorites", s.handleFavoriteArtists, auth)
 	e.GET("/api/artists/page", s.handleArtistsPage, auth)
 	e.GET("/api/artists/search", s.handleSearchArtists, auth)
+	e.GET("/api/artists/:id", s.handleArtist, auth)
 	e.GET("/api/artists/:id/cover", s.handleArtistCover, auth)
 	e.GET("/api/artists/:id/songs", s.handleArtistSongs, auth)
 	e.POST("/api/albums/:id/favorite", s.handleToggleAlbumFavorite, auth)
@@ -718,6 +732,9 @@ func (s *Server) requireAuth(next echo.HandlerFunc) echo.HandlerFunc {
 		if err != nil {
 			return mapError(library.ErrUnauthenticated)
 		}
+		if err := validateExpectedUserID(c, u.ID); err != nil {
+			return err
+		}
 		c.Set("user", u)
 		return next(c)
 	}
@@ -745,6 +762,22 @@ func currentUserID(c *echo.Context) int {
 		return u.ID
 	}
 	return 0
+}
+
+func validateExpectedUserID(c *echo.Context, currentID int) error {
+	raw := strings.TrimSpace(c.Request().Header.Get(expectedUserIDHeader))
+	if raw == "" {
+		return nil
+	}
+	expectedID, err := strconv.Atoi(raw)
+	if err != nil || expectedID <= 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid expected user id")
+	}
+	if expectedID != currentID {
+		c.Response().Header().Set(sessionMismatchHeader, "true")
+		return echo.NewHTTPError(http.StatusConflict, "authenticated user changed")
+	}
+	return nil
 }
 
 func requestPlaybackDeviceType(c *echo.Context) string {
@@ -798,7 +831,7 @@ func (s *Server) handleSongs(c *echo.Context) error {
 }
 
 func (s *Server) handleSongsPage(c *echo.Context) error {
-	limit := queryInt(c, "limit", 100)
+	limit := pageLimit(c)
 	favorites := c.QueryParam("favorites") == "true"
 	items, err := s.lib.SongsPageWithOptions(c.Request().Context(), currentUserID(c), c.QueryParam("q"), favorites, limit, pageOffset(c), library.SongBrowseOptions{
 		Sort: library.ParseSongSort(c.QueryParam("sort")), Review: library.ParseSongReview(c.QueryParam("review")),
@@ -1882,7 +1915,16 @@ func (s *Server) handleAlbums(c *echo.Context) error {
 }
 
 func (s *Server) handleAlbumsPage(c *echo.Context) error {
-	items, err := s.lib.AlbumsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c), queryInt(c, "artist_id", 0))
+	limit := pageLimit(c)
+	var (
+		items models.AlbumPage
+		err   error
+	)
+	if queryBool(c, "favorites") {
+		items, err = s.lib.FavoriteAlbumsPage(c.Request().Context(), currentUserID(c), limit, pageOffset(c), queryInt(c, "artist_id", 0))
+	} else {
+		items, err = s.lib.AlbumsPage(c.Request().Context(), currentUserID(c), limit, pageOffset(c), queryInt(c, "artist_id", 0))
+	}
 	if err != nil {
 		return mapError(err)
 	}
@@ -1962,7 +2004,16 @@ func (s *Server) handleToggleAlbumFavorite(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	item, err := s.lib.ToggleAlbumFavorite(c.Request().Context(), currentUserID(c), id)
+	target, err := favoriteTarget(c)
+	if err != nil {
+		return err
+	}
+	var item models.Album
+	if target == nil {
+		item, err = s.lib.ToggleAlbumFavorite(c.Request().Context(), currentUserID(c), id)
+	} else {
+		item, err = s.lib.SetAlbumFavorite(c.Request().Context(), currentUserID(c), id, *target)
+	}
 	if err != nil {
 		return mapError(err)
 	}
@@ -1986,7 +2037,16 @@ func (s *Server) handleFavoriteArtists(c *echo.Context) error {
 }
 
 func (s *Server) handleArtistsPage(c *echo.Context) error {
-	items, err := s.lib.ArtistsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c), c.QueryParam("initial"))
+	limit := pageLimit(c)
+	var (
+		items models.ArtistPage
+		err   error
+	)
+	if queryBool(c, "favorites") {
+		items, err = s.lib.FavoriteArtistsPage(c.Request().Context(), currentUserID(c), limit, pageOffset(c), c.QueryParam("initial"))
+	} else {
+		items, err = s.lib.ArtistsPage(c.Request().Context(), currentUserID(c), limit, pageOffset(c), c.QueryParam("initial"))
+	}
 	if err != nil {
 		return mapError(err)
 	}
@@ -2001,12 +2061,33 @@ func (s *Server) handleSearchArtists(c *echo.Context) error {
 	return c.JSON(http.StatusOK, items)
 }
 
+func (s *Server) handleArtist(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	item, err := s.lib.Artist(c.Request().Context(), currentUserID(c), id)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, item)
+}
+
 func (s *Server) handleToggleArtistFavorite(c *echo.Context) error {
 	id, err := paramInt(c, "id")
 	if err != nil {
 		return err
 	}
-	item, err := s.lib.ToggleArtistFavorite(c.Request().Context(), currentUserID(c), id)
+	target, err := favoriteTarget(c)
+	if err != nil {
+		return err
+	}
+	var item models.Artist
+	if target == nil {
+		item, err = s.lib.ToggleArtistFavorite(c.Request().Context(), currentUserID(c), id)
+	} else {
+		item, err = s.lib.SetArtistFavorite(c.Request().Context(), currentUserID(c), id, *target)
+	}
 	if err != nil {
 		return mapError(err)
 	}
@@ -2034,7 +2115,7 @@ func (s *Server) handlePlaylists(c *echo.Context) error {
 }
 
 func (s *Server) handlePlaylistsPage(c *echo.Context) error {
-	items, err := s.lib.PlaylistsPage(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 100), pageOffset(c))
+	items, err := s.lib.PlaylistsPage(c.Request().Context(), currentUserID(c), pageLimit(c), pageOffset(c))
 	if err != nil {
 		return mapError(err)
 	}
@@ -2314,6 +2395,14 @@ func queryBool(c *echo.Context, name string) bool {
 	}
 }
 
+func favoriteTarget(c *echo.Context) (*bool, error) {
+	var req favoriteRequest
+	if err := c.Bind(&req); err != nil && !errors.Is(err, io.EOF) {
+		return nil, echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	return req.Favorite, nil
+}
+
 func queryFloat(c *echo.Context, name string, fallback float64) float64 {
 	raw := strings.TrimSpace(c.QueryParam(name))
 	if raw == "" {
@@ -2339,12 +2428,32 @@ func queryInt(c *echo.Context, name string, fallback int) int {
 }
 
 func pageOffset(c *echo.Context) int {
-	limit := queryInt(c, "limit", 100)
+	limit := pageLimit(c)
 	page := queryInt(c, "page", 1)
 	if page < 1 {
 		page = 1
 	}
-	return queryInt(c, "offset", (page-1)*limit)
+	return queryInt(c, "offset", safePageOffset(page, limit))
+}
+
+func safePageOffset(page, limit int) int {
+	if page <= 1 || limit <= 0 {
+		return 0
+	}
+	pageIndex := page - 1
+	maxInt := int(^uint(0) >> 1)
+	if pageIndex > maxInt/limit {
+		return maxInt - maxInt%limit
+	}
+	return pageIndex * limit
+}
+
+func pageLimit(c *echo.Context) int {
+	limit := queryInt(c, "limit", 100)
+	if limit <= 0 || limit > 500 {
+		return 100
+	}
+	return limit
 }
 
 func requestBaseURL(c *echo.Context) string {

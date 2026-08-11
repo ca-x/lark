@@ -69,6 +69,9 @@
   .full-lyrics-lines { padding:max(24px, 25vh) 4vw max(32px, 30vh); font-size:var(--lyrics-font-size, clamp(24px, 8vw, 38px)); align-content:start; }
   .filter-pill { width:100%; justify-content:space-between; border-radius:16px; }
   .filter-pill select { max-width:58vw; }
+  .collection-browse-actions { width:100%; display:grid; grid-template-columns:minmax(0,1fr); align-items:stretch; gap:10px; }
+  .section-head .favorite-filter-toggle { width:100%; min-height:48px; justify-content:flex-start; padding:11px 14px !important; border-radius:16px !important; }
+  .favorite-filter-toggle small { margin-left:auto; }
   .artist-filter-combobox { width:100%; min-width:0; }
   .artist-filter-combobox label > div { min-height:48px; border-radius:16px; }
   .artist-filter-options { left:0; right:0; width:auto; max-height:45dvh; border-radius:18px; }
@@ -77,6 +80,7 @@
   .artist-initial-filter { width:100%; max-width:100%; min-height:52px; flex-wrap:nowrap; justify-content:flex-start; gap:6px; padding:4px; border-radius:18px; overflow-x:auto; overflow-y:hidden; scroll-padding-inline:6px; -webkit-overflow-scrolling:touch; }
   .artist-initial-filter button { min-width:44px; min-height:44px; padding:10px 12px; }
   .artist-initial-filter button:first-child { min-width:62px; }
+  .card-grid-empty { min-height:150px; padding:20px 14px; border-radius:18px; }
   .collection-tabs { width:100%; border-radius:18px; }
   .collection-tabs button { flex:1 0 auto; }
   .artist-collection-toolbar { display:grid; grid-template-columns:minmax(0,1fr); width:100%; gap:10px; }
@@ -281,7 +285,7 @@
   .share-management-actions { justify-content:stretch; }
   .share-management-actions .icon-button { flex:1; }
   .share-duration-options { grid-template-columns:1fr 1fr; }
-  .card-favorite { opacity:1; transform:none; top:8px; right:8px; width:40px; height:40px; }
+  .card-favorite { opacity:1; transform:none; top:8px; right:8px; width:44px; height:44px; }
   .lyrics-actions { width:100%; justify-content:flex-start; }
   .lyrics-meta-links { flex-wrap:wrap; }
   .mcp-card-head, .subsonic-card-head, .mcp-status-row, .subsonic-status-row, .mcp-token-once { grid-template-columns:1fr; }

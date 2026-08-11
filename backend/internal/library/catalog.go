@@ -228,8 +228,16 @@ func (s *Service) FavoriteAlbums(ctx context.Context, userID, limit int) ([]mode
 	return out, nil
 }
 func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset, artistID int) (models.AlbumPage, error) {
+	return s.albumsPage(ctx, userID, limit, offset, artistID, false)
+}
+
+func (s *Service) FavoriteAlbumsPage(ctx context.Context, userID, limit, offset, artistID int) (models.AlbumPage, error) {
+	return s.albumsPage(ctx, userID, limit, offset, artistID, true)
+}
+
+func (s *Service) albumsPage(ctx context.Context, userID, limit, offset, artistID int, favoritesOnly bool) (models.AlbumPage, error) {
 	limit, offset = normalizePage(limit, offset)
-	key := cacheKey("albums-page", userID, s.userCacheVersion(ctx, userID), limit, offset, artistID)
+	key := cacheKey("albums-page", userID, s.userCacheVersion(ctx, userID), limit, offset, artistID, favoritesOnly)
 	var cached models.AlbumPage
 	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 		return models.AlbumPage{}, err
@@ -249,6 +257,11 @@ func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset, artistI
 		predicates := []predicate.Album{album.HasSongs()}
 		if artistID > 0 {
 			predicates = append(predicates, album.HasArtistWith(artist.ID(artistID)))
+		}
+		if favoritesOnly {
+			predicates = append(predicates, album.HasUserFavoritesWith(
+				useralbumfavorite.HasUserWith(user.ID(userID)),
+			))
 		}
 		total, e := s.client.Album.Query().Where(predicates...).Count(bgCtx)
 		if e != nil {
@@ -458,9 +471,17 @@ func (s *Service) SearchArtists(ctx context.Context, userID int, term string, li
 	return s.applyArtistUserState(ctx, userID, out)
 }
 func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int, initial string) (models.ArtistPage, error) {
+	return s.artistsPage(ctx, userID, limit, offset, initial, false)
+}
+
+func (s *Service) FavoriteArtistsPage(ctx context.Context, userID, limit, offset int, initial string) (models.ArtistPage, error) {
+	return s.artistsPage(ctx, userID, limit, offset, initial, true)
+}
+
+func (s *Service) artistsPage(ctx context.Context, userID, limit, offset int, initial string, favoritesOnly bool) (models.ArtistPage, error) {
 	limit, offset = normalizePage(limit, offset)
 	initial = normalizeArtistInitial(initial)
-	key := cacheKey("artists-page", userID, s.userCacheVersion(ctx, userID), limit, offset, initial)
+	key := cacheKey("artists-page", userID, s.userCacheVersion(ctx, userID), limit, offset, initial, favoritesOnly)
 	var cached models.ArtistPage
 	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 		return models.ArtistPage{}, err
@@ -474,11 +495,17 @@ func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int, in
 		if ok, e := s.cacheGetJSON(bgCtx, key, &inner); e == nil && ok {
 			return inner, nil
 		}
-		predicates := []predicate.Artist{}
+		basePredicates := []predicate.Artist{}
+		if favoritesOnly {
+			basePredicates = append(basePredicates, artist.HasUserFavoritesWith(
+				userartistfavorite.HasUserWith(user.ID(userID)),
+			))
+		}
+		predicates := append([]predicate.Artist{}, basePredicates...)
 		if initial != "" {
 			predicates = append(predicates, artist.InitialEQ(initial))
 		}
-		initials, e := s.artistInitials(bgCtx)
+		initials, e := s.artistInitialsWithPredicates(bgCtx, basePredicates...)
 		if e != nil {
 			return models.ArtistPage{}, e
 		}
@@ -521,7 +548,12 @@ func (s *Service) ArtistsPage(ctx context.Context, userID, limit, offset int, in
 }
 
 func (s *Service) artistInitials(ctx context.Context) ([]string, error) {
+	return s.artistInitialsWithPredicates(ctx)
+}
+
+func (s *Service) artistInitialsWithPredicates(ctx context.Context, predicates ...predicate.Artist) ([]string, error) {
 	items, err := s.client.Artist.Query().
+		Where(predicates...).
 		Select(artist.FieldName, artist.FieldInitial).
 		All(ctx)
 	if err != nil {
@@ -558,7 +590,7 @@ func (s *Service) ArtistSongs(ctx context.Context, userID, id int, limit int) ([
 	})
 }
 func (s *Service) ToggleAlbumFavorite(ctx context.Context, userID, id int) (models.Album, error) {
-	if _, err := s.client.Album.Get(ctx, id); err != nil {
+	if _, err := s.client.Album.Query().Where(album.ID(id), album.HasSongs()).Only(ctx); err != nil {
 		return models.Album{}, err
 	}
 	existing, err := s.client.UserAlbumFavorite.Query().
@@ -567,29 +599,41 @@ func (s *Service) ToggleAlbumFavorite(ctx context.Context, userID, id int) (mode
 	if err != nil && !ent.IsNotFound(err) {
 		return models.Album{}, err
 	}
-	if ent.IsNotFound(err) {
-		_, err = s.client.UserAlbumFavorite.Create().SetUserID(userID).SetAlbumID(id).Save(ctx)
-	} else {
-		err = s.client.UserAlbumFavorite.DeleteOneID(existing.ID).Exec(ctx)
-	}
-	if err != nil {
-		return models.Album{}, err
-	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	a, err := s.client.Album.Query().Where(album.ID(id)).WithArtist().Only(ctx)
-	if err != nil {
-		return models.Album{}, err
-	}
-	counts, err := s.albumSongCountsForIDs(ctx, []int{id})
-	if err != nil {
-		return models.Album{}, err
-	}
-	items, err := s.applyAlbumUserState(ctx, userID, []models.Album{mapAlbumWithCount(a, counts[a.ID])})
-	if err != nil {
-		return models.Album{}, err
-	}
-	return items[0], nil
+	return s.setAlbumFavorite(ctx, userID, id, ent.IsNotFound(err), existing)
 }
+
+func (s *Service) SetAlbumFavorite(ctx context.Context, userID, id int, favorite bool) (models.Album, error) {
+	if _, err := s.client.Album.Query().Where(album.ID(id), album.HasSongs()).Only(ctx); err != nil {
+		return models.Album{}, err
+	}
+	existing, err := s.client.UserAlbumFavorite.Query().
+		Where(useralbumfavorite.HasUserWith(user.ID(userID)), useralbumfavorite.HasAlbumWith(album.ID(id))).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return models.Album{}, err
+	}
+	return s.setAlbumFavorite(ctx, userID, id, favorite, existing)
+}
+
+func (s *Service) setAlbumFavorite(ctx context.Context, userID, id int, favorite bool, existing *ent.UserAlbumFavorite) (models.Album, error) {
+	changed := false
+	if favorite && existing == nil {
+		if _, err := s.client.UserAlbumFavorite.Create().SetUserID(userID).SetAlbumID(id).Save(ctx); err != nil && !ent.IsConstraintError(err) {
+			return models.Album{}, err
+		}
+		changed = true
+	} else if !favorite && existing != nil {
+		if err := s.client.UserAlbumFavorite.DeleteOneID(existing.ID).Exec(ctx); err != nil && !ent.IsNotFound(err) {
+			return models.Album{}, err
+		}
+		changed = true
+	}
+	if changed {
+		s.invalidateUserLibraryCache(ctx, userID)
+	}
+	return s.Album(ctx, userID, id)
+}
+
 func (s *Service) ToggleArtistFavorite(ctx context.Context, userID, id int) (models.Artist, error) {
 	if _, err := s.client.Artist.Get(ctx, id); err != nil {
 		return models.Artist{}, err
@@ -600,32 +644,39 @@ func (s *Service) ToggleArtistFavorite(ctx context.Context, userID, id int) (mod
 	if err != nil && !ent.IsNotFound(err) {
 		return models.Artist{}, err
 	}
-	if ent.IsNotFound(err) {
-		_, err = s.client.UserArtistFavorite.Create().SetUserID(userID).SetArtistID(id).Save(ctx)
-	} else {
-		err = s.client.UserArtistFavorite.DeleteOneID(existing.ID).Exec(ctx)
-	}
-	if err != nil {
+	return s.setArtistFavorite(ctx, userID, id, ent.IsNotFound(err), existing)
+}
+
+func (s *Service) SetArtistFavorite(ctx context.Context, userID, id int, favorite bool) (models.Artist, error) {
+	if _, err := s.client.Artist.Get(ctx, id); err != nil {
 		return models.Artist{}, err
 	}
-	s.invalidateUserLibraryCache(ctx, userID)
-	a, err := s.client.Artist.Get(ctx, id)
-	if err != nil {
+	existing, err := s.client.UserArtistFavorite.Query().
+		Where(userartistfavorite.HasUserWith(user.ID(userID)), userartistfavorite.HasArtistWith(artist.ID(id))).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
 		return models.Artist{}, err
 	}
-	songCounts, err := s.artistSongCountsForIDs(ctx, []int{id})
-	if err != nil {
-		return models.Artist{}, err
+	return s.setArtistFavorite(ctx, userID, id, favorite, existing)
+}
+
+func (s *Service) setArtistFavorite(ctx context.Context, userID, id int, favorite bool, existing *ent.UserArtistFavorite) (models.Artist, error) {
+	changed := false
+	if favorite && existing == nil {
+		if _, err := s.client.UserArtistFavorite.Create().SetUserID(userID).SetArtistID(id).Save(ctx); err != nil && !ent.IsConstraintError(err) {
+			return models.Artist{}, err
+		}
+		changed = true
+	} else if !favorite && existing != nil {
+		if err := s.client.UserArtistFavorite.DeleteOneID(existing.ID).Exec(ctx); err != nil && !ent.IsNotFound(err) {
+			return models.Artist{}, err
+		}
+		changed = true
 	}
-	albumCounts, err := s.artistAlbumCountsForIDs(ctx, []int{id})
-	if err != nil {
-		return models.Artist{}, err
+	if changed {
+		s.invalidateUserLibraryCache(ctx, userID)
 	}
-	items, err := s.applyArtistUserState(ctx, userID, []models.Artist{mapArtistWithCounts(a, songCounts[a.ID], albumCounts[a.ID])})
-	if err != nil {
-		return models.Artist{}, err
-	}
-	return items[0], nil
+	return s.Artist(ctx, userID, id)
 }
 func mapAlbum(item *ent.Album) models.Album {
 	count := 0

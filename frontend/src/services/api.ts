@@ -5,13 +5,43 @@ function currentDeviceType() {
   return /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'mobile' : 'pc'
 }
 
+export const SESSION_CHANGED_EVENT = 'lark:session-changed'
+
+let expectedSessionUserId = 0
+let notifiedSessionUserId = 0
+
+export function setExpectedSessionUserId(userId: number) {
+  const nextUserId = Number.isInteger(userId) && userId > 0 ? userId : 0
+  if (expectedSessionUserId !== nextUserId) notifiedSessionUserId = 0
+  expectedSessionUserId = nextUserId
+}
+
+function notifySessionChanged(requestUserId: number) {
+  if (
+    typeof window === 'undefined' ||
+    requestUserId <= 0 ||
+    requestUserId !== expectedSessionUserId ||
+    notifiedSessionUserId === requestUserId
+  ) return
+  notifiedSessionUserId = requestUserId
+  window.dispatchEvent(new Event(SESSION_CHANGED_EVENT))
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
+  const requestUserId = expectedSessionUserId
   headers.set('X-Lark-Device-Type', currentDeviceType())
+  if (requestUserId > 0 && !headers.has('X-Lark-Expected-User-ID')) {
+    headers.set('X-Lark-Expected-User-ID', String(requestUserId))
+  }
   if (init?.body && typeof init.body === 'string' && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
   const res = await fetch(url, { ...init, credentials: 'include', headers })
+  if (
+    res.headers.get('X-Lark-Session-Mismatch') === 'true' ||
+    (res.status === 401 && requestUserId > 0 && !url.startsWith('/api/auth/'))
+  ) notifySessionChanged(requestUserId)
   if (!res.ok) throw new Error(await res.text())
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
@@ -40,7 +70,7 @@ export const api = {
   setup: (username: string, password: string) => request<{ user: AuthStatus['user'] }>('/api/auth/setup', { method: 'POST', body: JSON.stringify({ username, password }) }),
   login: (username: string, password: string) => request<{ user: AuthStatus['user'] }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
   register: (username: string, password: string) => request<{ user: AuthStatus['user'] }>('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) }),
-  logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
+  logout: (signal?: AbortSignal) => request<void>('/api/auth/logout', { method: 'POST', signal }),
   updateProfile: (nickname: string, avatar_data_url: string) => request<AuthStatus['user']>('/api/me', { method: 'PUT', body: JSON.stringify({ nickname, avatar_data_url }) }),
   scrobblingSettings: () => request<ScrobblingSettings>('/api/me/scrobbling'),
   saveScrobblingSettings: (settings: ScrobblingSettings & { token?: string }) => request<ScrobblingSettings>('/api/me/scrobbling', { method: 'PUT', body: JSON.stringify(settings) }),
@@ -121,12 +151,10 @@ export const api = {
   cancelScan: () => request<{ canceled: boolean }>('/api/library/scan/cancel', { method: 'POST' }),
   scanStatus: () => request<ScanStatus>('/api/library/scan/status'),
   libraryStats: () => request<LibraryStats>('/api/library/stats'),
-  upload: async (file: File) => {
+  upload: (file: File) => {
     const body = new FormData()
     body.append('file', file)
-    const res = await fetch('/api/library/upload', { method: 'POST', body, credentials: 'include' })
-    if (!res.ok) throw new Error(await res.text())
-    return res.json() as Promise<Song[]>
+    return request<Song[]>('/api/library/upload', { method: 'POST', body })
   },
   folders: (limit = 0) => request<Folder[]>(`/api/folders?limit=${limit}`),
   folderDirectory: (path = '.') => request<FolderDirectory>(`/api/folders/tree?path=${encodeURIComponent(path)}`),
@@ -137,9 +165,10 @@ export const api = {
   },
   albums: (limit = 0) => request<Album[]>(`/api/albums${limit > 0 ? `?limit=${limit}` : ''}`),
   favoriteAlbums: (limit = 500) => request<Album[]>(`/api/albums/favorites?limit=${limit}`),
-  albumsPage: (page = 1, limit = 100, artistId = 0, signal?: AbortSignal) => {
+  albumsPage: (page = 1, limit = 100, artistId = 0, signal?: AbortSignal, favorites = false) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     if (artistId > 0) params.set('artist_id', String(artistId))
+    if (favorites) params.set('favorites', 'true')
     return request<AlbumPage>(`/api/albums/page?${params.toString()}`, { signal })
   },
   album: (id: number, signal?: AbortSignal) => request<Album>(`/api/albums/${id}`, { signal }),
@@ -148,15 +177,27 @@ export const api = {
   updateAlbumMetadata: (id: number, body: FormData) => request<MetadataWritebackResult | null>(`/api/albums/${id}/metadata`, { method: 'POST', body }).then(normalizeMetadataWritebackResult),
   artists: (limit = 0) => request<Artist[]>(`/api/artists${limit > 0 ? `?limit=${limit}` : ''}`),
   favoriteArtists: (limit = 500) => request<Artist[]>(`/api/artists/favorites?limit=${limit}`),
-  artistsPage: (page = 1, limit = 100, initial = '') => {
+  artistsPage: (page = 1, limit = 100, initial = '', favorites = false) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     if (initial) params.set('initial', initial)
+    if (favorites) params.set('favorites', 'true')
     return request<ArtistPage>(`/api/artists/page?${params.toString()}`)
   },
   searchArtists: (q = '', limit = 20) => request<Artist[]>(`/api/artists/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+  artist: (id: number, signal?: AbortSignal) => request<Artist>(`/api/artists/${id}`, { signal }),
   artistSongs: (id: number, limit = 0, signal?: AbortSignal) => request<Song[]>(`/api/artists/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`, { signal }),
-  favoriteArtist: (id: number) => request<Artist>(`/api/artists/${id}/favorite`, { method: 'POST' }),
-  favoriteAlbum: (id: number) => request<Album>(`/api/albums/${id}/favorite`, { method: 'POST' }),
+  favoriteArtist: (id: number, favorite: boolean, expectedUserId: number, signal?: AbortSignal) => request<Artist>(`/api/artists/${id}/favorite`, {
+    method: 'POST',
+    headers: { 'X-Lark-Expected-User-ID': String(expectedUserId) },
+    body: JSON.stringify({ favorite }),
+    signal,
+  }),
+  favoriteAlbum: (id: number, favorite: boolean, expectedUserId: number, signal?: AbortSignal) => request<Album>(`/api/albums/${id}/favorite`, {
+    method: 'POST',
+    headers: { 'X-Lark-Expected-User-ID': String(expectedUserId) },
+    body: JSON.stringify({ favorite }),
+    signal,
+  }),
   playlists: (limit = 0) => request<Playlist[]>(`/api/playlists${limit > 0 ? `?limit=${limit}` : ''}`),
   playlistsPage: (page = 1, limit = 100) => request<PlaylistPage>(`/api/playlists/page?page=${page}&limit=${limit}`),
   createPlaylist: (name: string, description = '', cover_theme = 'deep-space') => request<Playlist>('/api/playlists', { method: 'POST', body: JSON.stringify({ name, description, cover_theme }) }),
@@ -184,12 +225,10 @@ export const api = {
   searchRadioStations: (q: string, limit = 30) => request<RadioStation[]>(`/api/radio/search?q=${encodeURIComponent(q)}&limit=${limit}`),
   settings: () => request<Settings>('/api/settings'),
   fonts: () => request<WebFont[]>('/api/fonts'),
-  uploadFont: async (file: File) => {
+  uploadFont: (file: File) => {
     const body = new FormData()
     body.append('font', file)
-    const res = await fetch('/api/fonts', { method: 'POST', body, credentials: 'include' })
-    if (!res.ok) throw new Error(await res.text())
-    return res.json() as Promise<Settings>
+    return request<Settings>('/api/fonts', { method: 'POST', body })
   },
   deleteFont: (name: string) => request<Settings>(`/api/fonts/${encodeURIComponent(name)}`, { method: 'DELETE' }),
   dlnaStatus: () => request<DLNAStatus>('/api/dlna/status'),

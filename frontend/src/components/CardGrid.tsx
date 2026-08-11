@@ -24,6 +24,9 @@ type CardGridProps = {
   items: CardGridItem[];
   action?: ReactNode;
   actionKey?: string | number;
+  loading?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 };
 
 function cardGridItemsEqual(a: CardGridItem[], b: CardGridItem[]) {
@@ -55,6 +58,9 @@ function areCardGridPropsEqual(previous: CardGridProps, next: CardGridProps) {
     previous.title === next.title &&
     previous.variant === next.variant &&
     previous.actionKey === next.actionKey &&
+    previous.loading === next.loading &&
+    previous.emptyTitle === next.emptyTitle &&
+    previous.emptyDescription === next.emptyDescription &&
     cardGridItemsEqual(previous.items, next.items)
   );
 }
@@ -64,10 +70,17 @@ export const CardGrid = memo(function CardGrid({
   title,
   items,
   action,
+  loading = false,
+  emptyTitle,
+  emptyDescription,
   variant = "playlist",
 }: CardGridProps) {
   return (
-    <section className={`card-grid-section card-grid-${variant}`} data-has-action={action ? "true" : "false"}>
+    <section
+      className={`card-grid-section card-grid-${variant}`}
+      data-has-action={action ? "true" : "false"}
+      aria-busy={loading}
+    >
       <div className="section-head">
         <h2>{title}</h2>
         {action}
@@ -123,7 +136,8 @@ export const CardGrid = memo(function CardGrid({
                       className={
                         item.favorite ? "card-favorite active" : "card-favorite"
                       }
-                      aria-label={t("favorites")}
+                      aria-label={t(item.favorite ? "removeFavorite" : "addFavorite")}
+                      aria-pressed={Boolean(item.favorite)}
                       onClick={(event) => {
                         event.stopPropagation();
                         item.onFavorite?.();
@@ -159,7 +173,17 @@ export const CardGrid = memo(function CardGrid({
           })}
         </div>
       ) : (
-        <div className="empty">{t("emptyCollection")}</div>
+        <div className="empty card-grid-empty" role="status">
+          {loading ? (
+            <span>{t("loading")}</span>
+          ) : (
+            <>
+              {emptyTitle ? <Heart weight="regular" aria-hidden="true" /> : null}
+              <strong>{emptyTitle ?? t("emptyCollection")}</strong>
+              {emptyDescription ? <span>{emptyDescription}</span> : null}
+            </>
+          )}
+        </div>
       )}
     </section>
   );

@@ -7,7 +7,11 @@ import (
 
 	"lark/backend/ent"
 	"lark/backend/ent/album"
+	"lark/backend/ent/artist"
 	"lark/backend/ent/enttest"
+	"lark/backend/ent/user"
+	"lark/backend/ent/useralbumfavorite"
+	"lark/backend/ent/userartistfavorite"
 	"lark/backend/internal/kv"
 
 	_ "github.com/lib-x/entsqlite"
@@ -132,6 +136,144 @@ func TestFavoriteAlbumsReturnsFavoritedAlbumOutsideCurrentPage(t *testing.T) {
 	}
 	if items[0].ID != favorited.ID || !items[0].Favorite {
 		t.Fatalf("expected favorite album %d with favorite=true, got %+v", favorited.ID, items[0])
+	}
+}
+
+func TestFavoriteCollectionPagesAreUserScoped(t *testing.T) {
+	ctx := context.Background()
+	service, userID := newSearchBenchmarkService(t, 36)
+	albums, err := service.client.Album.Query().
+		Where(album.HasSongs()).
+		WithArtist().
+		Order(ent.Asc(album.FieldID)).
+		All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(albums) < 2 || albums[0].Edges.Artist == nil || albums[1].Edges.Artist == nil {
+		t.Fatal("expected multiple albums with artists")
+	}
+	if _, err := albums[0].Edges.Artist.Update().SetInitial("A").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := albums[1].Edges.Artist.Update().SetInitial("B").Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	otherUser, err := service.client.User.Create().SetUsername("other-search-user").SetPasswordHash("hash").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.client.UserAlbumFavorite.Create().SetUserID(userID).SetAlbumID(albums[0].ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.client.UserArtistFavorite.Create().SetUserID(userID).SetArtistID(albums[0].Edges.Artist.ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.client.UserAlbumFavorite.Create().SetUserID(otherUser.ID).SetAlbumID(albums[1].ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.client.UserArtistFavorite.Create().SetUserID(otherUser.ID).SetArtistID(albums[1].Edges.Artist.ID).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	albumPage, err := service.FavoriteAlbumsPage(ctx, userID, 10, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if albumPage.Total != 1 || len(albumPage.Items) != 1 {
+		t.Fatalf("expected one favorite album, total=%d items=%d", albumPage.Total, len(albumPage.Items))
+	}
+	if albumPage.Items[0].ID != albums[0].ID || !albumPage.Items[0].Favorite {
+		t.Fatalf("expected user favorite album %d, got %+v", albums[0].ID, albumPage.Items[0])
+	}
+	otherArtistAlbums, err := service.FavoriteAlbumsPage(ctx, userID, 10, 0, albums[1].Edges.Artist.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if otherArtistAlbums.Total != 0 || len(otherArtistAlbums.Items) != 0 {
+		t.Fatalf("expected other artist filter to exclude user favorites, got %+v", otherArtistAlbums)
+	}
+
+	artistPage, err := service.FavoriteArtistsPage(ctx, userID, 10, 0, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if artistPage.Total != 1 || len(artistPage.Items) != 1 {
+		t.Fatalf("expected one favorite artist, total=%d items=%d", artistPage.Total, len(artistPage.Items))
+	}
+	if artistPage.Items[0].ID != albums[0].Edges.Artist.ID || !artistPage.Items[0].Favorite {
+		t.Fatalf("expected user favorite artist %d, got %+v", albums[0].Edges.Artist.ID, artistPage.Items[0])
+	}
+	if len(artistPage.Initials) != 1 || artistPage.Initials[0] != "A" {
+		t.Fatalf("expected only the user's favorite initial A, got %v", artistPage.Initials)
+	}
+	otherInitialPage, err := service.FavoriteArtistsPage(ctx, userID, 10, 0, "B")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if otherInitialPage.Total != 0 || len(otherInitialPage.Items) != 0 {
+		t.Fatalf("expected other user's favorite initial to stay isolated, got %+v", otherInitialPage)
+	}
+}
+
+func TestSetCollectionFavoritesIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	service, userID := newSearchBenchmarkService(t, 12)
+	item, err := service.client.Album.Query().Where(album.HasSongs()).WithArtist().First(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Edges.Artist == nil {
+		t.Fatal("expected album artist")
+	}
+
+	for attempt := 0; attempt < 2; attempt++ {
+		got, err := service.SetAlbumFavorite(ctx, userID, item.ID, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !got.Favorite {
+			t.Fatalf("expected album favorite after attempt %d", attempt+1)
+		}
+		artistItem, err := service.SetArtistFavorite(ctx, userID, item.Edges.Artist.ID, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !artistItem.Favorite {
+			t.Fatalf("expected artist favorite after attempt %d", attempt+1)
+		}
+	}
+	albumCount, err := service.client.UserAlbumFavorite.Query().
+		Where(useralbumfavorite.HasUserWith(user.ID(userID)), useralbumfavorite.HasAlbumWith(album.ID(item.ID))).
+		Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artistCount, err := service.client.UserArtistFavorite.Query().
+		Where(userartistfavorite.HasUserWith(user.ID(userID)), userartistfavorite.HasArtistWith(artist.ID(item.Edges.Artist.ID))).
+		Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if albumCount != 1 || artistCount != 1 {
+		t.Fatalf("expected one favorite edge each, album=%d artist=%d", albumCount, artistCount)
+	}
+
+	for attempt := 0; attempt < 2; attempt++ {
+		got, err := service.SetAlbumFavorite(ctx, userID, item.ID, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Favorite {
+			t.Fatalf("expected album favorite cleared after attempt %d", attempt+1)
+		}
+		artistItem, err := service.SetArtistFavorite(ctx, userID, item.Edges.Artist.ID, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if artistItem.Favorite {
+			t.Fatalf("expected artist favorite cleared after attempt %d", attempt+1)
+		}
 	}
 }
 
