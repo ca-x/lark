@@ -3,6 +3,8 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY frontend/ ./
+COPY backend/internal/api/server.go /build/backend/internal/api/server.go
+COPY backend/internal/library/catalog.go /build/backend/internal/library/catalog.go
 RUN pnpm build
 
 FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
