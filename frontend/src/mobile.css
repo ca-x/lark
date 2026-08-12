@@ -10059,9 +10059,8 @@
 }
 
 /* Reduced-motion mobile playback cues.
-   Retain one slow, playback-gated mechanical signal per theme while the
-   decorative glints, cover drift, orbit layers, VU pulses, and arm travel stay
-   disabled by the earlier accessibility rules. */
+   Keep playback state legible while stopping continuous rotation, reel
+   movement, and equalizer pulsing. */
 @media (max-width:720px) and (prefers-reduced-motion:reduce), (max-width:960px) and (max-height:500px) and (orientation:landscape) and (prefers-reduced-motion:reduce) {
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-pa-vinyl,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player[data-playing='true'] .mobile-soft-record,
@@ -10069,19 +10068,19 @@
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-indie-stack[data-playing='true'] .mobile-indie-vinyl,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-stage-visual[data-playing='true'] .mobile-stage-disc,
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player.mobile-art-smartisan-classic[data-playing='true'] .mobile-smartisan-rotor {
-    animation:mobile-art-spin-smooth 22s linear infinite !important;
+    animation:none !important;
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-blue-visual[data-playing='true'] .mobile-blue-cassette-window .reel {
-    animation:mobile-art-spin-smooth 3.2s linear infinite !important;
+    animation:none !important;
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-editorial-visual[data-playing='true'] .mobile-editorial-ipod-eq i {
-    animation:mobile-ipod-eq 1.4s ease-in-out infinite alternate !important;
+    animation:none !important;
   }
 
   .app-shell[data-mobile-theme] .mobile-mini-player[data-playing='true'] .mobile-mini-art img {
-    animation:mobile-mini-spin 18s linear infinite !important;
+    animation:none !important;
   }
 }
 
@@ -10930,5 +10929,471 @@
   .eq-layer {
     backdrop-filter:none !important;
     -webkit-backdrop-filter:none !important;
+  }
+}
+
+/* v0.9.43 mobile music-app polish.
+   Keep the desktop visual language, but make the phone shell behave as one
+   continuous native surface: content, now-playing dock, then the tab bar. */
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
+  .app-shell[data-mobile-theme]:not([data-mobile-player-expanded='true']):not(.lyrics-mode) {
+    --mobile-ease-out:cubic-bezier(.23, 1, .32, 1);
+    --mobile-ease-drawer:cubic-bezier(.32, .72, 0, 1);
+    --mobile-tab-icon-size:30px;
+    grid-template-rows:minmax(0, 1fr) 68px calc(62px + var(--safe-bottom));
+    background:var(--mobile-ui-bg);
+  }
+
+  .app-shell[data-mobile-player-available='false']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) {
+    grid-template-rows:minmax(0, 1fr) calc(62px + var(--safe-bottom));
+  }
+
+  .app-shell[data-mobile-player-available='false']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .main {
+    grid-row:1;
+  }
+
+  .app-shell[data-mobile-player-available='false']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player {
+    display:none !important;
+  }
+
+  .app-shell[data-mobile-player-available='false']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .mobile-bottom-nav {
+    grid-row:2;
+  }
+
+  .app-shell[data-view='home']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .main,
+  .app-shell[data-view='my']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .main {
+    padding:8px calc(16px + var(--safe-right)) 24px calc(16px + var(--safe-left));
+    scroll-padding-block:12px 28px;
+    overscroll-behavior-y:contain;
+  }
+
+  .app-shell[data-mobile-theme] .topbar {
+    top:calc(-8px - var(--safe-top));
+    margin:0 calc(-16px - var(--safe-right)) 0 calc(-16px - var(--safe-left));
+    padding:calc(8px + var(--safe-top)) calc(16px + var(--safe-right)) 12px calc(16px + var(--safe-left));
+  }
+
+  .app-shell[data-mobile-theme] .search {
+    min-height:48px;
+    padding-inline:14px;
+    border-radius:17px;
+  }
+
+  .app-shell[data-mobile-theme] .search input {
+    min-width:0;
+    font-size:16px;
+  }
+
+  .app-shell[data-mobile-theme] .mobile-home-surface,
+  .mobile-home-surface {
+    gap:28px;
+    padding:2px 0 28px;
+  }
+
+  .mobile-home-now {
+    min-height:178px;
+    grid-template-columns:minmax(0, 1fr) clamp(108px, 32vw, 124px);
+    gap:18px;
+    padding:22px;
+    border-radius:28px;
+  }
+
+  .mobile-home-now > div {
+    min-width:0;
+  }
+
+  .mobile-home-now strong,
+  .mobile-home-now small {
+    display:-webkit-box;
+    overflow:hidden;
+    -webkit-box-orient:vertical;
+  }
+
+  .mobile-home-now strong {
+    -webkit-line-clamp:2;
+  }
+
+  .mobile-home-now small {
+    white-space:normal !important;
+    overflow-wrap:anywhere;
+    -webkit-line-clamp:3;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-meta {
+    min-width:0;
+  }
+
+  .mobile-home-now > button {
+    width:clamp(108px, 32vw, 124px);
+    min-width:clamp(108px, 32vw, 124px);
+    height:clamp(108px, 32vw, 124px);
+    min-height:clamp(108px, 32vw, 124px);
+    align-self:center;
+    border-radius:22px;
+    transition:transform 150ms var(--mobile-ease-out), filter 180ms ease;
+  }
+
+  .mobile-home-now > button:not(:disabled):active {
+    transform:scale(.97);
+    filter:brightness(.94);
+  }
+
+  .mobile-home-now > button > svg {
+    width:38px;
+    height:38px;
+    padding:10px;
+  }
+
+  .mobile-home-browse,
+  .mobile-home-quickplay,
+  .mobile-home-library {
+    gap:14px;
+  }
+
+  .mobile-home-section-head h2 {
+    font-size:22px;
+    line-height:1.15;
+  }
+
+  .mobile-home-library-hub,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-library-hub,
+  .app-shell[data-view='home'] .mobile-home-library-hub {
+    gap:10px;
+  }
+
+  .mobile-home-library-hub button,
+  .mobile-home-surface[data-mobile-theme='smartisan-classic'] .mobile-home-library-hub button,
+  .app-shell[data-view='home'] .mobile-home-library-hub button {
+    min-height:80px;
+    padding:11px;
+    border-radius:18px;
+    transition:transform 140ms var(--mobile-ease-out), background-color 180ms ease, border-color 180ms ease;
+  }
+
+  .mobile-home-library-hub button:active,
+  .mobile-home-song-strip button:active,
+  .mobile-home-list button:active,
+  .mobile-home-empty button:active {
+    transform:scale(.97);
+  }
+
+  .mobile-home-empty {
+    display:grid;
+    grid-template-columns:48px minmax(0, 1fr) auto;
+    align-items:center;
+    gap:12px;
+    min-height:88px;
+    padding:14px;
+    border:1px solid var(--mobile-ui-border);
+    border-radius:20px;
+    color:var(--mobile-ui-text);
+    background:color-mix(in srgb, var(--mobile-ui-surface) 84%, var(--mobile-ui-bg));
+    box-shadow:inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent);
+  }
+
+  .mobile-home-empty > span {
+    width:48px;
+    height:48px;
+    display:grid;
+    place-items:center;
+    border-radius:14px;
+    color:var(--mobile-ui-accent);
+    background:color-mix(in srgb, var(--mobile-ui-accent) 12%, var(--mobile-ui-surface-2));
+  }
+
+  .mobile-home-empty > span svg {
+    width:23px;
+    height:23px;
+  }
+
+  .mobile-home-empty > div {
+    min-width:0;
+    display:grid;
+    gap:4px;
+  }
+
+  .mobile-home-empty strong {
+    font-size:14px;
+    line-height:1.35;
+  }
+
+  .mobile-home-empty small {
+    overflow:hidden;
+    color:var(--mobile-ui-muted);
+    font-size:12px;
+    line-height:1.35;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .mobile-home-empty button {
+    min-width:72px;
+    min-height:44px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    padding:0 12px;
+    border-radius:999px;
+    color:var(--mobile-active-text, var(--mobile-ui-bg));
+    background:var(--mobile-ui-accent);
+    font-size:12px;
+    font-weight:760;
+    transition:transform 140ms var(--mobile-ease-out), filter 180ms ease;
+  }
+
+  .mobile-home-empty button svg {
+    width:14px;
+    height:14px;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player,
+  .app-shell[data-mobile-theme='smartisan-classic']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player {
+    align-self:stretch;
+    height:62px;
+    min-height:62px;
+    max-height:62px;
+    margin:3px 10px;
+    padding:7px;
+    border-radius:17px;
+    box-shadow:0 10px 28px color-mix(in srgb, #000 22%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
+  }
+
+  .mobile-mini-player {
+    grid-template-columns:minmax(0, 1fr) 46px 44px;
+    gap:4px;
+  }
+
+  .mobile-mini-main {
+    min-height:48px;
+  }
+
+  .mobile-mini-player .mobile-mini-play,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-play,
+  .mobile-mini-player .mobile-mini-next,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-mini-player .mobile-mini-next {
+    min-width:44px !important;
+    width:44px !important;
+    min-height:44px !important;
+    height:44px !important;
+    transition:transform 140ms var(--mobile-ease-out), filter 180ms ease, background-color 180ms ease;
+  }
+
+  .mobile-mini-player > button:not(:disabled):active {
+    transform:scale(.96);
+    filter:brightness(.94);
+  }
+
+  .mobile-mini-progress {
+    left:10px;
+    right:10px;
+    bottom:-5px;
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .mobile-bottom-nav,
+  .app-shell[data-mobile-theme='smartisan-classic']:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .mobile-bottom-nav {
+    min-height:calc(62px + var(--safe-bottom));
+    padding:3px calc(8px + var(--safe-right)) calc(3px + var(--safe-bottom)) calc(8px + var(--safe-left));
+    border-top-color:color-mix(in srgb, var(--mobile-ui-text) 9%, transparent);
+  }
+
+  .mobile-bottom-nav button,
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button,
+  .app-shell[data-mobile-theme='smartisan-classic'] .mobile-bottom-nav button.active {
+    min-height:56px;
+    gap:2px;
+    padding:4px 2px 3px;
+    border-radius:14px;
+    transition:color 180ms ease, transform 140ms var(--mobile-ease-out), background-color 180ms ease;
+  }
+
+  .mobile-bottom-nav-icon {
+    width:var(--mobile-tab-icon-size);
+    height:var(--mobile-tab-icon-size);
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    transition:transform 180ms var(--mobile-ease-out), background-color 180ms ease;
+  }
+
+  .mobile-bottom-nav button svg {
+    width:22px;
+    height:22px;
+  }
+
+  .mobile-bottom-nav button.active .mobile-bottom-nav-icon {
+    background:color-mix(in srgb, var(--mobile-ui-accent) 14%, transparent);
+  }
+
+  .mobile-bottom-nav button.active svg {
+    transform:none;
+  }
+
+  .mobile-bottom-nav button span:last-child {
+    font-size:10.5px;
+    font-weight:680;
+    line-height:1.15;
+  }
+
+  .mobile-bottom-nav button:not(:disabled):active {
+    transform:scale(.96);
+  }
+
+  .mobile-home-surface button,
+  .mobile-mini-player button,
+  .mobile-bottom-nav button {
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  .mobile-home-surface button:focus-visible,
+  .mobile-mini-player button:focus-visible,
+  .mobile-bottom-nav button:focus-visible {
+    outline:3px solid color-mix(in srgb, var(--mobile-ui-accent) 54%, #fff);
+    outline-offset:2px;
+  }
+}
+
+@media (max-width:380px) {
+  .mobile-home-now {
+    min-height:166px;
+    grid-template-columns:minmax(0, 1fr) 104px;
+    gap:14px;
+    padding:19px;
+  }
+
+  .mobile-home-now > button {
+    width:104px;
+    min-width:104px;
+    height:104px;
+    min-height:104px;
+  }
+
+  .mobile-home-empty {
+    grid-template-columns:44px minmax(0, 1fr);
+  }
+
+  .mobile-home-empty > span {
+    width:44px;
+    height:44px;
+  }
+
+  .mobile-home-empty button {
+    grid-column:1 / -1;
+    width:100%;
+  }
+}
+
+@media (hover:hover) and (pointer:fine) {
+  .mobile-home-library-hub button:hover,
+  .mobile-home-song-strip button:hover,
+  .mobile-home-list button:hover {
+    border-color:color-mix(in srgb, var(--mobile-ui-accent) 34%, var(--mobile-ui-border));
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .mobile-home-now > button,
+  .mobile-home-library-hub button,
+  .mobile-home-song-strip button,
+  .mobile-home-list button,
+  .mobile-home-empty button,
+  .mobile-mini-player > button,
+  .mobile-bottom-nav button,
+  .mobile-bottom-nav-icon {
+    transition:color 120ms ease, background-color 120ms ease, border-color 120ms ease, opacity 120ms ease !important;
+  }
+}
+
+/* Theme matrix guardrails: these invariants deliberately sit after the theme
+   layers so every mobile player variant keeps the same usability floor. */
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
+  .mobile-home-now strong {
+    display:-webkit-box !important;
+    overflow:hidden !important;
+    text-overflow:clip !important;
+    white-space:normal !important;
+    overflow-wrap:anywhere;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-meta strong {
+    width:100%;
+    max-width:100%;
+    display:-webkit-box !important;
+    overflow:hidden !important;
+    text-overflow:clip !important;
+    white-space:normal !important;
+    overflow-wrap:anywhere;
+    line-height:1.12;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) :is(
+    .mobile-art-actions button,
+    .mobile-art-controls button:not(.mobile-art-play),
+    .mobile-art-topbar-icon
+  ) {
+    box-sizing:border-box;
+    width:44px !important;
+    min-width:44px !important;
+    height:44px !important;
+    min-height:44px !important;
+    flex:0 0 44px;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player.mobile-art-gramophone {
+    --mobile-player-title:#fff8eb;
+    --mobile-player-secondary:rgba(255,248,235,.82);
+    --mobile-player-control:#fff8eb;
+    --mobile-player-action:rgba(255,248,235,.9);
+    --mobile-player-hairline:rgba(255,248,235,.24);
+    --mobile-player-track:rgba(255,248,235,.22);
+    --mobile-player-volume-idle:rgba(255,248,235,.26);
+  }
+
+  .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head h2,
+  .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head button {
+    color:#fffefa !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic {
+    --mobile-player-title:rgba(0,0,0,.78);
+    --mobile-player-secondary:rgba(0,0,0,.6);
+    --mobile-player-control:rgba(0,0,0,.7);
+    --mobile-player-action:rgba(0,0,0,.66);
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-stage {
+    overflow:hidden;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic .mobile-smartisan-deck {
+    --mobile-smartisan-deck-size:min(340px, 90vw, 41dvh) !important;
+    width:var(--mobile-smartisan-deck-size);
+    height:min(var(--mobile-smartisan-deck-size), 100%);
+  }
+}
+
+@media (min-width:721px) and (max-width:960px) and (max-height:500px) and (orientation:landscape) {
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .main {
+    padding-left:calc(14px + var(--safe-left)) !important;
+    padding-right:calc(14px + var(--safe-right)) !important;
+  }
+
+  .app-shell:not([data-mobile-player-expanded='true']):not(.lyrics-mode) .player {
+    margin-left:calc(10px + var(--safe-left)) !important;
+    margin-right:calc(10px + var(--safe-right)) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player .mobile-art-phone {
+    padding-left:calc(18px + var(--safe-left)) !important;
+    padding-right:calc(18px + var(--safe-right)) !important;
+  }
+
+  .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-meta strong {
+    -webkit-line-clamp:1;
   }
 }

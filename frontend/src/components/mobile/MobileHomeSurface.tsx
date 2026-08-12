@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { Disc, MicrophoneStage, MusicNotes, Pause, Play, Playlist as PlaylistIcon, Record } from "@phosphor-icons/react";
+import { ArrowRight, Disc, MicrophoneStage, MusicNotes, Pause, Play, Playlist as PlaylistIcon, Record } from "@phosphor-icons/react";
 
 import type { createT } from "../../i18n";
 import type { Album, Artist, LibraryStats, MobileHomePlayerStyle, Playlist, Song } from "../../types";
@@ -17,14 +17,26 @@ function artistCoverUrl(artist?: Artist | null) {
   return artist ? `/api/artists/${artist.id}/cover` : undefined;
 }
 
-function MobileSongCover({ song, playing }: { song?: Song | null; playing: boolean }) {
-  const url = coverUrl(song);
+function MobileSongCover({
+  song,
+  cover,
+  title,
+  artist,
+  playing,
+}: {
+  song?: Song | null;
+  cover?: string;
+  title?: string;
+  artist?: string;
+  playing: boolean;
+}) {
+  const url = cover || coverUrl(song);
   const [failedUrl, setFailedUrl] = useState("");
   useEffect(() => {
     if (url !== failedUrl) setFailedUrl("");
   }, [failedUrl, url]);
   const displayUrl = url && url !== failedUrl ? url : "";
-  const fallbackLabel = coverFallbackLabel(song?.title, song?.artist);
+  const fallbackLabel = coverFallbackLabel(title || song?.title, artist || song?.artist);
   const style = displayUrl ? ({ "--cover-url": `url(${displayUrl})` } as CSSProperties) : undefined;
   return (
     <div
@@ -79,6 +91,8 @@ function MobileCollectionCover({
 export function MobileHomeSurface({
   theme,
   displaySong,
+  canResumeDisplaySong,
+  externalNowPlaying,
   current,
   playing,
   recentSongs,
@@ -93,6 +107,7 @@ export function MobileHomeSurface({
   onPlay,
   onResume,
   onTogglePlayback,
+  onOpenLibrary,
   onOpenAlbums,
   onOpenArtists,
   onOpenPlaylists,
@@ -103,6 +118,8 @@ export function MobileHomeSurface({
 }: {
   theme: MobileHomePlayerStyle;
   displaySong?: Song | null;
+  canResumeDisplaySong: boolean;
+  externalNowPlaying?: { title: string; artist: string; album: string; cover?: string } | null;
   current: Song | null;
   playing: boolean;
   recentSongs: Song[];
@@ -117,6 +134,7 @@ export function MobileHomeSurface({
   onPlay: (song: Song, list?: Song[]) => void;
   onResume: (song: Song) => void;
   onTogglePlayback: () => void;
+  onOpenLibrary: () => void;
   onOpenAlbums: () => void;
   onOpenArtists: () => void;
   onOpenPlaylists: () => void;
@@ -125,16 +143,19 @@ export function MobileHomeSurface({
   onOpenArtist: (id: number, fallbackName?: string) => void;
   onOpenPlaylist: (playlist: Playlist) => void;
 }) {
-  const heroActive = Boolean(current);
+  const heroActive = Boolean(current || externalNowPlaying);
   const heroPlaying = playing && heroActive;
-  const canResumeDisplaySong = !heroActive && Boolean(displaySong);
   const highlightSong = recentAddedSongs[0] ?? recommendedSongs[0] ?? displaySong ?? null;
   const highlightQueue = recentAddedSongs.length ? recentAddedSongs : recommendedSongs.length ? recommendedSongs : highlightSong ? [highlightSong] : [];
   const highlightLabel = recentAddedSongs.length ? t("recentAdded") : t("mobileForYou");
   const featuredAlbum = albums[0];
   const featuredArtist = artists[0];
   const featuredPlaylist = playlists[0];
-  const displayCover = coverUrl(displaySong);
+  const hasSongs = Boolean(externalNowPlaying || displaySong || recentSongs.length || recommendedSongs.length);
+  const displayCover = externalNowPlaying?.cover || coverUrl(displaySong);
+  const heroTitle = externalNowPlaying?.title || displaySong?.title;
+  const heroArtist = externalNowPlaying?.artist || displaySong?.artist;
+  const heroAlbum = externalNowPlaying?.album || displaySong?.album;
   const surfaceStyle = displayCover
     ? ({ "--mobile-home-cover": `url("${displayCover.replace(/"/g, "%22")}")` } as CSSProperties)
     : undefined;
@@ -143,20 +164,32 @@ export function MobileHomeSurface({
     <section className="mobile-home-surface" data-mobile-theme={theme} style={surfaceStyle}>
       <section className="mobile-home-now" data-has-cover={displayCover ? "true" : "false"}>
         <div>
-          <span>{heroActive ? t("nowPlaying") : t("recentAdded")}</span>
-          <strong>{displaySong?.title ?? t("brand")}</strong>
-          <small>{displaySong ? `${displaySong.artist} · ${displaySong.album}` : t("emptyCollection")}</small>
+          <span>{heroActive ? t("nowPlaying") : hasSongs ? t("recentAdded") : t("mobileForYou")}</span>
+          <strong>{heroTitle ?? t("brand")}</strong>
+          <small>{heroTitle ? [heroArtist, heroAlbum].filter(Boolean).join(" · ") : t("noSongs")}</small>
         </div>
         <button
           type="button"
-          disabled={!displaySong}
-          aria-label={heroPlaying ? t("pause") : t("play")}
-          onClick={heroActive ? onTogglePlayback : canResumeDisplaySong && displaySong ? () => onResume(displaySong) : undefined}
+          aria-label={heroTitle ? (heroPlaying ? t("pause") : t("play")) : t("library")}
+          onClick={heroActive ? onTogglePlayback : canResumeDisplaySong && displaySong ? () => onResume(displaySong) : displaySong ? () => onPlay(displaySong, recentSongs.length ? recentSongs : recommendedSongs) : onOpenLibrary}
         >
-          <MobileSongCover song={displaySong} playing={heroPlaying} />
-          {heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
+          <MobileSongCover song={displaySong} cover={externalNowPlaying?.cover} title={heroTitle} artist={heroArtist} playing={heroPlaying} />
+          {heroTitle ? (heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />) : <ArrowRight weight="bold" />}
         </button>
       </section>
+
+      {!loading && !hasSongs ? (
+        <section className="mobile-home-empty" aria-labelledby="mobile-home-empty-title">
+          <span aria-hidden="true"><MusicNotes weight="fill" /></span>
+          <div>
+            <strong id="mobile-home-empty-title">{t("noSongs")}</strong>
+            <small>{t("scanHint")}</small>
+          </div>
+          <button type="button" onClick={onOpenLibrary}>
+            {t("library")} <ArrowRight weight="bold" />
+          </button>
+        </section>
+      ) : null}
 
       <div className="mobile-home-highlight">
         <div>
@@ -284,7 +317,7 @@ export function MobileHomeSurface({
         </div>
       ) : null}
 
-      <div className="mobile-home-quickplay">
+      {loading || recentSongs.length ? <div className="mobile-home-quickplay">
         <div className="mobile-home-section-head">
           <h2>{t("mobileForYou")}</h2>
           {recentSongs[0] ? (
@@ -308,13 +341,11 @@ export function MobileHomeSurface({
                 </span>
               </button>
             ))
-          ) : (
-            <div className="empty mini-empty">{t("noSongs")}</div>
-          )}
+          ) : null}
         </div>
-      </div>
+      </div> : null}
 
-      <div className="mobile-home-library">
+      {loading || recommendedSongs.length ? <div className="mobile-home-library">
         <div className="mobile-home-section-head">
           <h2>{t("dailyRecommendedSongs")}</h2>
         </div>
@@ -334,11 +365,9 @@ export function MobileHomeSurface({
                 <Play weight="fill" />
               </button>
             ))
-          ) : (
-            <div className="empty mini-empty">{t("noSongs")}</div>
-          )}
+          ) : null}
         </div>
-      </div>
+      </div> : null}
     </section>
   );
 }

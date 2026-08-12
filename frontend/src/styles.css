@@ -9,6 +9,8 @@
   --nav-h: 74px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   --lzc-safe-right: calc(var(--lzc-client-safearea-view-right, 0px) + var(--lzc-client-safearea-view-width, 0px));
   --cover-url: linear-gradient(135deg, transparent, transparent);
   --ease: cubic-bezier(.2,.8,.2,1);

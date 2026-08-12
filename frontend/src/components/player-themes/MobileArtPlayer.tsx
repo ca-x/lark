@@ -299,7 +299,7 @@ export function MobileArtPlayer({
           <em>{album}</em>
         </div>
 
-        <div className="mobile-art-actions" aria-label={text.menu}>
+        <div className="mobile-art-actions" role="group" aria-label={text.menu}>
           <button type="button" className={favoriteActive ? "active" : ""} aria-label={text.favorite} aria-pressed={favoriteActive} disabled={!onFavorite} onClick={onFavorite}>
             <HeartStraight weight={favoriteActive ? "fill" : "regular"} />
           </button>

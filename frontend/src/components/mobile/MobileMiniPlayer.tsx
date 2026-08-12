@@ -9,6 +9,7 @@ export function MobileMiniPlayer({
   cover,
   title,
   artist,
+  available,
   playing,
   progress,
   duration,
@@ -22,6 +23,7 @@ export function MobileMiniPlayer({
   cover?: string;
   title: string;
   artist: string;
+  available: boolean;
   playing: boolean;
   progress: number;
   duration: number;
@@ -53,7 +55,7 @@ export function MobileMiniPlayer({
 
   return (
     <div className="mobile-mini-player" data-mobile-theme={theme} data-playing={playing ? "true" : "false"} style={style}>
-      <button type="button" className="mobile-mini-main" aria-label={expandLabel} onClick={onExpand}>
+      <button type="button" className="mobile-mini-main" aria-label={expandLabel} disabled={!available} onClick={onExpand}>
         <span className="mobile-mini-art" data-has-cover={displayCover ? "true" : "false"} data-fallback-label={fallbackLabel} aria-hidden="true">
           {displayCover ? (
             <img src={displayCover} alt="" loading="eager" decoding="async" onError={() => setFailedCover(displayCover)} />
@@ -68,7 +70,7 @@ export function MobileMiniPlayer({
           </span>
         </span>
       </button>
-      <button type="button" className="mobile-mini-play" aria-label={playing ? labels.pause : labels.play} onClick={onToggle}>
+      <button type="button" className="mobile-mini-play" aria-label={playing ? labels.pause : labels.play} disabled={!available} onClick={onToggle}>
         {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
       </button>
       <button type="button" className="mobile-mini-next" aria-label={labels.next} disabled={!onNext} onClick={onNext}>

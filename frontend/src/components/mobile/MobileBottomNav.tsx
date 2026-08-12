@@ -31,9 +31,11 @@ export function MobileBottomNav({
           title={item.label}
           onClick={item.onSelect}
         >
-          {item.active && isValidElement<{ weight?: string }>(item.icon)
-            ? cloneElement(item.icon, { weight: "fill" })
-            : item.icon}
+          <span className="mobile-bottom-nav-icon" aria-hidden="true">
+            {item.active && isValidElement<{ weight?: string }>(item.icon)
+              ? cloneElement(item.icon, { weight: "fill" })
+              : item.icon}
+          </span>
           <span>{item.label}</span>
         </button>
       ))}

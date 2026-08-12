@@ -4951,7 +4951,12 @@ export default function App() {
     view === "artists" ||
     view === "radio" ||
     view === "collection";
-  const mobilePlayerAvailable = Boolean(current || currentRadio || currentNetworkTrack || heroSong || recentAddedSongs[0] || songs[0]);
+  const mobileFallbackSong = heroSong ?? recentAddedSongs[0] ?? dailyMix[0] ?? songs[0] ?? null;
+  const mobileDisplaySong = current ?? (!currentRadio && !currentNetworkTrack ? mobileFallbackSong : null);
+  const mobilePlayerAvailable = Boolean(currentRadio || currentNetworkTrack || mobileDisplaySong);
+  useEffect(() => {
+    if (!mobilePlayerAvailable && mobilePlayerExpanded) setMobilePlayerExpanded(false);
+  }, [mobilePlayerAvailable, mobilePlayerExpanded]);
   const mobileMyActive =
     view === "my" ||
     view === "history" ||
@@ -5014,7 +5019,6 @@ export default function App() {
   const playerStyle = currentArtwork
     ? ({ "--cover-url": `url(${currentArtwork})` } as React.CSSProperties)
     : undefined;
-  const mobileDisplaySong = current ?? (!currentRadio && !currentNetworkTrack ? heroSong ?? recentAddedSongs[0] ?? songs[0] : null);
   const mobilePlaybackActive = Boolean(current || currentRadio || currentNetworkTrack);
   const toggleMobilePlayback = () => {
     if (!mobilePlaybackActive && mobileDisplaySong) {
@@ -5160,6 +5164,7 @@ export default function App() {
       data-interface-mode={effectiveInterfaceMode}
       data-view={view}
       data-mobile-player-expanded={mobilePlayerExpanded ? "true" : "false"}
+      data-mobile-player-available={mobilePlayerAvailable ? "true" : "false"}
       data-mobile-theme={mobileHomePlayerStyle}
       data-mineradio-stage-active={mineradioDesktopHome ? "true" : "false"}
       aria-hidden={effectiveInterfaceMode === "shell" ? "true" : undefined}
@@ -5845,6 +5850,7 @@ export default function App() {
           cover={currentArtwork || coverUrl(mobileDisplaySong)}
           title={mobileDisplaySong?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("brand")}
           artist={mobileDisplaySong?.artist ?? currentNetworkTrack?.artist ?? currentRadio?.country ?? t("nowPlaying")}
+          available={mobilePlayerAvailable}
           playing={playerPlaying}
           progress={progress}
           duration={playableDuration}
@@ -6562,7 +6568,8 @@ function HomeView({
   const featuredArtists = artists.slice(0, 4);
   const featuredPlaylists = playlists.slice(0, 3);
   const resumeCandidate = resumePosition(recentPlayedSongs[0]) ? recentPlayedSongs[0] : null;
-  const displaySong = current ?? heroSong ?? resumeCandidate ?? recentAddedSongs[0] ?? songs[0];
+  const displaySong = current ?? heroSong ?? resumeCandidate ?? recentAddedSongs[0] ?? dailySource[0] ?? songs[0];
+  const canResumeDisplaySong = Boolean(displaySong && resumePosition(displaySong) > 0);
   const heroActive = Boolean(current);
   const heroCanResume = !heroActive && Boolean(resumeCandidate);
   const heroPlaying = playing && heroActive;
@@ -6577,6 +6584,18 @@ function HomeView({
         <MobileHomeSurface
           theme={mobileHomePlayerStyle}
           displaySong={displaySong}
+          canResumeDisplaySong={canResumeDisplaySong}
+          externalNowPlaying={currentRadio ? {
+            title: currentRadio.name || t("onlineRadio"),
+            artist: currentRadio.country || t("onlineRadio"),
+            album: currentRadio.codec || currentRadio.tags || t("liveRadio"),
+            cover: currentRadio.favicon,
+          } : currentNetworkTrack ? {
+            title: currentNetworkTrack.title || t("nowPlaying"),
+            artist: currentNetworkTrack.artist || t("artist"),
+            album: currentNetworkTrack.album || currentNetworkTrack.provider || t("networkLibrary"),
+            cover: currentNetworkTrack.cover_url,
+          } : null}
           current={current}
           playing={playing}
           recentSongs={mobileRecent}
@@ -6590,6 +6609,7 @@ function HomeView({
           onPlay={onPlay}
           onResume={onResume}
           onTogglePlayback={onTogglePlayback}
+          onOpenLibrary={onOpenLibrary}
           onOpenAlbums={onOpenAlbums}
           onOpenArtists={onOpenArtists}
           onOpenPlaylists={onOpenPlaylists}

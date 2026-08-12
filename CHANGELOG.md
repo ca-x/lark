@@ -5,6 +5,36 @@
 
 ---
 
+## 0.9.43：移动端音乐体验细化
+
+发布日期 / Released: 2026-08-13
+
+### 移动端体验
+
+- **让空曲库首页更明确。** 没有可播放内容时，首页只保留一个前往曲库的操作，并隐藏无法使用的迷你播放器，不再用重复空状态或虚假播放信息占据屏幕。
+- **把迷你播放器和底部导航连成一体。** 播放信息、主要控制和四个导航入口现在拥有更稳定的尺寸、间距、按压反馈与安全区关系，更接近移动音乐应用的连续播放栏。
+- **逐一修正八种移动播放主题。** 长中文标题可显示两行，所有主要播放控件至少为 44 × 44 像素，横竖屏布局保持完整，并提高复古唱机主题的文字与控制对比度。
+- **收紧动效与边界细节。** 减少动态偏好、键盘焦点和触控反馈得到统一处理，锤子经典主题的唱盘也会稳定收在可视舞台内。
+
+完整 diff：`git log v0.9.42..v0.9.43`
+
+---
+
+## v0.9.43: Mobile music experience refinement
+
+Released: 2026-08-13
+
+### Mobile experience
+
+- **Made the empty-library home screen clearer.** When nothing is playable, the home screen keeps one route into the library and hides the unusable mini player instead of repeating empty states or showing false playback information.
+- **Joined the mini player and bottom navigation into one system.** Playback information, primary controls, and the four navigation destinations now share more stable sizing, spacing, press feedback, and safe-area alignment.
+- **Reviewed and corrected all eight mobile player themes.** Long Chinese titles can use two lines, primary playback controls are at least 44 by 44 pixels, portrait and landscape layouts remain complete, and Gramophone text and controls have stronger contrast.
+- **Tightened motion and layout boundaries.** Reduced-motion behavior, keyboard focus, and touch feedback are consistent, while the Smartisan classic turntable stays within its visible stage.
+
+Full diff: `git log v0.9.42..v0.9.43`
+
+---
+
 ## 0.9.42：歌手与专辑收藏筛选
 
 发布日期 / Released: 2026-08-11
