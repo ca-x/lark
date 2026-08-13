@@ -10103,31 +10103,31 @@
   }
 
   .mobile-art-neon-console .mobile-art-phone {
-    background:#0b0d10 !important;
+    background:var(--mobile-art-phone-bg) !important;
   }
 
   .mobile-art-soft-vinyl .mobile-art-phone {
-    background:#f1ece3 !important;
+    background:var(--mobile-art-phone-bg) !important;
   }
 
   .mobile-art-gramophone .mobile-art-phone {
-    background:linear-gradient(165deg, #8f7968 0%, #5e4132 52%, #2c201b 100%) !important;
+    background:linear-gradient(165deg, var(--mobile-art-panel) 0%, var(--mobile-art-phone-bg) 52%, var(--mobile-art-phone-bg-2) 100%) !important;
   }
 
   .mobile-art-indiewave .mobile-art-phone {
-    background:#fffefa !important;
+    background:var(--mobile-art-phone-bg) !important;
   }
 
   .mobile-art-editorial-pulse .mobile-art-phone {
-    background:linear-gradient(#ffb313 0 56%, #f3f3f1 56% 100%) !important;
+    background:linear-gradient(var(--mobile-art-phone-bg-2) 0 56%, var(--mobile-art-phone-bg) 56% 100%) !important;
   }
 
   .mobile-art-stage-glass .mobile-art-phone {
-    background:#22243b !important;
+    background:var(--mobile-art-phone-bg) !important;
   }
 
   .mobile-art-blue-halo .mobile-art-phone {
-    background:#c7d2da !important;
+    background:var(--mobile-art-phone-bg) !important;
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-actions button,
@@ -10287,6 +10287,283 @@
     top:50px;
   }
 }
+
+/* Non-Smartisan mobile palette tokens.
+   These semantic colors keep every player identity intact while giving the
+   shell, small navigation labels, and expanded controls one contrast-safe
+   foreground system. Smartisan stays on its asset-matched classic palette. */
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
+  .app-shell[data-mobile-theme='neon-console'] {
+    --bg:#0b0d10;
+    --panel:#15191e;
+    --panel2:#20262d;
+    --text:#f5f1e8;
+    --muted:#b7aea0;
+    --accent:#d7b86f;
+    --line:#32383f;
+    --mobile-ui-bg:#0b0d10;
+    --mobile-ui-surface:#15191e;
+    --mobile-ui-surface-2:#20262d;
+    --mobile-ui-text:#f5f1e8;
+    --mobile-ui-muted:#b7aea0;
+    --mobile-ui-accent:#d7b86f;
+    --mobile-ui-border:#32383f;
+    --mobile-player-bg:#090b0d;
+    --mobile-active-text:#0b0d10;
+    --mobile-mini-control:#f5f1e8;
+    --mobile-mini-control-bg:#20262d;
+    --mobile-mini-control-border:#3b4249;
+    --mobile-mini-play-bg:#d7b86f;
+    --mobile-mini-play-fg:#0b0d10;
+    --mobile-mini-play-border:#d7b86f;
+  }
+
+  .app-shell[data-mobile-theme='soft-vinyl'] {
+    --bg:#f3efe8;
+    --panel:#fffcf7;
+    --panel2:#e7e0d5;
+    --text:#202333;
+    --muted:#626979;
+    --accent:#416a9e;
+    --line:#cfc7bb;
+    --mobile-ui-bg:#f3efe8;
+    --mobile-ui-surface:#fffcf7;
+    --mobile-ui-surface-2:#e7e0d5;
+    --mobile-ui-text:#202333;
+    --mobile-ui-muted:#626979;
+    --mobile-ui-accent:#416a9e;
+    --mobile-ui-border:#cfc7bb;
+    --mobile-player-bg:#eae4db;
+    --mobile-active-text:#ffffff;
+    --mobile-mini-control:#202333;
+    --mobile-mini-control-bg:#e7e0d5;
+    --mobile-mini-control-border:#c5bdaf;
+    --mobile-mini-play-bg:#416a9e;
+    --mobile-mini-play-fg:#ffffff;
+    --mobile-mini-play-border:#416a9e;
+  }
+
+  .app-shell[data-mobile-theme='gramophone'] {
+    --bg:#281c18;
+    --panel:#452a1d;
+    --panel2:#5b3b2b;
+    --text:#fff3df;
+    --muted:#cdbba4;
+    --accent:#e1ad69;
+    --line:#694b38;
+    --mobile-ui-bg:#281c18;
+    --mobile-ui-surface:#452a1d;
+    --mobile-ui-surface-2:#5b3b2b;
+    --mobile-ui-text:#fff3df;
+    --mobile-ui-muted:#cdbba4;
+    --mobile-ui-accent:#e1ad69;
+    --mobile-ui-border:#694b38;
+    --mobile-player-bg:#211713;
+    --mobile-active-text:#281c18;
+    --mobile-mini-control:#fff3df;
+    --mobile-mini-control-bg:#452a1d;
+    --mobile-mini-control-border:#755743;
+    --mobile-mini-play-bg:#e1ad69;
+    --mobile-mini-play-fg:#281c18;
+    --mobile-mini-play-border:#e1ad69;
+  }
+
+  .app-shell[data-mobile-theme='indiewave'] {
+    --bg:#edf4ff;
+    --panel:#fffdf9;
+    --panel2:#ddeaff;
+    --text:#123f82;
+    --muted:#516b91;
+    --accent:#b94742;
+    --line:#bdcee6;
+    --mobile-ui-bg:#edf4ff;
+    --mobile-ui-surface:#fffdf9;
+    --mobile-ui-surface-2:#ddeaff;
+    --mobile-ui-text:#123f82;
+    --mobile-ui-muted:#516b91;
+    --mobile-ui-accent:#b94742;
+    --mobile-ui-border:#bdcee6;
+    --mobile-player-bg:#f5f7f8;
+    --mobile-active-text:#ffffff;
+    --mobile-mini-control:#123f82;
+    --mobile-mini-control-bg:#ddeaff;
+    --mobile-mini-control-border:#b8cbe5;
+    --mobile-mini-play-bg:#b94742;
+    --mobile-mini-play-fg:#ffffff;
+    --mobile-mini-play-border:#b94742;
+  }
+
+  .app-shell[data-mobile-theme='editorial-pulse'] {
+    --bg:#f6b817;
+    --panel:#fff9e8;
+    --panel2:#f3e8d3;
+    --text:#12100b;
+    --muted:#5d4715;
+    --accent:#8f1d2c;
+    --line:#c48f13;
+    --mobile-ui-bg:#f6b817;
+    --mobile-ui-surface:#fff9e8;
+    --mobile-ui-surface-2:#f3e8d3;
+    --mobile-ui-text:#12100b;
+    --mobile-ui-muted:#5d4715;
+    --mobile-ui-accent:#8f1d2c;
+    --mobile-ui-border:#c48f13;
+    --mobile-player-bg:#eeeae1;
+    --mobile-active-text:#ffffff;
+    --mobile-mini-control:#12100b;
+    --mobile-mini-control-bg:#e3a91b;
+    --mobile-mini-control-border:#a87912;
+    --mobile-mini-play-bg:#12100b;
+    --mobile-mini-play-fg:#f6b817;
+    --mobile-mini-play-border:#12100b;
+  }
+
+  .app-shell[data-mobile-theme='stage-glass'] {
+    --bg:#14152a;
+    --panel:#20213e;
+    --panel2:#2b2c50;
+    --text:#f7f1ff;
+    --muted:#b2b3d4;
+    --accent:#c6a0f4;
+    --line:#404166;
+    --mobile-ui-bg:#14152a;
+    --mobile-ui-surface:#20213e;
+    --mobile-ui-surface-2:#2b2c50;
+    --mobile-ui-text:#f7f1ff;
+    --mobile-ui-muted:#b2b3d4;
+    --mobile-ui-accent:#c6a0f4;
+    --mobile-ui-border:#404166;
+    --mobile-player-bg:#101121;
+    --mobile-active-text:#14152a;
+    --mobile-mini-control:#f7f1ff;
+    --mobile-mini-control-bg:#2b2c50;
+    --mobile-mini-control-border:#4a4b72;
+    --mobile-mini-play-bg:#c6a0f4;
+    --mobile-mini-play-fg:#14152a;
+    --mobile-mini-play-border:#c6a0f4;
+  }
+
+  .app-shell[data-mobile-theme='blue-halo'] {
+    --bg:#e7edf2;
+    --panel:#fafcfd;
+    --panel2:#d6e0e8;
+    --text:#172635;
+    --muted:#566b7d;
+    --accent:#315f82;
+    --line:#bdcbd6;
+    --mobile-ui-bg:#e7edf2;
+    --mobile-ui-surface:#fafcfd;
+    --mobile-ui-surface-2:#d6e0e8;
+    --mobile-ui-text:#172635;
+    --mobile-ui-muted:#566b7d;
+    --mobile-ui-accent:#315f82;
+    --mobile-ui-border:#bdcbd6;
+    --mobile-player-bg:#d7e1e8;
+    --mobile-active-text:#ffffff;
+    --mobile-mini-control:#172635;
+    --mobile-mini-control-bg:#d6e0e8;
+    --mobile-mini-control-border:#b8c7d2;
+    --mobile-mini-play-bg:#315f82;
+    --mobile-mini-play-fg:#ffffff;
+    --mobile-mini-play-border:#315f82;
+  }
+
+  .app-shell[data-mobile-theme='neon-console'] .mobile-art-neon-console {
+    --mobile-art-phone-bg:#0b0d10;
+    --mobile-art-phone-bg-2:#15191e;
+    --mobile-art-panel:#20262d;
+    --mobile-art-panel-strong:#2a3139;
+    --mobile-art-text:#f5f1e8;
+    --mobile-art-muted:#b7aea0;
+    --mobile-art-accent:#d7b86f;
+    --mobile-art-glow:rgba(215,184,111,.24);
+  }
+
+  .app-shell[data-mobile-theme='soft-vinyl'] .mobile-art-soft-vinyl {
+    --mobile-art-phone-bg:#f3efe8;
+    --mobile-art-phone-bg-2:#e7e0d5;
+    --mobile-art-panel:#fffcf7;
+    --mobile-art-panel-strong:#ffffff;
+    --mobile-art-text:#202333;
+    --mobile-art-muted:#626979;
+    --mobile-art-accent:#416a9e;
+    --mobile-art-glow:rgba(65,106,158,.24);
+  }
+
+  .app-shell[data-mobile-theme='gramophone'] .mobile-art-gramophone {
+    --mobile-art-phone-bg:#452a1d;
+    --mobile-art-phone-bg-2:#281c18;
+    --mobile-art-panel:#5b3b2b;
+    --mobile-art-panel-strong:#694735;
+    --mobile-art-text:#fff3df;
+    --mobile-art-muted:#cdbba4;
+    --mobile-art-accent:#e1ad69;
+    --mobile-art-glow:rgba(225,173,105,.3);
+  }
+
+  .app-shell[data-mobile-theme='indiewave'] .mobile-art-indiewave {
+    --mobile-art-phone-bg:#fffdf9;
+    --mobile-art-phone-bg-2:#edf4ff;
+    --mobile-art-panel:#ddeaff;
+    --mobile-art-panel-strong:#ffffff;
+    --mobile-art-text:#123f82;
+    --mobile-art-muted:#516b91;
+    --mobile-art-accent:#b94742;
+    --mobile-art-glow:rgba(185,71,66,.22);
+  }
+
+  .app-shell[data-mobile-theme='editorial-pulse'] .mobile-art-editorial-pulse {
+    --mobile-art-phone-bg:#eeeae1;
+    --mobile-art-phone-bg-2:#f6b817;
+    --mobile-art-panel:#f3e8d3;
+    --mobile-art-panel-strong:#fff9e8;
+    --mobile-art-text:#12100b;
+    --mobile-art-muted:#5d4715;
+    --mobile-art-accent:#8f1d2c;
+    --mobile-art-glow:rgba(143,29,44,.22);
+  }
+
+  .app-shell[data-mobile-theme='stage-glass'] .mobile-art-stage-glass {
+    --mobile-art-phone-bg:#20213e;
+    --mobile-art-phone-bg-2:#14152a;
+    --mobile-art-panel:#2b2c50;
+    --mobile-art-panel-strong:#363761;
+    --mobile-art-text:#f7f1ff;
+    --mobile-art-muted:#b2b3d4;
+    --mobile-art-accent:#f0d787;
+    --mobile-art-glow:rgba(240,215,135,.3);
+  }
+
+  .app-shell[data-mobile-theme='blue-halo'] .mobile-art-blue-halo {
+    --mobile-art-phone-bg:#d7e1e8;
+    --mobile-art-phone-bg-2:#c3d0da;
+    --mobile-art-panel:#fafcfd;
+    --mobile-art-panel-strong:#ffffff;
+    --mobile-art-text:#172635;
+    --mobile-art-muted:#455a6c;
+    --mobile-art-accent:#315f82;
+    --mobile-art-glow:rgba(49,95,130,.24);
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-bottom-nav button:not(.active):not(:disabled) {
+    color:var(--mobile-ui-muted) !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-bottom-nav button.active {
+    color:var(--mobile-ui-accent) !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-home-empty button {
+    color:var(--mobile-active-text) !important;
+    background:var(--mobile-ui-accent);
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head h2,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head button {
+    color:var(--mobile-ui-text) !important;
+  }
+}
+/* End non-Smartisan mobile palette tokens. */
 
 /* v0.9.41 mobile refinement.
    A quiet, artwork-led foundation shared by every theme; theme character stays
@@ -11345,18 +11622,18 @@
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-player.mobile-art-gramophone {
-    --mobile-player-title:#fff8eb;
-    --mobile-player-secondary:rgba(255,248,235,.82);
-    --mobile-player-control:#fff8eb;
-    --mobile-player-action:rgba(255,248,235,.9);
-    --mobile-player-hairline:rgba(255,248,235,.24);
-    --mobile-player-track:rgba(255,248,235,.22);
-    --mobile-player-volume-idle:rgba(255,248,235,.26);
+    --mobile-player-title:var(--mobile-art-text);
+    --mobile-player-secondary:color-mix(in srgb, var(--mobile-art-text) 82%, transparent);
+    --mobile-player-control:var(--mobile-art-text);
+    --mobile-player-action:color-mix(in srgb, var(--mobile-art-text) 90%, transparent);
+    --mobile-player-hairline:color-mix(in srgb, var(--mobile-art-text) 24%, transparent);
+    --mobile-player-track:color-mix(in srgb, var(--mobile-art-text) 22%, transparent);
+    --mobile-player-volume-idle:color-mix(in srgb, var(--mobile-art-text) 26%, transparent);
   }
 
-  .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head h2,
-  .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head button {
-    color:#fffefa !important;
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head h2,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head button {
+    color:var(--mobile-ui-text) !important;
   }
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-smartisan-classic {
@@ -11395,5 +11672,45 @@
 
   .app-shell[data-mobile-player-expanded='true']:not(.lyrics-mode) .mobile-art-meta strong {
     -webkit-line-clamp:1;
+  }
+}
+
+/* Final non-Smartisan palette guardrails. */
+@media (max-width:720px), (max-width:960px) and (max-height:500px) and (orientation:landscape) {
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-bottom-nav button:not(.active):not(:disabled) {
+    color:var(--mobile-ui-muted) !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-bottom-nav button.active {
+    color:var(--mobile-ui-accent) !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-home-empty button {
+    color:var(--mobile-active-text) !important;
+    background:var(--mobile-ui-accent);
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head h2,
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic']) .mobile-home-surface[data-mobile-theme='indiewave'] .mobile-home-section-head button {
+    color:var(--mobile-ui-text) !important;
+  }
+
+  .app-shell[data-mobile-theme]:not([data-mobile-theme='smartisan-classic'])[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player {
+    --mobile-player-title:var(--mobile-art-text);
+    --mobile-player-secondary:var(--mobile-art-muted);
+    --mobile-player-control:var(--mobile-art-text);
+    --mobile-player-action:var(--mobile-art-muted);
+    --mobile-player-active:var(--mobile-art-accent);
+    --mobile-player-control-bg:var(--mobile-art-panel);
+    --mobile-player-action-bg:color-mix(in srgb, var(--mobile-art-panel) 82%, transparent);
+    --mobile-player-active-bg:var(--mobile-art-panel-strong);
+    --mobile-player-hairline:color-mix(in srgb, var(--mobile-art-text) 18%, transparent);
+    --mobile-player-track:color-mix(in srgb, var(--mobile-art-text) 18%, transparent);
+    --mobile-player-volume-idle:color-mix(in srgb, var(--mobile-art-text) 20%, transparent);
+    --mobile-player-progress:linear-gradient(90deg, var(--mobile-art-accent), color-mix(in srgb, var(--mobile-art-accent) 42%, var(--mobile-art-text)));
+    --mobile-player-progress-glow:var(--mobile-art-glow);
+    --mobile-player-play-bg:var(--mobile-art-accent);
+    --mobile-player-play-fg:var(--mobile-active-text);
+    --mobile-player-focus:color-mix(in srgb, var(--mobile-art-accent) 72%, var(--mobile-art-text));
   }
 }

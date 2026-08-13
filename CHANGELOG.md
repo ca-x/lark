@@ -5,6 +5,34 @@
 
 ---
 
+## 0.9.44：移动端主题配色优化
+
+发布日期 / Released: 2026-08-13
+
+### 移动端主题
+
+- **提高七种移动主题的文字对比度。** Precision Audio、软胶唱片、留声机、Indiewave、Editorial Pulse、Stage Glass 和 Blue Halo 现在使用更清晰的正文、次要文字与强调色，底部导航的小字也更易辨认。
+- **统一首页与播放器的颜色层级。** 空状态按钮、首页标题、迷你播放器和展开播放器会使用同一套语义配色，浅色主题不再出现浅底浅字，深色主题也保留各自的材质与辨识度。
+- **保护锤子经典主题与后续发版。** 锤子经典主题保持原样，并增加配色对比度、展开播放器和主题隔离检查，防止构建时重新引入低对比颜色。
+
+完整 diff：`git log v0.9.43..v0.9.44`
+
+---
+
+## v0.9.44: Mobile theme palette refinement
+
+Released: 2026-08-13
+
+### Mobile themes
+
+- **Improved text contrast across seven mobile themes.** Precision Audio, Soft Vinyl, Gramophone, Indiewave, Editorial Pulse, Stage Glass, and Blue Halo now use clearer body, secondary, and accent colors, including more legible bottom-navigation labels.
+- **Aligned color hierarchy across the home screen and players.** Empty-state actions, section headings, the mini player, and the expanded player now share semantic palettes, avoiding pale text on light themes while preserving the material identity of darker themes.
+- **Protected Smartisan Classic and future releases.** Smartisan Classic remains unchanged, while new contrast, expanded-player, and theme-isolation checks prevent low-contrast colors from returning during builds.
+
+Full diff: `git log v0.9.43..v0.9.44`
+
+---
+
 ## 0.9.43：移动端音乐体验细化
 
 发布日期 / Released: 2026-08-13
