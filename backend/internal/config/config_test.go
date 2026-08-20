@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -19,6 +21,28 @@ func TestLoadDefaultsToBadgerWithoutRedisEnv(t *testing.T) {
 	}
 	if cfg.CacheBackend != "badger" {
 		t.Fatalf("CacheBackend = %q, want badger", cfg.CacheBackend)
+	}
+}
+
+func TestLoadPluginDirectoriesAndEnsureRuntimeDirs(t *testing.T) {
+	dataDir := t.TempDir()
+	t.Setenv("LARK_DATA_DIR", dataDir)
+	t.Setenv("LARK_PLUGINS_DIR", "")
+	t.Setenv("LARK_PLUGINS_DATA_DIR", "")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.PluginsDir != filepath.Join(dataDir, "jsplugins") || cfg.PluginsDataDir != filepath.Join(dataDir, "jsplugins_data") {
+		t.Fatalf("plugin dirs = %q, %q", cfg.PluginsDir, cfg.PluginsDataDir)
+	}
+	if err := EnsureRuntimeDirs(cfg); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{cfg.PluginsDir, cfg.PluginsDataDir} {
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			t.Fatalf("runtime dir %q: info=%v err=%v", dir, info, err)
+		}
 	}
 }
 

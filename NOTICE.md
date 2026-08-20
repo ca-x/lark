@@ -4,6 +4,15 @@ Lark incorporates and adapts visual-effect implementation ideas and code from:
 - folia-major by chthollyphile, licensed under AGPL-3.0. Full-screen lyrics work may adapt lyric timing, glow, and rail interaction patterns from this project.
 - Walkman by GordenSun, licensed under MIT: https://github.com/GordenSun/Walkman. The desktop Walkman player theme adapts the 3D cassette-player model, smoked door, mechanical controls, reel animation, and amber dot-matrix display concepts.
 - cover-flow-showcase by opc8838-hub, licensed under MIT: https://github.com/opc8838-hub/cover-flow-showcase. The artist album Cover Flow adapts circular 3D positioning, depth, reflection, wheel navigation, and snap behavior from commit eda6308e7e936a0d51b3602640dd870ce76693bd.
+- Songloft by the Songloft Team, licensed under Apache-2.0: https://github.com/songloft-org/songloft. Lark's JS plugin compatibility layer derives QuickJS runtime, plugin package, lifecycle, permission, routing, and host-bridge behavior from commit 825f70f603a773fc8c0ded555a0cbe753d2a0d52, with Songloft's Chi/sqlc services replaced by Lark Echo/Ent adapters.
+
+## Songloft Apache-2.0 Notice
+
+Songloft
+Copyright 2026 Songloft Team
+
+Licensed under the Apache License, Version 2.0. You may obtain a copy at
+<http://www.apache.org/licenses/LICENSE-2.0>.
 
 ## cover-flow-showcase MIT License
 

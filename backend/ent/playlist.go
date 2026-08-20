@@ -24,6 +24,8 @@ type Playlist struct {
 	Description string `json:"description,omitempty"`
 	// CoverTheme holds the value of the "cover_theme" field.
 	CoverTheme string `json:"cover_theme,omitempty"`
+	// CoverURL holds the value of the "cover_url" field.
+	CoverURL string `json:"cover_url,omitempty"`
 	// Favorite holds the value of the "favorite" field.
 	Favorite bool `json:"favorite,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -77,7 +79,7 @@ func (*Playlist) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case playlist.FieldID:
 			values[i] = new(sql.NullInt64)
-		case playlist.FieldName, playlist.FieldDescription, playlist.FieldCoverTheme:
+		case playlist.FieldName, playlist.FieldDescription, playlist.FieldCoverTheme, playlist.FieldCoverURL:
 			values[i] = new(sql.NullString)
 		case playlist.FieldCreatedAt, playlist.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -121,6 +123,12 @@ func (_m *Playlist) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field cover_theme", values[i])
 			} else if value.Valid {
 				_m.CoverTheme = value.String
+			}
+		case playlist.FieldCoverURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cover_url", values[i])
+			} else if value.Valid {
+				_m.CoverURL = value.String
 			}
 		case playlist.FieldFavorite:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -201,6 +209,9 @@ func (_m *Playlist) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("cover_theme=")
 	builder.WriteString(_m.CoverTheme)
+	builder.WriteString(", ")
+	builder.WriteString("cover_url=")
+	builder.WriteString(_m.CoverURL)
 	builder.WriteString(", ")
 	builder.WriteString("favorite=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Favorite))

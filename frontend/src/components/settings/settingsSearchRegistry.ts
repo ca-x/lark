@@ -5,4 +5,5 @@ export const settingsSearchAliases: Record<string, string[]> = {
   services: ["subsonic", "navidrome", "mcp", "dlna", "scrobble", "share", "transcode", "连接", "投送", "转码"],
   system: ["diagnostics", "retention", "debug", "诊断", "保留"],
   users: ["registration", "role", "account", "注册", "角色", "用户"],
+  plugins: ["plugin", "marketplace", "registry", "permission", "插件", "市场", "订阅", "权限"],
 };

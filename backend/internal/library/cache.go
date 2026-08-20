@@ -149,6 +149,16 @@ func (s *Service) invalidateSongCatalog(ctx context.Context) {
 		_ = s.cache.Delete(ctx, songCatalogCacheKey)
 	}
 }
+
+// PluginCatalogChanged invalidates the same browse/search caches as a native
+// library mutation. Plugin host adapters call it after creating, updating, or
+// deleting SongLoft-compatible catalog records.
+func (s *Service) PluginCatalogChanged(ctx context.Context, userID int) {
+	s.invalidateSearchCatalogs(ctx)
+	if userID > 0 {
+		s.invalidateUserLibraryCache(ctx, userID)
+	}
+}
 func (s *Service) invalidateSearchCatalogs(ctx context.Context) {
 	s.invalidateArtistCatalog(ctx)
 	s.invalidateSongCatalog(ctx)

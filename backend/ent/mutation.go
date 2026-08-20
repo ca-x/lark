@@ -13,6 +13,9 @@ import (
 	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
+	"lark/backend/ent/playlistsongposition"
+	"lark/backend/ent/plugin"
+	"lark/backend/ent/pluginstorage"
 	"lark/backend/ent/predicate"
 	"lark/backend/ent/session"
 	"lark/backend/ent/song"
@@ -37,20 +40,23 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAlbum              = "Album"
-	TypeAppSetting         = "AppSetting"
-	TypeArtist             = "Artist"
-	TypeCandidateCache     = "CandidateCache"
-	TypeLibraryDirectory   = "LibraryDirectory"
-	TypePlayHistory        = "PlayHistory"
-	TypePlaylist           = "Playlist"
-	TypeSession            = "Session"
-	TypeSong               = "Song"
-	TypeUser               = "User"
-	TypeUserAlbumFavorite  = "UserAlbumFavorite"
-	TypeUserArtistFavorite = "UserArtistFavorite"
-	TypeUserRadioFavorite  = "UserRadioFavorite"
-	TypeUserSongFavorite   = "UserSongFavorite"
+	TypeAlbum                = "Album"
+	TypeAppSetting           = "AppSetting"
+	TypeArtist               = "Artist"
+	TypeCandidateCache       = "CandidateCache"
+	TypeLibraryDirectory     = "LibraryDirectory"
+	TypePlayHistory          = "PlayHistory"
+	TypePlaylist             = "Playlist"
+	TypePlaylistSongPosition = "PlaylistSongPosition"
+	TypePlugin               = "Plugin"
+	TypePluginStorage        = "PluginStorage"
+	TypeSession              = "Session"
+	TypeSong                 = "Song"
+	TypeUser                 = "User"
+	TypeUserAlbumFavorite    = "UserAlbumFavorite"
+	TypeUserArtistFavorite   = "UserArtistFavorite"
+	TypeUserRadioFavorite    = "UserRadioFavorite"
+	TypeUserSongFavorite     = "UserSongFavorite"
 )
 
 // AlbumMutation represents an operation that mutates the Album nodes in the graph.
@@ -4445,6 +4451,7 @@ type PlaylistMutation struct {
 	name          *string
 	description   *string
 	cover_theme   *string
+	cover_url     *string
 	favorite      *bool
 	created_at    *time.Time
 	updated_at    *time.Time
@@ -4663,6 +4670,42 @@ func (m *PlaylistMutation) OldCoverTheme(ctx context.Context) (v string, err err
 // ResetCoverTheme resets all changes to the "cover_theme" field.
 func (m *PlaylistMutation) ResetCoverTheme() {
 	m.cover_theme = nil
+}
+
+// SetCoverURL sets the "cover_url" field.
+func (m *PlaylistMutation) SetCoverURL(s string) {
+	m.cover_url = &s
+}
+
+// CoverURL returns the value of the "cover_url" field in the mutation.
+func (m *PlaylistMutation) CoverURL() (r string, exists bool) {
+	v := m.cover_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCoverURL returns the old "cover_url" field's value of the Playlist entity.
+// If the Playlist object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlaylistMutation) OldCoverURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCoverURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCoverURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCoverURL: %w", err)
+	}
+	return oldValue.CoverURL, nil
+}
+
+// ResetCoverURL resets all changes to the "cover_url" field.
+func (m *PlaylistMutation) ResetCoverURL() {
+	m.cover_url = nil
 }
 
 // SetFavorite sets the "favorite" field.
@@ -4900,7 +4943,7 @@ func (m *PlaylistMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlaylistMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if m.name != nil {
 		fields = append(fields, playlist.FieldName)
 	}
@@ -4909,6 +4952,9 @@ func (m *PlaylistMutation) Fields() []string {
 	}
 	if m.cover_theme != nil {
 		fields = append(fields, playlist.FieldCoverTheme)
+	}
+	if m.cover_url != nil {
+		fields = append(fields, playlist.FieldCoverURL)
 	}
 	if m.favorite != nil {
 		fields = append(fields, playlist.FieldFavorite)
@@ -4933,6 +4979,8 @@ func (m *PlaylistMutation) Field(name string) (ent.Value, bool) {
 		return m.Description()
 	case playlist.FieldCoverTheme:
 		return m.CoverTheme()
+	case playlist.FieldCoverURL:
+		return m.CoverURL()
 	case playlist.FieldFavorite:
 		return m.Favorite()
 	case playlist.FieldCreatedAt:
@@ -4954,6 +5002,8 @@ func (m *PlaylistMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldDescription(ctx)
 	case playlist.FieldCoverTheme:
 		return m.OldCoverTheme(ctx)
+	case playlist.FieldCoverURL:
+		return m.OldCoverURL(ctx)
 	case playlist.FieldFavorite:
 		return m.OldFavorite(ctx)
 	case playlist.FieldCreatedAt:
@@ -4989,6 +5039,13 @@ func (m *PlaylistMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCoverTheme(v)
+		return nil
+	case playlist.FieldCoverURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCoverURL(v)
 		return nil
 	case playlist.FieldFavorite:
 		v, ok := value.(bool)
@@ -5068,6 +5125,9 @@ func (m *PlaylistMutation) ResetField(name string) error {
 		return nil
 	case playlist.FieldCoverTheme:
 		m.ResetCoverTheme()
+		return nil
+	case playlist.FieldCoverURL:
+		m.ResetCoverURL()
 		return nil
 	case playlist.FieldFavorite:
 		m.ResetFavorite()
@@ -5182,6 +5242,2700 @@ func (m *PlaylistMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown Playlist edge %s", name)
+}
+
+// PlaylistSongPositionMutation represents an operation that mutates the PlaylistSongPosition nodes in the graph.
+type PlaylistSongPositionMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	playlist_id    *int
+	addplaylist_id *int
+	song_id        *int
+	addsong_id     *int
+	position       *int
+	addposition    *int
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*PlaylistSongPosition, error)
+	predicates     []predicate.PlaylistSongPosition
+}
+
+var _ ent.Mutation = (*PlaylistSongPositionMutation)(nil)
+
+// playlistsongpositionOption allows management of the mutation configuration using functional options.
+type playlistsongpositionOption func(*PlaylistSongPositionMutation)
+
+// newPlaylistSongPositionMutation creates new mutation for the PlaylistSongPosition entity.
+func newPlaylistSongPositionMutation(c config, op Op, opts ...playlistsongpositionOption) *PlaylistSongPositionMutation {
+	m := &PlaylistSongPositionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePlaylistSongPosition,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPlaylistSongPositionID sets the ID field of the mutation.
+func withPlaylistSongPositionID(id int) playlistsongpositionOption {
+	return func(m *PlaylistSongPositionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *PlaylistSongPosition
+		)
+		m.oldValue = func(ctx context.Context) (*PlaylistSongPosition, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().PlaylistSongPosition.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPlaylistSongPosition sets the old PlaylistSongPosition of the mutation.
+func withPlaylistSongPosition(node *PlaylistSongPosition) playlistsongpositionOption {
+	return func(m *PlaylistSongPositionMutation) {
+		m.oldValue = func(context.Context) (*PlaylistSongPosition, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PlaylistSongPositionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PlaylistSongPositionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PlaylistSongPositionMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PlaylistSongPositionMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().PlaylistSongPosition.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPlaylistID sets the "playlist_id" field.
+func (m *PlaylistSongPositionMutation) SetPlaylistID(i int) {
+	m.playlist_id = &i
+	m.addplaylist_id = nil
+}
+
+// PlaylistID returns the value of the "playlist_id" field in the mutation.
+func (m *PlaylistSongPositionMutation) PlaylistID() (r int, exists bool) {
+	v := m.playlist_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlaylistID returns the old "playlist_id" field's value of the PlaylistSongPosition entity.
+// If the PlaylistSongPosition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlaylistSongPositionMutation) OldPlaylistID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlaylistID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlaylistID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlaylistID: %w", err)
+	}
+	return oldValue.PlaylistID, nil
+}
+
+// AddPlaylistID adds i to the "playlist_id" field.
+func (m *PlaylistSongPositionMutation) AddPlaylistID(i int) {
+	if m.addplaylist_id != nil {
+		*m.addplaylist_id += i
+	} else {
+		m.addplaylist_id = &i
+	}
+}
+
+// AddedPlaylistID returns the value that was added to the "playlist_id" field in this mutation.
+func (m *PlaylistSongPositionMutation) AddedPlaylistID() (r int, exists bool) {
+	v := m.addplaylist_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPlaylistID resets all changes to the "playlist_id" field.
+func (m *PlaylistSongPositionMutation) ResetPlaylistID() {
+	m.playlist_id = nil
+	m.addplaylist_id = nil
+}
+
+// SetSongID sets the "song_id" field.
+func (m *PlaylistSongPositionMutation) SetSongID(i int) {
+	m.song_id = &i
+	m.addsong_id = nil
+}
+
+// SongID returns the value of the "song_id" field in the mutation.
+func (m *PlaylistSongPositionMutation) SongID() (r int, exists bool) {
+	v := m.song_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSongID returns the old "song_id" field's value of the PlaylistSongPosition entity.
+// If the PlaylistSongPosition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlaylistSongPositionMutation) OldSongID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSongID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSongID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSongID: %w", err)
+	}
+	return oldValue.SongID, nil
+}
+
+// AddSongID adds i to the "song_id" field.
+func (m *PlaylistSongPositionMutation) AddSongID(i int) {
+	if m.addsong_id != nil {
+		*m.addsong_id += i
+	} else {
+		m.addsong_id = &i
+	}
+}
+
+// AddedSongID returns the value that was added to the "song_id" field in this mutation.
+func (m *PlaylistSongPositionMutation) AddedSongID() (r int, exists bool) {
+	v := m.addsong_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSongID resets all changes to the "song_id" field.
+func (m *PlaylistSongPositionMutation) ResetSongID() {
+	m.song_id = nil
+	m.addsong_id = nil
+}
+
+// SetPosition sets the "position" field.
+func (m *PlaylistSongPositionMutation) SetPosition(i int) {
+	m.position = &i
+	m.addposition = nil
+}
+
+// Position returns the value of the "position" field in the mutation.
+func (m *PlaylistSongPositionMutation) Position() (r int, exists bool) {
+	v := m.position
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPosition returns the old "position" field's value of the PlaylistSongPosition entity.
+// If the PlaylistSongPosition object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlaylistSongPositionMutation) OldPosition(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPosition is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPosition requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPosition: %w", err)
+	}
+	return oldValue.Position, nil
+}
+
+// AddPosition adds i to the "position" field.
+func (m *PlaylistSongPositionMutation) AddPosition(i int) {
+	if m.addposition != nil {
+		*m.addposition += i
+	} else {
+		m.addposition = &i
+	}
+}
+
+// AddedPosition returns the value that was added to the "position" field in this mutation.
+func (m *PlaylistSongPositionMutation) AddedPosition() (r int, exists bool) {
+	v := m.addposition
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPosition resets all changes to the "position" field.
+func (m *PlaylistSongPositionMutation) ResetPosition() {
+	m.position = nil
+	m.addposition = nil
+}
+
+// Where appends a list predicates to the PlaylistSongPositionMutation builder.
+func (m *PlaylistSongPositionMutation) Where(ps ...predicate.PlaylistSongPosition) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the PlaylistSongPositionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *PlaylistSongPositionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.PlaylistSongPosition, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *PlaylistSongPositionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *PlaylistSongPositionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (PlaylistSongPosition).
+func (m *PlaylistSongPositionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PlaylistSongPositionMutation) Fields() []string {
+	fields := make([]string, 0, 3)
+	if m.playlist_id != nil {
+		fields = append(fields, playlistsongposition.FieldPlaylistID)
+	}
+	if m.song_id != nil {
+		fields = append(fields, playlistsongposition.FieldSongID)
+	}
+	if m.position != nil {
+		fields = append(fields, playlistsongposition.FieldPosition)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PlaylistSongPositionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case playlistsongposition.FieldPlaylistID:
+		return m.PlaylistID()
+	case playlistsongposition.FieldSongID:
+		return m.SongID()
+	case playlistsongposition.FieldPosition:
+		return m.Position()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PlaylistSongPositionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case playlistsongposition.FieldPlaylistID:
+		return m.OldPlaylistID(ctx)
+	case playlistsongposition.FieldSongID:
+		return m.OldSongID(ctx)
+	case playlistsongposition.FieldPosition:
+		return m.OldPosition(ctx)
+	}
+	return nil, fmt.Errorf("unknown PlaylistSongPosition field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PlaylistSongPositionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case playlistsongposition.FieldPlaylistID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlaylistID(v)
+		return nil
+	case playlistsongposition.FieldSongID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSongID(v)
+		return nil
+	case playlistsongposition.FieldPosition:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPosition(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PlaylistSongPosition field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PlaylistSongPositionMutation) AddedFields() []string {
+	var fields []string
+	if m.addplaylist_id != nil {
+		fields = append(fields, playlistsongposition.FieldPlaylistID)
+	}
+	if m.addsong_id != nil {
+		fields = append(fields, playlistsongposition.FieldSongID)
+	}
+	if m.addposition != nil {
+		fields = append(fields, playlistsongposition.FieldPosition)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PlaylistSongPositionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case playlistsongposition.FieldPlaylistID:
+		return m.AddedPlaylistID()
+	case playlistsongposition.FieldSongID:
+		return m.AddedSongID()
+	case playlistsongposition.FieldPosition:
+		return m.AddedPosition()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PlaylistSongPositionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case playlistsongposition.FieldPlaylistID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPlaylistID(v)
+		return nil
+	case playlistsongposition.FieldSongID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSongID(v)
+		return nil
+	case playlistsongposition.FieldPosition:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPosition(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PlaylistSongPosition numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PlaylistSongPositionMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PlaylistSongPositionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PlaylistSongPositionMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown PlaylistSongPosition nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PlaylistSongPositionMutation) ResetField(name string) error {
+	switch name {
+	case playlistsongposition.FieldPlaylistID:
+		m.ResetPlaylistID()
+		return nil
+	case playlistsongposition.FieldSongID:
+		m.ResetSongID()
+		return nil
+	case playlistsongposition.FieldPosition:
+		m.ResetPosition()
+		return nil
+	}
+	return fmt.Errorf("unknown PlaylistSongPosition field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PlaylistSongPositionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PlaylistSongPositionMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PlaylistSongPositionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PlaylistSongPositionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PlaylistSongPositionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PlaylistSongPositionMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PlaylistSongPositionMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown PlaylistSongPosition unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PlaylistSongPositionMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown PlaylistSongPosition edge %s", name)
+}
+
+// PluginMutation represents an operation that mutates the Plugin nodes in the graph.
+type PluginMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int
+	name                 *string
+	version              *string
+	description          *string
+	author               *string
+	homepage             *string
+	license              *string
+	entry_path           *string
+	main                 *string
+	min_host_version     *string
+	permissions          *[]string
+	appendpermissions    []string
+	public_paths         *[]string
+	appendpublic_paths   []string
+	external_paths       *[]string
+	appendexternal_paths []string
+	icon                 *string
+	update_url           *string
+	download_url         *string
+	render_engine        *string
+	status               *string
+	zip_hash             *string
+	entry_hash           *string
+	file_mod_time        *string
+	file_path            *string
+	created_at           *time.Time
+	updated_at           *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*Plugin, error)
+	predicates           []predicate.Plugin
+}
+
+var _ ent.Mutation = (*PluginMutation)(nil)
+
+// pluginOption allows management of the mutation configuration using functional options.
+type pluginOption func(*PluginMutation)
+
+// newPluginMutation creates new mutation for the Plugin entity.
+func newPluginMutation(c config, op Op, opts ...pluginOption) *PluginMutation {
+	m := &PluginMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePlugin,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPluginID sets the ID field of the mutation.
+func withPluginID(id int) pluginOption {
+	return func(m *PluginMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Plugin
+		)
+		m.oldValue = func(ctx context.Context) (*Plugin, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Plugin.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPlugin sets the old Plugin of the mutation.
+func withPlugin(node *Plugin) pluginOption {
+	return func(m *PluginMutation) {
+		m.oldValue = func(context.Context) (*Plugin, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PluginMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PluginMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PluginMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PluginMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Plugin.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetName sets the "name" field.
+func (m *PluginMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *PluginMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *PluginMutation) ResetName() {
+	m.name = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *PluginMutation) SetVersion(s string) {
+	m.version = &s
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *PluginMutation) Version() (r string, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *PluginMutation) ResetVersion() {
+	m.version = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *PluginMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *PluginMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *PluginMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetAuthor sets the "author" field.
+func (m *PluginMutation) SetAuthor(s string) {
+	m.author = &s
+}
+
+// Author returns the value of the "author" field in the mutation.
+func (m *PluginMutation) Author() (r string, exists bool) {
+	v := m.author
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthor returns the old "author" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldAuthor(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthor: %w", err)
+	}
+	return oldValue.Author, nil
+}
+
+// ResetAuthor resets all changes to the "author" field.
+func (m *PluginMutation) ResetAuthor() {
+	m.author = nil
+}
+
+// SetHomepage sets the "homepage" field.
+func (m *PluginMutation) SetHomepage(s string) {
+	m.homepage = &s
+}
+
+// Homepage returns the value of the "homepage" field in the mutation.
+func (m *PluginMutation) Homepage() (r string, exists bool) {
+	v := m.homepage
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHomepage returns the old "homepage" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldHomepage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHomepage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHomepage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHomepage: %w", err)
+	}
+	return oldValue.Homepage, nil
+}
+
+// ResetHomepage resets all changes to the "homepage" field.
+func (m *PluginMutation) ResetHomepage() {
+	m.homepage = nil
+}
+
+// SetLicense sets the "license" field.
+func (m *PluginMutation) SetLicense(s string) {
+	m.license = &s
+}
+
+// License returns the value of the "license" field in the mutation.
+func (m *PluginMutation) License() (r string, exists bool) {
+	v := m.license
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLicense returns the old "license" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldLicense(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLicense is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLicense requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLicense: %w", err)
+	}
+	return oldValue.License, nil
+}
+
+// ResetLicense resets all changes to the "license" field.
+func (m *PluginMutation) ResetLicense() {
+	m.license = nil
+}
+
+// SetEntryPath sets the "entry_path" field.
+func (m *PluginMutation) SetEntryPath(s string) {
+	m.entry_path = &s
+}
+
+// EntryPath returns the value of the "entry_path" field in the mutation.
+func (m *PluginMutation) EntryPath() (r string, exists bool) {
+	v := m.entry_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEntryPath returns the old "entry_path" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldEntryPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEntryPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEntryPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEntryPath: %w", err)
+	}
+	return oldValue.EntryPath, nil
+}
+
+// ResetEntryPath resets all changes to the "entry_path" field.
+func (m *PluginMutation) ResetEntryPath() {
+	m.entry_path = nil
+}
+
+// SetMain sets the "main" field.
+func (m *PluginMutation) SetMain(s string) {
+	m.main = &s
+}
+
+// Main returns the value of the "main" field in the mutation.
+func (m *PluginMutation) Main() (r string, exists bool) {
+	v := m.main
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMain returns the old "main" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldMain(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMain is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMain requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMain: %w", err)
+	}
+	return oldValue.Main, nil
+}
+
+// ResetMain resets all changes to the "main" field.
+func (m *PluginMutation) ResetMain() {
+	m.main = nil
+}
+
+// SetMinHostVersion sets the "min_host_version" field.
+func (m *PluginMutation) SetMinHostVersion(s string) {
+	m.min_host_version = &s
+}
+
+// MinHostVersion returns the value of the "min_host_version" field in the mutation.
+func (m *PluginMutation) MinHostVersion() (r string, exists bool) {
+	v := m.min_host_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMinHostVersion returns the old "min_host_version" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldMinHostVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMinHostVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMinHostVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMinHostVersion: %w", err)
+	}
+	return oldValue.MinHostVersion, nil
+}
+
+// ResetMinHostVersion resets all changes to the "min_host_version" field.
+func (m *PluginMutation) ResetMinHostVersion() {
+	m.min_host_version = nil
+}
+
+// SetPermissions sets the "permissions" field.
+func (m *PluginMutation) SetPermissions(s []string) {
+	m.permissions = &s
+	m.appendpermissions = nil
+}
+
+// Permissions returns the value of the "permissions" field in the mutation.
+func (m *PluginMutation) Permissions() (r []string, exists bool) {
+	v := m.permissions
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPermissions returns the old "permissions" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldPermissions(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPermissions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPermissions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPermissions: %w", err)
+	}
+	return oldValue.Permissions, nil
+}
+
+// AppendPermissions adds s to the "permissions" field.
+func (m *PluginMutation) AppendPermissions(s []string) {
+	m.appendpermissions = append(m.appendpermissions, s...)
+}
+
+// AppendedPermissions returns the list of values that were appended to the "permissions" field in this mutation.
+func (m *PluginMutation) AppendedPermissions() ([]string, bool) {
+	if len(m.appendpermissions) == 0 {
+		return nil, false
+	}
+	return m.appendpermissions, true
+}
+
+// ResetPermissions resets all changes to the "permissions" field.
+func (m *PluginMutation) ResetPermissions() {
+	m.permissions = nil
+	m.appendpermissions = nil
+}
+
+// SetPublicPaths sets the "public_paths" field.
+func (m *PluginMutation) SetPublicPaths(s []string) {
+	m.public_paths = &s
+	m.appendpublic_paths = nil
+}
+
+// PublicPaths returns the value of the "public_paths" field in the mutation.
+func (m *PluginMutation) PublicPaths() (r []string, exists bool) {
+	v := m.public_paths
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicPaths returns the old "public_paths" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldPublicPaths(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicPaths is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicPaths requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicPaths: %w", err)
+	}
+	return oldValue.PublicPaths, nil
+}
+
+// AppendPublicPaths adds s to the "public_paths" field.
+func (m *PluginMutation) AppendPublicPaths(s []string) {
+	m.appendpublic_paths = append(m.appendpublic_paths, s...)
+}
+
+// AppendedPublicPaths returns the list of values that were appended to the "public_paths" field in this mutation.
+func (m *PluginMutation) AppendedPublicPaths() ([]string, bool) {
+	if len(m.appendpublic_paths) == 0 {
+		return nil, false
+	}
+	return m.appendpublic_paths, true
+}
+
+// ResetPublicPaths resets all changes to the "public_paths" field.
+func (m *PluginMutation) ResetPublicPaths() {
+	m.public_paths = nil
+	m.appendpublic_paths = nil
+}
+
+// SetExternalPaths sets the "external_paths" field.
+func (m *PluginMutation) SetExternalPaths(s []string) {
+	m.external_paths = &s
+	m.appendexternal_paths = nil
+}
+
+// ExternalPaths returns the value of the "external_paths" field in the mutation.
+func (m *PluginMutation) ExternalPaths() (r []string, exists bool) {
+	v := m.external_paths
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalPaths returns the old "external_paths" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldExternalPaths(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalPaths is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalPaths requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalPaths: %w", err)
+	}
+	return oldValue.ExternalPaths, nil
+}
+
+// AppendExternalPaths adds s to the "external_paths" field.
+func (m *PluginMutation) AppendExternalPaths(s []string) {
+	m.appendexternal_paths = append(m.appendexternal_paths, s...)
+}
+
+// AppendedExternalPaths returns the list of values that were appended to the "external_paths" field in this mutation.
+func (m *PluginMutation) AppendedExternalPaths() ([]string, bool) {
+	if len(m.appendexternal_paths) == 0 {
+		return nil, false
+	}
+	return m.appendexternal_paths, true
+}
+
+// ResetExternalPaths resets all changes to the "external_paths" field.
+func (m *PluginMutation) ResetExternalPaths() {
+	m.external_paths = nil
+	m.appendexternal_paths = nil
+}
+
+// SetIcon sets the "icon" field.
+func (m *PluginMutation) SetIcon(s string) {
+	m.icon = &s
+}
+
+// Icon returns the value of the "icon" field in the mutation.
+func (m *PluginMutation) Icon() (r string, exists bool) {
+	v := m.icon
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIcon returns the old "icon" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldIcon(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIcon is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIcon requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIcon: %w", err)
+	}
+	return oldValue.Icon, nil
+}
+
+// ResetIcon resets all changes to the "icon" field.
+func (m *PluginMutation) ResetIcon() {
+	m.icon = nil
+}
+
+// SetUpdateURL sets the "update_url" field.
+func (m *PluginMutation) SetUpdateURL(s string) {
+	m.update_url = &s
+}
+
+// UpdateURL returns the value of the "update_url" field in the mutation.
+func (m *PluginMutation) UpdateURL() (r string, exists bool) {
+	v := m.update_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateURL returns the old "update_url" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldUpdateURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateURL: %w", err)
+	}
+	return oldValue.UpdateURL, nil
+}
+
+// ResetUpdateURL resets all changes to the "update_url" field.
+func (m *PluginMutation) ResetUpdateURL() {
+	m.update_url = nil
+}
+
+// SetDownloadURL sets the "download_url" field.
+func (m *PluginMutation) SetDownloadURL(s string) {
+	m.download_url = &s
+}
+
+// DownloadURL returns the value of the "download_url" field in the mutation.
+func (m *PluginMutation) DownloadURL() (r string, exists bool) {
+	v := m.download_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDownloadURL returns the old "download_url" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldDownloadURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDownloadURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDownloadURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDownloadURL: %w", err)
+	}
+	return oldValue.DownloadURL, nil
+}
+
+// ResetDownloadURL resets all changes to the "download_url" field.
+func (m *PluginMutation) ResetDownloadURL() {
+	m.download_url = nil
+}
+
+// SetRenderEngine sets the "render_engine" field.
+func (m *PluginMutation) SetRenderEngine(s string) {
+	m.render_engine = &s
+}
+
+// RenderEngine returns the value of the "render_engine" field in the mutation.
+func (m *PluginMutation) RenderEngine() (r string, exists bool) {
+	v := m.render_engine
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRenderEngine returns the old "render_engine" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldRenderEngine(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRenderEngine is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRenderEngine requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRenderEngine: %w", err)
+	}
+	return oldValue.RenderEngine, nil
+}
+
+// ResetRenderEngine resets all changes to the "render_engine" field.
+func (m *PluginMutation) ResetRenderEngine() {
+	m.render_engine = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *PluginMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *PluginMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *PluginMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetZipHash sets the "zip_hash" field.
+func (m *PluginMutation) SetZipHash(s string) {
+	m.zip_hash = &s
+}
+
+// ZipHash returns the value of the "zip_hash" field in the mutation.
+func (m *PluginMutation) ZipHash() (r string, exists bool) {
+	v := m.zip_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldZipHash returns the old "zip_hash" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldZipHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldZipHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldZipHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldZipHash: %w", err)
+	}
+	return oldValue.ZipHash, nil
+}
+
+// ResetZipHash resets all changes to the "zip_hash" field.
+func (m *PluginMutation) ResetZipHash() {
+	m.zip_hash = nil
+}
+
+// SetEntryHash sets the "entry_hash" field.
+func (m *PluginMutation) SetEntryHash(s string) {
+	m.entry_hash = &s
+}
+
+// EntryHash returns the value of the "entry_hash" field in the mutation.
+func (m *PluginMutation) EntryHash() (r string, exists bool) {
+	v := m.entry_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEntryHash returns the old "entry_hash" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldEntryHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEntryHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEntryHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEntryHash: %w", err)
+	}
+	return oldValue.EntryHash, nil
+}
+
+// ResetEntryHash resets all changes to the "entry_hash" field.
+func (m *PluginMutation) ResetEntryHash() {
+	m.entry_hash = nil
+}
+
+// SetFileModTime sets the "file_mod_time" field.
+func (m *PluginMutation) SetFileModTime(s string) {
+	m.file_mod_time = &s
+}
+
+// FileModTime returns the value of the "file_mod_time" field in the mutation.
+func (m *PluginMutation) FileModTime() (r string, exists bool) {
+	v := m.file_mod_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFileModTime returns the old "file_mod_time" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldFileModTime(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFileModTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFileModTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFileModTime: %w", err)
+	}
+	return oldValue.FileModTime, nil
+}
+
+// ResetFileModTime resets all changes to the "file_mod_time" field.
+func (m *PluginMutation) ResetFileModTime() {
+	m.file_mod_time = nil
+}
+
+// SetFilePath sets the "file_path" field.
+func (m *PluginMutation) SetFilePath(s string) {
+	m.file_path = &s
+}
+
+// FilePath returns the value of the "file_path" field in the mutation.
+func (m *PluginMutation) FilePath() (r string, exists bool) {
+	v := m.file_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFilePath returns the old "file_path" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldFilePath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFilePath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFilePath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFilePath: %w", err)
+	}
+	return oldValue.FilePath, nil
+}
+
+// ResetFilePath resets all changes to the "file_path" field.
+func (m *PluginMutation) ResetFilePath() {
+	m.file_path = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *PluginMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *PluginMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *PluginMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *PluginMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *PluginMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the Plugin entity.
+// If the Plugin object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *PluginMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the PluginMutation builder.
+func (m *PluginMutation) Where(ps ...predicate.Plugin) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the PluginMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *PluginMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Plugin, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *PluginMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *PluginMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Plugin).
+func (m *PluginMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PluginMutation) Fields() []string {
+	fields := make([]string, 0, 23)
+	if m.name != nil {
+		fields = append(fields, plugin.FieldName)
+	}
+	if m.version != nil {
+		fields = append(fields, plugin.FieldVersion)
+	}
+	if m.description != nil {
+		fields = append(fields, plugin.FieldDescription)
+	}
+	if m.author != nil {
+		fields = append(fields, plugin.FieldAuthor)
+	}
+	if m.homepage != nil {
+		fields = append(fields, plugin.FieldHomepage)
+	}
+	if m.license != nil {
+		fields = append(fields, plugin.FieldLicense)
+	}
+	if m.entry_path != nil {
+		fields = append(fields, plugin.FieldEntryPath)
+	}
+	if m.main != nil {
+		fields = append(fields, plugin.FieldMain)
+	}
+	if m.min_host_version != nil {
+		fields = append(fields, plugin.FieldMinHostVersion)
+	}
+	if m.permissions != nil {
+		fields = append(fields, plugin.FieldPermissions)
+	}
+	if m.public_paths != nil {
+		fields = append(fields, plugin.FieldPublicPaths)
+	}
+	if m.external_paths != nil {
+		fields = append(fields, plugin.FieldExternalPaths)
+	}
+	if m.icon != nil {
+		fields = append(fields, plugin.FieldIcon)
+	}
+	if m.update_url != nil {
+		fields = append(fields, plugin.FieldUpdateURL)
+	}
+	if m.download_url != nil {
+		fields = append(fields, plugin.FieldDownloadURL)
+	}
+	if m.render_engine != nil {
+		fields = append(fields, plugin.FieldRenderEngine)
+	}
+	if m.status != nil {
+		fields = append(fields, plugin.FieldStatus)
+	}
+	if m.zip_hash != nil {
+		fields = append(fields, plugin.FieldZipHash)
+	}
+	if m.entry_hash != nil {
+		fields = append(fields, plugin.FieldEntryHash)
+	}
+	if m.file_mod_time != nil {
+		fields = append(fields, plugin.FieldFileModTime)
+	}
+	if m.file_path != nil {
+		fields = append(fields, plugin.FieldFilePath)
+	}
+	if m.created_at != nil {
+		fields = append(fields, plugin.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, plugin.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PluginMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case plugin.FieldName:
+		return m.Name()
+	case plugin.FieldVersion:
+		return m.Version()
+	case plugin.FieldDescription:
+		return m.Description()
+	case plugin.FieldAuthor:
+		return m.Author()
+	case plugin.FieldHomepage:
+		return m.Homepage()
+	case plugin.FieldLicense:
+		return m.License()
+	case plugin.FieldEntryPath:
+		return m.EntryPath()
+	case plugin.FieldMain:
+		return m.Main()
+	case plugin.FieldMinHostVersion:
+		return m.MinHostVersion()
+	case plugin.FieldPermissions:
+		return m.Permissions()
+	case plugin.FieldPublicPaths:
+		return m.PublicPaths()
+	case plugin.FieldExternalPaths:
+		return m.ExternalPaths()
+	case plugin.FieldIcon:
+		return m.Icon()
+	case plugin.FieldUpdateURL:
+		return m.UpdateURL()
+	case plugin.FieldDownloadURL:
+		return m.DownloadURL()
+	case plugin.FieldRenderEngine:
+		return m.RenderEngine()
+	case plugin.FieldStatus:
+		return m.Status()
+	case plugin.FieldZipHash:
+		return m.ZipHash()
+	case plugin.FieldEntryHash:
+		return m.EntryHash()
+	case plugin.FieldFileModTime:
+		return m.FileModTime()
+	case plugin.FieldFilePath:
+		return m.FilePath()
+	case plugin.FieldCreatedAt:
+		return m.CreatedAt()
+	case plugin.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PluginMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case plugin.FieldName:
+		return m.OldName(ctx)
+	case plugin.FieldVersion:
+		return m.OldVersion(ctx)
+	case plugin.FieldDescription:
+		return m.OldDescription(ctx)
+	case plugin.FieldAuthor:
+		return m.OldAuthor(ctx)
+	case plugin.FieldHomepage:
+		return m.OldHomepage(ctx)
+	case plugin.FieldLicense:
+		return m.OldLicense(ctx)
+	case plugin.FieldEntryPath:
+		return m.OldEntryPath(ctx)
+	case plugin.FieldMain:
+		return m.OldMain(ctx)
+	case plugin.FieldMinHostVersion:
+		return m.OldMinHostVersion(ctx)
+	case plugin.FieldPermissions:
+		return m.OldPermissions(ctx)
+	case plugin.FieldPublicPaths:
+		return m.OldPublicPaths(ctx)
+	case plugin.FieldExternalPaths:
+		return m.OldExternalPaths(ctx)
+	case plugin.FieldIcon:
+		return m.OldIcon(ctx)
+	case plugin.FieldUpdateURL:
+		return m.OldUpdateURL(ctx)
+	case plugin.FieldDownloadURL:
+		return m.OldDownloadURL(ctx)
+	case plugin.FieldRenderEngine:
+		return m.OldRenderEngine(ctx)
+	case plugin.FieldStatus:
+		return m.OldStatus(ctx)
+	case plugin.FieldZipHash:
+		return m.OldZipHash(ctx)
+	case plugin.FieldEntryHash:
+		return m.OldEntryHash(ctx)
+	case plugin.FieldFileModTime:
+		return m.OldFileModTime(ctx)
+	case plugin.FieldFilePath:
+		return m.OldFilePath(ctx)
+	case plugin.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case plugin.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown Plugin field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PluginMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case plugin.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case plugin.FieldVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case plugin.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case plugin.FieldAuthor:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthor(v)
+		return nil
+	case plugin.FieldHomepage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHomepage(v)
+		return nil
+	case plugin.FieldLicense:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLicense(v)
+		return nil
+	case plugin.FieldEntryPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEntryPath(v)
+		return nil
+	case plugin.FieldMain:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMain(v)
+		return nil
+	case plugin.FieldMinHostVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMinHostVersion(v)
+		return nil
+	case plugin.FieldPermissions:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPermissions(v)
+		return nil
+	case plugin.FieldPublicPaths:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicPaths(v)
+		return nil
+	case plugin.FieldExternalPaths:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalPaths(v)
+		return nil
+	case plugin.FieldIcon:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIcon(v)
+		return nil
+	case plugin.FieldUpdateURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateURL(v)
+		return nil
+	case plugin.FieldDownloadURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDownloadURL(v)
+		return nil
+	case plugin.FieldRenderEngine:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRenderEngine(v)
+		return nil
+	case plugin.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case plugin.FieldZipHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetZipHash(v)
+		return nil
+	case plugin.FieldEntryHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEntryHash(v)
+		return nil
+	case plugin.FieldFileModTime:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFileModTime(v)
+		return nil
+	case plugin.FieldFilePath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFilePath(v)
+		return nil
+	case plugin.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case plugin.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Plugin field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PluginMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PluginMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PluginMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Plugin numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PluginMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PluginMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PluginMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown Plugin nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PluginMutation) ResetField(name string) error {
+	switch name {
+	case plugin.FieldName:
+		m.ResetName()
+		return nil
+	case plugin.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case plugin.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case plugin.FieldAuthor:
+		m.ResetAuthor()
+		return nil
+	case plugin.FieldHomepage:
+		m.ResetHomepage()
+		return nil
+	case plugin.FieldLicense:
+		m.ResetLicense()
+		return nil
+	case plugin.FieldEntryPath:
+		m.ResetEntryPath()
+		return nil
+	case plugin.FieldMain:
+		m.ResetMain()
+		return nil
+	case plugin.FieldMinHostVersion:
+		m.ResetMinHostVersion()
+		return nil
+	case plugin.FieldPermissions:
+		m.ResetPermissions()
+		return nil
+	case plugin.FieldPublicPaths:
+		m.ResetPublicPaths()
+		return nil
+	case plugin.FieldExternalPaths:
+		m.ResetExternalPaths()
+		return nil
+	case plugin.FieldIcon:
+		m.ResetIcon()
+		return nil
+	case plugin.FieldUpdateURL:
+		m.ResetUpdateURL()
+		return nil
+	case plugin.FieldDownloadURL:
+		m.ResetDownloadURL()
+		return nil
+	case plugin.FieldRenderEngine:
+		m.ResetRenderEngine()
+		return nil
+	case plugin.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case plugin.FieldZipHash:
+		m.ResetZipHash()
+		return nil
+	case plugin.FieldEntryHash:
+		m.ResetEntryHash()
+		return nil
+	case plugin.FieldFileModTime:
+		m.ResetFileModTime()
+		return nil
+	case plugin.FieldFilePath:
+		m.ResetFilePath()
+		return nil
+	case plugin.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case plugin.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown Plugin field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PluginMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PluginMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PluginMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PluginMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PluginMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PluginMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PluginMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Plugin unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PluginMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Plugin edge %s", name)
+}
+
+// PluginStorageMutation represents an operation that mutates the PluginStorage nodes in the graph.
+type PluginStorageMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	plugin_entry_path *string
+	namespace         *string
+	key               *string
+	value             *string
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*PluginStorage, error)
+	predicates        []predicate.PluginStorage
+}
+
+var _ ent.Mutation = (*PluginStorageMutation)(nil)
+
+// pluginstorageOption allows management of the mutation configuration using functional options.
+type pluginstorageOption func(*PluginStorageMutation)
+
+// newPluginStorageMutation creates new mutation for the PluginStorage entity.
+func newPluginStorageMutation(c config, op Op, opts ...pluginstorageOption) *PluginStorageMutation {
+	m := &PluginStorageMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePluginStorage,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPluginStorageID sets the ID field of the mutation.
+func withPluginStorageID(id int) pluginstorageOption {
+	return func(m *PluginStorageMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *PluginStorage
+		)
+		m.oldValue = func(ctx context.Context) (*PluginStorage, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().PluginStorage.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPluginStorage sets the old PluginStorage of the mutation.
+func withPluginStorage(node *PluginStorage) pluginstorageOption {
+	return func(m *PluginStorageMutation) {
+		m.oldValue = func(context.Context) (*PluginStorage, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PluginStorageMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PluginStorageMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PluginStorageMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PluginStorageMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().PluginStorage.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetPluginEntryPath sets the "plugin_entry_path" field.
+func (m *PluginStorageMutation) SetPluginEntryPath(s string) {
+	m.plugin_entry_path = &s
+}
+
+// PluginEntryPath returns the value of the "plugin_entry_path" field in the mutation.
+func (m *PluginStorageMutation) PluginEntryPath() (r string, exists bool) {
+	v := m.plugin_entry_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPluginEntryPath returns the old "plugin_entry_path" field's value of the PluginStorage entity.
+// If the PluginStorage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginStorageMutation) OldPluginEntryPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPluginEntryPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPluginEntryPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPluginEntryPath: %w", err)
+	}
+	return oldValue.PluginEntryPath, nil
+}
+
+// ResetPluginEntryPath resets all changes to the "plugin_entry_path" field.
+func (m *PluginStorageMutation) ResetPluginEntryPath() {
+	m.plugin_entry_path = nil
+}
+
+// SetNamespace sets the "namespace" field.
+func (m *PluginStorageMutation) SetNamespace(s string) {
+	m.namespace = &s
+}
+
+// Namespace returns the value of the "namespace" field in the mutation.
+func (m *PluginStorageMutation) Namespace() (r string, exists bool) {
+	v := m.namespace
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNamespace returns the old "namespace" field's value of the PluginStorage entity.
+// If the PluginStorage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginStorageMutation) OldNamespace(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNamespace is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNamespace requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNamespace: %w", err)
+	}
+	return oldValue.Namespace, nil
+}
+
+// ResetNamespace resets all changes to the "namespace" field.
+func (m *PluginStorageMutation) ResetNamespace() {
+	m.namespace = nil
+}
+
+// SetKey sets the "key" field.
+func (m *PluginStorageMutation) SetKey(s string) {
+	m.key = &s
+}
+
+// Key returns the value of the "key" field in the mutation.
+func (m *PluginStorageMutation) Key() (r string, exists bool) {
+	v := m.key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKey returns the old "key" field's value of the PluginStorage entity.
+// If the PluginStorage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginStorageMutation) OldKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKey: %w", err)
+	}
+	return oldValue.Key, nil
+}
+
+// ResetKey resets all changes to the "key" field.
+func (m *PluginStorageMutation) ResetKey() {
+	m.key = nil
+}
+
+// SetValue sets the "value" field.
+func (m *PluginStorageMutation) SetValue(s string) {
+	m.value = &s
+}
+
+// Value returns the value of the "value" field in the mutation.
+func (m *PluginStorageMutation) Value() (r string, exists bool) {
+	v := m.value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValue returns the old "value" field's value of the PluginStorage entity.
+// If the PluginStorage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginStorageMutation) OldValue(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+	}
+	return oldValue.Value, nil
+}
+
+// ResetValue resets all changes to the "value" field.
+func (m *PluginStorageMutation) ResetValue() {
+	m.value = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *PluginStorageMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *PluginStorageMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the PluginStorage entity.
+// If the PluginStorage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginStorageMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *PluginStorageMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *PluginStorageMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *PluginStorageMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the PluginStorage entity.
+// If the PluginStorage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PluginStorageMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *PluginStorageMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the PluginStorageMutation builder.
+func (m *PluginStorageMutation) Where(ps ...predicate.PluginStorage) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the PluginStorageMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *PluginStorageMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.PluginStorage, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *PluginStorageMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *PluginStorageMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (PluginStorage).
+func (m *PluginStorageMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PluginStorageMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.plugin_entry_path != nil {
+		fields = append(fields, pluginstorage.FieldPluginEntryPath)
+	}
+	if m.namespace != nil {
+		fields = append(fields, pluginstorage.FieldNamespace)
+	}
+	if m.key != nil {
+		fields = append(fields, pluginstorage.FieldKey)
+	}
+	if m.value != nil {
+		fields = append(fields, pluginstorage.FieldValue)
+	}
+	if m.created_at != nil {
+		fields = append(fields, pluginstorage.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, pluginstorage.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PluginStorageMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case pluginstorage.FieldPluginEntryPath:
+		return m.PluginEntryPath()
+	case pluginstorage.FieldNamespace:
+		return m.Namespace()
+	case pluginstorage.FieldKey:
+		return m.Key()
+	case pluginstorage.FieldValue:
+		return m.Value()
+	case pluginstorage.FieldCreatedAt:
+		return m.CreatedAt()
+	case pluginstorage.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PluginStorageMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case pluginstorage.FieldPluginEntryPath:
+		return m.OldPluginEntryPath(ctx)
+	case pluginstorage.FieldNamespace:
+		return m.OldNamespace(ctx)
+	case pluginstorage.FieldKey:
+		return m.OldKey(ctx)
+	case pluginstorage.FieldValue:
+		return m.OldValue(ctx)
+	case pluginstorage.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case pluginstorage.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown PluginStorage field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PluginStorageMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case pluginstorage.FieldPluginEntryPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPluginEntryPath(v)
+		return nil
+	case pluginstorage.FieldNamespace:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNamespace(v)
+		return nil
+	case pluginstorage.FieldKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKey(v)
+		return nil
+	case pluginstorage.FieldValue:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValue(v)
+		return nil
+	case pluginstorage.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case pluginstorage.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PluginStorage field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PluginStorageMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PluginStorageMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PluginStorageMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown PluginStorage numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PluginStorageMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PluginStorageMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PluginStorageMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown PluginStorage nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PluginStorageMutation) ResetField(name string) error {
+	switch name {
+	case pluginstorage.FieldPluginEntryPath:
+		m.ResetPluginEntryPath()
+		return nil
+	case pluginstorage.FieldNamespace:
+		m.ResetNamespace()
+		return nil
+	case pluginstorage.FieldKey:
+		m.ResetKey()
+		return nil
+	case pluginstorage.FieldValue:
+		m.ResetValue()
+		return nil
+	case pluginstorage.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case pluginstorage.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown PluginStorage field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PluginStorageMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PluginStorageMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PluginStorageMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PluginStorageMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PluginStorageMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PluginStorageMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PluginStorageMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown PluginStorage unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PluginStorageMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown PluginStorage edge %s", name)
 }
 
 // SessionMutation represents an operation that mutates the Session nodes in the graph.
@@ -5692,6 +8446,9 @@ type SongMutation struct {
 	typ                   string
 	id                    *int
 	title                 *string
+	source_type           *string
+	source_artist         *string
+	source_album          *string
 	_path                 *string
 	file_name             *string
 	format                *string
@@ -5701,6 +8458,11 @@ type SongMutation struct {
 	mod_time_unix_nano    *int64
 	addmod_time_unix_nano *int64
 	content_hash          *string
+	url                   *string
+	cover_url             *string
+	plugin_entry_path     *string
+	source_data           *string
+	dedup_key             *string
 	duration_seconds      *float64
 	addduration_seconds   *float64
 	sample_rate           *int
@@ -5713,8 +8475,11 @@ type SongMutation struct {
 	addyear               *int
 	lyrics_embedded       *string
 	lyrics_source         *string
+	lyrics_remote_url     *string
 	has_lyrics            *bool
 	netease_id            *string
+	is_live               *bool
+	is_video              *bool
 	favorite              *bool
 	play_count            *int
 	addplay_count         *int
@@ -5872,6 +8637,114 @@ func (m *SongMutation) OldTitle(ctx context.Context) (v string, err error) {
 // ResetTitle resets all changes to the "title" field.
 func (m *SongMutation) ResetTitle() {
 	m.title = nil
+}
+
+// SetSourceType sets the "source_type" field.
+func (m *SongMutation) SetSourceType(s string) {
+	m.source_type = &s
+}
+
+// SourceType returns the value of the "source_type" field in the mutation.
+func (m *SongMutation) SourceType() (r string, exists bool) {
+	v := m.source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceType returns the old "source_type" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldSourceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceType: %w", err)
+	}
+	return oldValue.SourceType, nil
+}
+
+// ResetSourceType resets all changes to the "source_type" field.
+func (m *SongMutation) ResetSourceType() {
+	m.source_type = nil
+}
+
+// SetSourceArtist sets the "source_artist" field.
+func (m *SongMutation) SetSourceArtist(s string) {
+	m.source_artist = &s
+}
+
+// SourceArtist returns the value of the "source_artist" field in the mutation.
+func (m *SongMutation) SourceArtist() (r string, exists bool) {
+	v := m.source_artist
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceArtist returns the old "source_artist" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldSourceArtist(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceArtist is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceArtist requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceArtist: %w", err)
+	}
+	return oldValue.SourceArtist, nil
+}
+
+// ResetSourceArtist resets all changes to the "source_artist" field.
+func (m *SongMutation) ResetSourceArtist() {
+	m.source_artist = nil
+}
+
+// SetSourceAlbum sets the "source_album" field.
+func (m *SongMutation) SetSourceAlbum(s string) {
+	m.source_album = &s
+}
+
+// SourceAlbum returns the value of the "source_album" field in the mutation.
+func (m *SongMutation) SourceAlbum() (r string, exists bool) {
+	v := m.source_album
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceAlbum returns the old "source_album" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldSourceAlbum(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceAlbum is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceAlbum requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceAlbum: %w", err)
+	}
+	return oldValue.SourceAlbum, nil
+}
+
+// ResetSourceAlbum resets all changes to the "source_album" field.
+func (m *SongMutation) ResetSourceAlbum() {
+	m.source_album = nil
 }
 
 // SetPath sets the "path" field.
@@ -6164,6 +9037,186 @@ func (m *SongMutation) OldContentHash(ctx context.Context) (v string, err error)
 // ResetContentHash resets all changes to the "content_hash" field.
 func (m *SongMutation) ResetContentHash() {
 	m.content_hash = nil
+}
+
+// SetURL sets the "url" field.
+func (m *SongMutation) SetURL(s string) {
+	m.url = &s
+}
+
+// URL returns the value of the "url" field in the mutation.
+func (m *SongMutation) URL() (r string, exists bool) {
+	v := m.url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldURL returns the old "url" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldURL: %w", err)
+	}
+	return oldValue.URL, nil
+}
+
+// ResetURL resets all changes to the "url" field.
+func (m *SongMutation) ResetURL() {
+	m.url = nil
+}
+
+// SetCoverURL sets the "cover_url" field.
+func (m *SongMutation) SetCoverURL(s string) {
+	m.cover_url = &s
+}
+
+// CoverURL returns the value of the "cover_url" field in the mutation.
+func (m *SongMutation) CoverURL() (r string, exists bool) {
+	v := m.cover_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCoverURL returns the old "cover_url" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldCoverURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCoverURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCoverURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCoverURL: %w", err)
+	}
+	return oldValue.CoverURL, nil
+}
+
+// ResetCoverURL resets all changes to the "cover_url" field.
+func (m *SongMutation) ResetCoverURL() {
+	m.cover_url = nil
+}
+
+// SetPluginEntryPath sets the "plugin_entry_path" field.
+func (m *SongMutation) SetPluginEntryPath(s string) {
+	m.plugin_entry_path = &s
+}
+
+// PluginEntryPath returns the value of the "plugin_entry_path" field in the mutation.
+func (m *SongMutation) PluginEntryPath() (r string, exists bool) {
+	v := m.plugin_entry_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPluginEntryPath returns the old "plugin_entry_path" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldPluginEntryPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPluginEntryPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPluginEntryPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPluginEntryPath: %w", err)
+	}
+	return oldValue.PluginEntryPath, nil
+}
+
+// ResetPluginEntryPath resets all changes to the "plugin_entry_path" field.
+func (m *SongMutation) ResetPluginEntryPath() {
+	m.plugin_entry_path = nil
+}
+
+// SetSourceData sets the "source_data" field.
+func (m *SongMutation) SetSourceData(s string) {
+	m.source_data = &s
+}
+
+// SourceData returns the value of the "source_data" field in the mutation.
+func (m *SongMutation) SourceData() (r string, exists bool) {
+	v := m.source_data
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceData returns the old "source_data" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldSourceData(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceData is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceData requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceData: %w", err)
+	}
+	return oldValue.SourceData, nil
+}
+
+// ResetSourceData resets all changes to the "source_data" field.
+func (m *SongMutation) ResetSourceData() {
+	m.source_data = nil
+}
+
+// SetDedupKey sets the "dedup_key" field.
+func (m *SongMutation) SetDedupKey(s string) {
+	m.dedup_key = &s
+}
+
+// DedupKey returns the value of the "dedup_key" field in the mutation.
+func (m *SongMutation) DedupKey() (r string, exists bool) {
+	v := m.dedup_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDedupKey returns the old "dedup_key" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldDedupKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDedupKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDedupKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDedupKey: %w", err)
+	}
+	return oldValue.DedupKey, nil
+}
+
+// ResetDedupKey resets all changes to the "dedup_key" field.
+func (m *SongMutation) ResetDedupKey() {
+	m.dedup_key = nil
 }
 
 // SetDurationSeconds sets the "duration_seconds" field.
@@ -6518,6 +9571,42 @@ func (m *SongMutation) ResetLyricsSource() {
 	m.lyrics_source = nil
 }
 
+// SetLyricsRemoteURL sets the "lyrics_remote_url" field.
+func (m *SongMutation) SetLyricsRemoteURL(s string) {
+	m.lyrics_remote_url = &s
+}
+
+// LyricsRemoteURL returns the value of the "lyrics_remote_url" field in the mutation.
+func (m *SongMutation) LyricsRemoteURL() (r string, exists bool) {
+	v := m.lyrics_remote_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLyricsRemoteURL returns the old "lyrics_remote_url" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldLyricsRemoteURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLyricsRemoteURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLyricsRemoteURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLyricsRemoteURL: %w", err)
+	}
+	return oldValue.LyricsRemoteURL, nil
+}
+
+// ResetLyricsRemoteURL resets all changes to the "lyrics_remote_url" field.
+func (m *SongMutation) ResetLyricsRemoteURL() {
+	m.lyrics_remote_url = nil
+}
+
 // SetHasLyrics sets the "has_lyrics" field.
 func (m *SongMutation) SetHasLyrics(b bool) {
 	m.has_lyrics = &b
@@ -6588,6 +9677,78 @@ func (m *SongMutation) OldNeteaseID(ctx context.Context) (v string, err error) {
 // ResetNeteaseID resets all changes to the "netease_id" field.
 func (m *SongMutation) ResetNeteaseID() {
 	m.netease_id = nil
+}
+
+// SetIsLive sets the "is_live" field.
+func (m *SongMutation) SetIsLive(b bool) {
+	m.is_live = &b
+}
+
+// IsLive returns the value of the "is_live" field in the mutation.
+func (m *SongMutation) IsLive() (r bool, exists bool) {
+	v := m.is_live
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsLive returns the old "is_live" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldIsLive(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsLive is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsLive requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsLive: %w", err)
+	}
+	return oldValue.IsLive, nil
+}
+
+// ResetIsLive resets all changes to the "is_live" field.
+func (m *SongMutation) ResetIsLive() {
+	m.is_live = nil
+}
+
+// SetIsVideo sets the "is_video" field.
+func (m *SongMutation) SetIsVideo(b bool) {
+	m.is_video = &b
+}
+
+// IsVideo returns the value of the "is_video" field in the mutation.
+func (m *SongMutation) IsVideo() (r bool, exists bool) {
+	v := m.is_video
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsVideo returns the old "is_video" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldIsVideo(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsVideo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsVideo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsVideo: %w", err)
+	}
+	return oldValue.IsVideo, nil
+}
+
+// ResetIsVideo resets all changes to the "is_video" field.
+func (m *SongMutation) ResetIsVideo() {
+	m.is_video = nil
 }
 
 // SetFavorite sets the "favorite" field.
@@ -7077,9 +10238,18 @@ func (m *SongMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SongMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 33)
 	if m.title != nil {
 		fields = append(fields, song.FieldTitle)
+	}
+	if m.source_type != nil {
+		fields = append(fields, song.FieldSourceType)
+	}
+	if m.source_artist != nil {
+		fields = append(fields, song.FieldSourceArtist)
+	}
+	if m.source_album != nil {
+		fields = append(fields, song.FieldSourceAlbum)
 	}
 	if m._path != nil {
 		fields = append(fields, song.FieldPath)
@@ -7102,6 +10272,21 @@ func (m *SongMutation) Fields() []string {
 	if m.content_hash != nil {
 		fields = append(fields, song.FieldContentHash)
 	}
+	if m.url != nil {
+		fields = append(fields, song.FieldURL)
+	}
+	if m.cover_url != nil {
+		fields = append(fields, song.FieldCoverURL)
+	}
+	if m.plugin_entry_path != nil {
+		fields = append(fields, song.FieldPluginEntryPath)
+	}
+	if m.source_data != nil {
+		fields = append(fields, song.FieldSourceData)
+	}
+	if m.dedup_key != nil {
+		fields = append(fields, song.FieldDedupKey)
+	}
 	if m.duration_seconds != nil {
 		fields = append(fields, song.FieldDurationSeconds)
 	}
@@ -7123,11 +10308,20 @@ func (m *SongMutation) Fields() []string {
 	if m.lyrics_source != nil {
 		fields = append(fields, song.FieldLyricsSource)
 	}
+	if m.lyrics_remote_url != nil {
+		fields = append(fields, song.FieldLyricsRemoteURL)
+	}
 	if m.has_lyrics != nil {
 		fields = append(fields, song.FieldHasLyrics)
 	}
 	if m.netease_id != nil {
 		fields = append(fields, song.FieldNeteaseID)
+	}
+	if m.is_live != nil {
+		fields = append(fields, song.FieldIsLive)
+	}
+	if m.is_video != nil {
+		fields = append(fields, song.FieldIsVideo)
 	}
 	if m.favorite != nil {
 		fields = append(fields, song.FieldFavorite)
@@ -7154,6 +10348,12 @@ func (m *SongMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case song.FieldTitle:
 		return m.Title()
+	case song.FieldSourceType:
+		return m.SourceType()
+	case song.FieldSourceArtist:
+		return m.SourceArtist()
+	case song.FieldSourceAlbum:
+		return m.SourceAlbum()
 	case song.FieldPath:
 		return m.Path()
 	case song.FieldFileName:
@@ -7168,6 +10368,16 @@ func (m *SongMutation) Field(name string) (ent.Value, bool) {
 		return m.ModTimeUnixNano()
 	case song.FieldContentHash:
 		return m.ContentHash()
+	case song.FieldURL:
+		return m.URL()
+	case song.FieldCoverURL:
+		return m.CoverURL()
+	case song.FieldPluginEntryPath:
+		return m.PluginEntryPath()
+	case song.FieldSourceData:
+		return m.SourceData()
+	case song.FieldDedupKey:
+		return m.DedupKey()
 	case song.FieldDurationSeconds:
 		return m.DurationSeconds()
 	case song.FieldSampleRate:
@@ -7182,10 +10392,16 @@ func (m *SongMutation) Field(name string) (ent.Value, bool) {
 		return m.LyricsEmbedded()
 	case song.FieldLyricsSource:
 		return m.LyricsSource()
+	case song.FieldLyricsRemoteURL:
+		return m.LyricsRemoteURL()
 	case song.FieldHasLyrics:
 		return m.HasLyrics()
 	case song.FieldNeteaseID:
 		return m.NeteaseID()
+	case song.FieldIsLive:
+		return m.IsLive()
+	case song.FieldIsVideo:
+		return m.IsVideo()
 	case song.FieldFavorite:
 		return m.Favorite()
 	case song.FieldPlayCount:
@@ -7207,6 +10423,12 @@ func (m *SongMutation) OldField(ctx context.Context, name string) (ent.Value, er
 	switch name {
 	case song.FieldTitle:
 		return m.OldTitle(ctx)
+	case song.FieldSourceType:
+		return m.OldSourceType(ctx)
+	case song.FieldSourceArtist:
+		return m.OldSourceArtist(ctx)
+	case song.FieldSourceAlbum:
+		return m.OldSourceAlbum(ctx)
 	case song.FieldPath:
 		return m.OldPath(ctx)
 	case song.FieldFileName:
@@ -7221,6 +10443,16 @@ func (m *SongMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldModTimeUnixNano(ctx)
 	case song.FieldContentHash:
 		return m.OldContentHash(ctx)
+	case song.FieldURL:
+		return m.OldURL(ctx)
+	case song.FieldCoverURL:
+		return m.OldCoverURL(ctx)
+	case song.FieldPluginEntryPath:
+		return m.OldPluginEntryPath(ctx)
+	case song.FieldSourceData:
+		return m.OldSourceData(ctx)
+	case song.FieldDedupKey:
+		return m.OldDedupKey(ctx)
 	case song.FieldDurationSeconds:
 		return m.OldDurationSeconds(ctx)
 	case song.FieldSampleRate:
@@ -7235,10 +10467,16 @@ func (m *SongMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldLyricsEmbedded(ctx)
 	case song.FieldLyricsSource:
 		return m.OldLyricsSource(ctx)
+	case song.FieldLyricsRemoteURL:
+		return m.OldLyricsRemoteURL(ctx)
 	case song.FieldHasLyrics:
 		return m.OldHasLyrics(ctx)
 	case song.FieldNeteaseID:
 		return m.OldNeteaseID(ctx)
+	case song.FieldIsLive:
+		return m.OldIsLive(ctx)
+	case song.FieldIsVideo:
+		return m.OldIsVideo(ctx)
 	case song.FieldFavorite:
 		return m.OldFavorite(ctx)
 	case song.FieldPlayCount:
@@ -7264,6 +10502,27 @@ func (m *SongMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTitle(v)
+		return nil
+	case song.FieldSourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceType(v)
+		return nil
+	case song.FieldSourceArtist:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceArtist(v)
+		return nil
+	case song.FieldSourceAlbum:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceAlbum(v)
 		return nil
 	case song.FieldPath:
 		v, ok := value.(string)
@@ -7314,6 +10573,41 @@ func (m *SongMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetContentHash(v)
 		return nil
+	case song.FieldURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetURL(v)
+		return nil
+	case song.FieldCoverURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCoverURL(v)
+		return nil
+	case song.FieldPluginEntryPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPluginEntryPath(v)
+		return nil
+	case song.FieldSourceData:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceData(v)
+		return nil
+	case song.FieldDedupKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDedupKey(v)
+		return nil
 	case song.FieldDurationSeconds:
 		v, ok := value.(float64)
 		if !ok {
@@ -7363,6 +10657,13 @@ func (m *SongMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLyricsSource(v)
 		return nil
+	case song.FieldLyricsRemoteURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLyricsRemoteURL(v)
+		return nil
 	case song.FieldHasLyrics:
 		v, ok := value.(bool)
 		if !ok {
@@ -7376,6 +10677,20 @@ func (m *SongMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetNeteaseID(v)
+		return nil
+	case song.FieldIsLive:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsLive(v)
+		return nil
+	case song.FieldIsVideo:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsVideo(v)
 		return nil
 	case song.FieldFavorite:
 		v, ok := value.(bool)
@@ -7572,6 +10887,15 @@ func (m *SongMutation) ResetField(name string) error {
 	case song.FieldTitle:
 		m.ResetTitle()
 		return nil
+	case song.FieldSourceType:
+		m.ResetSourceType()
+		return nil
+	case song.FieldSourceArtist:
+		m.ResetSourceArtist()
+		return nil
+	case song.FieldSourceAlbum:
+		m.ResetSourceAlbum()
+		return nil
 	case song.FieldPath:
 		m.ResetPath()
 		return nil
@@ -7592,6 +10916,21 @@ func (m *SongMutation) ResetField(name string) error {
 		return nil
 	case song.FieldContentHash:
 		m.ResetContentHash()
+		return nil
+	case song.FieldURL:
+		m.ResetURL()
+		return nil
+	case song.FieldCoverURL:
+		m.ResetCoverURL()
+		return nil
+	case song.FieldPluginEntryPath:
+		m.ResetPluginEntryPath()
+		return nil
+	case song.FieldSourceData:
+		m.ResetSourceData()
+		return nil
+	case song.FieldDedupKey:
+		m.ResetDedupKey()
 		return nil
 	case song.FieldDurationSeconds:
 		m.ResetDurationSeconds()
@@ -7614,11 +10953,20 @@ func (m *SongMutation) ResetField(name string) error {
 	case song.FieldLyricsSource:
 		m.ResetLyricsSource()
 		return nil
+	case song.FieldLyricsRemoteURL:
+		m.ResetLyricsRemoteURL()
+		return nil
 	case song.FieldHasLyrics:
 		m.ResetHasLyrics()
 		return nil
 	case song.FieldNeteaseID:
 		m.ResetNeteaseID()
+		return nil
+	case song.FieldIsLive:
+		m.ResetIsLive()
+		return nil
+	case song.FieldIsVideo:
+		m.ResetIsVideo()
 		return nil
 	case song.FieldFavorite:
 		m.ResetFavorite()

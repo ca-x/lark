@@ -13,6 +13,9 @@ import (
 	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
+	"lark/backend/ent/playlistsongposition"
+	"lark/backend/ent/plugin"
+	"lark/backend/ent/pluginstorage"
 	"lark/backend/ent/session"
 	"lark/backend/ent/song"
 	"lark/backend/ent/user"
@@ -86,20 +89,23 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			album.Table:              album.ValidColumn,
-			appsetting.Table:         appsetting.ValidColumn,
-			artist.Table:             artist.ValidColumn,
-			candidatecache.Table:     candidatecache.ValidColumn,
-			librarydirectory.Table:   librarydirectory.ValidColumn,
-			playhistory.Table:        playhistory.ValidColumn,
-			playlist.Table:           playlist.ValidColumn,
-			session.Table:            session.ValidColumn,
-			song.Table:               song.ValidColumn,
-			user.Table:               user.ValidColumn,
-			useralbumfavorite.Table:  useralbumfavorite.ValidColumn,
-			userartistfavorite.Table: userartistfavorite.ValidColumn,
-			userradiofavorite.Table:  userradiofavorite.ValidColumn,
-			usersongfavorite.Table:   usersongfavorite.ValidColumn,
+			album.Table:                album.ValidColumn,
+			appsetting.Table:           appsetting.ValidColumn,
+			artist.Table:               artist.ValidColumn,
+			candidatecache.Table:       candidatecache.ValidColumn,
+			librarydirectory.Table:     librarydirectory.ValidColumn,
+			playhistory.Table:          playhistory.ValidColumn,
+			playlist.Table:             playlist.ValidColumn,
+			playlistsongposition.Table: playlistsongposition.ValidColumn,
+			plugin.Table:               plugin.ValidColumn,
+			pluginstorage.Table:        pluginstorage.ValidColumn,
+			session.Table:              session.ValidColumn,
+			song.Table:                 song.ValidColumn,
+			user.Table:                 user.ValidColumn,
+			useralbumfavorite.Table:    useralbumfavorite.ValidColumn,
+			userartistfavorite.Table:   userartistfavorite.ValidColumn,
+			userradiofavorite.Table:    userradiofavorite.ValidColumn,
+			usersongfavorite.Table:     usersongfavorite.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -18,6 +18,9 @@ import (
 	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
+	"lark/backend/ent/playlistsongposition"
+	"lark/backend/ent/plugin"
+	"lark/backend/ent/pluginstorage"
 	"lark/backend/ent/session"
 	"lark/backend/ent/song"
 	"lark/backend/ent/user"
@@ -51,6 +54,12 @@ type Client struct {
 	PlayHistory *PlayHistoryClient
 	// Playlist is the client for interacting with the Playlist builders.
 	Playlist *PlaylistClient
+	// PlaylistSongPosition is the client for interacting with the PlaylistSongPosition builders.
+	PlaylistSongPosition *PlaylistSongPositionClient
+	// Plugin is the client for interacting with the Plugin builders.
+	Plugin *PluginClient
+	// PluginStorage is the client for interacting with the PluginStorage builders.
+	PluginStorage *PluginStorageClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Song is the client for interacting with the Song builders.
@@ -83,6 +92,9 @@ func (c *Client) init() {
 	c.LibraryDirectory = NewLibraryDirectoryClient(c.config)
 	c.PlayHistory = NewPlayHistoryClient(c.config)
 	c.Playlist = NewPlaylistClient(c.config)
+	c.PlaylistSongPosition = NewPlaylistSongPositionClient(c.config)
+	c.Plugin = NewPluginClient(c.config)
+	c.PluginStorage = NewPluginStorageClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.Song = NewSongClient(c.config)
 	c.User = NewUserClient(c.config)
@@ -180,22 +192,25 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		Album:              NewAlbumClient(cfg),
-		AppSetting:         NewAppSettingClient(cfg),
-		Artist:             NewArtistClient(cfg),
-		CandidateCache:     NewCandidateCacheClient(cfg),
-		LibraryDirectory:   NewLibraryDirectoryClient(cfg),
-		PlayHistory:        NewPlayHistoryClient(cfg),
-		Playlist:           NewPlaylistClient(cfg),
-		Session:            NewSessionClient(cfg),
-		Song:               NewSongClient(cfg),
-		User:               NewUserClient(cfg),
-		UserAlbumFavorite:  NewUserAlbumFavoriteClient(cfg),
-		UserArtistFavorite: NewUserArtistFavoriteClient(cfg),
-		UserRadioFavorite:  NewUserRadioFavoriteClient(cfg),
-		UserSongFavorite:   NewUserSongFavoriteClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Album:                NewAlbumClient(cfg),
+		AppSetting:           NewAppSettingClient(cfg),
+		Artist:               NewArtistClient(cfg),
+		CandidateCache:       NewCandidateCacheClient(cfg),
+		LibraryDirectory:     NewLibraryDirectoryClient(cfg),
+		PlayHistory:          NewPlayHistoryClient(cfg),
+		Playlist:             NewPlaylistClient(cfg),
+		PlaylistSongPosition: NewPlaylistSongPositionClient(cfg),
+		Plugin:               NewPluginClient(cfg),
+		PluginStorage:        NewPluginStorageClient(cfg),
+		Session:              NewSessionClient(cfg),
+		Song:                 NewSongClient(cfg),
+		User:                 NewUserClient(cfg),
+		UserAlbumFavorite:    NewUserAlbumFavoriteClient(cfg),
+		UserArtistFavorite:   NewUserArtistFavoriteClient(cfg),
+		UserRadioFavorite:    NewUserRadioFavoriteClient(cfg),
+		UserSongFavorite:     NewUserSongFavoriteClient(cfg),
 	}, nil
 }
 
@@ -213,22 +228,25 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		Album:              NewAlbumClient(cfg),
-		AppSetting:         NewAppSettingClient(cfg),
-		Artist:             NewArtistClient(cfg),
-		CandidateCache:     NewCandidateCacheClient(cfg),
-		LibraryDirectory:   NewLibraryDirectoryClient(cfg),
-		PlayHistory:        NewPlayHistoryClient(cfg),
-		Playlist:           NewPlaylistClient(cfg),
-		Session:            NewSessionClient(cfg),
-		Song:               NewSongClient(cfg),
-		User:               NewUserClient(cfg),
-		UserAlbumFavorite:  NewUserAlbumFavoriteClient(cfg),
-		UserArtistFavorite: NewUserArtistFavoriteClient(cfg),
-		UserRadioFavorite:  NewUserRadioFavoriteClient(cfg),
-		UserSongFavorite:   NewUserSongFavoriteClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		Album:                NewAlbumClient(cfg),
+		AppSetting:           NewAppSettingClient(cfg),
+		Artist:               NewArtistClient(cfg),
+		CandidateCache:       NewCandidateCacheClient(cfg),
+		LibraryDirectory:     NewLibraryDirectoryClient(cfg),
+		PlayHistory:          NewPlayHistoryClient(cfg),
+		Playlist:             NewPlaylistClient(cfg),
+		PlaylistSongPosition: NewPlaylistSongPositionClient(cfg),
+		Plugin:               NewPluginClient(cfg),
+		PluginStorage:        NewPluginStorageClient(cfg),
+		Session:              NewSessionClient(cfg),
+		Song:                 NewSongClient(cfg),
+		User:                 NewUserClient(cfg),
+		UserAlbumFavorite:    NewUserAlbumFavoriteClient(cfg),
+		UserArtistFavorite:   NewUserArtistFavoriteClient(cfg),
+		UserRadioFavorite:    NewUserRadioFavoriteClient(cfg),
+		UserSongFavorite:     NewUserSongFavoriteClient(cfg),
 	}, nil
 }
 
@@ -259,8 +277,9 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Album, c.AppSetting, c.Artist, c.CandidateCache, c.LibraryDirectory,
-		c.PlayHistory, c.Playlist, c.Session, c.Song, c.User, c.UserAlbumFavorite,
-		c.UserArtistFavorite, c.UserRadioFavorite, c.UserSongFavorite,
+		c.PlayHistory, c.Playlist, c.PlaylistSongPosition, c.Plugin, c.PluginStorage,
+		c.Session, c.Song, c.User, c.UserAlbumFavorite, c.UserArtistFavorite,
+		c.UserRadioFavorite, c.UserSongFavorite,
 	} {
 		n.Use(hooks...)
 	}
@@ -271,8 +290,9 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Album, c.AppSetting, c.Artist, c.CandidateCache, c.LibraryDirectory,
-		c.PlayHistory, c.Playlist, c.Session, c.Song, c.User, c.UserAlbumFavorite,
-		c.UserArtistFavorite, c.UserRadioFavorite, c.UserSongFavorite,
+		c.PlayHistory, c.Playlist, c.PlaylistSongPosition, c.Plugin, c.PluginStorage,
+		c.Session, c.Song, c.User, c.UserAlbumFavorite, c.UserArtistFavorite,
+		c.UserRadioFavorite, c.UserSongFavorite,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -295,6 +315,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.PlayHistory.mutate(ctx, m)
 	case *PlaylistMutation:
 		return c.Playlist.mutate(ctx, m)
+	case *PlaylistSongPositionMutation:
+		return c.PlaylistSongPosition.mutate(ctx, m)
+	case *PluginMutation:
+		return c.Plugin.mutate(ctx, m)
+	case *PluginStorageMutation:
+		return c.PluginStorage.mutate(ctx, m)
 	case *SessionMutation:
 		return c.Session.mutate(ctx, m)
 	case *SongMutation:
@@ -1418,6 +1444,405 @@ func (c *PlaylistClient) mutate(ctx context.Context, m *PlaylistMutation) (Value
 		return (&PlaylistDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Playlist mutation op: %q", m.Op())
+	}
+}
+
+// PlaylistSongPositionClient is a client for the PlaylistSongPosition schema.
+type PlaylistSongPositionClient struct {
+	config
+}
+
+// NewPlaylistSongPositionClient returns a client for the PlaylistSongPosition from the given config.
+func NewPlaylistSongPositionClient(c config) *PlaylistSongPositionClient {
+	return &PlaylistSongPositionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `playlistsongposition.Hooks(f(g(h())))`.
+func (c *PlaylistSongPositionClient) Use(hooks ...Hook) {
+	c.hooks.PlaylistSongPosition = append(c.hooks.PlaylistSongPosition, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `playlistsongposition.Intercept(f(g(h())))`.
+func (c *PlaylistSongPositionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PlaylistSongPosition = append(c.inters.PlaylistSongPosition, interceptors...)
+}
+
+// Create returns a builder for creating a PlaylistSongPosition entity.
+func (c *PlaylistSongPositionClient) Create() *PlaylistSongPositionCreate {
+	mutation := newPlaylistSongPositionMutation(c.config, OpCreate)
+	return &PlaylistSongPositionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PlaylistSongPosition entities.
+func (c *PlaylistSongPositionClient) CreateBulk(builders ...*PlaylistSongPositionCreate) *PlaylistSongPositionCreateBulk {
+	return &PlaylistSongPositionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PlaylistSongPositionClient) MapCreateBulk(slice any, setFunc func(*PlaylistSongPositionCreate, int)) *PlaylistSongPositionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PlaylistSongPositionCreateBulk{err: fmt.Errorf("calling to PlaylistSongPositionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PlaylistSongPositionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PlaylistSongPositionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PlaylistSongPosition.
+func (c *PlaylistSongPositionClient) Update() *PlaylistSongPositionUpdate {
+	mutation := newPlaylistSongPositionMutation(c.config, OpUpdate)
+	return &PlaylistSongPositionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PlaylistSongPositionClient) UpdateOne(_m *PlaylistSongPosition) *PlaylistSongPositionUpdateOne {
+	mutation := newPlaylistSongPositionMutation(c.config, OpUpdateOne, withPlaylistSongPosition(_m))
+	return &PlaylistSongPositionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PlaylistSongPositionClient) UpdateOneID(id int) *PlaylistSongPositionUpdateOne {
+	mutation := newPlaylistSongPositionMutation(c.config, OpUpdateOne, withPlaylistSongPositionID(id))
+	return &PlaylistSongPositionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PlaylistSongPosition.
+func (c *PlaylistSongPositionClient) Delete() *PlaylistSongPositionDelete {
+	mutation := newPlaylistSongPositionMutation(c.config, OpDelete)
+	return &PlaylistSongPositionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PlaylistSongPositionClient) DeleteOne(_m *PlaylistSongPosition) *PlaylistSongPositionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PlaylistSongPositionClient) DeleteOneID(id int) *PlaylistSongPositionDeleteOne {
+	builder := c.Delete().Where(playlistsongposition.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PlaylistSongPositionDeleteOne{builder}
+}
+
+// Query returns a query builder for PlaylistSongPosition.
+func (c *PlaylistSongPositionClient) Query() *PlaylistSongPositionQuery {
+	return &PlaylistSongPositionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePlaylistSongPosition},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PlaylistSongPosition entity by its id.
+func (c *PlaylistSongPositionClient) Get(ctx context.Context, id int) (*PlaylistSongPosition, error) {
+	return c.Query().Where(playlistsongposition.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PlaylistSongPositionClient) GetX(ctx context.Context, id int) *PlaylistSongPosition {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PlaylistSongPositionClient) Hooks() []Hook {
+	return c.hooks.PlaylistSongPosition
+}
+
+// Interceptors returns the client interceptors.
+func (c *PlaylistSongPositionClient) Interceptors() []Interceptor {
+	return c.inters.PlaylistSongPosition
+}
+
+func (c *PlaylistSongPositionClient) mutate(ctx context.Context, m *PlaylistSongPositionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PlaylistSongPositionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PlaylistSongPositionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PlaylistSongPositionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PlaylistSongPositionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PlaylistSongPosition mutation op: %q", m.Op())
+	}
+}
+
+// PluginClient is a client for the Plugin schema.
+type PluginClient struct {
+	config
+}
+
+// NewPluginClient returns a client for the Plugin from the given config.
+func NewPluginClient(c config) *PluginClient {
+	return &PluginClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `plugin.Hooks(f(g(h())))`.
+func (c *PluginClient) Use(hooks ...Hook) {
+	c.hooks.Plugin = append(c.hooks.Plugin, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `plugin.Intercept(f(g(h())))`.
+func (c *PluginClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Plugin = append(c.inters.Plugin, interceptors...)
+}
+
+// Create returns a builder for creating a Plugin entity.
+func (c *PluginClient) Create() *PluginCreate {
+	mutation := newPluginMutation(c.config, OpCreate)
+	return &PluginCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Plugin entities.
+func (c *PluginClient) CreateBulk(builders ...*PluginCreate) *PluginCreateBulk {
+	return &PluginCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PluginClient) MapCreateBulk(slice any, setFunc func(*PluginCreate, int)) *PluginCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PluginCreateBulk{err: fmt.Errorf("calling to PluginClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PluginCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PluginCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Plugin.
+func (c *PluginClient) Update() *PluginUpdate {
+	mutation := newPluginMutation(c.config, OpUpdate)
+	return &PluginUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PluginClient) UpdateOne(_m *Plugin) *PluginUpdateOne {
+	mutation := newPluginMutation(c.config, OpUpdateOne, withPlugin(_m))
+	return &PluginUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PluginClient) UpdateOneID(id int) *PluginUpdateOne {
+	mutation := newPluginMutation(c.config, OpUpdateOne, withPluginID(id))
+	return &PluginUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Plugin.
+func (c *PluginClient) Delete() *PluginDelete {
+	mutation := newPluginMutation(c.config, OpDelete)
+	return &PluginDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PluginClient) DeleteOne(_m *Plugin) *PluginDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PluginClient) DeleteOneID(id int) *PluginDeleteOne {
+	builder := c.Delete().Where(plugin.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PluginDeleteOne{builder}
+}
+
+// Query returns a query builder for Plugin.
+func (c *PluginClient) Query() *PluginQuery {
+	return &PluginQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePlugin},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Plugin entity by its id.
+func (c *PluginClient) Get(ctx context.Context, id int) (*Plugin, error) {
+	return c.Query().Where(plugin.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PluginClient) GetX(ctx context.Context, id int) *Plugin {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PluginClient) Hooks() []Hook {
+	return c.hooks.Plugin
+}
+
+// Interceptors returns the client interceptors.
+func (c *PluginClient) Interceptors() []Interceptor {
+	return c.inters.Plugin
+}
+
+func (c *PluginClient) mutate(ctx context.Context, m *PluginMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PluginCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PluginUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PluginUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PluginDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Plugin mutation op: %q", m.Op())
+	}
+}
+
+// PluginStorageClient is a client for the PluginStorage schema.
+type PluginStorageClient struct {
+	config
+}
+
+// NewPluginStorageClient returns a client for the PluginStorage from the given config.
+func NewPluginStorageClient(c config) *PluginStorageClient {
+	return &PluginStorageClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `pluginstorage.Hooks(f(g(h())))`.
+func (c *PluginStorageClient) Use(hooks ...Hook) {
+	c.hooks.PluginStorage = append(c.hooks.PluginStorage, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `pluginstorage.Intercept(f(g(h())))`.
+func (c *PluginStorageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.PluginStorage = append(c.inters.PluginStorage, interceptors...)
+}
+
+// Create returns a builder for creating a PluginStorage entity.
+func (c *PluginStorageClient) Create() *PluginStorageCreate {
+	mutation := newPluginStorageMutation(c.config, OpCreate)
+	return &PluginStorageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PluginStorage entities.
+func (c *PluginStorageClient) CreateBulk(builders ...*PluginStorageCreate) *PluginStorageCreateBulk {
+	return &PluginStorageCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *PluginStorageClient) MapCreateBulk(slice any, setFunc func(*PluginStorageCreate, int)) *PluginStorageCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &PluginStorageCreateBulk{err: fmt.Errorf("calling to PluginStorageClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*PluginStorageCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &PluginStorageCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PluginStorage.
+func (c *PluginStorageClient) Update() *PluginStorageUpdate {
+	mutation := newPluginStorageMutation(c.config, OpUpdate)
+	return &PluginStorageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PluginStorageClient) UpdateOne(_m *PluginStorage) *PluginStorageUpdateOne {
+	mutation := newPluginStorageMutation(c.config, OpUpdateOne, withPluginStorage(_m))
+	return &PluginStorageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PluginStorageClient) UpdateOneID(id int) *PluginStorageUpdateOne {
+	mutation := newPluginStorageMutation(c.config, OpUpdateOne, withPluginStorageID(id))
+	return &PluginStorageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PluginStorage.
+func (c *PluginStorageClient) Delete() *PluginStorageDelete {
+	mutation := newPluginStorageMutation(c.config, OpDelete)
+	return &PluginStorageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PluginStorageClient) DeleteOne(_m *PluginStorage) *PluginStorageDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *PluginStorageClient) DeleteOneID(id int) *PluginStorageDeleteOne {
+	builder := c.Delete().Where(pluginstorage.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PluginStorageDeleteOne{builder}
+}
+
+// Query returns a query builder for PluginStorage.
+func (c *PluginStorageClient) Query() *PluginStorageQuery {
+	return &PluginStorageQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypePluginStorage},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a PluginStorage entity by its id.
+func (c *PluginStorageClient) Get(ctx context.Context, id int) (*PluginStorage, error) {
+	return c.Query().Where(pluginstorage.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PluginStorageClient) GetX(ctx context.Context, id int) *PluginStorage {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PluginStorageClient) Hooks() []Hook {
+	return c.hooks.PluginStorage
+}
+
+// Interceptors returns the client interceptors.
+func (c *PluginStorageClient) Interceptors() []Interceptor {
+	return c.inters.PluginStorage
+}
+
+func (c *PluginStorageClient) mutate(ctx context.Context, m *PluginStorageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&PluginStorageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&PluginStorageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&PluginStorageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&PluginStorageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown PluginStorage mutation op: %q", m.Op())
 	}
 }
 
@@ -2692,12 +3117,14 @@ func (c *UserSongFavoriteClient) mutate(ctx context.Context, m *UserSongFavorite
 type (
 	hooks struct {
 		Album, AppSetting, Artist, CandidateCache, LibraryDirectory, PlayHistory,
-		Playlist, Session, Song, User, UserAlbumFavorite, UserArtistFavorite,
-		UserRadioFavorite, UserSongFavorite []ent.Hook
+		Playlist, PlaylistSongPosition, Plugin, PluginStorage, Session, Song, User,
+		UserAlbumFavorite, UserArtistFavorite, UserRadioFavorite,
+		UserSongFavorite []ent.Hook
 	}
 	inters struct {
 		Album, AppSetting, Artist, CandidateCache, LibraryDirectory, PlayHistory,
-		Playlist, Session, Song, User, UserAlbumFavorite, UserArtistFavorite,
-		UserRadioFavorite, UserSongFavorite []ent.Interceptor
+		Playlist, PlaylistSongPosition, Plugin, PluginStorage, Session, Song, User,
+		UserAlbumFavorite, UserArtistFavorite, UserRadioFavorite,
+		UserSongFavorite []ent.Interceptor
 	}
 )

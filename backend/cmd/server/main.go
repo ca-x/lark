@@ -20,6 +20,8 @@ import (
 	"lark/backend/internal/kv"
 	"lark/backend/internal/library"
 	"lark/backend/internal/netease"
+	"lark/backend/internal/plugin"
+	"lark/backend/internal/plugin/larkhost"
 	"lark/backend/internal/qqmusic"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -61,6 +63,8 @@ func main() {
 	if err := backfillHasLyrics(context.Background(), client); err != nil {
 		log.Printf("has_lyrics backfill skipped: %v", err)
 	}
+	pluginRepo := plugin.NewEntRepository(client)
+	pluginRegistry := plugin.NewRegistryService(plugin.NewEntRegistryStore(client))
 	cacheStore, err := openCacheStore(cfg, client)
 	if err != nil {
 		log.Fatal(err)
@@ -76,6 +80,16 @@ func main() {
 	if err := ensureInitialAdminFromEnv(context.Background(), lib, cfg); err != nil {
 		log.Fatal(err)
 	}
+	pluginHost := larkhost.New(client, lib, larkhost.Config{
+		DataDir: cfg.PluginsDataDir, MusicDir: cfg.LibraryDir,
+		HostURL: "http://127.0.0.1:" + cfg.Port,
+	})
+	pluginManager := plugin.NewManager(pluginRepo, cfg.PluginsDir, cfg.PluginsDataDir, pluginHost)
+	lib.SetLyricSearcher(pluginManager)
+	if err := pluginManager.Start(context.Background()); err != nil {
+		log.Printf("plugin manager startup skipped: %v", err)
+	}
+	defer pluginManager.Close()
 	initialSettings, err := lib.GetSettings(context.Background())
 	if err != nil {
 		log.Fatalf("load dlna settings: %v", err)
@@ -94,6 +108,8 @@ func main() {
 		api.WithTranscodeWarmLimit(cfg.TranscodeWarmLimit),
 		api.WithNoDLNAOption(cfg.NoDLNAOption),
 		api.WithDLNA(dlnaService),
+		api.WithPluginManager(pluginManager),
+		api.WithPluginRegistry(pluginRegistry),
 	)
 	serverErr := make(chan error, 1)
 	go func() {

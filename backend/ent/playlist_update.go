@@ -72,6 +72,20 @@ func (_u *PlaylistUpdate) SetNillableCoverTheme(v *string) *PlaylistUpdate {
 	return _u
 }
 
+// SetCoverURL sets the "cover_url" field.
+func (_u *PlaylistUpdate) SetCoverURL(v string) *PlaylistUpdate {
+	_u.mutation.SetCoverURL(v)
+	return _u
+}
+
+// SetNillableCoverURL sets the "cover_url" field if the given value is not nil.
+func (_u *PlaylistUpdate) SetNillableCoverURL(v *string) *PlaylistUpdate {
+	if v != nil {
+		_u.SetCoverURL(*v)
+	}
+	return _u
+}
+
 // SetFavorite sets the "favorite" field.
 func (_u *PlaylistUpdate) SetFavorite(v bool) *PlaylistUpdate {
 	_u.mutation.SetFavorite(v)
@@ -239,6 +253,9 @@ func (_u *PlaylistUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.CoverTheme(); ok {
 		_spec.SetField(playlist.FieldCoverTheme, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.CoverURL(); ok {
+		_spec.SetField(playlist.FieldCoverURL, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(playlist.FieldFavorite, field.TypeBool, value)
 	}
@@ -380,6 +397,20 @@ func (_u *PlaylistUpdateOne) SetCoverTheme(v string) *PlaylistUpdateOne {
 func (_u *PlaylistUpdateOne) SetNillableCoverTheme(v *string) *PlaylistUpdateOne {
 	if v != nil {
 		_u.SetCoverTheme(*v)
+	}
+	return _u
+}
+
+// SetCoverURL sets the "cover_url" field.
+func (_u *PlaylistUpdateOne) SetCoverURL(v string) *PlaylistUpdateOne {
+	_u.mutation.SetCoverURL(v)
+	return _u
+}
+
+// SetNillableCoverURL sets the "cover_url" field if the given value is not nil.
+func (_u *PlaylistUpdateOne) SetNillableCoverURL(v *string) *PlaylistUpdateOne {
+	if v != nil {
+		_u.SetCoverURL(*v)
 	}
 	return _u
 }
@@ -580,6 +611,9 @@ func (_u *PlaylistUpdateOne) sqlSave(ctx context.Context) (_node *Playlist, err 
 	}
 	if value, ok := _u.mutation.CoverTheme(); ok {
 		_spec.SetField(playlist.FieldCoverTheme, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CoverURL(); ok {
+		_spec.SetField(playlist.FieldCoverURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(playlist.FieldFavorite, field.TypeBool, value)

@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, SongSort, SongReview, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, LibraryReviewSummary, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings, DLNADevice, DLNAStatus } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, SongSort, SongReview, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, LibraryReviewSummary, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings, DLNADevice, DLNAStatus, Plugin, PluginCapability, PluginRegistry, PluginRegistryEntry } from '../types'
 
 function currentDeviceType() {
   if (typeof navigator === 'undefined') return 'pc'
@@ -244,4 +244,15 @@ export const api = {
   generateMcpToken: () => request<MCPTokenStatus>('/api/mcp/token/generate', { method: 'POST' }),
   deleteMcpToken: () => request<MCPTokenStatus>('/api/mcp/token', { method: 'DELETE' }),
   saveSettings: (settings: Settings) => request<Settings>('/api/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+  plugins: () => request<{ plugins: Plugin[] }>('/api/plugins'),
+  pluginCapabilities: () => request<{ capabilities: PluginCapability[] }>('/api/plugins/capabilities'),
+  uploadPlugin: (file: File) => request<Plugin>('/api/plugins/upload', { method: 'POST', body: file }),
+  enablePlugin: (id: number) => request<void>(`/api/plugins/${id}/enable`, { method: 'POST' }),
+  disablePlugin: (id: number) => request<void>(`/api/plugins/${id}/disable`, { method: 'POST' }),
+  reloadPlugin: (id: number) => request<void>(`/api/plugins/${id}/reload`, { method: 'POST' }),
+  deletePlugin: (id: number) => request<void>(`/api/plugins/${id}`, { method: 'DELETE' }),
+  pluginRegistries: () => request<{ registries: PluginRegistry[] }>('/api/plugin-registries'),
+  savePluginRegistries: (registries: PluginRegistry[]) => request<{ registries: PluginRegistry[] }>('/api/plugin-registries', { method: 'PUT', body: JSON.stringify({ registries }) }),
+  pluginMarketplace: () => request<{ plugins: PluginRegistryEntry[]; warnings?: string[] }>('/api/plugin-marketplace'),
+  installMarketplacePlugin: (plugin: PluginRegistryEntry) => request<Plugin>('/api/plugin-marketplace/install', { method: 'POST', body: JSON.stringify(plugin) }),
 }

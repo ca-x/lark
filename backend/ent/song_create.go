@@ -31,6 +31,48 @@ func (_c *SongCreate) SetTitle(v string) *SongCreate {
 	return _c
 }
 
+// SetSourceType sets the "source_type" field.
+func (_c *SongCreate) SetSourceType(v string) *SongCreate {
+	_c.mutation.SetSourceType(v)
+	return _c
+}
+
+// SetNillableSourceType sets the "source_type" field if the given value is not nil.
+func (_c *SongCreate) SetNillableSourceType(v *string) *SongCreate {
+	if v != nil {
+		_c.SetSourceType(*v)
+	}
+	return _c
+}
+
+// SetSourceArtist sets the "source_artist" field.
+func (_c *SongCreate) SetSourceArtist(v string) *SongCreate {
+	_c.mutation.SetSourceArtist(v)
+	return _c
+}
+
+// SetNillableSourceArtist sets the "source_artist" field if the given value is not nil.
+func (_c *SongCreate) SetNillableSourceArtist(v *string) *SongCreate {
+	if v != nil {
+		_c.SetSourceArtist(*v)
+	}
+	return _c
+}
+
+// SetSourceAlbum sets the "source_album" field.
+func (_c *SongCreate) SetSourceAlbum(v string) *SongCreate {
+	_c.mutation.SetSourceAlbum(v)
+	return _c
+}
+
+// SetNillableSourceAlbum sets the "source_album" field if the given value is not nil.
+func (_c *SongCreate) SetNillableSourceAlbum(v *string) *SongCreate {
+	if v != nil {
+		_c.SetSourceAlbum(*v)
+	}
+	return _c
+}
+
 // SetPath sets the "path" field.
 func (_c *SongCreate) SetPath(v string) *SongCreate {
 	_c.mutation.SetPath(v)
@@ -109,6 +151,76 @@ func (_c *SongCreate) SetContentHash(v string) *SongCreate {
 func (_c *SongCreate) SetNillableContentHash(v *string) *SongCreate {
 	if v != nil {
 		_c.SetContentHash(*v)
+	}
+	return _c
+}
+
+// SetURL sets the "url" field.
+func (_c *SongCreate) SetURL(v string) *SongCreate {
+	_c.mutation.SetURL(v)
+	return _c
+}
+
+// SetNillableURL sets the "url" field if the given value is not nil.
+func (_c *SongCreate) SetNillableURL(v *string) *SongCreate {
+	if v != nil {
+		_c.SetURL(*v)
+	}
+	return _c
+}
+
+// SetCoverURL sets the "cover_url" field.
+func (_c *SongCreate) SetCoverURL(v string) *SongCreate {
+	_c.mutation.SetCoverURL(v)
+	return _c
+}
+
+// SetNillableCoverURL sets the "cover_url" field if the given value is not nil.
+func (_c *SongCreate) SetNillableCoverURL(v *string) *SongCreate {
+	if v != nil {
+		_c.SetCoverURL(*v)
+	}
+	return _c
+}
+
+// SetPluginEntryPath sets the "plugin_entry_path" field.
+func (_c *SongCreate) SetPluginEntryPath(v string) *SongCreate {
+	_c.mutation.SetPluginEntryPath(v)
+	return _c
+}
+
+// SetNillablePluginEntryPath sets the "plugin_entry_path" field if the given value is not nil.
+func (_c *SongCreate) SetNillablePluginEntryPath(v *string) *SongCreate {
+	if v != nil {
+		_c.SetPluginEntryPath(*v)
+	}
+	return _c
+}
+
+// SetSourceData sets the "source_data" field.
+func (_c *SongCreate) SetSourceData(v string) *SongCreate {
+	_c.mutation.SetSourceData(v)
+	return _c
+}
+
+// SetNillableSourceData sets the "source_data" field if the given value is not nil.
+func (_c *SongCreate) SetNillableSourceData(v *string) *SongCreate {
+	if v != nil {
+		_c.SetSourceData(*v)
+	}
+	return _c
+}
+
+// SetDedupKey sets the "dedup_key" field.
+func (_c *SongCreate) SetDedupKey(v string) *SongCreate {
+	_c.mutation.SetDedupKey(v)
+	return _c
+}
+
+// SetNillableDedupKey sets the "dedup_key" field if the given value is not nil.
+func (_c *SongCreate) SetNillableDedupKey(v *string) *SongCreate {
+	if v != nil {
+		_c.SetDedupKey(*v)
 	}
 	return _c
 }
@@ -211,6 +323,20 @@ func (_c *SongCreate) SetNillableLyricsSource(v *string) *SongCreate {
 	return _c
 }
 
+// SetLyricsRemoteURL sets the "lyrics_remote_url" field.
+func (_c *SongCreate) SetLyricsRemoteURL(v string) *SongCreate {
+	_c.mutation.SetLyricsRemoteURL(v)
+	return _c
+}
+
+// SetNillableLyricsRemoteURL sets the "lyrics_remote_url" field if the given value is not nil.
+func (_c *SongCreate) SetNillableLyricsRemoteURL(v *string) *SongCreate {
+	if v != nil {
+		_c.SetLyricsRemoteURL(*v)
+	}
+	return _c
+}
+
 // SetHasLyrics sets the "has_lyrics" field.
 func (_c *SongCreate) SetHasLyrics(v bool) *SongCreate {
 	_c.mutation.SetHasLyrics(v)
@@ -235,6 +361,34 @@ func (_c *SongCreate) SetNeteaseID(v string) *SongCreate {
 func (_c *SongCreate) SetNillableNeteaseID(v *string) *SongCreate {
 	if v != nil {
 		_c.SetNeteaseID(*v)
+	}
+	return _c
+}
+
+// SetIsLive sets the "is_live" field.
+func (_c *SongCreate) SetIsLive(v bool) *SongCreate {
+	_c.mutation.SetIsLive(v)
+	return _c
+}
+
+// SetNillableIsLive sets the "is_live" field if the given value is not nil.
+func (_c *SongCreate) SetNillableIsLive(v *bool) *SongCreate {
+	if v != nil {
+		_c.SetIsLive(*v)
+	}
+	return _c
+}
+
+// SetIsVideo sets the "is_video" field.
+func (_c *SongCreate) SetIsVideo(v bool) *SongCreate {
+	_c.mutation.SetIsVideo(v)
+	return _c
+}
+
+// SetNillableIsVideo sets the "is_video" field if the given value is not nil.
+func (_c *SongCreate) SetNillableIsVideo(v *bool) *SongCreate {
+	if v != nil {
+		_c.SetIsVideo(*v)
 	}
 	return _c
 }
@@ -427,6 +581,18 @@ func (_c *SongCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *SongCreate) defaults() {
+	if _, ok := _c.mutation.SourceType(); !ok {
+		v := song.DefaultSourceType
+		_c.mutation.SetSourceType(v)
+	}
+	if _, ok := _c.mutation.SourceArtist(); !ok {
+		v := song.DefaultSourceArtist
+		_c.mutation.SetSourceArtist(v)
+	}
+	if _, ok := _c.mutation.SourceAlbum(); !ok {
+		v := song.DefaultSourceAlbum
+		_c.mutation.SetSourceAlbum(v)
+	}
 	if _, ok := _c.mutation.Format(); !ok {
 		v := song.DefaultFormat
 		_c.mutation.SetFormat(v)
@@ -446,6 +612,26 @@ func (_c *SongCreate) defaults() {
 	if _, ok := _c.mutation.ContentHash(); !ok {
 		v := song.DefaultContentHash
 		_c.mutation.SetContentHash(v)
+	}
+	if _, ok := _c.mutation.URL(); !ok {
+		v := song.DefaultURL
+		_c.mutation.SetURL(v)
+	}
+	if _, ok := _c.mutation.CoverURL(); !ok {
+		v := song.DefaultCoverURL
+		_c.mutation.SetCoverURL(v)
+	}
+	if _, ok := _c.mutation.PluginEntryPath(); !ok {
+		v := song.DefaultPluginEntryPath
+		_c.mutation.SetPluginEntryPath(v)
+	}
+	if _, ok := _c.mutation.SourceData(); !ok {
+		v := song.DefaultSourceData
+		_c.mutation.SetSourceData(v)
+	}
+	if _, ok := _c.mutation.DedupKey(); !ok {
+		v := song.DefaultDedupKey
+		_c.mutation.SetDedupKey(v)
 	}
 	if _, ok := _c.mutation.DurationSeconds(); !ok {
 		v := song.DefaultDurationSeconds
@@ -475,6 +661,10 @@ func (_c *SongCreate) defaults() {
 		v := song.DefaultLyricsSource
 		_c.mutation.SetLyricsSource(v)
 	}
+	if _, ok := _c.mutation.LyricsRemoteURL(); !ok {
+		v := song.DefaultLyricsRemoteURL
+		_c.mutation.SetLyricsRemoteURL(v)
+	}
 	if _, ok := _c.mutation.HasLyrics(); !ok {
 		v := song.DefaultHasLyrics
 		_c.mutation.SetHasLyrics(v)
@@ -482,6 +672,14 @@ func (_c *SongCreate) defaults() {
 	if _, ok := _c.mutation.NeteaseID(); !ok {
 		v := song.DefaultNeteaseID
 		_c.mutation.SetNeteaseID(v)
+	}
+	if _, ok := _c.mutation.IsLive(); !ok {
+		v := song.DefaultIsLive
+		_c.mutation.SetIsLive(v)
+	}
+	if _, ok := _c.mutation.IsVideo(); !ok {
+		v := song.DefaultIsVideo
+		_c.mutation.SetIsVideo(v)
 	}
 	if _, ok := _c.mutation.Favorite(); !ok {
 		v := song.DefaultFavorite
@@ -510,6 +708,15 @@ func (_c *SongCreate) check() error {
 		if err := song.TitleValidator(v); err != nil {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "Song.title": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.SourceType(); !ok {
+		return &ValidationError{Name: "source_type", err: errors.New(`ent: missing required field "Song.source_type"`)}
+	}
+	if _, ok := _c.mutation.SourceArtist(); !ok {
+		return &ValidationError{Name: "source_artist", err: errors.New(`ent: missing required field "Song.source_artist"`)}
+	}
+	if _, ok := _c.mutation.SourceAlbum(); !ok {
+		return &ValidationError{Name: "source_album", err: errors.New(`ent: missing required field "Song.source_album"`)}
 	}
 	if _, ok := _c.mutation.Path(); !ok {
 		return &ValidationError{Name: "path", err: errors.New(`ent: missing required field "Song.path"`)}
@@ -542,6 +749,21 @@ func (_c *SongCreate) check() error {
 	if _, ok := _c.mutation.ContentHash(); !ok {
 		return &ValidationError{Name: "content_hash", err: errors.New(`ent: missing required field "Song.content_hash"`)}
 	}
+	if _, ok := _c.mutation.URL(); !ok {
+		return &ValidationError{Name: "url", err: errors.New(`ent: missing required field "Song.url"`)}
+	}
+	if _, ok := _c.mutation.CoverURL(); !ok {
+		return &ValidationError{Name: "cover_url", err: errors.New(`ent: missing required field "Song.cover_url"`)}
+	}
+	if _, ok := _c.mutation.PluginEntryPath(); !ok {
+		return &ValidationError{Name: "plugin_entry_path", err: errors.New(`ent: missing required field "Song.plugin_entry_path"`)}
+	}
+	if _, ok := _c.mutation.SourceData(); !ok {
+		return &ValidationError{Name: "source_data", err: errors.New(`ent: missing required field "Song.source_data"`)}
+	}
+	if _, ok := _c.mutation.DedupKey(); !ok {
+		return &ValidationError{Name: "dedup_key", err: errors.New(`ent: missing required field "Song.dedup_key"`)}
+	}
 	if _, ok := _c.mutation.DurationSeconds(); !ok {
 		return &ValidationError{Name: "duration_seconds", err: errors.New(`ent: missing required field "Song.duration_seconds"`)}
 	}
@@ -563,11 +785,20 @@ func (_c *SongCreate) check() error {
 	if _, ok := _c.mutation.LyricsSource(); !ok {
 		return &ValidationError{Name: "lyrics_source", err: errors.New(`ent: missing required field "Song.lyrics_source"`)}
 	}
+	if _, ok := _c.mutation.LyricsRemoteURL(); !ok {
+		return &ValidationError{Name: "lyrics_remote_url", err: errors.New(`ent: missing required field "Song.lyrics_remote_url"`)}
+	}
 	if _, ok := _c.mutation.HasLyrics(); !ok {
 		return &ValidationError{Name: "has_lyrics", err: errors.New(`ent: missing required field "Song.has_lyrics"`)}
 	}
 	if _, ok := _c.mutation.NeteaseID(); !ok {
 		return &ValidationError{Name: "netease_id", err: errors.New(`ent: missing required field "Song.netease_id"`)}
+	}
+	if _, ok := _c.mutation.IsLive(); !ok {
+		return &ValidationError{Name: "is_live", err: errors.New(`ent: missing required field "Song.is_live"`)}
+	}
+	if _, ok := _c.mutation.IsVideo(); !ok {
+		return &ValidationError{Name: "is_video", err: errors.New(`ent: missing required field "Song.is_video"`)}
 	}
 	if _, ok := _c.mutation.Favorite(); !ok {
 		return &ValidationError{Name: "favorite", err: errors.New(`ent: missing required field "Song.favorite"`)}
@@ -611,6 +842,18 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 		_spec.SetField(song.FieldTitle, field.TypeString, value)
 		_node.Title = value
 	}
+	if value, ok := _c.mutation.SourceType(); ok {
+		_spec.SetField(song.FieldSourceType, field.TypeString, value)
+		_node.SourceType = value
+	}
+	if value, ok := _c.mutation.SourceArtist(); ok {
+		_spec.SetField(song.FieldSourceArtist, field.TypeString, value)
+		_node.SourceArtist = value
+	}
+	if value, ok := _c.mutation.SourceAlbum(); ok {
+		_spec.SetField(song.FieldSourceAlbum, field.TypeString, value)
+		_node.SourceAlbum = value
+	}
 	if value, ok := _c.mutation.Path(); ok {
 		_spec.SetField(song.FieldPath, field.TypeString, value)
 		_node.Path = value
@@ -638,6 +881,26 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ContentHash(); ok {
 		_spec.SetField(song.FieldContentHash, field.TypeString, value)
 		_node.ContentHash = value
+	}
+	if value, ok := _c.mutation.URL(); ok {
+		_spec.SetField(song.FieldURL, field.TypeString, value)
+		_node.URL = value
+	}
+	if value, ok := _c.mutation.CoverURL(); ok {
+		_spec.SetField(song.FieldCoverURL, field.TypeString, value)
+		_node.CoverURL = value
+	}
+	if value, ok := _c.mutation.PluginEntryPath(); ok {
+		_spec.SetField(song.FieldPluginEntryPath, field.TypeString, value)
+		_node.PluginEntryPath = value
+	}
+	if value, ok := _c.mutation.SourceData(); ok {
+		_spec.SetField(song.FieldSourceData, field.TypeString, value)
+		_node.SourceData = value
+	}
+	if value, ok := _c.mutation.DedupKey(); ok {
+		_spec.SetField(song.FieldDedupKey, field.TypeString, value)
+		_node.DedupKey = value
 	}
 	if value, ok := _c.mutation.DurationSeconds(); ok {
 		_spec.SetField(song.FieldDurationSeconds, field.TypeFloat64, value)
@@ -667,6 +930,10 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 		_spec.SetField(song.FieldLyricsSource, field.TypeString, value)
 		_node.LyricsSource = value
 	}
+	if value, ok := _c.mutation.LyricsRemoteURL(); ok {
+		_spec.SetField(song.FieldLyricsRemoteURL, field.TypeString, value)
+		_node.LyricsRemoteURL = value
+	}
 	if value, ok := _c.mutation.HasLyrics(); ok {
 		_spec.SetField(song.FieldHasLyrics, field.TypeBool, value)
 		_node.HasLyrics = value
@@ -674,6 +941,14 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.NeteaseID(); ok {
 		_spec.SetField(song.FieldNeteaseID, field.TypeString, value)
 		_node.NeteaseID = value
+	}
+	if value, ok := _c.mutation.IsLive(); ok {
+		_spec.SetField(song.FieldIsLive, field.TypeBool, value)
+		_node.IsLive = value
+	}
+	if value, ok := _c.mutation.IsVideo(); ok {
+		_spec.SetField(song.FieldIsVideo, field.TypeBool, value)
+		_node.IsVideo = value
 	}
 	if value, ok := _c.mutation.Favorite(); ok {
 		_spec.SetField(song.FieldFavorite, field.TypeBool, value)

@@ -21,6 +21,12 @@ type Song struct {
 	ID int `json:"id,omitempty"`
 	// Title holds the value of the "title" field.
 	Title string `json:"title,omitempty"`
+	// SourceType holds the value of the "source_type" field.
+	SourceType string `json:"source_type,omitempty"`
+	// SourceArtist holds the value of the "source_artist" field.
+	SourceArtist string `json:"source_artist,omitempty"`
+	// SourceAlbum holds the value of the "source_album" field.
+	SourceAlbum string `json:"source_album,omitempty"`
 	// Path holds the value of the "path" field.
 	Path string `json:"path,omitempty"`
 	// FileName holds the value of the "file_name" field.
@@ -35,6 +41,16 @@ type Song struct {
 	ModTimeUnixNano int64 `json:"mod_time_unix_nano,omitempty"`
 	// ContentHash holds the value of the "content_hash" field.
 	ContentHash string `json:"content_hash,omitempty"`
+	// URL holds the value of the "url" field.
+	URL string `json:"url,omitempty"`
+	// CoverURL holds the value of the "cover_url" field.
+	CoverURL string `json:"cover_url,omitempty"`
+	// PluginEntryPath holds the value of the "plugin_entry_path" field.
+	PluginEntryPath string `json:"plugin_entry_path,omitempty"`
+	// SourceData holds the value of the "source_data" field.
+	SourceData string `json:"source_data,omitempty"`
+	// DedupKey holds the value of the "dedup_key" field.
+	DedupKey string `json:"dedup_key,omitempty"`
 	// DurationSeconds holds the value of the "duration_seconds" field.
 	DurationSeconds float64 `json:"duration_seconds,omitempty"`
 	// SampleRate holds the value of the "sample_rate" field.
@@ -49,10 +65,16 @@ type Song struct {
 	LyricsEmbedded string `json:"lyrics_embedded,omitempty"`
 	// LyricsSource holds the value of the "lyrics_source" field.
 	LyricsSource string `json:"lyrics_source,omitempty"`
+	// LyricsRemoteURL holds the value of the "lyrics_remote_url" field.
+	LyricsRemoteURL string `json:"lyrics_remote_url,omitempty"`
 	// HasLyrics holds the value of the "has_lyrics" field.
 	HasLyrics bool `json:"has_lyrics,omitempty"`
 	// NeteaseID holds the value of the "netease_id" field.
 	NeteaseID string `json:"netease_id,omitempty"`
+	// IsLive holds the value of the "is_live" field.
+	IsLive bool `json:"is_live,omitempty"`
+	// IsVideo holds the value of the "is_video" field.
+	IsVideo bool `json:"is_video,omitempty"`
 	// Favorite holds the value of the "favorite" field.
 	Favorite bool `json:"favorite,omitempty"`
 	// PlayCount holds the value of the "play_count" field.
@@ -142,13 +164,13 @@ func (*Song) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case song.FieldHasLyrics, song.FieldFavorite:
+		case song.FieldHasLyrics, song.FieldIsLive, song.FieldIsVideo, song.FieldFavorite:
 			values[i] = new(sql.NullBool)
 		case song.FieldDurationSeconds:
 			values[i] = new(sql.NullFloat64)
 		case song.FieldID, song.FieldSizeBytes, song.FieldModTimeUnixNano, song.FieldSampleRate, song.FieldBitRate, song.FieldBitDepth, song.FieldYear, song.FieldPlayCount:
 			values[i] = new(sql.NullInt64)
-		case song.FieldTitle, song.FieldPath, song.FieldFileName, song.FieldFormat, song.FieldMime, song.FieldContentHash, song.FieldLyricsEmbedded, song.FieldLyricsSource, song.FieldNeteaseID:
+		case song.FieldTitle, song.FieldSourceType, song.FieldSourceArtist, song.FieldSourceAlbum, song.FieldPath, song.FieldFileName, song.FieldFormat, song.FieldMime, song.FieldContentHash, song.FieldURL, song.FieldCoverURL, song.FieldPluginEntryPath, song.FieldSourceData, song.FieldDedupKey, song.FieldLyricsEmbedded, song.FieldLyricsSource, song.FieldLyricsRemoteURL, song.FieldNeteaseID:
 			values[i] = new(sql.NullString)
 		case song.FieldLastPlayedAt, song.FieldCreatedAt, song.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -182,6 +204,24 @@ func (_m *Song) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field title", values[i])
 			} else if value.Valid {
 				_m.Title = value.String
+			}
+		case song.FieldSourceType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source_type", values[i])
+			} else if value.Valid {
+				_m.SourceType = value.String
+			}
+		case song.FieldSourceArtist:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source_artist", values[i])
+			} else if value.Valid {
+				_m.SourceArtist = value.String
+			}
+		case song.FieldSourceAlbum:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source_album", values[i])
+			} else if value.Valid {
+				_m.SourceAlbum = value.String
 			}
 		case song.FieldPath:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -225,6 +265,36 @@ func (_m *Song) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ContentHash = value.String
 			}
+		case song.FieldURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field url", values[i])
+			} else if value.Valid {
+				_m.URL = value.String
+			}
+		case song.FieldCoverURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cover_url", values[i])
+			} else if value.Valid {
+				_m.CoverURL = value.String
+			}
+		case song.FieldPluginEntryPath:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field plugin_entry_path", values[i])
+			} else if value.Valid {
+				_m.PluginEntryPath = value.String
+			}
+		case song.FieldSourceData:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source_data", values[i])
+			} else if value.Valid {
+				_m.SourceData = value.String
+			}
+		case song.FieldDedupKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field dedup_key", values[i])
+			} else if value.Valid {
+				_m.DedupKey = value.String
+			}
 		case song.FieldDurationSeconds:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field duration_seconds", values[i])
@@ -267,6 +337,12 @@ func (_m *Song) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.LyricsSource = value.String
 			}
+		case song.FieldLyricsRemoteURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field lyrics_remote_url", values[i])
+			} else if value.Valid {
+				_m.LyricsRemoteURL = value.String
+			}
 		case song.FieldHasLyrics:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field has_lyrics", values[i])
@@ -278,6 +354,18 @@ func (_m *Song) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field netease_id", values[i])
 			} else if value.Valid {
 				_m.NeteaseID = value.String
+			}
+		case song.FieldIsLive:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_live", values[i])
+			} else if value.Valid {
+				_m.IsLive = value.Bool
+			}
+		case song.FieldIsVideo:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_video", values[i])
+			} else if value.Valid {
+				_m.IsVideo = value.Bool
 			}
 		case song.FieldFavorite:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -388,6 +476,15 @@ func (_m *Song) String() string {
 	builder.WriteString("title=")
 	builder.WriteString(_m.Title)
 	builder.WriteString(", ")
+	builder.WriteString("source_type=")
+	builder.WriteString(_m.SourceType)
+	builder.WriteString(", ")
+	builder.WriteString("source_artist=")
+	builder.WriteString(_m.SourceArtist)
+	builder.WriteString(", ")
+	builder.WriteString("source_album=")
+	builder.WriteString(_m.SourceAlbum)
+	builder.WriteString(", ")
 	builder.WriteString("path=")
 	builder.WriteString(_m.Path)
 	builder.WriteString(", ")
@@ -408,6 +505,21 @@ func (_m *Song) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("content_hash=")
 	builder.WriteString(_m.ContentHash)
+	builder.WriteString(", ")
+	builder.WriteString("url=")
+	builder.WriteString(_m.URL)
+	builder.WriteString(", ")
+	builder.WriteString("cover_url=")
+	builder.WriteString(_m.CoverURL)
+	builder.WriteString(", ")
+	builder.WriteString("plugin_entry_path=")
+	builder.WriteString(_m.PluginEntryPath)
+	builder.WriteString(", ")
+	builder.WriteString("source_data=")
+	builder.WriteString(_m.SourceData)
+	builder.WriteString(", ")
+	builder.WriteString("dedup_key=")
+	builder.WriteString(_m.DedupKey)
 	builder.WriteString(", ")
 	builder.WriteString("duration_seconds=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DurationSeconds))
@@ -430,11 +542,20 @@ func (_m *Song) String() string {
 	builder.WriteString("lyrics_source=")
 	builder.WriteString(_m.LyricsSource)
 	builder.WriteString(", ")
+	builder.WriteString("lyrics_remote_url=")
+	builder.WriteString(_m.LyricsRemoteURL)
+	builder.WriteString(", ")
 	builder.WriteString("has_lyrics=")
 	builder.WriteString(fmt.Sprintf("%v", _m.HasLyrics))
 	builder.WriteString(", ")
 	builder.WriteString("netease_id=")
 	builder.WriteString(_m.NeteaseID)
+	builder.WriteString(", ")
+	builder.WriteString("is_live=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsLive))
+	builder.WriteString(", ")
+	builder.WriteString("is_video=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsVideo))
 	builder.WriteString(", ")
 	builder.WriteString("favorite=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Favorite))

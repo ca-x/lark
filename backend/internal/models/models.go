@@ -4,11 +4,17 @@ import "time"
 
 type Song struct {
 	ID              int        `json:"id"`
+	Type            string     `json:"type"`
 	Title           string     `json:"title"`
 	ArtistID        int        `json:"artist_id"`
 	Artist          string     `json:"artist"`
 	AlbumID         int        `json:"album_id"`
 	Album           string     `json:"album"`
+	URL             string     `json:"url,omitempty"`
+	CoverURL        string     `json:"cover_url,omitempty"`
+	PluginEntryPath string     `json:"plugin_entry_path,omitempty"`
+	SourceData      string     `json:"source_data,omitempty"`
+	DedupKey        string     `json:"dedup_key,omitempty"`
 	Path            string     `json:"path"`
 	FileName        string     `json:"file_name"`
 	Format          string     `json:"format"`
@@ -26,6 +32,9 @@ type Song struct {
 	ResumePosition  float64    `json:"resume_position_seconds"`
 	HasLyrics       bool       `json:"has_lyrics"`
 	LyricsSource    string     `json:"lyrics_source"`
+	LyricsRemoteURL string     `json:"lyric_remote_url,omitempty"`
+	IsLive          bool       `json:"is_live"`
+	IsVideo         bool       `json:"is_video"`
 	CoverVersion    int64      `json:"cover_version,omitempty"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
@@ -170,6 +179,7 @@ type Playlist struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	CoverTheme  string    `json:"cover_theme"`
+	CoverURL    string    `json:"cover_url,omitempty"`
 	Favorite    bool      `json:"favorite"`
 	SongCount   int       `json:"song_count"`
 	CreatedAt   time.Time `json:"created_at"`

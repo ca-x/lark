@@ -1,0 +1,558 @@
+/* Songloft Plugin — Component Library
+ * 由主程序自动注入到所有插件 HTML 页面（第二层，在 theme.css 之后）。
+ *
+ * 组件形制**严格对齐客户端 Flutter 组件**，让插件直接复用即与主程序一致：
+ *   · .card / .section-title  ← SectionCard（section_card.dart）
+ *   · .btn*                   ← FilledButton / OutlinedButton / TextButton（app_theme.dart）
+ *   · .text-field             ← InputDecorationTheme（filled + OutlineInputBorder）
+ *   · .tab-bar               ← NavigationBarThemeData（高 64、surfaceContainer 底）
+ *   · .snackbar / .dialog     ← SnackBarTheme / M3 Dialog
+ * 颜色全部走 theme.css 的 `--md-*` 令牌，故自动跟随主题切换。
+ *
+ * ⚠️ WebF 约束（本层是要在 WebF 渲染面跑的）：禁用 color-mix() / max() / min() /
+ * env()；开关把手位移用 transform: translateX；选中态用 `~` 兄弟选择器。 */
+
+/* ── AppBar ── */
+.app-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 100;
+    box-shadow: var(--md-shadow-2);
+}
+.app-bar h1 {
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: .25px;
+}
+.app-bar .btn-icon {
+    color: var(--md-on-primary);
+}
+.app-bar .btn-icon:hover {
+    background: rgba(255,255,255,.15);
+}
+
+/* ── Card ── 对齐 SectionCard（section_card.dart）：surfaceContainer 底 +
+ * 1px outlineVariant 描边 + 16 圆角 + **无阴影**。组标题用卡外的 .section-title。 */
+.card {
+    background: var(--md-surface-container);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+}
+/* 卡外上方的分组标题：大写小字（对齐 section_card.dart:31-38 的 labelSmall）。 */
+.section-title {
+    display: block;
+    margin: 0 0 8px;
+    padding-left: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--md-on-surface-variant);
+}
+/* 卡内标题（legacy 形制，部分插件在用）。 */
+.card-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--md-on-surface);
+    margin-bottom: 8px;
+}
+
+/* ── Buttons ── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 24px;
+    border: none;
+    border-radius: var(--md-radius-full);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: .1px;
+    cursor: pointer;
+    transition: background .2s, box-shadow .2s;
+}
+.btn-filled {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+}
+.btn-filled:hover {
+    box-shadow: var(--md-shadow-1);
+}
+.btn-outlined {
+    background: transparent;
+    color: var(--md-primary);
+    border: 1px solid var(--md-outline);
+}
+.btn-outlined:hover {
+    background: var(--md-primary-container);
+}
+.btn-text {
+    background: transparent;
+    color: var(--md-primary);
+    padding: 0 12px;
+}
+/* 涟漪底色跟着 --md-primary 走。CSS 里无法从 hex 变量算 rgba（WebF 也没有
+ * color-mix），只能写字面量 = 当前 primary 的 RGB。**改 primary 兜底值时这两条
+ * 要一起改**。下推真实 ColorScheme 后 primary 会变、这两条跟不上，属已知取舍：
+ * 涟漪只是 8%/12% 的浅色叠加，跑偏也看不出来。 */
+.btn-text:hover {
+    background: rgba(65, 95, 145, .08);
+}
+html[data-theme="dark"] .btn-text:hover {
+    background: rgba(170, 199, 255, .12);
+}
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--md-on-surface-variant);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .2s;
+}
+.btn-icon:hover {
+    background: rgba(0,0,0,.08);
+}
+html[data-theme="dark"] .btn-icon:hover {
+    background: rgba(255,255,255,.08);
+}
+
+/* ── TextField ── 对齐 InputDecorationTheme（filled + OutlineInputBorder）。 */
+.text-field {
+    position: relative;
+    margin-bottom: 16px;
+}
+.text-field input,
+.text-field textarea {
+    width: 100%;
+    padding: 16px;
+    border: 1px solid var(--md-outline);
+    border-radius: var(--md-radius-sm);
+    font-family: inherit;
+    font-size: 16px;
+    color: var(--md-on-surface);
+    background: transparent;
+    outline: none;
+    transition: border-color .2s;
+}
+.text-field input:focus,
+.text-field textarea:focus {
+    border-color: var(--md-primary);
+    border-width: 2px;
+    padding: 15px;
+}
+.text-field label {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    font-size: 16px;
+    color: var(--md-on-surface-variant);
+    pointer-events: none;
+    transition: all .2s;
+    /* 浮动 label 要「切断」输入框上边框，底色须等于**它背后那层**的底色。取
+     * --md-surface-container（卡片色）：表单几乎总在卡片里。若 .text-field 直接放
+     * 在页面上，插件需自己覆盖成 var(--md-surface)。 */
+    background: var(--md-surface-container);
+    padding: 0 4px;
+}
+.text-field input:focus ~ label,
+.text-field input:not(:placeholder-shown) ~ label,
+.text-field textarea:focus ~ label,
+.text-field textarea:not(:placeholder-shown) ~ label {
+    top: -8px;
+    font-size: 12px;
+    color: var(--md-primary);
+}
+
+/* ── Chip ── */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--md-radius-sm);
+    font-size: 14px;
+    color: var(--md-on-surface-variant);
+    background: transparent;
+    cursor: pointer;
+    transition: background .2s;
+}
+.chip:hover {
+    background: var(--md-surface-container-high);
+}
+.chip.selected {
+    background: var(--md-primary-container);
+    border-color: transparent;
+    color: var(--md-on-primary-container);
+}
+
+/* ── Dialog ── */
+.dialog-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+}
+.dialog-overlay.open {
+    display: flex;
+}
+.dialog {
+    /* M3 对话框用 surfaceContainerHigh（比卡片再深一档），在 scrim 之上分离出来 */
+    background: var(--md-surface-container-high);
+    border-radius: var(--md-radius-xl);
+    padding: 24px;
+    min-width: 280px;
+    max-width: 560px;
+    width: 90%;
+    box-shadow: var(--md-shadow-3);
+}
+.dialog-title {
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 16px;
+    color: var(--md-on-surface);
+}
+.dialog-content {
+    font-size: 14px;
+    color: var(--md-on-surface-variant);
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* ── Snackbar ── 对齐 SnackBarTheme（floating + sm 圆角 + inverseSurface）。
+ *
+ * ⚠️ **不用 transform 定位/动画**：WebF **不对 `position: fixed` 元素应用 transform**
+ * （docs/webf/handoff.md webf-ui 事实第 8 条实测），旧写法 `left:50% + translateX(-50%)`
+ * 在 WebF 下会让 snackbar 停在 left:50%（左缘居中、右溢出）、且无入场动画。改为：
+ *   · 居中：`left:0; right:0; margin:0 auto; width:fit-content`（标准 abs 居中，不碰
+ *     transform）。fixed 的包含块是视口、宽度确定，`margin:auto` 能解析。
+ *   · 降级：万一 WebF 不认 `fit-content` → 退回 `width:auto` 铺满成底部横条，`text-align:
+ *     center` 保证文字仍居中可读（不会跑到屏外）。
+ *   · 动画：用 `opacity` 而非 transform（fixed 上 transform 无效）。
+ * `max-width` 用 calc（WebF 支持）不用 min()（WebF 不支持）。 */
+.snackbar {
+    position: fixed;
+    bottom: 16px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: fit-content;
+    max-width: calc(100% - 32px);
+    text-align: center;
+    background: var(--md-inverse-surface);
+    color: var(--md-on-inverse-surface);
+    padding: 14px 24px;
+    border-radius: var(--md-radius-sm);
+    font-size: 14px;
+    box-shadow: var(--md-shadow-2);
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s ease;
+}
+.snackbar.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ── Switch ──
+ * 结构：<label class="switch"><input type=checkbox><span.switch-track><span.switch-thumb></label>
+ *
+ * ⚠️ 三条写法刻意对齐已在 WebF 上验证可用的写法，别改回「看起来更简单」的旧写法：
+ *   ① `display: inline-block` + `flex-shrink: 0` —— 少了它，开关放进
+ *      `display:flex; justify-content:space-between` 的设置行里会被 flex 压缩，
+ *      而 WebF 的 flex base-size 测量有缺陷，52px 轨道被挤窄、绝对定位的把手
+ *      `left` 一算就溢出/错位（songloft-org/songloft#341）。
+ *   ② 把手位移用 `transform: translateX(20px)` 而不是改 `left` —— WebF 已验证路径。
+ *   ③ 选中态一律用 `~`（通用兄弟）而不是 `+`：`<input>` 在 WebF 里是原生
+ *      WidgetElement，`+` 匹配不如 `~` 稳。 */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 32px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.switch-track {
+    position: absolute;
+    inset: 0;
+    background: var(--md-surface-variant);
+    border: 2px solid var(--md-outline);
+    border-radius: 16px;
+    transition: all .2s;
+}
+.switch input:checked ~ .switch-track {
+    background: var(--md-primary);
+    border-color: var(--md-primary);
+}
+.switch-thumb {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 20px;
+    height: 20px;
+    background: var(--md-outline);
+    border-radius: 50%;
+    transition: all .2s;
+}
+.switch input:checked ~ .switch-thumb {
+    transform: translateX(20px);
+    background: var(--md-on-primary);
+}
+
+/* ── Progress ── */
+.progress-linear {
+    height: 4px;
+    background: var(--md-surface-variant);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.progress-linear-bar {
+    height: 100%;
+    background: var(--md-primary);
+    border-radius: 2px;
+    transition: width .3s ease;
+}
+
+/* ── Tab Bar ── 对齐 NavigationBarThemeData（高 64、surfaceContainer 底）。 */
+.tab-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    height: 64px;
+    background: var(--md-surface-container);
+    z-index: 99;
+    border-top: 1px solid var(--md-outline-variant);
+}
+.tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: var(--md-on-surface-variant);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    position: relative;
+    transition: color .2s;
+    letter-spacing: .4px;
+}
+.tab-item .material-symbols-outlined { font-size: 22px; }
+.tab-item::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    width: 64px;
+    height: 32px;
+    background: var(--md-primary-container);
+    border-radius: 16px;
+    z-index: -1;
+    transition: transform .2s;
+}
+.tab-item.active {
+    color: var(--md-primary);
+}
+.tab-item.active::after { transform: translateX(-50%) scaleX(1); }
+/* 同 .btn-text:hover：涟漪写字面 rgba，值 = 当前 primary 的 RGB。改 primary 要一起改。 */
+.tab-item:hover:not(.active) { background: rgba(65,95,145,.06); }
+html[data-theme="dark"] .tab-item:hover:not(.active) { background: rgba(170,199,255,.08); }
+
+/* Tab Content */
+.tab-content {
+    display: none;
+    padding-top: 72px;
+    padding-bottom: 80px;
+    min-height: 100vh;
+}
+.tab-content.active {
+    display: block;
+}
+
+/* Responsive — 大屏：底部 Tab Bar → 左侧 Navigation Rail */
+@media (min-width: 1024px) {
+    .tab-bar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        right: auto;
+        width: 80px;
+        height: auto;
+        flex-direction: column;
+        border-top: none;
+        border-right: 1px solid var(--md-outline-variant);
+        padding-top: 72px;
+        padding-bottom: 0;
+        justify-content: flex-start;
+        gap: 8px;
+    }
+    .tab-item {
+        flex: none;
+        width: 100%;
+        height: auto;
+        padding: 12px 0;
+    }
+    .tab-item::after {
+        top: 7px;
+        left: 50%;
+        transform: translateX(-50%) scaleX(0);
+        width: 56px;
+        height: 32px;
+    }
+    .tab-item.active::after {
+        transform: translateX(-50%) scaleX(1);
+    }
+    .app-bar {
+        left: 80px;
+    }
+    .tab-content {
+        margin-left: 80px;
+        padding-bottom: 24px;
+    }
+    /* Rail 占左侧 80px：snackbar 在「rail 右缘→视口右缘」的内容区里居中
+     * （left:80 + right:0 + margin:auto），不用 transform。 */
+    .snackbar {
+        left: 80px;
+    }
+}
+@media (min-width: 1440px) {
+    .tab-bar { width: 100px; padding-top: 80px; }
+    .app-bar { left: 100px; }
+    .tab-content { margin-left: 100px; }
+    .snackbar { left: 100px; }
+}
+
+/* ── embed 模式：嵌入 App Tab 时的布局 ── */
+html.embed .app-bar {
+    display: none !important;
+}
+html.embed .tab-bar {
+    top: 0 !important;
+    bottom: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: auto !important;
+    height: 48px !important;
+    flex-direction: row !important;
+    border-top: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-right: none !important;
+    padding-bottom: 0 !important;
+    padding-top: 0 !important;
+}
+html.embed .tab-item {
+    flex: 1 !important;
+    width: auto !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    font-size: 14px !important;
+    padding: 0 16px !important;
+}
+html.embed .tab-item .material-symbols-outlined {
+    font-size: 18px !important;
+}
+html.embed .tab-item::after {
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 3px !important;
+    border-radius: 3px 3px 0 0 !important;
+    background: var(--md-primary) !important;
+    transform: scaleX(0) !important;
+}
+html.embed .tab-item.active::after {
+    transform: scaleX(1) !important;
+}
+html.embed .tab-content {
+    padding-top: 56px !important;
+    padding-bottom: 16px !important;
+    margin-left: 0 !important;
+}
+html.embed .snackbar {
+    /* embed 是顶部 tab、无左侧 rail，覆盖 rail 断点的 left 偏移，回到全宽居中 */
+    left: 0 !important;
+    bottom: 24px !important;
+}
+
+/* ── Utility ── */
+.desc {
+    color: var(--md-on-surface-variant);
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+pre {
+    background: var(--md-surface-container-high);
+    padding: 16px;
+    border-radius: var(--md-radius-md);
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    border: 1px solid var(--md-outline-variant);
+}
+
+/* ── Component focus-visible ── 通用 :focus-visible 基座在 theme.css。 */
+.btn:focus-visible,
+.btn-filled:focus-visible,
+.btn-outlined:focus-visible,
+.btn-text:focus-visible,
+.btn-icon:focus-visible,
+.chip:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+.tab-item:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: -2px;
+}
+.switch:focus-within {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+    border-radius: 16px;
+}
+.text-field input:focus-visible,
+.text-field textarea:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: -2px;
+}

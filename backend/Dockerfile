@@ -1,13 +1,13 @@
 FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /build/frontend
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY frontend/ ./
 COPY backend/internal/api/server.go /build/backend/internal/api/server.go
 COPY backend/internal/library/catalog.go /build/backend/internal/library/catalog.go
 RUN pnpm build
 
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
 WORKDIR /build/backend
 RUN apk add --no-cache git ca-certificates
 ARG TARGETOS

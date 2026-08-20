@@ -20,6 +20,8 @@ const (
 	FieldDescription = "description"
 	// FieldCoverTheme holds the string denoting the cover_theme field in the database.
 	FieldCoverTheme = "cover_theme"
+	// FieldCoverURL holds the string denoting the cover_url field in the database.
+	FieldCoverURL = "cover_url"
 	// FieldFavorite holds the string denoting the favorite field in the database.
 	FieldFavorite = "favorite"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -52,6 +54,7 @@ var Columns = []string{
 	FieldName,
 	FieldDescription,
 	FieldCoverTheme,
+	FieldCoverURL,
 	FieldFavorite,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -91,6 +94,8 @@ var (
 	DefaultDescription string
 	// DefaultCoverTheme holds the default value on creation for the "cover_theme" field.
 	DefaultCoverTheme string
+	// DefaultCoverURL holds the default value on creation for the "cover_url" field.
+	DefaultCoverURL string
 	// DefaultFavorite holds the default value on creation for the "favorite" field.
 	DefaultFavorite bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -122,6 +127,11 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByCoverTheme orders the results by the cover_theme field.
 func ByCoverTheme(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCoverTheme, opts...).ToFunc()
+}
+
+// ByCoverURL orders the results by the cover_url field.
+func ByCoverURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCoverURL, opts...).ToFunc()
 }
 
 // ByFavorite orders the results by the favorite field.

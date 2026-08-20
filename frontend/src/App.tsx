@@ -168,6 +168,8 @@ import { EmptyState } from "./components/EmptyState";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsNavigation } from "./components/settings/SettingsNavigation";
 import { SettingsSearch } from "./components/settings/SettingsSearch";
+import { PluginSettings } from "./components/PluginSettings";
+import type { SongloftHostCall, SongloftPlayerState } from "./components/PluginHost";
 import { LibrarySortControl } from "./components/LibrarySortControl";
 import { CardGrid } from "./components/CardGrid";
 import { LazyCoverImage } from "./components/LazyCoverImage";
@@ -5053,6 +5055,165 @@ export default function App() {
     onRemoveSong: (entry) => void removeOfflineCachedSong(entry),
     onClearAll: () => void clearOfflineCacheData(),
   };
+  const pluginHostTheme = themes.find((theme) => theme.id === settings.theme)?.mode ?? "dark";
+  const pluginHostPlayerState: SongloftPlayerState = {
+    queue,
+    current_index: current ? queue.findIndex((song) => song.id === current.id) : -1,
+    current_song: current,
+    is_playing: playing,
+    current_time: progress,
+    duration: duration || current?.duration_seconds || 0,
+    volume,
+    play_mode: playMode,
+    source_playlist_id: playbackSessionSourceRef.current?.type === "playlist"
+      ? playbackSessionSourceRef.current.source_id
+      : null,
+  };
+
+  async function handlePluginHostCall(call: SongloftHostCall): Promise<unknown> {
+    const { ns, method, params } = call;
+    const numberParam = (name: string) => {
+      const value = params[name];
+      if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${name} must be a number`);
+      return value;
+    };
+    const songIDs = (value: unknown) => {
+      if (!Array.isArray(value)) return [];
+      return value
+        .filter((id): id is number => typeof id === "number" && Number.isInteger(id) && id > 0)
+        .slice(0, MAX_PLAYBACK_QUEUE_SIZE);
+    };
+
+    if (ns === "host" && method === "getInfo") {
+      return { version: health?.version || "lark", platform: "web", capabilities: ["player", "favorite"] };
+    }
+    if (ns === "cookies") {
+      throw new Error("getCookies is not available on the web platform");
+    }
+    if (ns === "favorite" && method === "refresh") {
+      const songID = numberParam("songId");
+      const refreshed = await api.song(songID);
+      updateSongState(refreshed);
+      return null;
+    }
+    if (ns !== "player") throw new Error(`unknown namespace: ${ns}`);
+
+    switch (method) {
+      case "getState":
+        return pluginHostPlayerState;
+      case "setQueue": {
+        const resolved = await songsForPlaybackQueueIDs(songIDs(params.ids));
+        if (!resolved.length) throw new Error("no valid songs resolved");
+        const rawIndex = typeof params.startIndex === "number" ? Math.trunc(params.startIndex) : 0;
+        const startIndex = Math.max(0, Math.min(resolved.length - 1, rawIndex));
+        const sourcePlaylistID = typeof params.sourcePlaylistId === "number" && Number.isInteger(params.sourcePlaylistId)
+          ? params.sourcePlaylistId
+          : 0;
+        await playSong(resolved[startIndex], resolved, sourcePlaylistID > 0
+          ? { source: { type: "playlist", source_id: sourcePlaylistID } }
+          : {});
+        return null;
+      }
+      case "addToQueue": {
+        const resolved = await songsForPlaybackQueueIDs(songIDs(params.ids));
+        setQueue((existing) => uniqueSongs([...existing, ...resolved], MAX_PLAYBACK_QUEUE_SIZE));
+        return null;
+      }
+      case "insertToQueue": {
+        const index = Math.trunc(numberParam("index"));
+        const [song] = await songsForPlaybackQueueIDs([Math.trunc(numberParam("id"))]);
+        if (!song) throw new Error("song not found");
+        setQueue((existing) => {
+          const next = existing.filter((item) => item.id !== song.id);
+          next.splice(Math.max(0, Math.min(next.length, index)), 0, song);
+          return next.slice(0, MAX_PLAYBACK_QUEUE_SIZE);
+        });
+        return null;
+      }
+      case "removeFromQueue": {
+        const index = Math.trunc(numberParam("index"));
+        const existing = queueRef.current;
+        if (index < 0 || index >= existing.length) throw new Error("queue index out of range");
+        const nextQueue = existing.filter((_, itemIndex) => itemIndex !== index);
+        const removedCurrent = existing[index]?.id === currentRef.current?.id;
+        if (removedCurrent && nextQueue.length) {
+          await playSong(nextQueue[Math.min(index, nextQueue.length - 1)], nextQueue, { keepPlaybackSource: true });
+        } else {
+          setQueue(nextQueue);
+          if (removedCurrent) {
+            audioRef.current?.pause();
+            setCurrent(null);
+            setPlaying(false);
+            clearPersistentPlaybackSession();
+          }
+        }
+        return null;
+      }
+      case "reorderQueue": {
+        const oldIndex = Math.trunc(numberParam("oldIndex"));
+        const newIndex = Math.trunc(numberParam("newIndex"));
+        setQueue((existing) => {
+          if (oldIndex < 0 || oldIndex >= existing.length || newIndex < 0 || newIndex >= existing.length) return existing;
+          const reordered = [...existing];
+          const [moved] = reordered.splice(oldIndex, 1);
+          reordered.splice(newIndex, 0, moved);
+          return reordered;
+        });
+        return null;
+      }
+      case "clearQueue":
+        audioRef.current?.pause();
+        setQueue([]);
+        setCurrent(null);
+        setPlaying(false);
+        clearPersistentPlaybackSession();
+        return null;
+      case "play": {
+        if (typeof params.id === "number") {
+          const [song] = await songsForPlaybackQueueIDs([Math.trunc(params.id)]);
+          if (!song) throw new Error("song not found");
+          const activeQueue = queueRef.current.some((item) => item.id === song.id) ? queueRef.current : [song];
+          await playSong(song, activeQueue, { keepPlaybackSource: activeQueue.length > 1 });
+        } else if (currentRef.current && !playingRef.current) {
+          setPlaying(true);
+        }
+        return null;
+      }
+      case "pause":
+        if (playingRef.current) setPlaying(false);
+        return null;
+      case "togglePlay":
+        await togglePlaybackOutput();
+        return null;
+      case "next":
+        next(1);
+        return null;
+      case "prev":
+        next(-1);
+        return null;
+      case "seek":
+        seekTo(numberParam("seconds"));
+        return null;
+      case "setVolume":
+        updateVolume(numberParam("volume"));
+        return null;
+      case "setPlayMode": {
+        const mode = params.mode;
+        if (mode !== "sequence" && mode !== "shuffle" && mode !== "repeat-one") throw new Error("invalid play mode");
+        setPlayMode(mode);
+        return null;
+      }
+      case "playPlaylistById": {
+        const playlistID = Math.trunc(numberParam("playlistId"));
+        const items = await api.playlistSongs(playlistID, MAX_PLAYBACK_QUEUE_SIZE);
+        if (!items.length) throw new Error("playlist has no songs");
+        await playSong(items[0], items, { source: { type: "playlist", source_id: playlistID } });
+        return null;
+      }
+      default:
+        throw new Error(`unknown player method: ${method}`);
+    }
+  }
   const nowTitle = current?.title ?? currentNetworkTrack?.title ?? currentRadio?.name ?? t("nowPlaying");
   const radioDownloadSpeed = radioDownloadKbps > 0 ? `${t("downloadSpeed")} ${formatDownloadSpeed(radioDownloadKbps)}` : "";
   const nowSubtitle = currentRadio
@@ -5765,6 +5926,9 @@ export default function App() {
                 onOpenAlbums={() => setView("albums")}
                 onOpenPlaylists={() => setView("playlists")}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
+                pluginHostTheme={pluginHostTheme}
+                pluginHostPlayerState={pluginHostPlayerState}
+                onPluginHostCall={handlePluginHostCall}
                 t={t}
               />
             )}
@@ -10179,6 +10343,9 @@ function SettingsPanel({
   onOpenAlbums,
   onOpenPlaylists,
   onUpdateProfile,
+  pluginHostTheme,
+  pluginHostPlayerState,
+  onPluginHostCall,
   t,
 }: {
   settings: Settings;
@@ -10219,6 +10386,9 @@ function SettingsPanel({
   onOpenAlbums: () => void;
   onOpenPlaylists: () => void;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
+  pluginHostTheme: "light" | "dark";
+  pluginHostPlayerState: SongloftPlayerState;
+  onPluginHostCall: (call: SongloftHostCall) => Promise<unknown>;
   t: ReturnType<typeof createT>;
 }) {
   const settingsRootRef = useRef<HTMLElement | null>(null);
@@ -10257,6 +10427,7 @@ function SettingsPanel({
     { id: "services", label: t("servicesConnectionsSettings") },
     ...(user.role === "admin"
       ? [
+          { id: "plugins" as const, label: t("pluginManagement") },
           { id: "system" as const, label: t("systemSettings") },
           { id: "users" as const, label: t("userManagement") },
         ]
@@ -10509,6 +10680,17 @@ function SettingsPanel({
         label={t("settings")}
         onTabChange={onTabChange}
       />
+
+      {settingsActiveTab === "plugins" && user.role === "admin" ? (
+        <div className="settings-grid settings-tab-panel" role="tabpanel">
+          <PluginSettings
+            t={t}
+            theme={pluginHostTheme}
+            playerState={pluginHostPlayerState}
+            onHostCall={onPluginHostCall}
+          />
+        </div>
+      ) : null}
 
       {(["account", "playback", "library", "services"] as SettingsTab[]).includes(settingsActiveTab) && (
         <div className="settings-grid settings-tab-panel" data-active-category={settingsActiveTab} role="tabpanel">

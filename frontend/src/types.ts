@@ -405,6 +405,71 @@ export interface WebFont {
   url: string;
   size: number;
 }
+
+export type PluginStatus = "active" | "inactive" | "error";
+export type PluginCapabilityStatus = "available" | "partial" | "unavailable";
+
+export interface Plugin {
+  id: number;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  homepage?: string;
+  license?: string;
+  entry_path: string;
+  main: string;
+  min_host_version?: string;
+  permissions: string[];
+  public_paths: string[];
+  external_paths: string[];
+  icon?: string;
+  update_url?: string;
+  download_url?: string;
+  render_engine: string;
+  status: PluginStatus;
+  zip_hash?: string;
+  entry_hash?: string;
+  file_mod_time?: string;
+  file_path: string;
+  has_frontend: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PluginCapability {
+  id: string;
+  label: string;
+  permission?: string;
+  status: PluginCapabilityStatus;
+  description: string;
+  note?: string;
+}
+
+export interface PluginRegistry {
+  name: string;
+  url: string;
+  homepage?: string;
+  enabled: boolean;
+  token?: string;
+  last_sync?: string;
+  last_error?: string;
+}
+
+export interface PluginRegistryEntry {
+  name: string;
+  entry_path: string;
+  version: string;
+  description?: string;
+  author?: string;
+  homepage?: string;
+  icon?: string;
+  download_url: string;
+  update_url?: string;
+  min_host_version?: string;
+  source_names?: string[];
+  source_urls?: string[];
+}
 export interface Settings {
   language: Language;
   theme: Theme;

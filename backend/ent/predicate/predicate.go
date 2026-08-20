@@ -27,6 +27,15 @@ type PlayHistory func(*sql.Selector)
 // Playlist is the predicate function for playlist builders.
 type Playlist func(*sql.Selector)
 
+// PlaylistSongPosition is the predicate function for playlistsongposition builders.
+type PlaylistSongPosition func(*sql.Selector)
+
+// Plugin is the predicate function for plugin builders.
+type Plugin func(*sql.Selector)
+
+// PluginStorage is the predicate function for pluginstorage builders.
+type PluginStorage func(*sql.Selector)
+
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
 

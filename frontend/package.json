@@ -1,7 +1,7 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.9.44",
+  "version": "0.10.0",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
@@ -40,13 +40,13 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.0",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^9.39.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
+    "eslint-plugin-react-refresh": "^0.5.4",
     "globals": "^17.5.0",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.9"
+    "typescript-eslint": "^8.67.0",
+    "vite": "^8.2.1"
   }
 }

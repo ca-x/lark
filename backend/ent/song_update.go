@@ -47,6 +47,48 @@ func (_u *SongUpdate) SetNillableTitle(v *string) *SongUpdate {
 	return _u
 }
 
+// SetSourceType sets the "source_type" field.
+func (_u *SongUpdate) SetSourceType(v string) *SongUpdate {
+	_u.mutation.SetSourceType(v)
+	return _u
+}
+
+// SetNillableSourceType sets the "source_type" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableSourceType(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetSourceType(*v)
+	}
+	return _u
+}
+
+// SetSourceArtist sets the "source_artist" field.
+func (_u *SongUpdate) SetSourceArtist(v string) *SongUpdate {
+	_u.mutation.SetSourceArtist(v)
+	return _u
+}
+
+// SetNillableSourceArtist sets the "source_artist" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableSourceArtist(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetSourceArtist(*v)
+	}
+	return _u
+}
+
+// SetSourceAlbum sets the "source_album" field.
+func (_u *SongUpdate) SetSourceAlbum(v string) *SongUpdate {
+	_u.mutation.SetSourceAlbum(v)
+	return _u
+}
+
+// SetNillableSourceAlbum sets the "source_album" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableSourceAlbum(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetSourceAlbum(*v)
+	}
+	return _u
+}
+
 // SetPath sets the "path" field.
 func (_u *SongUpdate) SetPath(v string) *SongUpdate {
 	_u.mutation.SetPath(v)
@@ -155,6 +197,76 @@ func (_u *SongUpdate) SetContentHash(v string) *SongUpdate {
 func (_u *SongUpdate) SetNillableContentHash(v *string) *SongUpdate {
 	if v != nil {
 		_u.SetContentHash(*v)
+	}
+	return _u
+}
+
+// SetURL sets the "url" field.
+func (_u *SongUpdate) SetURL(v string) *SongUpdate {
+	_u.mutation.SetURL(v)
+	return _u
+}
+
+// SetNillableURL sets the "url" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableURL(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetURL(*v)
+	}
+	return _u
+}
+
+// SetCoverURL sets the "cover_url" field.
+func (_u *SongUpdate) SetCoverURL(v string) *SongUpdate {
+	_u.mutation.SetCoverURL(v)
+	return _u
+}
+
+// SetNillableCoverURL sets the "cover_url" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableCoverURL(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetCoverURL(*v)
+	}
+	return _u
+}
+
+// SetPluginEntryPath sets the "plugin_entry_path" field.
+func (_u *SongUpdate) SetPluginEntryPath(v string) *SongUpdate {
+	_u.mutation.SetPluginEntryPath(v)
+	return _u
+}
+
+// SetNillablePluginEntryPath sets the "plugin_entry_path" field if the given value is not nil.
+func (_u *SongUpdate) SetNillablePluginEntryPath(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetPluginEntryPath(*v)
+	}
+	return _u
+}
+
+// SetSourceData sets the "source_data" field.
+func (_u *SongUpdate) SetSourceData(v string) *SongUpdate {
+	_u.mutation.SetSourceData(v)
+	return _u
+}
+
+// SetNillableSourceData sets the "source_data" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableSourceData(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetSourceData(*v)
+	}
+	return _u
+}
+
+// SetDedupKey sets the "dedup_key" field.
+func (_u *SongUpdate) SetDedupKey(v string) *SongUpdate {
+	_u.mutation.SetDedupKey(v)
+	return _u
+}
+
+// SetNillableDedupKey sets the "dedup_key" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableDedupKey(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetDedupKey(*v)
 	}
 	return _u
 }
@@ -292,6 +404,20 @@ func (_u *SongUpdate) SetNillableLyricsSource(v *string) *SongUpdate {
 	return _u
 }
 
+// SetLyricsRemoteURL sets the "lyrics_remote_url" field.
+func (_u *SongUpdate) SetLyricsRemoteURL(v string) *SongUpdate {
+	_u.mutation.SetLyricsRemoteURL(v)
+	return _u
+}
+
+// SetNillableLyricsRemoteURL sets the "lyrics_remote_url" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableLyricsRemoteURL(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetLyricsRemoteURL(*v)
+	}
+	return _u
+}
+
 // SetHasLyrics sets the "has_lyrics" field.
 func (_u *SongUpdate) SetHasLyrics(v bool) *SongUpdate {
 	_u.mutation.SetHasLyrics(v)
@@ -316,6 +442,34 @@ func (_u *SongUpdate) SetNeteaseID(v string) *SongUpdate {
 func (_u *SongUpdate) SetNillableNeteaseID(v *string) *SongUpdate {
 	if v != nil {
 		_u.SetNeteaseID(*v)
+	}
+	return _u
+}
+
+// SetIsLive sets the "is_live" field.
+func (_u *SongUpdate) SetIsLive(v bool) *SongUpdate {
+	_u.mutation.SetIsLive(v)
+	return _u
+}
+
+// SetNillableIsLive sets the "is_live" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableIsLive(v *bool) *SongUpdate {
+	if v != nil {
+		_u.SetIsLive(*v)
+	}
+	return _u
+}
+
+// SetIsVideo sets the "is_video" field.
+func (_u *SongUpdate) SetIsVideo(v bool) *SongUpdate {
+	_u.mutation.SetIsVideo(v)
+	return _u
+}
+
+// SetNillableIsVideo sets the "is_video" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableIsVideo(v *bool) *SongUpdate {
+	if v != nil {
+		_u.SetIsVideo(*v)
 	}
 	return _u
 }
@@ -629,6 +783,15 @@ func (_u *SongUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(song.FieldTitle, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.SourceType(); ok {
+		_spec.SetField(song.FieldSourceType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourceArtist(); ok {
+		_spec.SetField(song.FieldSourceArtist, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourceAlbum(); ok {
+		_spec.SetField(song.FieldSourceAlbum, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(song.FieldPath, field.TypeString, value)
 	}
@@ -655,6 +818,21 @@ func (_u *SongUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.ContentHash(); ok {
 		_spec.SetField(song.FieldContentHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.URL(); ok {
+		_spec.SetField(song.FieldURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CoverURL(); ok {
+		_spec.SetField(song.FieldCoverURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PluginEntryPath(); ok {
+		_spec.SetField(song.FieldPluginEntryPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourceData(); ok {
+		_spec.SetField(song.FieldSourceData, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DedupKey(); ok {
+		_spec.SetField(song.FieldDedupKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.DurationSeconds(); ok {
 		_spec.SetField(song.FieldDurationSeconds, field.TypeFloat64, value)
@@ -692,11 +870,20 @@ func (_u *SongUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.LyricsSource(); ok {
 		_spec.SetField(song.FieldLyricsSource, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.LyricsRemoteURL(); ok {
+		_spec.SetField(song.FieldLyricsRemoteURL, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.HasLyrics(); ok {
 		_spec.SetField(song.FieldHasLyrics, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.NeteaseID(); ok {
 		_spec.SetField(song.FieldNeteaseID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.IsLive(); ok {
+		_spec.SetField(song.FieldIsLive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsVideo(); ok {
+		_spec.SetField(song.FieldIsVideo, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(song.FieldFavorite, field.TypeBool, value)
@@ -946,6 +1133,48 @@ func (_u *SongUpdateOne) SetNillableTitle(v *string) *SongUpdateOne {
 	return _u
 }
 
+// SetSourceType sets the "source_type" field.
+func (_u *SongUpdateOne) SetSourceType(v string) *SongUpdateOne {
+	_u.mutation.SetSourceType(v)
+	return _u
+}
+
+// SetNillableSourceType sets the "source_type" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableSourceType(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetSourceType(*v)
+	}
+	return _u
+}
+
+// SetSourceArtist sets the "source_artist" field.
+func (_u *SongUpdateOne) SetSourceArtist(v string) *SongUpdateOne {
+	_u.mutation.SetSourceArtist(v)
+	return _u
+}
+
+// SetNillableSourceArtist sets the "source_artist" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableSourceArtist(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetSourceArtist(*v)
+	}
+	return _u
+}
+
+// SetSourceAlbum sets the "source_album" field.
+func (_u *SongUpdateOne) SetSourceAlbum(v string) *SongUpdateOne {
+	_u.mutation.SetSourceAlbum(v)
+	return _u
+}
+
+// SetNillableSourceAlbum sets the "source_album" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableSourceAlbum(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetSourceAlbum(*v)
+	}
+	return _u
+}
+
 // SetPath sets the "path" field.
 func (_u *SongUpdateOne) SetPath(v string) *SongUpdateOne {
 	_u.mutation.SetPath(v)
@@ -1054,6 +1283,76 @@ func (_u *SongUpdateOne) SetContentHash(v string) *SongUpdateOne {
 func (_u *SongUpdateOne) SetNillableContentHash(v *string) *SongUpdateOne {
 	if v != nil {
 		_u.SetContentHash(*v)
+	}
+	return _u
+}
+
+// SetURL sets the "url" field.
+func (_u *SongUpdateOne) SetURL(v string) *SongUpdateOne {
+	_u.mutation.SetURL(v)
+	return _u
+}
+
+// SetNillableURL sets the "url" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableURL(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetURL(*v)
+	}
+	return _u
+}
+
+// SetCoverURL sets the "cover_url" field.
+func (_u *SongUpdateOne) SetCoverURL(v string) *SongUpdateOne {
+	_u.mutation.SetCoverURL(v)
+	return _u
+}
+
+// SetNillableCoverURL sets the "cover_url" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableCoverURL(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetCoverURL(*v)
+	}
+	return _u
+}
+
+// SetPluginEntryPath sets the "plugin_entry_path" field.
+func (_u *SongUpdateOne) SetPluginEntryPath(v string) *SongUpdateOne {
+	_u.mutation.SetPluginEntryPath(v)
+	return _u
+}
+
+// SetNillablePluginEntryPath sets the "plugin_entry_path" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillablePluginEntryPath(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetPluginEntryPath(*v)
+	}
+	return _u
+}
+
+// SetSourceData sets the "source_data" field.
+func (_u *SongUpdateOne) SetSourceData(v string) *SongUpdateOne {
+	_u.mutation.SetSourceData(v)
+	return _u
+}
+
+// SetNillableSourceData sets the "source_data" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableSourceData(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetSourceData(*v)
+	}
+	return _u
+}
+
+// SetDedupKey sets the "dedup_key" field.
+func (_u *SongUpdateOne) SetDedupKey(v string) *SongUpdateOne {
+	_u.mutation.SetDedupKey(v)
+	return _u
+}
+
+// SetNillableDedupKey sets the "dedup_key" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableDedupKey(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetDedupKey(*v)
 	}
 	return _u
 }
@@ -1191,6 +1490,20 @@ func (_u *SongUpdateOne) SetNillableLyricsSource(v *string) *SongUpdateOne {
 	return _u
 }
 
+// SetLyricsRemoteURL sets the "lyrics_remote_url" field.
+func (_u *SongUpdateOne) SetLyricsRemoteURL(v string) *SongUpdateOne {
+	_u.mutation.SetLyricsRemoteURL(v)
+	return _u
+}
+
+// SetNillableLyricsRemoteURL sets the "lyrics_remote_url" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableLyricsRemoteURL(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetLyricsRemoteURL(*v)
+	}
+	return _u
+}
+
 // SetHasLyrics sets the "has_lyrics" field.
 func (_u *SongUpdateOne) SetHasLyrics(v bool) *SongUpdateOne {
 	_u.mutation.SetHasLyrics(v)
@@ -1215,6 +1528,34 @@ func (_u *SongUpdateOne) SetNeteaseID(v string) *SongUpdateOne {
 func (_u *SongUpdateOne) SetNillableNeteaseID(v *string) *SongUpdateOne {
 	if v != nil {
 		_u.SetNeteaseID(*v)
+	}
+	return _u
+}
+
+// SetIsLive sets the "is_live" field.
+func (_u *SongUpdateOne) SetIsLive(v bool) *SongUpdateOne {
+	_u.mutation.SetIsLive(v)
+	return _u
+}
+
+// SetNillableIsLive sets the "is_live" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableIsLive(v *bool) *SongUpdateOne {
+	if v != nil {
+		_u.SetIsLive(*v)
+	}
+	return _u
+}
+
+// SetIsVideo sets the "is_video" field.
+func (_u *SongUpdateOne) SetIsVideo(v bool) *SongUpdateOne {
+	_u.mutation.SetIsVideo(v)
+	return _u
+}
+
+// SetNillableIsVideo sets the "is_video" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableIsVideo(v *bool) *SongUpdateOne {
+	if v != nil {
+		_u.SetIsVideo(*v)
 	}
 	return _u
 }
@@ -1558,6 +1899,15 @@ func (_u *SongUpdateOne) sqlSave(ctx context.Context) (_node *Song, err error) {
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(song.FieldTitle, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.SourceType(); ok {
+		_spec.SetField(song.FieldSourceType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourceArtist(); ok {
+		_spec.SetField(song.FieldSourceArtist, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourceAlbum(); ok {
+		_spec.SetField(song.FieldSourceAlbum, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(song.FieldPath, field.TypeString, value)
 	}
@@ -1584,6 +1934,21 @@ func (_u *SongUpdateOne) sqlSave(ctx context.Context) (_node *Song, err error) {
 	}
 	if value, ok := _u.mutation.ContentHash(); ok {
 		_spec.SetField(song.FieldContentHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.URL(); ok {
+		_spec.SetField(song.FieldURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CoverURL(); ok {
+		_spec.SetField(song.FieldCoverURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PluginEntryPath(); ok {
+		_spec.SetField(song.FieldPluginEntryPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourceData(); ok {
+		_spec.SetField(song.FieldSourceData, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DedupKey(); ok {
+		_spec.SetField(song.FieldDedupKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.DurationSeconds(); ok {
 		_spec.SetField(song.FieldDurationSeconds, field.TypeFloat64, value)
@@ -1621,11 +1986,20 @@ func (_u *SongUpdateOne) sqlSave(ctx context.Context) (_node *Song, err error) {
 	if value, ok := _u.mutation.LyricsSource(); ok {
 		_spec.SetField(song.FieldLyricsSource, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.LyricsRemoteURL(); ok {
+		_spec.SetField(song.FieldLyricsRemoteURL, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.HasLyrics(); ok {
 		_spec.SetField(song.FieldHasLyrics, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.NeteaseID(); ok {
 		_spec.SetField(song.FieldNeteaseID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.IsLive(); ok {
+		_spec.SetField(song.FieldIsLive, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.IsVideo(); ok {
+		_spec.SetField(song.FieldIsVideo, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(song.FieldFavorite, field.TypeBool, value)

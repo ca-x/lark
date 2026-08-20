@@ -10,6 +10,8 @@ import (
 	"lark/backend/ent/librarydirectory"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/playlist"
+	"lark/backend/ent/plugin"
+	"lark/backend/ent/pluginstorage"
 	"lark/backend/ent/schema"
 	"lark/backend/ent/session"
 	"lark/backend/ent/song"
@@ -193,20 +195,136 @@ func init() {
 	playlistDescCoverTheme := playlistFields[2].Descriptor()
 	// playlist.DefaultCoverTheme holds the default value on creation for the cover_theme field.
 	playlist.DefaultCoverTheme = playlistDescCoverTheme.Default.(string)
+	// playlistDescCoverURL is the schema descriptor for cover_url field.
+	playlistDescCoverURL := playlistFields[3].Descriptor()
+	// playlist.DefaultCoverURL holds the default value on creation for the cover_url field.
+	playlist.DefaultCoverURL = playlistDescCoverURL.Default.(string)
 	// playlistDescFavorite is the schema descriptor for favorite field.
-	playlistDescFavorite := playlistFields[3].Descriptor()
+	playlistDescFavorite := playlistFields[4].Descriptor()
 	// playlist.DefaultFavorite holds the default value on creation for the favorite field.
 	playlist.DefaultFavorite = playlistDescFavorite.Default.(bool)
 	// playlistDescCreatedAt is the schema descriptor for created_at field.
-	playlistDescCreatedAt := playlistFields[4].Descriptor()
+	playlistDescCreatedAt := playlistFields[5].Descriptor()
 	// playlist.DefaultCreatedAt holds the default value on creation for the created_at field.
 	playlist.DefaultCreatedAt = playlistDescCreatedAt.Default.(func() time.Time)
 	// playlistDescUpdatedAt is the schema descriptor for updated_at field.
-	playlistDescUpdatedAt := playlistFields[5].Descriptor()
+	playlistDescUpdatedAt := playlistFields[6].Descriptor()
 	// playlist.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	playlist.DefaultUpdatedAt = playlistDescUpdatedAt.Default.(func() time.Time)
 	// playlist.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	playlist.UpdateDefaultUpdatedAt = playlistDescUpdatedAt.UpdateDefault.(func() time.Time)
+	pluginFields := schema.Plugin{}.Fields()
+	_ = pluginFields
+	// pluginDescName is the schema descriptor for name field.
+	pluginDescName := pluginFields[0].Descriptor()
+	// plugin.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	plugin.NameValidator = pluginDescName.Validators[0].(func(string) error)
+	// pluginDescVersion is the schema descriptor for version field.
+	pluginDescVersion := pluginFields[1].Descriptor()
+	// plugin.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	plugin.VersionValidator = pluginDescVersion.Validators[0].(func(string) error)
+	// pluginDescDescription is the schema descriptor for description field.
+	pluginDescDescription := pluginFields[2].Descriptor()
+	// plugin.DefaultDescription holds the default value on creation for the description field.
+	plugin.DefaultDescription = pluginDescDescription.Default.(string)
+	// pluginDescAuthor is the schema descriptor for author field.
+	pluginDescAuthor := pluginFields[3].Descriptor()
+	// plugin.DefaultAuthor holds the default value on creation for the author field.
+	plugin.DefaultAuthor = pluginDescAuthor.Default.(string)
+	// pluginDescHomepage is the schema descriptor for homepage field.
+	pluginDescHomepage := pluginFields[4].Descriptor()
+	// plugin.DefaultHomepage holds the default value on creation for the homepage field.
+	plugin.DefaultHomepage = pluginDescHomepage.Default.(string)
+	// pluginDescLicense is the schema descriptor for license field.
+	pluginDescLicense := pluginFields[5].Descriptor()
+	// plugin.DefaultLicense holds the default value on creation for the license field.
+	plugin.DefaultLicense = pluginDescLicense.Default.(string)
+	// pluginDescEntryPath is the schema descriptor for entry_path field.
+	pluginDescEntryPath := pluginFields[6].Descriptor()
+	// plugin.EntryPathValidator is a validator for the "entry_path" field. It is called by the builders before save.
+	plugin.EntryPathValidator = pluginDescEntryPath.Validators[0].(func(string) error)
+	// pluginDescMain is the schema descriptor for main field.
+	pluginDescMain := pluginFields[7].Descriptor()
+	// plugin.MainValidator is a validator for the "main" field. It is called by the builders before save.
+	plugin.MainValidator = pluginDescMain.Validators[0].(func(string) error)
+	// pluginDescMinHostVersion is the schema descriptor for min_host_version field.
+	pluginDescMinHostVersion := pluginFields[8].Descriptor()
+	// plugin.DefaultMinHostVersion holds the default value on creation for the min_host_version field.
+	plugin.DefaultMinHostVersion = pluginDescMinHostVersion.Default.(string)
+	// pluginDescIcon is the schema descriptor for icon field.
+	pluginDescIcon := pluginFields[12].Descriptor()
+	// plugin.DefaultIcon holds the default value on creation for the icon field.
+	plugin.DefaultIcon = pluginDescIcon.Default.(string)
+	// pluginDescUpdateURL is the schema descriptor for update_url field.
+	pluginDescUpdateURL := pluginFields[13].Descriptor()
+	// plugin.DefaultUpdateURL holds the default value on creation for the update_url field.
+	plugin.DefaultUpdateURL = pluginDescUpdateURL.Default.(string)
+	// pluginDescDownloadURL is the schema descriptor for download_url field.
+	pluginDescDownloadURL := pluginFields[14].Descriptor()
+	// plugin.DefaultDownloadURL holds the default value on creation for the download_url field.
+	plugin.DefaultDownloadURL = pluginDescDownloadURL.Default.(string)
+	// pluginDescRenderEngine is the schema descriptor for render_engine field.
+	pluginDescRenderEngine := pluginFields[15].Descriptor()
+	// plugin.DefaultRenderEngine holds the default value on creation for the render_engine field.
+	plugin.DefaultRenderEngine = pluginDescRenderEngine.Default.(string)
+	// pluginDescStatus is the schema descriptor for status field.
+	pluginDescStatus := pluginFields[16].Descriptor()
+	// plugin.DefaultStatus holds the default value on creation for the status field.
+	plugin.DefaultStatus = pluginDescStatus.Default.(string)
+	// pluginDescZipHash is the schema descriptor for zip_hash field.
+	pluginDescZipHash := pluginFields[17].Descriptor()
+	// plugin.DefaultZipHash holds the default value on creation for the zip_hash field.
+	plugin.DefaultZipHash = pluginDescZipHash.Default.(string)
+	// pluginDescEntryHash is the schema descriptor for entry_hash field.
+	pluginDescEntryHash := pluginFields[18].Descriptor()
+	// plugin.DefaultEntryHash holds the default value on creation for the entry_hash field.
+	plugin.DefaultEntryHash = pluginDescEntryHash.Default.(string)
+	// pluginDescFileModTime is the schema descriptor for file_mod_time field.
+	pluginDescFileModTime := pluginFields[19].Descriptor()
+	// plugin.DefaultFileModTime holds the default value on creation for the file_mod_time field.
+	plugin.DefaultFileModTime = pluginDescFileModTime.Default.(string)
+	// pluginDescFilePath is the schema descriptor for file_path field.
+	pluginDescFilePath := pluginFields[20].Descriptor()
+	// plugin.DefaultFilePath holds the default value on creation for the file_path field.
+	plugin.DefaultFilePath = pluginDescFilePath.Default.(string)
+	// pluginDescCreatedAt is the schema descriptor for created_at field.
+	pluginDescCreatedAt := pluginFields[21].Descriptor()
+	// plugin.DefaultCreatedAt holds the default value on creation for the created_at field.
+	plugin.DefaultCreatedAt = pluginDescCreatedAt.Default.(func() time.Time)
+	// pluginDescUpdatedAt is the schema descriptor for updated_at field.
+	pluginDescUpdatedAt := pluginFields[22].Descriptor()
+	// plugin.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	plugin.DefaultUpdatedAt = pluginDescUpdatedAt.Default.(func() time.Time)
+	// plugin.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	plugin.UpdateDefaultUpdatedAt = pluginDescUpdatedAt.UpdateDefault.(func() time.Time)
+	pluginstorageFields := schema.PluginStorage{}.Fields()
+	_ = pluginstorageFields
+	// pluginstorageDescPluginEntryPath is the schema descriptor for plugin_entry_path field.
+	pluginstorageDescPluginEntryPath := pluginstorageFields[0].Descriptor()
+	// pluginstorage.PluginEntryPathValidator is a validator for the "plugin_entry_path" field. It is called by the builders before save.
+	pluginstorage.PluginEntryPathValidator = pluginstorageDescPluginEntryPath.Validators[0].(func(string) error)
+	// pluginstorageDescNamespace is the schema descriptor for namespace field.
+	pluginstorageDescNamespace := pluginstorageFields[1].Descriptor()
+	// pluginstorage.NamespaceValidator is a validator for the "namespace" field. It is called by the builders before save.
+	pluginstorage.NamespaceValidator = pluginstorageDescNamespace.Validators[0].(func(string) error)
+	// pluginstorageDescKey is the schema descriptor for key field.
+	pluginstorageDescKey := pluginstorageFields[2].Descriptor()
+	// pluginstorage.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	pluginstorage.KeyValidator = pluginstorageDescKey.Validators[0].(func(string) error)
+	// pluginstorageDescValue is the schema descriptor for value field.
+	pluginstorageDescValue := pluginstorageFields[3].Descriptor()
+	// pluginstorage.DefaultValue holds the default value on creation for the value field.
+	pluginstorage.DefaultValue = pluginstorageDescValue.Default.(string)
+	// pluginstorageDescCreatedAt is the schema descriptor for created_at field.
+	pluginstorageDescCreatedAt := pluginstorageFields[4].Descriptor()
+	// pluginstorage.DefaultCreatedAt holds the default value on creation for the created_at field.
+	pluginstorage.DefaultCreatedAt = pluginstorageDescCreatedAt.Default.(func() time.Time)
+	// pluginstorageDescUpdatedAt is the schema descriptor for updated_at field.
+	pluginstorageDescUpdatedAt := pluginstorageFields[5].Descriptor()
+	// pluginstorage.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	pluginstorage.DefaultUpdatedAt = pluginstorageDescUpdatedAt.Default.(func() time.Time)
+	// pluginstorage.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	pluginstorage.UpdateDefaultUpdatedAt = pluginstorageDescUpdatedAt.UpdateDefault.(func() time.Time)
 	sessionFields := schema.Session{}.Fields()
 	_ = sessionFields
 	// sessionDescTokenHash is the schema descriptor for token_hash field.
@@ -223,84 +341,128 @@ func init() {
 	songDescTitle := songFields[0].Descriptor()
 	// song.TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	song.TitleValidator = songDescTitle.Validators[0].(func(string) error)
+	// songDescSourceType is the schema descriptor for source_type field.
+	songDescSourceType := songFields[1].Descriptor()
+	// song.DefaultSourceType holds the default value on creation for the source_type field.
+	song.DefaultSourceType = songDescSourceType.Default.(string)
+	// songDescSourceArtist is the schema descriptor for source_artist field.
+	songDescSourceArtist := songFields[2].Descriptor()
+	// song.DefaultSourceArtist holds the default value on creation for the source_artist field.
+	song.DefaultSourceArtist = songDescSourceArtist.Default.(string)
+	// songDescSourceAlbum is the schema descriptor for source_album field.
+	songDescSourceAlbum := songFields[3].Descriptor()
+	// song.DefaultSourceAlbum holds the default value on creation for the source_album field.
+	song.DefaultSourceAlbum = songDescSourceAlbum.Default.(string)
 	// songDescPath is the schema descriptor for path field.
-	songDescPath := songFields[1].Descriptor()
+	songDescPath := songFields[4].Descriptor()
 	// song.PathValidator is a validator for the "path" field. It is called by the builders before save.
 	song.PathValidator = songDescPath.Validators[0].(func(string) error)
 	// songDescFileName is the schema descriptor for file_name field.
-	songDescFileName := songFields[2].Descriptor()
+	songDescFileName := songFields[5].Descriptor()
 	// song.FileNameValidator is a validator for the "file_name" field. It is called by the builders before save.
 	song.FileNameValidator = songDescFileName.Validators[0].(func(string) error)
 	// songDescFormat is the schema descriptor for format field.
-	songDescFormat := songFields[3].Descriptor()
+	songDescFormat := songFields[6].Descriptor()
 	// song.DefaultFormat holds the default value on creation for the format field.
 	song.DefaultFormat = songDescFormat.Default.(string)
 	// songDescMime is the schema descriptor for mime field.
-	songDescMime := songFields[4].Descriptor()
+	songDescMime := songFields[7].Descriptor()
 	// song.DefaultMime holds the default value on creation for the mime field.
 	song.DefaultMime = songDescMime.Default.(string)
 	// songDescSizeBytes is the schema descriptor for size_bytes field.
-	songDescSizeBytes := songFields[5].Descriptor()
+	songDescSizeBytes := songFields[8].Descriptor()
 	// song.DefaultSizeBytes holds the default value on creation for the size_bytes field.
 	song.DefaultSizeBytes = songDescSizeBytes.Default.(int64)
 	// songDescModTimeUnixNano is the schema descriptor for mod_time_unix_nano field.
-	songDescModTimeUnixNano := songFields[6].Descriptor()
+	songDescModTimeUnixNano := songFields[9].Descriptor()
 	// song.DefaultModTimeUnixNano holds the default value on creation for the mod_time_unix_nano field.
 	song.DefaultModTimeUnixNano = songDescModTimeUnixNano.Default.(int64)
 	// songDescContentHash is the schema descriptor for content_hash field.
-	songDescContentHash := songFields[7].Descriptor()
+	songDescContentHash := songFields[10].Descriptor()
 	// song.DefaultContentHash holds the default value on creation for the content_hash field.
 	song.DefaultContentHash = songDescContentHash.Default.(string)
+	// songDescURL is the schema descriptor for url field.
+	songDescURL := songFields[11].Descriptor()
+	// song.DefaultURL holds the default value on creation for the url field.
+	song.DefaultURL = songDescURL.Default.(string)
+	// songDescCoverURL is the schema descriptor for cover_url field.
+	songDescCoverURL := songFields[12].Descriptor()
+	// song.DefaultCoverURL holds the default value on creation for the cover_url field.
+	song.DefaultCoverURL = songDescCoverURL.Default.(string)
+	// songDescPluginEntryPath is the schema descriptor for plugin_entry_path field.
+	songDescPluginEntryPath := songFields[13].Descriptor()
+	// song.DefaultPluginEntryPath holds the default value on creation for the plugin_entry_path field.
+	song.DefaultPluginEntryPath = songDescPluginEntryPath.Default.(string)
+	// songDescSourceData is the schema descriptor for source_data field.
+	songDescSourceData := songFields[14].Descriptor()
+	// song.DefaultSourceData holds the default value on creation for the source_data field.
+	song.DefaultSourceData = songDescSourceData.Default.(string)
+	// songDescDedupKey is the schema descriptor for dedup_key field.
+	songDescDedupKey := songFields[15].Descriptor()
+	// song.DefaultDedupKey holds the default value on creation for the dedup_key field.
+	song.DefaultDedupKey = songDescDedupKey.Default.(string)
 	// songDescDurationSeconds is the schema descriptor for duration_seconds field.
-	songDescDurationSeconds := songFields[8].Descriptor()
+	songDescDurationSeconds := songFields[16].Descriptor()
 	// song.DefaultDurationSeconds holds the default value on creation for the duration_seconds field.
 	song.DefaultDurationSeconds = songDescDurationSeconds.Default.(float64)
 	// songDescSampleRate is the schema descriptor for sample_rate field.
-	songDescSampleRate := songFields[9].Descriptor()
+	songDescSampleRate := songFields[17].Descriptor()
 	// song.DefaultSampleRate holds the default value on creation for the sample_rate field.
 	song.DefaultSampleRate = songDescSampleRate.Default.(int)
 	// songDescBitRate is the schema descriptor for bit_rate field.
-	songDescBitRate := songFields[10].Descriptor()
+	songDescBitRate := songFields[18].Descriptor()
 	// song.DefaultBitRate holds the default value on creation for the bit_rate field.
 	song.DefaultBitRate = songDescBitRate.Default.(int)
 	// songDescBitDepth is the schema descriptor for bit_depth field.
-	songDescBitDepth := songFields[11].Descriptor()
+	songDescBitDepth := songFields[19].Descriptor()
 	// song.DefaultBitDepth holds the default value on creation for the bit_depth field.
 	song.DefaultBitDepth = songDescBitDepth.Default.(int)
 	// songDescYear is the schema descriptor for year field.
-	songDescYear := songFields[12].Descriptor()
+	songDescYear := songFields[20].Descriptor()
 	// song.DefaultYear holds the default value on creation for the year field.
 	song.DefaultYear = songDescYear.Default.(int)
 	// songDescLyricsEmbedded is the schema descriptor for lyrics_embedded field.
-	songDescLyricsEmbedded := songFields[13].Descriptor()
+	songDescLyricsEmbedded := songFields[21].Descriptor()
 	// song.DefaultLyricsEmbedded holds the default value on creation for the lyrics_embedded field.
 	song.DefaultLyricsEmbedded = songDescLyricsEmbedded.Default.(string)
 	// songDescLyricsSource is the schema descriptor for lyrics_source field.
-	songDescLyricsSource := songFields[14].Descriptor()
+	songDescLyricsSource := songFields[22].Descriptor()
 	// song.DefaultLyricsSource holds the default value on creation for the lyrics_source field.
 	song.DefaultLyricsSource = songDescLyricsSource.Default.(string)
+	// songDescLyricsRemoteURL is the schema descriptor for lyrics_remote_url field.
+	songDescLyricsRemoteURL := songFields[23].Descriptor()
+	// song.DefaultLyricsRemoteURL holds the default value on creation for the lyrics_remote_url field.
+	song.DefaultLyricsRemoteURL = songDescLyricsRemoteURL.Default.(string)
 	// songDescHasLyrics is the schema descriptor for has_lyrics field.
-	songDescHasLyrics := songFields[15].Descriptor()
+	songDescHasLyrics := songFields[24].Descriptor()
 	// song.DefaultHasLyrics holds the default value on creation for the has_lyrics field.
 	song.DefaultHasLyrics = songDescHasLyrics.Default.(bool)
 	// songDescNeteaseID is the schema descriptor for netease_id field.
-	songDescNeteaseID := songFields[16].Descriptor()
+	songDescNeteaseID := songFields[25].Descriptor()
 	// song.DefaultNeteaseID holds the default value on creation for the netease_id field.
 	song.DefaultNeteaseID = songDescNeteaseID.Default.(string)
+	// songDescIsLive is the schema descriptor for is_live field.
+	songDescIsLive := songFields[26].Descriptor()
+	// song.DefaultIsLive holds the default value on creation for the is_live field.
+	song.DefaultIsLive = songDescIsLive.Default.(bool)
+	// songDescIsVideo is the schema descriptor for is_video field.
+	songDescIsVideo := songFields[27].Descriptor()
+	// song.DefaultIsVideo holds the default value on creation for the is_video field.
+	song.DefaultIsVideo = songDescIsVideo.Default.(bool)
 	// songDescFavorite is the schema descriptor for favorite field.
-	songDescFavorite := songFields[17].Descriptor()
+	songDescFavorite := songFields[28].Descriptor()
 	// song.DefaultFavorite holds the default value on creation for the favorite field.
 	song.DefaultFavorite = songDescFavorite.Default.(bool)
 	// songDescPlayCount is the schema descriptor for play_count field.
-	songDescPlayCount := songFields[18].Descriptor()
+	songDescPlayCount := songFields[29].Descriptor()
 	// song.DefaultPlayCount holds the default value on creation for the play_count field.
 	song.DefaultPlayCount = songDescPlayCount.Default.(int)
 	// songDescCreatedAt is the schema descriptor for created_at field.
-	songDescCreatedAt := songFields[20].Descriptor()
+	songDescCreatedAt := songFields[31].Descriptor()
 	// song.DefaultCreatedAt holds the default value on creation for the created_at field.
 	song.DefaultCreatedAt = songDescCreatedAt.Default.(func() time.Time)
 	// songDescUpdatedAt is the schema descriptor for updated_at field.
-	songDescUpdatedAt := songFields[21].Descriptor()
+	songDescUpdatedAt := songFields[32].Descriptor()
 	// song.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	song.DefaultUpdatedAt = songDescUpdatedAt.Default.(func() time.Time)
 	// song.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

@@ -26,6 +26,12 @@ type Tx struct {
 	PlayHistory *PlayHistoryClient
 	// Playlist is the client for interacting with the Playlist builders.
 	Playlist *PlaylistClient
+	// PlaylistSongPosition is the client for interacting with the PlaylistSongPosition builders.
+	PlaylistSongPosition *PlaylistSongPositionClient
+	// Plugin is the client for interacting with the Plugin builders.
+	Plugin *PluginClient
+	// PluginStorage is the client for interacting with the PluginStorage builders.
+	PluginStorage *PluginStorageClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// Song is the client for interacting with the Song builders.
@@ -178,6 +184,9 @@ func (tx *Tx) init() {
 	tx.LibraryDirectory = NewLibraryDirectoryClient(tx.config)
 	tx.PlayHistory = NewPlayHistoryClient(tx.config)
 	tx.Playlist = NewPlaylistClient(tx.config)
+	tx.PlaylistSongPosition = NewPlaylistSongPositionClient(tx.config)
+	tx.Plugin = NewPluginClient(tx.config)
+	tx.PluginStorage = NewPluginStorageClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.Song = NewSongClient(tx.config)
 	tx.User = NewUserClient(tx.config)

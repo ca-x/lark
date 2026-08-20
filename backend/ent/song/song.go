@@ -16,6 +16,12 @@ const (
 	FieldID = "id"
 	// FieldTitle holds the string denoting the title field in the database.
 	FieldTitle = "title"
+	// FieldSourceType holds the string denoting the source_type field in the database.
+	FieldSourceType = "source_type"
+	// FieldSourceArtist holds the string denoting the source_artist field in the database.
+	FieldSourceArtist = "source_artist"
+	// FieldSourceAlbum holds the string denoting the source_album field in the database.
+	FieldSourceAlbum = "source_album"
 	// FieldPath holds the string denoting the path field in the database.
 	FieldPath = "path"
 	// FieldFileName holds the string denoting the file_name field in the database.
@@ -30,6 +36,16 @@ const (
 	FieldModTimeUnixNano = "mod_time_unix_nano"
 	// FieldContentHash holds the string denoting the content_hash field in the database.
 	FieldContentHash = "content_hash"
+	// FieldURL holds the string denoting the url field in the database.
+	FieldURL = "url"
+	// FieldCoverURL holds the string denoting the cover_url field in the database.
+	FieldCoverURL = "cover_url"
+	// FieldPluginEntryPath holds the string denoting the plugin_entry_path field in the database.
+	FieldPluginEntryPath = "plugin_entry_path"
+	// FieldSourceData holds the string denoting the source_data field in the database.
+	FieldSourceData = "source_data"
+	// FieldDedupKey holds the string denoting the dedup_key field in the database.
+	FieldDedupKey = "dedup_key"
 	// FieldDurationSeconds holds the string denoting the duration_seconds field in the database.
 	FieldDurationSeconds = "duration_seconds"
 	// FieldSampleRate holds the string denoting the sample_rate field in the database.
@@ -44,10 +60,16 @@ const (
 	FieldLyricsEmbedded = "lyrics_embedded"
 	// FieldLyricsSource holds the string denoting the lyrics_source field in the database.
 	FieldLyricsSource = "lyrics_source"
+	// FieldLyricsRemoteURL holds the string denoting the lyrics_remote_url field in the database.
+	FieldLyricsRemoteURL = "lyrics_remote_url"
 	// FieldHasLyrics holds the string denoting the has_lyrics field in the database.
 	FieldHasLyrics = "has_lyrics"
 	// FieldNeteaseID holds the string denoting the netease_id field in the database.
 	FieldNeteaseID = "netease_id"
+	// FieldIsLive holds the string denoting the is_live field in the database.
+	FieldIsLive = "is_live"
+	// FieldIsVideo holds the string denoting the is_video field in the database.
+	FieldIsVideo = "is_video"
 	// FieldFavorite holds the string denoting the favorite field in the database.
 	FieldFavorite = "favorite"
 	// FieldPlayCount holds the string denoting the play_count field in the database.
@@ -109,6 +131,9 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldTitle,
+	FieldSourceType,
+	FieldSourceArtist,
+	FieldSourceAlbum,
 	FieldPath,
 	FieldFileName,
 	FieldFormat,
@@ -116,6 +141,11 @@ var Columns = []string{
 	FieldSizeBytes,
 	FieldModTimeUnixNano,
 	FieldContentHash,
+	FieldURL,
+	FieldCoverURL,
+	FieldPluginEntryPath,
+	FieldSourceData,
+	FieldDedupKey,
 	FieldDurationSeconds,
 	FieldSampleRate,
 	FieldBitRate,
@@ -123,8 +153,11 @@ var Columns = []string{
 	FieldYear,
 	FieldLyricsEmbedded,
 	FieldLyricsSource,
+	FieldLyricsRemoteURL,
 	FieldHasLyrics,
 	FieldNeteaseID,
+	FieldIsLive,
+	FieldIsVideo,
 	FieldFavorite,
 	FieldPlayCount,
 	FieldLastPlayedAt,
@@ -163,6 +196,12 @@ func ValidColumn(column string) bool {
 var (
 	// TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	TitleValidator func(string) error
+	// DefaultSourceType holds the default value on creation for the "source_type" field.
+	DefaultSourceType string
+	// DefaultSourceArtist holds the default value on creation for the "source_artist" field.
+	DefaultSourceArtist string
+	// DefaultSourceAlbum holds the default value on creation for the "source_album" field.
+	DefaultSourceAlbum string
 	// PathValidator is a validator for the "path" field. It is called by the builders before save.
 	PathValidator func(string) error
 	// FileNameValidator is a validator for the "file_name" field. It is called by the builders before save.
@@ -177,6 +216,16 @@ var (
 	DefaultModTimeUnixNano int64
 	// DefaultContentHash holds the default value on creation for the "content_hash" field.
 	DefaultContentHash string
+	// DefaultURL holds the default value on creation for the "url" field.
+	DefaultURL string
+	// DefaultCoverURL holds the default value on creation for the "cover_url" field.
+	DefaultCoverURL string
+	// DefaultPluginEntryPath holds the default value on creation for the "plugin_entry_path" field.
+	DefaultPluginEntryPath string
+	// DefaultSourceData holds the default value on creation for the "source_data" field.
+	DefaultSourceData string
+	// DefaultDedupKey holds the default value on creation for the "dedup_key" field.
+	DefaultDedupKey string
 	// DefaultDurationSeconds holds the default value on creation for the "duration_seconds" field.
 	DefaultDurationSeconds float64
 	// DefaultSampleRate holds the default value on creation for the "sample_rate" field.
@@ -191,10 +240,16 @@ var (
 	DefaultLyricsEmbedded string
 	// DefaultLyricsSource holds the default value on creation for the "lyrics_source" field.
 	DefaultLyricsSource string
+	// DefaultLyricsRemoteURL holds the default value on creation for the "lyrics_remote_url" field.
+	DefaultLyricsRemoteURL string
 	// DefaultHasLyrics holds the default value on creation for the "has_lyrics" field.
 	DefaultHasLyrics bool
 	// DefaultNeteaseID holds the default value on creation for the "netease_id" field.
 	DefaultNeteaseID string
+	// DefaultIsLive holds the default value on creation for the "is_live" field.
+	DefaultIsLive bool
+	// DefaultIsVideo holds the default value on creation for the "is_video" field.
+	DefaultIsVideo bool
 	// DefaultFavorite holds the default value on creation for the "favorite" field.
 	DefaultFavorite bool
 	// DefaultPlayCount holds the default value on creation for the "play_count" field.
@@ -218,6 +273,21 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByTitle orders the results by the title field.
 func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTitle, opts...).ToFunc()
+}
+
+// BySourceType orders the results by the source_type field.
+func BySourceType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceType, opts...).ToFunc()
+}
+
+// BySourceArtist orders the results by the source_artist field.
+func BySourceArtist(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceArtist, opts...).ToFunc()
+}
+
+// BySourceAlbum orders the results by the source_album field.
+func BySourceAlbum(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceAlbum, opts...).ToFunc()
 }
 
 // ByPath orders the results by the path field.
@@ -255,6 +325,31 @@ func ByContentHash(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContentHash, opts...).ToFunc()
 }
 
+// ByURL orders the results by the url field.
+func ByURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldURL, opts...).ToFunc()
+}
+
+// ByCoverURL orders the results by the cover_url field.
+func ByCoverURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCoverURL, opts...).ToFunc()
+}
+
+// ByPluginEntryPath orders the results by the plugin_entry_path field.
+func ByPluginEntryPath(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPluginEntryPath, opts...).ToFunc()
+}
+
+// BySourceData orders the results by the source_data field.
+func BySourceData(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceData, opts...).ToFunc()
+}
+
+// ByDedupKey orders the results by the dedup_key field.
+func ByDedupKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDedupKey, opts...).ToFunc()
+}
+
 // ByDurationSeconds orders the results by the duration_seconds field.
 func ByDurationSeconds(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDurationSeconds, opts...).ToFunc()
@@ -290,6 +385,11 @@ func ByLyricsSource(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLyricsSource, opts...).ToFunc()
 }
 
+// ByLyricsRemoteURL orders the results by the lyrics_remote_url field.
+func ByLyricsRemoteURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLyricsRemoteURL, opts...).ToFunc()
+}
+
 // ByHasLyrics orders the results by the has_lyrics field.
 func ByHasLyrics(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldHasLyrics, opts...).ToFunc()
@@ -298,6 +398,16 @@ func ByHasLyrics(opts ...sql.OrderTermOption) OrderOption {
 // ByNeteaseID orders the results by the netease_id field.
 func ByNeteaseID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNeteaseID, opts...).ToFunc()
+}
+
+// ByIsLive orders the results by the is_live field.
+func ByIsLive(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsLive, opts...).ToFunc()
+}
+
+// ByIsVideo orders the results by the is_video field.
+func ByIsVideo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsVideo, opts...).ToFunc()
 }
 
 // ByFavorite orders the results by the favorite field.

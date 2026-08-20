@@ -719,5 +719,5 @@ func mapPlaylist(item *ent.Playlist) models.Playlist {
 	return mapPlaylistWithCount(item, count)
 }
 func mapPlaylistWithCount(item *ent.Playlist, songCount int) models.Playlist {
-	return models.Playlist{ID: item.ID, Name: item.Name, Description: item.Description, CoverTheme: item.CoverTheme, Favorite: item.Favorite, SongCount: songCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
+	return models.Playlist{ID: item.ID, Name: item.Name, Description: item.Description, CoverTheme: item.CoverTheme, CoverURL: item.CoverURL, Favorite: item.Favorite, SongCount: songCount, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt}
 }

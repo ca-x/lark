@@ -11,6 +11,8 @@ import (
 type Config struct {
 	Port               string
 	DataDir            string
+	PluginsDir         string
+	PluginsDataDir     string
 	LibraryDir         string
 	DatabaseType       string
 	DatabaseDriver     string
@@ -53,6 +55,8 @@ func Load() (Config, error) {
 	cfg := Config{
 		Port:               getEnv("LARK_PORT", "8080"),
 		DataDir:            dataDir,
+		PluginsDir:         getEnv("LARK_PLUGINS_DIR", filepath.Join(dataDir, "jsplugins")),
+		PluginsDataDir:     getEnv("LARK_PLUGINS_DATA_DIR", filepath.Join(dataDir, "jsplugins_data")),
 		LibraryDir:         libraryDir,
 		DatabaseType:       databaseType,
 		DatabaseDriver:     entDriverName(databaseType),
@@ -81,7 +85,7 @@ func Load() (Config, error) {
 }
 
 func EnsureRuntimeDirs(cfg Config) error {
-	for _, dir := range []string{cfg.DataDir, cfg.LibraryDir, sqliteRuntimeDir(cfg), cacheRuntimeDir(cfg)} {
+	for _, dir := range []string{cfg.DataDir, cfg.LibraryDir, cfg.PluginsDir, cfg.PluginsDataDir, sqliteRuntimeDir(cfg), cacheRuntimeDir(cfg)} {
 		if strings.TrimSpace(dir) == "" {
 			continue
 		}

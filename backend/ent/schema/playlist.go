@@ -16,6 +16,7 @@ func (Playlist) Fields() []ent.Field {
 		field.String("name").NotEmpty(),
 		field.Text("description").Default(""),
 		field.String("cover_theme").Default("deep-space"),
+		field.String("cover_url").Default(""),
 		field.Bool("favorite").Default(false),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),

@@ -14,6 +14,9 @@ type Song struct{ ent.Schema }
 func (Song) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("title").NotEmpty(),
+		field.String("source_type").Default("local"),
+		field.String("source_artist").Default(""),
+		field.String("source_album").Default(""),
 		field.String("path").Unique().NotEmpty(),
 		field.String("file_name").NotEmpty(),
 		field.String("format").Default(""),
@@ -21,6 +24,11 @@ func (Song) Fields() []ent.Field {
 		field.Int64("size_bytes").Default(0),
 		field.Int64("mod_time_unix_nano").Default(0),
 		field.String("content_hash").Default(""),
+		field.String("url").Default(""),
+		field.String("cover_url").Default(""),
+		field.String("plugin_entry_path").Default(""),
+		field.Text("source_data").Default(""),
+		field.String("dedup_key").Default(""),
 		field.Float("duration_seconds").Default(0),
 		field.Int("sample_rate").Default(0),
 		field.Int("bit_rate").Default(0),
@@ -28,6 +36,7 @@ func (Song) Fields() []ent.Field {
 		field.Int("year").Default(0),
 		field.String("lyrics_embedded").Default(""),
 		field.String("lyrics_source").Default(""),
+		field.String("lyrics_remote_url").Default(""),
 		// has_lyrics is a denormalized indicator derived from metadata at import time
 		// (meta.HasLyrics) so browse/list queries can answer "does this song have
 		// lyrics?" without selecting the large lyrics_embedded TEXT column. It also
@@ -35,6 +44,8 @@ func (Song) Fields() []ent.Field {
 		// which is cleared at import and only populated lazily by the lyrics endpoint.
 		field.Bool("has_lyrics").Default(false),
 		field.String("netease_id").Default(""),
+		field.Bool("is_live").Default(false),
+		field.Bool("is_video").Default(false),
 		field.Bool("favorite").Default(false),
 		field.Int("play_count").Default(0),
 		field.Time("last_played_at").Optional().Nillable(),
@@ -56,6 +67,9 @@ func (Song) Edges() []ent.Edge {
 func (Song) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("content_hash"),
+		index.Fields("source_type"),
+		index.Fields("plugin_entry_path"),
+		index.Fields("plugin_entry_path", "dedup_key"),
 		index.Fields("title"),
 		index.Fields("file_name"),
 		index.Fields("favorite"),

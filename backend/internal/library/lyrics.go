@@ -14,11 +14,12 @@ import (
 )
 
 func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.Lyrics, error) {
-	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().Only(ctx)
+	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().WithAlbum().Only(ctx)
 	if err != nil {
 		return models.Lyrics{}, err
 	}
 	sourceID = strings.TrimSpace(sourceID)
+	explicitSource := sourceID != ""
 	if sourceID == "" || strings.EqualFold(sourceID, "embedded") {
 		includeSidecar := sourceID == ""
 		if lyric, source := s.preferredLocalLyrics(ctx, item, includeSidecar); lyric != "" {
@@ -40,9 +41,30 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 	if sourceID == "" {
 		sourceID = strings.TrimSpace(item.NeteaseID)
 	}
-	artistName := ""
+	artistName := strings.TrimSpace(item.SourceArtist)
 	if item.Edges.Artist != nil {
 		artistName = item.Edges.Artist.Name
+	}
+	albumTitle := strings.TrimSpace(item.SourceAlbum)
+	if item.Edges.Album != nil {
+		albumTitle = item.Edges.Album.Title
+	}
+	if !explicitSource && s.lyrics != nil {
+		lyric, pluginSource, pluginErr := s.lyrics.SearchLyricsText(
+			ctx, item.Title, artistName, albumTitle, item.DurationSeconds,
+		)
+		if pluginErr == nil && strings.TrimSpace(lyric) != "" {
+			lyric = strings.TrimSpace(lyric)
+			if pluginSource == "" {
+				pluginSource = "plugin"
+			}
+			if item.SourceType == "" || item.SourceType == "local" {
+				s.saveLyricsSidecarIfEnabled(ctx, ActualAudioPath(item.Path), lyric)
+			}
+			_, _ = item.Update().SetLyricsEmbedded(lyric).SetLyricsSource(pluginSource).SetHasLyrics(true).Save(ctx)
+			s.invalidateSongCatalog(ctx)
+			return models.Lyrics{SongID: id, Source: pluginSource, Lyrics: lyric, Fetched: true}, nil
+		}
 	}
 	cleanArtist, cleanTitle := cleanLyricArtistTitle(artistName, item.Title)
 	var lyric, matchedID, matchedSource string

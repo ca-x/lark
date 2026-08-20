@@ -60,6 +60,21 @@ func Title(v string) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldTitle, v))
 }
 
+// SourceType applies equality check predicate on the "source_type" field. It's identical to SourceTypeEQ.
+func SourceType(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldSourceType, v))
+}
+
+// SourceArtist applies equality check predicate on the "source_artist" field. It's identical to SourceArtistEQ.
+func SourceArtist(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldSourceArtist, v))
+}
+
+// SourceAlbum applies equality check predicate on the "source_album" field. It's identical to SourceAlbumEQ.
+func SourceAlbum(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldSourceAlbum, v))
+}
+
 // Path applies equality check predicate on the "path" field. It's identical to PathEQ.
 func Path(v string) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldPath, v))
@@ -93,6 +108,31 @@ func ModTimeUnixNano(v int64) predicate.Song {
 // ContentHash applies equality check predicate on the "content_hash" field. It's identical to ContentHashEQ.
 func ContentHash(v string) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldContentHash, v))
+}
+
+// URL applies equality check predicate on the "url" field. It's identical to URLEQ.
+func URL(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldURL, v))
+}
+
+// CoverURL applies equality check predicate on the "cover_url" field. It's identical to CoverURLEQ.
+func CoverURL(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldCoverURL, v))
+}
+
+// PluginEntryPath applies equality check predicate on the "plugin_entry_path" field. It's identical to PluginEntryPathEQ.
+func PluginEntryPath(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldPluginEntryPath, v))
+}
+
+// SourceData applies equality check predicate on the "source_data" field. It's identical to SourceDataEQ.
+func SourceData(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldSourceData, v))
+}
+
+// DedupKey applies equality check predicate on the "dedup_key" field. It's identical to DedupKeyEQ.
+func DedupKey(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldDedupKey, v))
 }
 
 // DurationSeconds applies equality check predicate on the "duration_seconds" field. It's identical to DurationSecondsEQ.
@@ -130,6 +170,11 @@ func LyricsSource(v string) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldLyricsSource, v))
 }
 
+// LyricsRemoteURL applies equality check predicate on the "lyrics_remote_url" field. It's identical to LyricsRemoteURLEQ.
+func LyricsRemoteURL(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldLyricsRemoteURL, v))
+}
+
 // HasLyrics applies equality check predicate on the "has_lyrics" field. It's identical to HasLyricsEQ.
 func HasLyrics(v bool) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldHasLyrics, v))
@@ -138,6 +183,16 @@ func HasLyrics(v bool) predicate.Song {
 // NeteaseID applies equality check predicate on the "netease_id" field. It's identical to NeteaseIDEQ.
 func NeteaseID(v string) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldNeteaseID, v))
+}
+
+// IsLive applies equality check predicate on the "is_live" field. It's identical to IsLiveEQ.
+func IsLive(v bool) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldIsLive, v))
+}
+
+// IsVideo applies equality check predicate on the "is_video" field. It's identical to IsVideoEQ.
+func IsVideo(v bool) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldIsVideo, v))
 }
 
 // Favorite applies equality check predicate on the "favorite" field. It's identical to FavoriteEQ.
@@ -228,6 +283,201 @@ func TitleEqualFold(v string) predicate.Song {
 // TitleContainsFold applies the ContainsFold predicate on the "title" field.
 func TitleContainsFold(v string) predicate.Song {
 	return predicate.Song(sql.FieldContainsFold(FieldTitle, v))
+}
+
+// SourceTypeEQ applies the EQ predicate on the "source_type" field.
+func SourceTypeEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldSourceType, v))
+}
+
+// SourceTypeNEQ applies the NEQ predicate on the "source_type" field.
+func SourceTypeNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldSourceType, v))
+}
+
+// SourceTypeIn applies the In predicate on the "source_type" field.
+func SourceTypeIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldSourceType, vs...))
+}
+
+// SourceTypeNotIn applies the NotIn predicate on the "source_type" field.
+func SourceTypeNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldSourceType, vs...))
+}
+
+// SourceTypeGT applies the GT predicate on the "source_type" field.
+func SourceTypeGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldSourceType, v))
+}
+
+// SourceTypeGTE applies the GTE predicate on the "source_type" field.
+func SourceTypeGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldSourceType, v))
+}
+
+// SourceTypeLT applies the LT predicate on the "source_type" field.
+func SourceTypeLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldSourceType, v))
+}
+
+// SourceTypeLTE applies the LTE predicate on the "source_type" field.
+func SourceTypeLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldSourceType, v))
+}
+
+// SourceTypeContains applies the Contains predicate on the "source_type" field.
+func SourceTypeContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldSourceType, v))
+}
+
+// SourceTypeHasPrefix applies the HasPrefix predicate on the "source_type" field.
+func SourceTypeHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldSourceType, v))
+}
+
+// SourceTypeHasSuffix applies the HasSuffix predicate on the "source_type" field.
+func SourceTypeHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldSourceType, v))
+}
+
+// SourceTypeEqualFold applies the EqualFold predicate on the "source_type" field.
+func SourceTypeEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldSourceType, v))
+}
+
+// SourceTypeContainsFold applies the ContainsFold predicate on the "source_type" field.
+func SourceTypeContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldSourceType, v))
+}
+
+// SourceArtistEQ applies the EQ predicate on the "source_artist" field.
+func SourceArtistEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldSourceArtist, v))
+}
+
+// SourceArtistNEQ applies the NEQ predicate on the "source_artist" field.
+func SourceArtistNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldSourceArtist, v))
+}
+
+// SourceArtistIn applies the In predicate on the "source_artist" field.
+func SourceArtistIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldSourceArtist, vs...))
+}
+
+// SourceArtistNotIn applies the NotIn predicate on the "source_artist" field.
+func SourceArtistNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldSourceArtist, vs...))
+}
+
+// SourceArtistGT applies the GT predicate on the "source_artist" field.
+func SourceArtistGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldSourceArtist, v))
+}
+
+// SourceArtistGTE applies the GTE predicate on the "source_artist" field.
+func SourceArtistGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldSourceArtist, v))
+}
+
+// SourceArtistLT applies the LT predicate on the "source_artist" field.
+func SourceArtistLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldSourceArtist, v))
+}
+
+// SourceArtistLTE applies the LTE predicate on the "source_artist" field.
+func SourceArtistLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldSourceArtist, v))
+}
+
+// SourceArtistContains applies the Contains predicate on the "source_artist" field.
+func SourceArtistContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldSourceArtist, v))
+}
+
+// SourceArtistHasPrefix applies the HasPrefix predicate on the "source_artist" field.
+func SourceArtistHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldSourceArtist, v))
+}
+
+// SourceArtistHasSuffix applies the HasSuffix predicate on the "source_artist" field.
+func SourceArtistHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldSourceArtist, v))
+}
+
+// SourceArtistEqualFold applies the EqualFold predicate on the "source_artist" field.
+func SourceArtistEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldSourceArtist, v))
+}
+
+// SourceArtistContainsFold applies the ContainsFold predicate on the "source_artist" field.
+func SourceArtistContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldSourceArtist, v))
+}
+
+// SourceAlbumEQ applies the EQ predicate on the "source_album" field.
+func SourceAlbumEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldSourceAlbum, v))
+}
+
+// SourceAlbumNEQ applies the NEQ predicate on the "source_album" field.
+func SourceAlbumNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldSourceAlbum, v))
+}
+
+// SourceAlbumIn applies the In predicate on the "source_album" field.
+func SourceAlbumIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldSourceAlbum, vs...))
+}
+
+// SourceAlbumNotIn applies the NotIn predicate on the "source_album" field.
+func SourceAlbumNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldSourceAlbum, vs...))
+}
+
+// SourceAlbumGT applies the GT predicate on the "source_album" field.
+func SourceAlbumGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldSourceAlbum, v))
+}
+
+// SourceAlbumGTE applies the GTE predicate on the "source_album" field.
+func SourceAlbumGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldSourceAlbum, v))
+}
+
+// SourceAlbumLT applies the LT predicate on the "source_album" field.
+func SourceAlbumLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldSourceAlbum, v))
+}
+
+// SourceAlbumLTE applies the LTE predicate on the "source_album" field.
+func SourceAlbumLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldSourceAlbum, v))
+}
+
+// SourceAlbumContains applies the Contains predicate on the "source_album" field.
+func SourceAlbumContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldSourceAlbum, v))
+}
+
+// SourceAlbumHasPrefix applies the HasPrefix predicate on the "source_album" field.
+func SourceAlbumHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldSourceAlbum, v))
+}
+
+// SourceAlbumHasSuffix applies the HasSuffix predicate on the "source_album" field.
+func SourceAlbumHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldSourceAlbum, v))
+}
+
+// SourceAlbumEqualFold applies the EqualFold predicate on the "source_album" field.
+func SourceAlbumEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldSourceAlbum, v))
+}
+
+// SourceAlbumContainsFold applies the ContainsFold predicate on the "source_album" field.
+func SourceAlbumContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldSourceAlbum, v))
 }
 
 // PathEQ applies the EQ predicate on the "path" field.
@@ -635,6 +885,331 @@ func ContentHashContainsFold(v string) predicate.Song {
 	return predicate.Song(sql.FieldContainsFold(FieldContentHash, v))
 }
 
+// URLEQ applies the EQ predicate on the "url" field.
+func URLEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldURL, v))
+}
+
+// URLNEQ applies the NEQ predicate on the "url" field.
+func URLNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldURL, v))
+}
+
+// URLIn applies the In predicate on the "url" field.
+func URLIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldURL, vs...))
+}
+
+// URLNotIn applies the NotIn predicate on the "url" field.
+func URLNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldURL, vs...))
+}
+
+// URLGT applies the GT predicate on the "url" field.
+func URLGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldURL, v))
+}
+
+// URLGTE applies the GTE predicate on the "url" field.
+func URLGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldURL, v))
+}
+
+// URLLT applies the LT predicate on the "url" field.
+func URLLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldURL, v))
+}
+
+// URLLTE applies the LTE predicate on the "url" field.
+func URLLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldURL, v))
+}
+
+// URLContains applies the Contains predicate on the "url" field.
+func URLContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldURL, v))
+}
+
+// URLHasPrefix applies the HasPrefix predicate on the "url" field.
+func URLHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldURL, v))
+}
+
+// URLHasSuffix applies the HasSuffix predicate on the "url" field.
+func URLHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldURL, v))
+}
+
+// URLEqualFold applies the EqualFold predicate on the "url" field.
+func URLEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldURL, v))
+}
+
+// URLContainsFold applies the ContainsFold predicate on the "url" field.
+func URLContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldURL, v))
+}
+
+// CoverURLEQ applies the EQ predicate on the "cover_url" field.
+func CoverURLEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldCoverURL, v))
+}
+
+// CoverURLNEQ applies the NEQ predicate on the "cover_url" field.
+func CoverURLNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldCoverURL, v))
+}
+
+// CoverURLIn applies the In predicate on the "cover_url" field.
+func CoverURLIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldCoverURL, vs...))
+}
+
+// CoverURLNotIn applies the NotIn predicate on the "cover_url" field.
+func CoverURLNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldCoverURL, vs...))
+}
+
+// CoverURLGT applies the GT predicate on the "cover_url" field.
+func CoverURLGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldCoverURL, v))
+}
+
+// CoverURLGTE applies the GTE predicate on the "cover_url" field.
+func CoverURLGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldCoverURL, v))
+}
+
+// CoverURLLT applies the LT predicate on the "cover_url" field.
+func CoverURLLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldCoverURL, v))
+}
+
+// CoverURLLTE applies the LTE predicate on the "cover_url" field.
+func CoverURLLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldCoverURL, v))
+}
+
+// CoverURLContains applies the Contains predicate on the "cover_url" field.
+func CoverURLContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldCoverURL, v))
+}
+
+// CoverURLHasPrefix applies the HasPrefix predicate on the "cover_url" field.
+func CoverURLHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldCoverURL, v))
+}
+
+// CoverURLHasSuffix applies the HasSuffix predicate on the "cover_url" field.
+func CoverURLHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldCoverURL, v))
+}
+
+// CoverURLEqualFold applies the EqualFold predicate on the "cover_url" field.
+func CoverURLEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldCoverURL, v))
+}
+
+// CoverURLContainsFold applies the ContainsFold predicate on the "cover_url" field.
+func CoverURLContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldCoverURL, v))
+}
+
+// PluginEntryPathEQ applies the EQ predicate on the "plugin_entry_path" field.
+func PluginEntryPathEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathNEQ applies the NEQ predicate on the "plugin_entry_path" field.
+func PluginEntryPathNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathIn applies the In predicate on the "plugin_entry_path" field.
+func PluginEntryPathIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldPluginEntryPath, vs...))
+}
+
+// PluginEntryPathNotIn applies the NotIn predicate on the "plugin_entry_path" field.
+func PluginEntryPathNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldPluginEntryPath, vs...))
+}
+
+// PluginEntryPathGT applies the GT predicate on the "plugin_entry_path" field.
+func PluginEntryPathGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathGTE applies the GTE predicate on the "plugin_entry_path" field.
+func PluginEntryPathGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathLT applies the LT predicate on the "plugin_entry_path" field.
+func PluginEntryPathLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathLTE applies the LTE predicate on the "plugin_entry_path" field.
+func PluginEntryPathLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathContains applies the Contains predicate on the "plugin_entry_path" field.
+func PluginEntryPathContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathHasPrefix applies the HasPrefix predicate on the "plugin_entry_path" field.
+func PluginEntryPathHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathHasSuffix applies the HasSuffix predicate on the "plugin_entry_path" field.
+func PluginEntryPathHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathEqualFold applies the EqualFold predicate on the "plugin_entry_path" field.
+func PluginEntryPathEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldPluginEntryPath, v))
+}
+
+// PluginEntryPathContainsFold applies the ContainsFold predicate on the "plugin_entry_path" field.
+func PluginEntryPathContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldPluginEntryPath, v))
+}
+
+// SourceDataEQ applies the EQ predicate on the "source_data" field.
+func SourceDataEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldSourceData, v))
+}
+
+// SourceDataNEQ applies the NEQ predicate on the "source_data" field.
+func SourceDataNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldSourceData, v))
+}
+
+// SourceDataIn applies the In predicate on the "source_data" field.
+func SourceDataIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldSourceData, vs...))
+}
+
+// SourceDataNotIn applies the NotIn predicate on the "source_data" field.
+func SourceDataNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldSourceData, vs...))
+}
+
+// SourceDataGT applies the GT predicate on the "source_data" field.
+func SourceDataGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldSourceData, v))
+}
+
+// SourceDataGTE applies the GTE predicate on the "source_data" field.
+func SourceDataGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldSourceData, v))
+}
+
+// SourceDataLT applies the LT predicate on the "source_data" field.
+func SourceDataLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldSourceData, v))
+}
+
+// SourceDataLTE applies the LTE predicate on the "source_data" field.
+func SourceDataLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldSourceData, v))
+}
+
+// SourceDataContains applies the Contains predicate on the "source_data" field.
+func SourceDataContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldSourceData, v))
+}
+
+// SourceDataHasPrefix applies the HasPrefix predicate on the "source_data" field.
+func SourceDataHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldSourceData, v))
+}
+
+// SourceDataHasSuffix applies the HasSuffix predicate on the "source_data" field.
+func SourceDataHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldSourceData, v))
+}
+
+// SourceDataEqualFold applies the EqualFold predicate on the "source_data" field.
+func SourceDataEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldSourceData, v))
+}
+
+// SourceDataContainsFold applies the ContainsFold predicate on the "source_data" field.
+func SourceDataContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldSourceData, v))
+}
+
+// DedupKeyEQ applies the EQ predicate on the "dedup_key" field.
+func DedupKeyEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldDedupKey, v))
+}
+
+// DedupKeyNEQ applies the NEQ predicate on the "dedup_key" field.
+func DedupKeyNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldDedupKey, v))
+}
+
+// DedupKeyIn applies the In predicate on the "dedup_key" field.
+func DedupKeyIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldDedupKey, vs...))
+}
+
+// DedupKeyNotIn applies the NotIn predicate on the "dedup_key" field.
+func DedupKeyNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldDedupKey, vs...))
+}
+
+// DedupKeyGT applies the GT predicate on the "dedup_key" field.
+func DedupKeyGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldDedupKey, v))
+}
+
+// DedupKeyGTE applies the GTE predicate on the "dedup_key" field.
+func DedupKeyGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldDedupKey, v))
+}
+
+// DedupKeyLT applies the LT predicate on the "dedup_key" field.
+func DedupKeyLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldDedupKey, v))
+}
+
+// DedupKeyLTE applies the LTE predicate on the "dedup_key" field.
+func DedupKeyLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldDedupKey, v))
+}
+
+// DedupKeyContains applies the Contains predicate on the "dedup_key" field.
+func DedupKeyContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldDedupKey, v))
+}
+
+// DedupKeyHasPrefix applies the HasPrefix predicate on the "dedup_key" field.
+func DedupKeyHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldDedupKey, v))
+}
+
+// DedupKeyHasSuffix applies the HasSuffix predicate on the "dedup_key" field.
+func DedupKeyHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldDedupKey, v))
+}
+
+// DedupKeyEqualFold applies the EqualFold predicate on the "dedup_key" field.
+func DedupKeyEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldDedupKey, v))
+}
+
+// DedupKeyContainsFold applies the ContainsFold predicate on the "dedup_key" field.
+func DedupKeyContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldDedupKey, v))
+}
+
 // DurationSecondsEQ applies the EQ predicate on the "duration_seconds" field.
 func DurationSecondsEQ(v float64) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldDurationSeconds, v))
@@ -965,6 +1540,71 @@ func LyricsSourceContainsFold(v string) predicate.Song {
 	return predicate.Song(sql.FieldContainsFold(FieldLyricsSource, v))
 }
 
+// LyricsRemoteURLEQ applies the EQ predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLNEQ applies the NEQ predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLIn applies the In predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldLyricsRemoteURL, vs...))
+}
+
+// LyricsRemoteURLNotIn applies the NotIn predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldLyricsRemoteURL, vs...))
+}
+
+// LyricsRemoteURLGT applies the GT predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLGTE applies the GTE predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLLT applies the LT predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLLTE applies the LTE predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLContains applies the Contains predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLHasPrefix applies the HasPrefix predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLHasSuffix applies the HasSuffix predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLEqualFold applies the EqualFold predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldLyricsRemoteURL, v))
+}
+
+// LyricsRemoteURLContainsFold applies the ContainsFold predicate on the "lyrics_remote_url" field.
+func LyricsRemoteURLContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldLyricsRemoteURL, v))
+}
+
 // HasLyricsEQ applies the EQ predicate on the "has_lyrics" field.
 func HasLyricsEQ(v bool) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldHasLyrics, v))
@@ -1038,6 +1678,26 @@ func NeteaseIDEqualFold(v string) predicate.Song {
 // NeteaseIDContainsFold applies the ContainsFold predicate on the "netease_id" field.
 func NeteaseIDContainsFold(v string) predicate.Song {
 	return predicate.Song(sql.FieldContainsFold(FieldNeteaseID, v))
+}
+
+// IsLiveEQ applies the EQ predicate on the "is_live" field.
+func IsLiveEQ(v bool) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldIsLive, v))
+}
+
+// IsLiveNEQ applies the NEQ predicate on the "is_live" field.
+func IsLiveNEQ(v bool) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldIsLive, v))
+}
+
+// IsVideoEQ applies the EQ predicate on the "is_video" field.
+func IsVideoEQ(v bool) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldIsVideo, v))
+}
+
+// IsVideoNEQ applies the NEQ predicate on the "is_video" field.
+func IsVideoNEQ(v bool) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldIsVideo, v))
 }
 
 // FavoriteEQ applies the EQ predicate on the "favorite" field.

@@ -80,6 +80,7 @@ type Service struct {
 	netease    *netease.Client
 	qqmusic    *qqmusic.Client
 	online     []online.Provider
+	lyrics     LyricSearcher
 	cache      kv.Store
 	cacheTTL   time.Duration
 	scanRunMu  sync.Mutex
@@ -108,6 +109,13 @@ type Service struct {
 	artistSongCountsAll  cachedCounts // full artist→song_count map
 	artistAlbumCountsAll cachedCounts // full artist→album_count map
 	countCacheTTL        time.Duration
+}
+
+// LyricSearcher is the narrow SongLoft provider surface consumed by the
+// library. Keeping it independent from the plugin package avoids coupling the
+// core library to a specific plugin runtime.
+type LyricSearcher interface {
+	SearchLyricsText(ctx context.Context, title, artist, album string, duration float64) (lyrics, source string, err error)
 }
 
 // cachedCounts stores a materialized count map with its fetch timestamp.
@@ -216,6 +224,8 @@ func New(client *ent.Client, dataDir, libraryDir, ffprobe, ffmpeg string, neteas
 }
 
 func (s *Service) FFmpegBin() string { return s.ffmpeg }
+
+func (s *Service) SetLyricSearcher(searcher LyricSearcher) { s.lyrics = searcher }
 
 func (s *Service) LibraryDir() string { return s.libraryDir }
 
@@ -985,12 +995,15 @@ func limitCollectionSongQuery(query *ent.SongQuery, limit int) {
 // always force-includes the ID, so they are intentionally omitted here.
 // NOTE: do NOT use this projection on the lyrics endpoints — they need lyrics_embedded.
 var browseSongColumns = []string{
-	song.FieldID, song.FieldTitle, song.FieldPath, song.FieldFileName,
+	song.FieldID, song.FieldTitle, song.FieldSourceType, song.FieldSourceArtist,
+	song.FieldSourceAlbum, song.FieldURL, song.FieldCoverURL, song.FieldPluginEntryPath,
+	song.FieldSourceData, song.FieldDedupKey, song.FieldPath, song.FieldFileName,
 	song.FieldFormat, song.FieldMime, song.FieldSizeBytes, song.FieldModTimeUnixNano,
 	song.FieldContentHash, song.FieldDurationSeconds, song.FieldSampleRate,
 	song.FieldBitRate, song.FieldBitDepth, song.FieldYear, song.FieldNeteaseID,
 	song.FieldFavorite, song.FieldPlayCount, song.FieldLastPlayedAt,
-	song.FieldHasLyrics, song.FieldLyricsSource,
+	song.FieldHasLyrics, song.FieldLyricsSource, song.FieldLyricsRemoteURL,
+	song.FieldIsLive, song.FieldIsVideo,
 	song.FieldCreatedAt, song.FieldUpdatedAt,
 }
 

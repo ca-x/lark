@@ -168,7 +168,7 @@ docker compose up -d
 
 ### 依赖
 
-- Go 1.25+，推荐 1.26
+- Go 1.27+
 - Node.js 22+
 - pnpm 10+
 - 可选：`ffmpeg` 和 `ffprobe`
@@ -235,6 +235,8 @@ go run ./cmd/server
 基础部署可以直接使用前面“快速开始”里的命令。本节主要说明首次启动后通常会调整的 Docker 配置：音乐目录、数据库调优和可选 Redis。
 
 默认 compose 会把应用数据和上传音乐保存在 `lark_data` volume 中。如果你的运行环境已经把音乐目录暴露到了容器内部，请把 `LARK_LIBRARY_DIR` 设置成这个容器内路径；否则保持默认 `/app/data/music`，通过应用数据 volume 使用上传/扫描。发布的 Docker 镜像已经内置 `ffmpeg`/`ffprobe`，默认转码和元数据探测不需要在 compose 里额外配置路径。递归扫描只会跳过名为 `.shared-center` 的平台辅助目录，然后继续扫描同级其他目录；不会改写你配置的曲库根路径。
+
+声明了 `net` 权限的 SongLoft 兼容插件可以使用 UDP 和出站 TCP socket。在 Docker 默认 bridge 网络下，TCP 和容器内 UDP 可以正常使用，但局域网广播/组播发现（例如 SSDP/DLNA 设备发现）可能无法穿过容器网络边界。百灵不会强制或自动开启 host 网络；确实需要局域网发现时，请按实际部署环境自行配置 Docker 网络。
 
 ```bash
 LARK_LIBRARY_DIR=/lzcapp/run/mnt/home docker compose up -d

@@ -56,6 +56,20 @@ func (_c *PlaylistCreate) SetNillableCoverTheme(v *string) *PlaylistCreate {
 	return _c
 }
 
+// SetCoverURL sets the "cover_url" field.
+func (_c *PlaylistCreate) SetCoverURL(v string) *PlaylistCreate {
+	_c.mutation.SetCoverURL(v)
+	return _c
+}
+
+// SetNillableCoverURL sets the "cover_url" field if the given value is not nil.
+func (_c *PlaylistCreate) SetNillableCoverURL(v *string) *PlaylistCreate {
+	if v != nil {
+		_c.SetCoverURL(*v)
+	}
+	return _c
+}
+
 // SetFavorite sets the "favorite" field.
 func (_c *PlaylistCreate) SetFavorite(v bool) *PlaylistCreate {
 	_c.mutation.SetFavorite(v)
@@ -175,6 +189,10 @@ func (_c *PlaylistCreate) defaults() {
 		v := playlist.DefaultCoverTheme
 		_c.mutation.SetCoverTheme(v)
 	}
+	if _, ok := _c.mutation.CoverURL(); !ok {
+		v := playlist.DefaultCoverURL
+		_c.mutation.SetCoverURL(v)
+	}
 	if _, ok := _c.mutation.Favorite(); !ok {
 		v := playlist.DefaultFavorite
 		_c.mutation.SetFavorite(v)
@@ -204,6 +222,9 @@ func (_c *PlaylistCreate) check() error {
 	}
 	if _, ok := _c.mutation.CoverTheme(); !ok {
 		return &ValidationError{Name: "cover_theme", err: errors.New(`ent: missing required field "Playlist.cover_theme"`)}
+	}
+	if _, ok := _c.mutation.CoverURL(); !ok {
+		return &ValidationError{Name: "cover_url", err: errors.New(`ent: missing required field "Playlist.cover_url"`)}
 	}
 	if _, ok := _c.mutation.Favorite(); !ok {
 		return &ValidationError{Name: "favorite", err: errors.New(`ent: missing required field "Playlist.favorite"`)}
@@ -251,6 +272,10 @@ func (_c *PlaylistCreate) createSpec() (*Playlist, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CoverTheme(); ok {
 		_spec.SetField(playlist.FieldCoverTheme, field.TypeString, value)
 		_node.CoverTheme = value
+	}
+	if value, ok := _c.mutation.CoverURL(); ok {
+		_spec.SetField(playlist.FieldCoverURL, field.TypeString, value)
+		_node.CoverURL = value
 	}
 	if value, ok := _c.mutation.Favorite(); ok {
 		_spec.SetField(playlist.FieldFavorite, field.TypeBool, value)

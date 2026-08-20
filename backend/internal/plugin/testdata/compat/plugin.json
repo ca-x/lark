@@ -1,0 +1,29 @@
+{
+  "$schema": "https://songloft.org/schemas/plugin.json",
+  "name": "Lark compatibility fixture",
+  "version": "1.0.0",
+  "description": "Exercises every SongLoft host namespace supported by Lark.",
+  "author": "Lark",
+  "license": "Apache-2.0",
+  "entryPath": "compat-fixture",
+  "main": "main.js",
+  "minHostVersion": "1.0.0",
+  "permissions": [
+    "storage",
+    "persistent-storage",
+    "songs.*",
+    "playlists.*",
+    "inter-plugin",
+    "command",
+    "jsenv",
+    "fs",
+    "fs:music",
+    "fs:external",
+    "websocket",
+    "net"
+  ],
+  "publicPaths": [],
+  "externalPaths": ["/tmp/lark-plugin-fixture"],
+  "entryHash": "274c19d24e1cdfad9782946a98c9c5be0eb6834280789e3dd34faa7851c1a2ab",
+  "zipHash": "8f99def34c8be447177c34ca2affde62d2d070082632f48276c796a293dba084"
+}

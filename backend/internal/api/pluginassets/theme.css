@@ -1,0 +1,264 @@
+/* Songloft Plugin — Theme / Foundation Layer
+ * 由主程序自动注入到所有插件 HTML 页面（第一层，先于 components.css / webf-shims.css）。
+ *
+ * 本文件是插件与客户端主题的**唯一契约**：字体、Material Design 3 设计令牌
+ * （`--md-*`）、尺寸/圆角/阴影令牌、安全区变量、reset 与 body 基样。
+ * 组件样式在 components.css，WebF 引擎垫片样式在 webf-shims.css。 */
+
+/* ── Fonts ── */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/roboto-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/roboto-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/roboto-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('./fonts/material-symbols-outlined.woff2') format('woff2');
+}
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Material Design 3 Color System ────────────────────────────────────────
+ *
+ * 本表的颜色是**首帧兜底**。页面就绪后宿主会把**真实的** ColorScheme（含用户
+ * 自定义 ThemePack）通过 `songloft-theme` 消息下推，common.js 把它写成
+ * `documentElement` 的**内联** CSS 变量 —— 内联优先级高于本表，下推值总是胜出。
+ * 插件只要写 `var(--md-*)` 就自动跟随主程序主题。
+ *
+ * 兜底值由 `ColorScheme.fromSeed(seedColor: Color(0xFF415F91))` 导出，seed 取自
+ * `songloft-player/lib/core/theme/app_theme.dart` 的 `_defaultSeedColor`，
+ * 即便下推没到（消息丢失）观感也与主程序默认主题一致。
+ * **改这里的值请重新从 Flutter 导出，不要手调** —— 手调必然与 M3 色调板脱节。
+ *
+ * ⚠️ 插件想用 **JS** 读色，必须走 `SongloftPlugin.getColorScheme()`，不能读 CSS：
+ * WebF 的 `getComputedStyle` 对自定义属性一律返回空串；原生控件
+ * （`<flutter-cupertino-*>`）的属性值不展开 `var()`，只吃字面 hex。
+ *
+ * 命名与 Flutter `ColorScheme` 字段一一对应（camelCase → kebab-case）。唯二例外是
+ * `--md-success*` / `--md-warning*`：M3 没有这两个角色，是本项目自有语义色，
+ * **不参与下推**，只有静态值。 */
+:root {
+    --md-primary: #415F91;
+    --md-on-primary: #FFFFFF;
+    --md-primary-container: #D6E3FF;
+    --md-on-primary-container: #274777;
+    --md-secondary: #565F71;
+    --md-on-secondary: #FFFFFF;
+    --md-secondary-container: #DAE2F9;
+    --md-on-secondary-container: #3E4759;
+    --md-tertiary: #6F5575;
+    --md-on-tertiary: #FFFFFF;
+    --md-tertiary-container: #F9D8FD;
+    --md-on-tertiary-container: #573E5C;
+    --md-error: #BA1A1A;
+    --md-on-error: #FFFFFF;
+    --md-error-container: #FFDAD6;
+    --md-on-error-container: #93000A;
+
+    /* surface 阶梯：surface 是页面底，container 系依次加深用于卡片 / 输入 / hover */
+    --md-surface: #F9F9FF;
+    --md-on-surface: #191C20;
+    --md-on-surface-variant: #44474E;
+    --md-surface-variant: #E2E2E9;
+    --md-surface-dim: #D9D9E0;
+    --md-surface-bright: #F9F9FF;
+    --md-surface-container-lowest: #FFFFFF;
+    --md-surface-container-low: #F3F3FA;
+    --md-surface-container: #EDEDF4;
+    --md-surface-container-high: #E7E8EE;
+    --md-surface-container-highest: #E2E2E9;
+
+    --md-outline: #74777F;
+    --md-outline-variant: #C4C6D0;
+    --md-inverse-surface: #2E3036;
+    --md-on-inverse-surface: #F0F0F7;
+    --md-inverse-primary: #AAC7FF;
+
+    /* 本项目自有语义色（M3 无此角色，不参与下推） */
+    --md-success: #2E7D32;
+    --md-success-container: #C8E6C9;
+    --md-warning: #E65100;
+    --md-warning-container: #FFE0B2;
+
+    --md-shadow-1: 0 1px 2px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
+    --md-shadow-2: 0 2px 4px rgba(0,0,0,.14), 0 1px 6px rgba(0,0,0,.1);
+    --md-shadow-3: 0 4px 8px rgba(0,0,0,.16), 0 2px 8px rgba(0,0,0,.12);
+
+    /* 圆角刻度与 Flutter 的 AppRadius 对齐（app_dimensions.dart:15-29） */
+    --md-radius-sm: 8px;
+    --md-radius-md: 12px;
+    --md-radius-lg: 16px;
+    --md-radius-xl: 24px;
+    --md-radius-xxl: 28px;
+    --md-radius-full: 50px;
+}
+
+/* ── Dark Theme ──
+ * 只覆盖颜色与阴影；5 个 --md-radius-* 亮暗共用，刻意不在这里重复。 */
+html[data-theme="dark"] {
+    --md-primary: #AAC7FF;
+    --md-on-primary: #0A305F;
+    --md-primary-container: #274777;
+    --md-on-primary-container: #D6E3FF;
+    --md-secondary: #BEC6DC;
+    --md-on-secondary: #283141;
+    --md-secondary-container: #3E4759;
+    --md-on-secondary-container: #DAE2F9;
+    --md-tertiary: #DCBCE0;
+    --md-on-tertiary: #3F2844;
+    --md-tertiary-container: #573E5C;
+    --md-on-tertiary-container: #F9D8FD;
+    --md-error: #FFB4AB;
+    --md-on-error: #690005;
+    --md-error-container: #93000A;
+    --md-on-error-container: #FFDAD6;
+
+    --md-surface: #111318;
+    --md-on-surface: #E2E2E9;
+    --md-on-surface-variant: #C4C6D0;
+    --md-surface-variant: #33353A;
+    --md-surface-dim: #111318;
+    --md-surface-bright: #37393E;
+    --md-surface-container-lowest: #0C0E13;
+    --md-surface-container-low: #191C20;
+    --md-surface-container: #1D2024;
+    --md-surface-container-high: #282A2F;
+    --md-surface-container-highest: #33353A;
+
+    --md-outline: #8E9099;
+    --md-outline-variant: #44474E;
+    --md-inverse-surface: #E2E2E9;
+    --md-on-inverse-surface: #2E3036;
+    --md-inverse-primary: #415F91;
+
+    --md-success: #81C784;
+    --md-success-container: #1B5E20;
+    --md-warning: #FFB74D;
+    --md-warning-container: #E65100;
+
+    --md-shadow-1: 0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.24);
+    --md-shadow-2: 0 2px 4px rgba(0,0,0,.36), 0 1px 6px rgba(0,0,0,.3);
+    --md-shadow-3: 0 4px 8px rgba(0,0,0,.42), 0 2px 8px rgba(0,0,0,.36);
+}
+
+/* ── 安全区内边距变量 --sl-safe-*（songloft-org/songloft#341）──
+ *
+ * 刘海屏 / 圆角屏 / 手势条的安全区。**插件请一律写 `var(--sl-safe-bottom)`，
+ * 不要直接写 `env(safe-area-inset-bottom)`** —— WebF 渲染引擎不实现 `env()`，
+ * 写 env() 的插件页在 WebF 下会顶到状态栏 / 被下巴切掉。三种环境下这四个变量
+ * 都有确定值：
+ *   ① 普通浏览器 / 系统 WebView → 下面 :root 的 env() 原生求值（桌面即 0px）
+ *   ② WebF + 新客户端 → webf-shims.css 的 `html.webf-engine` 先压成 0px，
+ *      随后宿主用 MediaQuery.viewPadding 真值经 common.js 写到 documentElement
+ *      的**内联样式**上覆盖（内联优先级最高）
+ *   ③ WebF + 旧客户端（不推安全区）→ 停在 0px，等价「没有安全区」
+ *
+ * ⚠️ WebF 的两条已实测边界：没有 `max()`/`min()`；`clamp()` 可用且参数里可塞
+ * `var()`。想表达「至少留 24px，安全区更大时按安全区」用
+ * `clamp(24px, var(--sl-safe-bottom), 96px)`。 */
+:root {
+    --sl-safe-top: env(safe-area-inset-top, 0px);
+    --sl-safe-right: env(safe-area-inset-right, 0px);
+    --sl-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --sl-safe-left: env(safe-area-inset-left, 0px);
+}
+
+/* ── Reset ── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ── 滚动条:跟随主题 ──
+ * 插件页的滚动条默认落到 WebF / 浏览器原生样式,深色主题下会露出一条浅色条
+ * （songloft-org/songloft-plugin-downloader 的下载列表即此现象）。这里用 --md-*
+ * 令牌统一着色,所有插件自动跟随主程序主题,无需各自重复。
+ * WebF 已验证支持 `::-webkit-scrollbar` + `var()`(见 radio 插件)。
+ * 局部想隐藏滚动条的容器仍可用更具体的选择器覆盖(如 `scrollbar-width: none`)。 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--md-outline-variant);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--md-outline); }
+/* Firefox / 标准属性兜底 */
+* { scrollbar-color: var(--md-outline-variant) transparent; }
+
+/* ── 嵌入态：始终保留纵向滚动条，杜绝滚动条增删引起的重排抖动 ──
+ * 插件页内容高度恰好卡在视口高度附近时，文档级纵向滚动条会「按需出现→内容变窄→
+ * 重排→高度变化→滚动条消失→…」形成无限抖动回路（songloft-org/songloft#278）。
+ * `scrollbar-gutter: stable` 无效（只对 overflow:auto/scroll 容器生效），必须
+ * `overflow-y: scroll` 让视口滚动条常驻、宽度恒定，回路才被打断。
+ * **只在嵌入态（`html.embed`）强制常驻**：那个回路只在「视口被外层固定住」时发生
+ * （App 内嵌 iframe / WebF 原生渲染面，均带 `?embed`）。普通浏览器直接打开插件页
+ * 窗口可自由伸缩、无此回路，强制常驻只会平白多一条置灰滚动条（#341），故交回默认。 */
+html.embed { overflow-y: scroll; }
+
+/* ── Body ──
+ * 背景用 `--md-surface`（= Flutter Scaffold 底色），卡片用 `--md-surface-container`
+ * （略深一档）。这是 M3 的 surface 阶梯，顺序不能颠倒。 */
+body {
+    font-family: 'Roboto', 'Noto Sans SC', system-ui, sans-serif;
+    background: var(--md-surface);
+    color: var(--md-on-surface);
+    min-height: 100vh;
+}
+
+/* ── Accessibility 基座 ── */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+:focus-visible {
+    outline: 2px solid var(--md-primary);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

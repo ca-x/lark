@@ -1,0 +1,64 @@
+/* Songloft Plugin — WebF 垫片样式（songloft-org/songloft#341）
+ * 由主程序自动注入到所有插件 HTML 页面（在 theme.css / components.css 之后）。
+ *
+ * 只服务 webf-shims.js 的垫片层，纯增量。下面这些 class（.sl-details* /
+ * .sl-range-hidden / .sl-file-hidden）**只由垫片在 WebF 下添加**，垫片本身已关在
+ * isWebFEngine() 分支里，所以规则天然只在 WebF 生效。浏览器与系统 WebView 下
+ * <details> 是原生实现、垫片不跑，这段永不匹配。
+ *
+ * 颜色一律走 theme.css 的 --md-* 变量 —— 这是把折叠做成 CSS/JS 垫片而不是 Flutter
+ * 组件的主要理由：变量已有亮/暗两套，主题切换自动跟随。优先级刻意留低
+ * （单 class = 0,1,0），插件自己的 `.x summary`（0,1,1）能盖掉。 */
+
+/* ── 安全区：WebF 下先压成 0px ──
+ * env() 在 WebF 里既不求值也没有兜底，留着它会让 calc() 拿到非长度字符串。宿主随后
+ * 用 MediaQuery.viewPadding 的真值经 webf-shims.js 写到 documentElement 的**内联**
+ * 样式上覆盖（内联优先级最高）。`html.webf-engine`（0,1,1）优先级高于 theme.css 的
+ * `:root`（0,1,0），由 webf-shims.js 的 installEarly() 只在 WebF 下加根 class。 */
+html.webf-engine {
+    --sl-safe-top: 0px;
+    --sl-safe-right: 0px;
+    --sl-safe-bottom: 0px;
+    --sl-safe-left: 0px;
+}
+
+/* ── <details> 垫片样式 ── */
+.sl-details-summary {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    color: var(--md-primary);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.sl-details-marker {
+    font-size: 20px;
+    line-height: 1;
+    color: var(--md-on-surface-variant);
+}
+
+.sl-details-content {
+    display: block;
+}
+
+/* ── range 垫片：原 <input type=range> 被隐藏，由 <songloft-slider> 顶上 ──
+ * 原 input 仍留在 DOM 里当数据宿主，插件读写不受影响。垫片同时写 inline
+ * style.display='none' 做双保险；保留 class 形态是为了让插件调试时能用更高优先级
+ * 把原 input 显示回来看一眼。
+ *
+ * 刻意**不在这里给 songloft-slider 定颜色 / 尺寸**：颜色默认取 currentColor（文字色
+ * 已绑到 --md-on-surface，零配置跟随主题）；尺寸由 Dart 侧按朝向给兜底，插件要精确
+ * 版面时针对 songloft-slider / .sl-range-slider / [data-sl-for="<原 id>"] 自己写。 */
+.sl-range-hidden {
+    display: none;
+}
+
+/* ── file 垫片：原 <input type=file> 被隐藏，改由宿主原生文件选择器弹出 ──
+ * WebF 的 <input> 没有 file 分支（type=file 变成 Flutter TextField），且**不认 HTML
+ * 的 hidden 属性**（带/不带 hidden 盒子都占一行版面），故必须强制隐藏。class + 垫片
+ * 里的 inline display:none 双保险。 */
+.sl-file-hidden {
+    display: none;
+}

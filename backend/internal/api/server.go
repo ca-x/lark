@@ -24,6 +24,7 @@ import (
 	dlnapkg "lark/backend/internal/dlna"
 	"lark/backend/internal/library"
 	"lark/backend/internal/models"
+	"lark/backend/internal/plugin"
 	"lark/backend/pkg/version"
 
 	echo "github.com/labstack/echo/v5"
@@ -35,6 +36,8 @@ type Server struct {
 	client                 *ent.Client
 	lib                    *library.Service
 	dlna                   *dlnapkg.Service
+	pluginManager          *plugin.Manager
+	pluginRegistry         *plugin.RegistryService
 	mcp                    http.Handler
 	ctx                    context.Context
 	cancel                 context.CancelFunc
@@ -87,6 +90,14 @@ func WithNoDLNAOption(hidden bool) Option {
 	return func(s *Server) {
 		s.noDLNAOption = hidden
 	}
+}
+
+func WithPluginManager(manager *plugin.Manager) Option {
+	return func(s *Server) { s.pluginManager = manager }
+}
+
+func WithPluginRegistry(service *plugin.RegistryService) Option {
+	return func(s *Server) { s.pluginRegistry = service }
 }
 
 type playlistRequest struct {
@@ -434,6 +445,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/debug/pprof", s.handlePprof, admin)
 	e.GET("/api/debug/pprof/*", s.handlePprof, admin)
 	e.POST("/api/debug/pprof/symbol", s.handlePprof, admin)
+	s.registerPluginRoutes()
 	s.registerDLNARoutes(auth)
 	s.registerFrontendRoutes()
 	return s
@@ -975,6 +987,7 @@ func (s *Server) handleMarkPlayed(c *echo.Context) error {
 	if err := s.lib.MarkPlayed(c.Request().Context(), currentUserID(c), id); err != nil {
 		return mapError(err)
 	}
+	s.broadcastPluginPlayEvent(c, id, "play")
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -990,7 +1003,28 @@ func (s *Server) handleSavePlaybackProgress(c *echo.Context) error {
 	if err := s.lib.SavePlaybackProgress(c.Request().Context(), currentUserID(c), id, req.ProgressSeconds, req.DurationSeconds, req.Completed); err != nil {
 		return mapError(err)
 	}
+	if req.Completed {
+		s.broadcastPluginPlayEvent(c, id, "finish")
+	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) broadcastPluginPlayEvent(c *echo.Context, id int, eventType string) {
+	if s.pluginManager == nil || !s.pluginManager.HasPlayEventSubscriber() {
+		return
+	}
+	item, err := s.lib.Song(c.Request().Context(), currentUserID(c), id)
+	if err != nil {
+		return
+	}
+	source := strings.TrimSpace(c.QueryParam("source"))
+	if source == "" {
+		source = "lark-player"
+	}
+	_ = s.pluginManager.BroadcastPlayEvent(plugin.PlayEvent{
+		Type: eventType, Source: source,
+		Song: plugin.PlayEventSong{ID: item.ID, Title: item.Title, Artist: item.Artist},
+	})
 }
 
 func (s *Server) handleCreateShare(c *echo.Context) error {
@@ -1163,6 +1197,12 @@ func (s *Server) streamSong(c *echo.Context, id int) error {
 			q.Set("quality", strconv.Itoa(settings.TranscodeQualityKbps))
 			c.Request().URL.RawQuery = q.Encode()
 		}
+	}
+	if item.SourceType != "" && item.SourceType != "local" {
+		if mode != "auto" && mode != "raw" && mode != "transcode" {
+			return echo.NewHTTPError(http.StatusBadRequest, "mode must be auto, raw or transcode")
+		}
+		return s.streamRemoteSong(c, item)
 	}
 	source := library.ResolveAudioSegment(item.Path)
 	if !source.IsCUETrack && (mode == "raw" || (mode == "auto" && canBrowserPlayDirect(item.Format))) {

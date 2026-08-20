@@ -223,6 +223,7 @@ var (
 		{Name: "name", Type: field.TypeString},
 		{Name: "description", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "cover_theme", Type: field.TypeString, Default: "deep-space"},
+		{Name: "cover_url", Type: field.TypeString, Default: ""},
 		{Name: "favorite", Type: field.TypeBool, Default: false},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -236,7 +237,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "playlists_users_playlists",
-				Columns:    []*schema.Column{PlaylistsColumns[7]},
+				Columns:    []*schema.Column{PlaylistsColumns[8]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -245,7 +246,93 @@ var (
 			{
 				Name:    "playlist_updated_at_user_playlists",
 				Unique:  false,
-				Columns: []*schema.Column{PlaylistsColumns[6], PlaylistsColumns[7]},
+				Columns: []*schema.Column{PlaylistsColumns[7], PlaylistsColumns[8]},
+			},
+		},
+	}
+	// PlaylistSongPositionsColumns holds the columns for the "playlist_song_positions" table.
+	PlaylistSongPositionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "playlist_id", Type: field.TypeInt},
+		{Name: "song_id", Type: field.TypeInt},
+		{Name: "position", Type: field.TypeInt},
+	}
+	// PlaylistSongPositionsTable holds the schema information for the "playlist_song_positions" table.
+	PlaylistSongPositionsTable = &schema.Table{
+		Name:       "playlist_song_positions",
+		Columns:    PlaylistSongPositionsColumns,
+		PrimaryKey: []*schema.Column{PlaylistSongPositionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "playlistsongposition_playlist_id_song_id",
+				Unique:  true,
+				Columns: []*schema.Column{PlaylistSongPositionsColumns[1], PlaylistSongPositionsColumns[2]},
+			},
+			{
+				Name:    "playlistsongposition_playlist_id_position",
+				Unique:  false,
+				Columns: []*schema.Column{PlaylistSongPositionsColumns[1], PlaylistSongPositionsColumns[3]},
+			},
+		},
+	}
+	// PluginsColumns holds the columns for the "plugins" table.
+	PluginsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString},
+		{Name: "version", Type: field.TypeString},
+		{Name: "description", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "author", Type: field.TypeString, Default: ""},
+		{Name: "homepage", Type: field.TypeString, Default: ""},
+		{Name: "license", Type: field.TypeString, Default: ""},
+		{Name: "entry_path", Type: field.TypeString, Unique: true},
+		{Name: "main", Type: field.TypeString},
+		{Name: "min_host_version", Type: field.TypeString, Default: ""},
+		{Name: "permissions", Type: field.TypeJSON},
+		{Name: "public_paths", Type: field.TypeJSON},
+		{Name: "external_paths", Type: field.TypeJSON},
+		{Name: "icon", Type: field.TypeString, Default: ""},
+		{Name: "update_url", Type: field.TypeString, Default: ""},
+		{Name: "download_url", Type: field.TypeString, Default: ""},
+		{Name: "render_engine", Type: field.TypeString, Default: ""},
+		{Name: "status", Type: field.TypeString, Default: "inactive"},
+		{Name: "zip_hash", Type: field.TypeString, Default: ""},
+		{Name: "entry_hash", Type: field.TypeString, Default: ""},
+		{Name: "file_mod_time", Type: field.TypeString, Default: ""},
+		{Name: "file_path", Type: field.TypeString, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PluginsTable holds the schema information for the "plugins" table.
+	PluginsTable = &schema.Table{
+		Name:       "plugins",
+		Columns:    PluginsColumns,
+		PrimaryKey: []*schema.Column{PluginsColumns[0]},
+	}
+	// PluginStoragesColumns holds the columns for the "plugin_storages" table.
+	PluginStoragesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "plugin_entry_path", Type: field.TypeString},
+		{Name: "namespace", Type: field.TypeString},
+		{Name: "key", Type: field.TypeString},
+		{Name: "value", Type: field.TypeString, Size: 2147483647, Default: "null"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PluginStoragesTable holds the schema information for the "plugin_storages" table.
+	PluginStoragesTable = &schema.Table{
+		Name:       "plugin_storages",
+		Columns:    PluginStoragesColumns,
+		PrimaryKey: []*schema.Column{PluginStoragesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "pluginstorage_plugin_entry_path_namespace_key",
+				Unique:  true,
+				Columns: []*schema.Column{PluginStoragesColumns[1], PluginStoragesColumns[2], PluginStoragesColumns[3]},
+			},
+			{
+				Name:    "pluginstorage_plugin_entry_path_namespace",
+				Unique:  false,
+				Columns: []*schema.Column{PluginStoragesColumns[1], PluginStoragesColumns[2]},
 			},
 		},
 	}
@@ -275,6 +362,9 @@ var (
 	SongsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "title", Type: field.TypeString},
+		{Name: "source_type", Type: field.TypeString, Default: "local"},
+		{Name: "source_artist", Type: field.TypeString, Default: ""},
+		{Name: "source_album", Type: field.TypeString, Default: ""},
 		{Name: "path", Type: field.TypeString, Unique: true},
 		{Name: "file_name", Type: field.TypeString},
 		{Name: "format", Type: field.TypeString, Default: ""},
@@ -282,6 +372,11 @@ var (
 		{Name: "size_bytes", Type: field.TypeInt64, Default: 0},
 		{Name: "mod_time_unix_nano", Type: field.TypeInt64, Default: 0},
 		{Name: "content_hash", Type: field.TypeString, Default: ""},
+		{Name: "url", Type: field.TypeString, Default: ""},
+		{Name: "cover_url", Type: field.TypeString, Default: ""},
+		{Name: "plugin_entry_path", Type: field.TypeString, Default: ""},
+		{Name: "source_data", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "dedup_key", Type: field.TypeString, Default: ""},
 		{Name: "duration_seconds", Type: field.TypeFloat64, Default: 0},
 		{Name: "sample_rate", Type: field.TypeInt, Default: 0},
 		{Name: "bit_rate", Type: field.TypeInt, Default: 0},
@@ -289,8 +384,11 @@ var (
 		{Name: "year", Type: field.TypeInt, Default: 0},
 		{Name: "lyrics_embedded", Type: field.TypeString, Default: ""},
 		{Name: "lyrics_source", Type: field.TypeString, Default: ""},
+		{Name: "lyrics_remote_url", Type: field.TypeString, Default: ""},
 		{Name: "has_lyrics", Type: field.TypeBool, Default: false},
 		{Name: "netease_id", Type: field.TypeString, Default: ""},
+		{Name: "is_live", Type: field.TypeBool, Default: false},
+		{Name: "is_video", Type: field.TypeBool, Default: false},
 		{Name: "favorite", Type: field.TypeBool, Default: false},
 		{Name: "play_count", Type: field.TypeInt, Default: 0},
 		{Name: "last_played_at", Type: field.TypeTime, Nullable: true},
@@ -307,13 +405,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "songs_albums_songs",
-				Columns:    []*schema.Column{SongsColumns[23]},
+				Columns:    []*schema.Column{SongsColumns[34]},
 				RefColumns: []*schema.Column{AlbumsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "songs_artists_songs",
-				Columns:    []*schema.Column{SongsColumns[24]},
+				Columns:    []*schema.Column{SongsColumns[35]},
 				RefColumns: []*schema.Column{ArtistsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -322,7 +420,22 @@ var (
 			{
 				Name:    "song_content_hash",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[8]},
+				Columns: []*schema.Column{SongsColumns[11]},
+			},
+			{
+				Name:    "song_source_type",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[2]},
+			},
+			{
+				Name:    "song_plugin_entry_path",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[14]},
+			},
+			{
+				Name:    "song_plugin_entry_path_dedup_key",
+				Unique:  false,
+				Columns: []*schema.Column{SongsColumns[14], SongsColumns[16]},
 			},
 			{
 				Name:    "song_title",
@@ -332,52 +445,52 @@ var (
 			{
 				Name:    "song_file_name",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[3]},
+				Columns: []*schema.Column{SongsColumns[6]},
 			},
 			{
 				Name:    "song_favorite",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[18]},
+				Columns: []*schema.Column{SongsColumns[29]},
 			},
 			{
 				Name:    "song_netease_id",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[17]},
+				Columns: []*schema.Column{SongsColumns[26]},
 			},
 			{
 				Name:    "song_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[21]},
+				Columns: []*schema.Column{SongsColumns[32]},
 			},
 			{
 				Name:    "song_updated_at",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[22]},
+				Columns: []*schema.Column{SongsColumns[33]},
 			},
 			{
 				Name:    "song_has_lyrics",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[16]},
+				Columns: []*schema.Column{SongsColumns[25]},
 			},
 			{
 				Name:    "song_play_count",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[19]},
+				Columns: []*schema.Column{SongsColumns[30]},
 			},
 			{
 				Name:    "song_last_played_at",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[20]},
+				Columns: []*schema.Column{SongsColumns[31]},
 			},
 			{
 				Name:    "song_artist_songs",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[24]},
+				Columns: []*schema.Column{SongsColumns[35]},
 			},
 			{
 				Name:    "song_album_songs",
 				Unique:  false,
-				Columns: []*schema.Column{SongsColumns[23]},
+				Columns: []*schema.Column{SongsColumns[34]},
 			},
 		},
 	}
@@ -589,6 +702,9 @@ var (
 		LibraryDirectoriesTable,
 		PlayHistoriesTable,
 		PlaylistsTable,
+		PlaylistSongPositionsTable,
+		PluginsTable,
+		PluginStoragesTable,
 		SessionsTable,
 		SongsTable,
 		UsersTable,
