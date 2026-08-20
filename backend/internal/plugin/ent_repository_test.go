@@ -50,6 +50,28 @@ func TestEntRepositoryPluginLifecycle(t *testing.T) {
 	}
 }
 
+func TestEntRepositoryReturnsEmptyPluginSlicesAsArrays(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	repo := NewEntRepository(client)
+
+	created, err := repo.Create(t.Context(), Plugin{
+		Name: "Empty lists", Version: "1.0.0", EntryPath: "empty-lists", Main: "main.js",
+		Status: StatusInactive,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	loaded, err := repo.GetByID(t.Context(), created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Permissions == nil || loaded.PublicPaths == nil || loaded.ExternalPaths == nil {
+		t.Fatalf("plugin list fields must serialize as arrays: permissions=%v publicPaths=%v externalPaths=%v", loaded.Permissions, loaded.PublicPaths, loaded.ExternalPaths)
+	}
+}
+
 func TestEntRepositoryStorageIsolationQuotaAndDeletePolicy(t *testing.T) {
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))

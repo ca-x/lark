@@ -1,4 +1,4 @@
-export type PlayerThemePlayMode = "sequence" | "shuffle" | "repeat-one";
+export type PlayerThemePlayMode = "sequence" | "shuffle" | "repeat-one" | "order" | "single-play";
 export type MobileArtPlayerVariant = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic";
 
 export type MobileArtPlayerLabels = Partial<{

@@ -29,11 +29,13 @@ export function PluginSettings({
   theme,
   playerState,
   onHostCall,
+  onSurfaceChange,
 }: {
   t: ReturnType<typeof createT>;
   theme: "light" | "dark";
   playerState: SongloftPlayerState;
   onHostCall: (call: SongloftHostCall) => Promise<unknown>;
+  onSurfaceChange?: (open: boolean) => void;
 }) {
   const [view, setView] = useState<PluginView>("installed");
   const [plugins, setPlugins] = useState<Plugin[]>([]);
@@ -48,11 +50,16 @@ export function PluginSettings({
   const [error, setError] = useState("");
   const [surfacePlugin, setSurfacePlugin] = useState<Plugin | null>(null);
   const uploadRef = useRef<HTMLInputElement | null>(null);
-  const surfaceTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const surfaceTriggerRef = useRef<Plugin["id"] | null>(null);
 
   function closePluginSurface() {
     setSurfacePlugin(null);
-    window.requestAnimationFrame(() => surfaceTriggerRef.current?.focus());
+    onSurfaceChange?.(false);
+    window.requestAnimationFrame(() => {
+      const trigger = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-plugin-open-id]"))
+        .find((button) => button.dataset.pluginOpenId === String(surfaceTriggerRef.current));
+      trigger?.focus();
+    });
   }
 
   const refreshInstalled = useCallback(async () => {
@@ -147,9 +154,9 @@ export function PluginSettings({
     )));
   }
 
-  return (
-    <div className="plugin-settings settings-wide-row" data-settings-owner="plugins">
-      {surfacePlugin ? (
+  if (surfacePlugin) {
+    return (
+      <div className="plugin-settings settings-wide-row" data-settings-owner="plugins">
         <PluginSurface
           plugin={surfacePlugin}
           t={t}
@@ -158,7 +165,12 @@ export function PluginSettings({
           onHostCall={onHostCall}
           onClose={closePluginSurface}
         />
-      ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="plugin-settings settings-wide-row" data-settings-owner="plugins">
       <div className="plugin-settings-head">
         <div>
           <strong>{t("pluginManagement")}</strong>
@@ -202,6 +214,7 @@ export function PluginSettings({
             {plugins.map((plugin) => {
               const active = plugin.status === "active";
               const pluginBusy = busyKey.endsWith(`:${plugin.id}`);
+              const permissions = Array.isArray(plugin.permissions) ? plugin.permissions : [];
               return (
                 <div className="plugin-row" key={plugin.id}>
                   <span className="plugin-row-icon"><PuzzlePiece aria-hidden="true" /></span>
@@ -213,7 +226,7 @@ export function PluginSettings({
                     </div>
                     <span>{plugin.description || plugin.entry_path}</span>
                     <div className="plugin-permissions" aria-label={t("pluginPermissions")}>
-                      {plugin.permissions.length ? plugin.permissions.map((permission) => (
+                      {permissions.length ? permissions.map((permission) => (
                         <code key={permission} className={dangerousPermissions.has(permission) ? "danger" : ""}>{permission}</code>
                       )) : <small>{t("noPluginPermissions")}</small>}
                     </div>
@@ -238,9 +251,10 @@ export function PluginSettings({
                     }}>
                       <Trash aria-hidden="true" />
                     </button>
-                    {active && plugin.has_frontend ? <button type="button" className="plugin-icon-button" title={t("openPlugin")} aria-label={t("openPlugin")} disabled={Boolean(busyKey)} onClick={(event) => {
-                      surfaceTriggerRef.current = event.currentTarget;
+                    {active && plugin.has_frontend ? <button type="button" className="plugin-icon-button" data-plugin-open-id={plugin.id} title={t("openPlugin")} aria-label={t("openPlugin")} disabled={Boolean(busyKey)} onClick={() => {
+                      surfaceTriggerRef.current = plugin.id;
                       setSurfacePlugin(plugin);
+                      onSurfaceChange?.(true);
                     }}>
                       <ArrowsOut aria-hidden="true" />
                     </button> : null}

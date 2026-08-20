@@ -31,7 +31,7 @@ export const MOBILE_PLAYBACK_VIEWS = new Set<View>([
   "about",
 ]);
 
-export type PlayMode = "sequence" | "shuffle" | "repeat-one";
+export type PlayMode = "sequence" | "shuffle" | "repeat-one" | "order" | "single-play";
 export type ResumeMode = "resume" | "restart";
 export type PlaybackStartMode = "resume" | "restart";
 export type PlaybackSourceInput = { type: PlaybackSourceType; source_id: number };

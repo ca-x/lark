@@ -380,6 +380,14 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/songs/:id/lyrics/candidates", s.handleLyricCandidates, auth)
 	e.POST("/api/songs/:id/lyrics/select", s.handleSelectLyrics, auth)
 	e.GET("/api/songs/:id/lyrics", s.handleLyrics, auth)
+	// SongLoft plugin pages use the upstream client's /api/v1 spellings.
+	// Keep these narrow aliases at the host boundary so unmodified plugins can
+	// display artwork/lyrics and update the built-in favorites playlist.
+	e.GET("/api/v1/songs/:id/cover", s.handleCover, auth)
+	e.GET("/api/v1/songs/:id/lyric", s.handleLyrics, auth)
+	e.GET("/api/v1/playlists/:id/songs", s.handleSongloftPlaylistSongs, auth)
+	e.POST("/api/v1/playlists/:id/songs", s.handleSongloftAddPlaylistSongs, auth)
+	e.DELETE("/api/v1/playlists/:id/songs/:song", s.handleRemoveSongFromPlaylist, auth)
 
 	e.POST("/api/library/scan", s.handleScan, admin)
 	e.POST("/api/library/scan/cancel", s.handleCancelScan, admin)
@@ -2183,6 +2191,49 @@ func (s *Server) handlePlaylistSongs(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handleSongloftPlaylistSongs(c *echo.Context) error {
+	id, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	items, err := s.lib.PlaylistSongs(c.Request().Context(), currentUserID(c), id, queryInt(c, "limit", 0))
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, map[string]any{"items": items})
+}
+
+func (s *Server) handleSongloftAddPlaylistSongs(c *echo.Context) error {
+	const (
+		maxRequestBytes = 64 << 10
+		maxSongIDs      = 1000
+	)
+	playlistID, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	var request struct {
+		SongIDs []int `json:"song_ids"`
+	}
+	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, maxRequestBytes)
+	if err := c.Bind(&request); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if len(request.SongIDs) > maxSongIDs {
+		return echo.NewHTTPError(http.StatusBadRequest, "song_ids exceeds maximum batch size")
+	}
+	for _, songID := range request.SongIDs {
+		if songID <= 0 {
+			return echo.NewHTTPError(http.StatusBadRequest, "song_ids must contain positive integers")
+		}
+	}
+	added, err := s.lib.AddSongsToPlaylist(c.Request().Context(), currentUserID(c), playlistID, request.SongIDs)
+	if err != nil {
+		return mapError(err)
+	}
+	return c.JSON(http.StatusOK, map[string]any{"added": added})
 }
 func (s *Server) handleAddSongToPlaylist(c *echo.Context) error {
 	pid, err := paramInt(c, "id")

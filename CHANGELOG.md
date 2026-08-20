@@ -5,6 +5,34 @@
 
 ---
 
+## 0.10.1：SongLoft 插件兼容性修复
+
+发布日期 / Released: 2026-08-20
+
+### 插件体验
+
+- **修复部分插件导致页面无法访问的问题。** 插件权限为空时会稳定返回空数组，前端也会防御异常数据，`songloft-now-playing` 等真实插件不再使整个界面退出渲染。
+- **让插件运行界面更接近 SongLoft。** 插件管理改为清晰的分隔列表，插件打开后进入独立工作区，移动端不再被设置搜索与分类导航挤占空间，关闭后会回到原来的操作位置。
+- **补齐插件与 Lark 播放器的状态映射。** 插件音量与播放模式会按 SongLoft 约定双向同步，歌词、封面和歌单接口也兼容插件使用的请求格式。
+
+完整 diff：`git log v0.10.0..v0.10.1`
+
+---
+
+## v0.10.1: SongLoft plugin compatibility fixes
+
+Released: 2026-08-20
+
+### Plugin experience
+
+- **Prevented malformed plugin metadata from taking down the interface.** Empty permission fields now remain arrays and the frontend handles unexpected data defensively, so real plugins such as `songloft-now-playing` no longer unmount the application UI.
+- **Aligned plugin presentation with SongLoft.** Management uses separated list rows, while opening a plugin enters a dedicated workspace that preserves space on mobile and restores focus to the original action when closed.
+- **Completed the player-state mapping.** Plugin volume and playback modes now synchronize with Lark using SongLoft conventions, while lyrics, artwork, and playlist endpoints accept the request formats used by SongLoft plugins.
+
+Full diff: `git log v0.10.0..v0.10.1`
+
+---
+
 ## 0.9.44：移动端主题配色优化
 
 发布日期 / Released: 2026-08-13

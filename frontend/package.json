@@ -1,12 +1,12 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.10.1",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/check-album-slide-theme.mjs && node scripts/check-favorite-filters.mjs && node scripts/check-mobile-theme-palette.mjs && tsc -b && vite build",
+    "build": "node scripts/check-album-slide-theme.mjs && node scripts/check-favorite-filters.mjs && node scripts/check-mobile-theme-palette.mjs && node --experimental-strip-types --test src/features/plugins/songloftPlayerMode.test.mjs && tsc -b && vite build",
     "lint": "eslint .",
     "test:candidate-cache": "node --test src/services/candidateCache.test.mjs",
     "test:library-curation": "node --test src/components/LibrarySortControl.test.mjs src/components/settings/SettingsSearch.test.mjs && node scripts/check-library-curation.mjs",

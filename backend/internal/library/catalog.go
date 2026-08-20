@@ -180,6 +180,47 @@ func (s *Service) AddSongToPlaylist(ctx context.Context, userID, playlistID, son
 	s.invalidateUserLibraryCache(ctx, userID)
 	return nil
 }
+
+func (s *Service) AddSongsToPlaylist(ctx context.Context, userID, playlistID int, songIDs []int) (int, error) {
+	uniqueIDs := make([]int, 0, len(songIDs))
+	seen := make(map[int]struct{}, len(songIDs))
+	for _, songID := range songIDs {
+		if _, exists := seen[songID]; exists {
+			continue
+		}
+		seen[songID] = struct{}{}
+		uniqueIDs = append(uniqueIDs, songID)
+	}
+	if len(uniqueIDs) == 0 {
+		return 0, nil
+	}
+
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	p, err := tx.Playlist.Query().Where(playlist.ID(playlistID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := tx.Song.Query().Where(song.IDIn(uniqueIDs...)).Count(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if count != len(uniqueIDs) {
+		return 0, &ent.NotFoundError{}
+	}
+	if err := p.Update().AddSongIDs(uniqueIDs...).Exec(ctx); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	s.invalidateUserLibraryCache(ctx, userID)
+	return len(uniqueIDs), nil
+}
+
 func (s *Service) RemoveSongFromPlaylist(ctx context.Context, userID, playlistID, songID int) error {
 	p, err := s.client.Playlist.Query().Where(playlist.ID(playlistID), playlist.HasOwnerWith(user.ID(userID))).Only(ctx)
 	if err != nil {
