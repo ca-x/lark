@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"lark/backend/ent"
 	"lark/backend/ent/playlist"
@@ -586,12 +587,21 @@ func mapEntSong(item *ent.Song) pluginhost.Song {
 	if item.Edges.Album != nil {
 		albumTitle = item.Edges.Album.Title
 	}
+	var fileModifiedAt *time.Time
+	if item.ModTimeUnixNano > 0 {
+		value := time.Unix(0, item.ModTimeUnixNano).UTC()
+		fileModifiedAt = &value
+	}
 	return pluginhost.Song{
 		ID: item.ID, Type: item.SourceType, Title: item.Title, Artist: artistName,
-		Album: albumTitle, Duration: item.DurationSeconds, FilePath: item.Path,
+		Album: albumTitle, Year: item.Year, Genre: item.Genre, Language: item.Language,
+		Style: item.Style, Track: item.Track, Duration: item.DurationSeconds, FilePath: item.Path,
+		FileSize: item.SizeBytes, Format: item.Format, BitRate: item.BitRate, SampleRate: item.SampleRate,
 		URL: item.URL, CoverURL: item.CoverURL, Lyric: item.LyricsEmbedded,
-		LyricSource: item.LyricsSource, PluginEntryPath: item.PluginEntryPath,
-		SourceData: item.SourceData, DedupKey: item.DedupKey, IsVideo: item.IsVideo,
+		LyricSource: item.LyricsSource, LyricRemoteURL: item.LyricsRemoteURL,
+		PluginEntryPath: item.PluginEntryPath, SourceData: item.SourceData, DedupKey: item.DedupKey,
+		IsLive: item.IsLive, IsVideo: item.IsVideo, AddedAt: item.CreatedAt,
+		UpdatedAt: item.UpdatedAt, FileModifiedAt: fileModifiedAt,
 	}
 }
 
@@ -608,11 +618,21 @@ func mapSong(item models.Song) pluginhost.Song {
 	if coverURL == "" {
 		coverURL = fmt.Sprintf("/api/songs/%d/cover", item.ID)
 	}
+	var fileModifiedAt *time.Time
+	if item.ModTimeUnixNano > 0 {
+		value := time.Unix(0, item.ModTimeUnixNano).UTC()
+		fileModifiedAt = &value
+	}
 	return pluginhost.Song{
 		ID: item.ID, Type: sourceType, Title: item.Title, Artist: item.Artist,
-		Album: item.Album, Duration: item.DurationSeconds, LyricSource: item.LyricsSource,
+		Album: item.Album, Year: item.Year, Genre: item.Genre, Language: item.Language,
+		Style: item.Style, Track: item.Track, Duration: item.DurationSeconds,
+		FilePath: item.Path, FileSize: item.SizeBytes, Format: item.Format,
+		BitRate: item.BitRate, SampleRate: item.SampleRate, LyricSource: item.LyricsSource,
+		LyricRemoteURL:  item.LyricsRemoteURL,
 		PluginEntryPath: item.PluginEntryPath, SourceData: item.SourceData, DedupKey: item.DedupKey,
-		IsVideo: item.IsVideo, URL: streamURL, CoverURL: coverURL,
+		IsLive: item.IsLive, IsVideo: item.IsVideo, URL: streamURL, CoverURL: coverURL,
+		AddedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt, FileModifiedAt: fileModifiedAt,
 	}
 }
 

@@ -380,14 +380,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/songs/:id/lyrics/candidates", s.handleLyricCandidates, auth)
 	e.POST("/api/songs/:id/lyrics/select", s.handleSelectLyrics, auth)
 	e.GET("/api/songs/:id/lyrics", s.handleLyrics, auth)
-	// SongLoft plugin pages use the upstream client's /api/v1 spellings.
-	// Keep these narrow aliases at the host boundary so unmodified plugins can
-	// display artwork/lyrics and update the built-in favorites playlist.
-	e.GET("/api/v1/songs/:id/cover", s.handleCover, auth)
-	e.GET("/api/v1/songs/:id/lyric", s.handleLyrics, auth)
-	e.GET("/api/v1/playlists/:id/songs", s.handleSongloftPlaylistSongs, auth)
-	e.POST("/api/v1/playlists/:id/songs", s.handleSongloftAddPlaylistSongs, auth)
-	e.DELETE("/api/v1/playlists/:id/songs/:song", s.handleRemoveSongFromPlaylist, auth)
+	s.registerSongLoftLibraryRoutes()
 
 	e.POST("/api/library/scan", s.handleScan, admin)
 	e.POST("/api/library/scan/cancel", s.handleCancelScan, admin)

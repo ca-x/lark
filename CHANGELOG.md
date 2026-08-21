@@ -5,6 +5,28 @@
 
 ---
 
+## 0.10.2：SongLoft 曲库 API 兼容性
+
+发布日期 / Released: 2026-08-22
+
+### 插件与曲库
+
+- **补齐 SongLoft 曲库插件 API。** 支持曲库字段读取、筛选、统计、随机查询、远程歌曲写入、标签与歌词写回，以及歌单查询和维护。
+- **对齐插件宿主认证与权限。** 插件通过宿主 token 访问曲库接口，并按 manifest 权限控制读写范围。
+- **验证真实插件兼容性。** 使用官方插件矩阵覆盖 library-plus、lyrics、miot、radio、songloft-now-playing、stats 和 subsonic 的安装与生命周期。
+
+## v0.10.2: SongLoft library API compatibility
+
+Released: 2026-08-22
+
+### Plugins and library
+
+- **Completed the SongLoft library plugin API.** Library fields, facets, stats, random access, remote song creation, tag and lyric writeback, and playlist management are now supported.
+- **Aligned host authentication and permissions.** Plugins use host tokens for library access, with read and write scope enforced from each manifest.
+- **Verified real plugin compatibility.** The official matrix covers installation and lifecycle for library-plus, lyrics, miot, radio, songloft-now-playing, stats, and subsonic.
+
+---
+
 ## 0.10.1：SongLoft 插件兼容性修复
 
 发布日期 / Released: 2026-08-20

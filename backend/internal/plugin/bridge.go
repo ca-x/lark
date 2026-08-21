@@ -205,6 +205,9 @@ func (m *Manager) handleStorage(ctx context.Context, service *Service, namespace
 }
 
 func (m *Manager) handlePlugin(ctx context.Context, service *Service, action, data string) (string, error) {
+	if action == "plugin.getToken" {
+		return m.HostToken(service.plugin.EntryPath), nil
+	}
 	var auth host.AuthHost
 	m.mu.RLock()
 	if m.host != nil {
@@ -231,9 +234,6 @@ func (m *Manager) handlePlugin(ctx context.Context, service *Service, action, da
 		return "", nil
 	}
 	if auth == nil {
-		if action == "plugin.getToken" {
-			return "", nil
-		}
 		if action == "plugin.getHostUrl" {
 			return "", nil
 		}
@@ -244,8 +244,6 @@ func (m *Manager) handlePlugin(ctx context.Context, service *Service, action, da
 		return "", err
 	}
 	switch action {
-	case "plugin.getToken":
-		return info.Token, nil
 	case "plugin.getHostUrl":
 		return info.HostURL, nil
 	case "plugin.getNetworkAddresses":

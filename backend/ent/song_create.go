@@ -295,6 +295,62 @@ func (_c *SongCreate) SetNillableYear(v *int) *SongCreate {
 	return _c
 }
 
+// SetGenre sets the "genre" field.
+func (_c *SongCreate) SetGenre(v string) *SongCreate {
+	_c.mutation.SetGenre(v)
+	return _c
+}
+
+// SetNillableGenre sets the "genre" field if the given value is not nil.
+func (_c *SongCreate) SetNillableGenre(v *string) *SongCreate {
+	if v != nil {
+		_c.SetGenre(*v)
+	}
+	return _c
+}
+
+// SetLanguage sets the "language" field.
+func (_c *SongCreate) SetLanguage(v string) *SongCreate {
+	_c.mutation.SetLanguage(v)
+	return _c
+}
+
+// SetNillableLanguage sets the "language" field if the given value is not nil.
+func (_c *SongCreate) SetNillableLanguage(v *string) *SongCreate {
+	if v != nil {
+		_c.SetLanguage(*v)
+	}
+	return _c
+}
+
+// SetStyle sets the "style" field.
+func (_c *SongCreate) SetStyle(v string) *SongCreate {
+	_c.mutation.SetStyle(v)
+	return _c
+}
+
+// SetNillableStyle sets the "style" field if the given value is not nil.
+func (_c *SongCreate) SetNillableStyle(v *string) *SongCreate {
+	if v != nil {
+		_c.SetStyle(*v)
+	}
+	return _c
+}
+
+// SetTrack sets the "track" field.
+func (_c *SongCreate) SetTrack(v string) *SongCreate {
+	_c.mutation.SetTrack(v)
+	return _c
+}
+
+// SetNillableTrack sets the "track" field if the given value is not nil.
+func (_c *SongCreate) SetNillableTrack(v *string) *SongCreate {
+	if v != nil {
+		_c.SetTrack(*v)
+	}
+	return _c
+}
+
 // SetLyricsEmbedded sets the "lyrics_embedded" field.
 func (_c *SongCreate) SetLyricsEmbedded(v string) *SongCreate {
 	_c.mutation.SetLyricsEmbedded(v)
@@ -653,6 +709,22 @@ func (_c *SongCreate) defaults() {
 		v := song.DefaultYear
 		_c.mutation.SetYear(v)
 	}
+	if _, ok := _c.mutation.Genre(); !ok {
+		v := song.DefaultGenre
+		_c.mutation.SetGenre(v)
+	}
+	if _, ok := _c.mutation.Language(); !ok {
+		v := song.DefaultLanguage
+		_c.mutation.SetLanguage(v)
+	}
+	if _, ok := _c.mutation.Style(); !ok {
+		v := song.DefaultStyle
+		_c.mutation.SetStyle(v)
+	}
+	if _, ok := _c.mutation.Track(); !ok {
+		v := song.DefaultTrack
+		_c.mutation.SetTrack(v)
+	}
 	if _, ok := _c.mutation.LyricsEmbedded(); !ok {
 		v := song.DefaultLyricsEmbedded
 		_c.mutation.SetLyricsEmbedded(v)
@@ -778,6 +850,18 @@ func (_c *SongCreate) check() error {
 	}
 	if _, ok := _c.mutation.Year(); !ok {
 		return &ValidationError{Name: "year", err: errors.New(`ent: missing required field "Song.year"`)}
+	}
+	if _, ok := _c.mutation.Genre(); !ok {
+		return &ValidationError{Name: "genre", err: errors.New(`ent: missing required field "Song.genre"`)}
+	}
+	if _, ok := _c.mutation.Language(); !ok {
+		return &ValidationError{Name: "language", err: errors.New(`ent: missing required field "Song.language"`)}
+	}
+	if _, ok := _c.mutation.Style(); !ok {
+		return &ValidationError{Name: "style", err: errors.New(`ent: missing required field "Song.style"`)}
+	}
+	if _, ok := _c.mutation.Track(); !ok {
+		return &ValidationError{Name: "track", err: errors.New(`ent: missing required field "Song.track"`)}
 	}
 	if _, ok := _c.mutation.LyricsEmbedded(); !ok {
 		return &ValidationError{Name: "lyrics_embedded", err: errors.New(`ent: missing required field "Song.lyrics_embedded"`)}
@@ -921,6 +1005,22 @@ func (_c *SongCreate) createSpec() (*Song, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Year(); ok {
 		_spec.SetField(song.FieldYear, field.TypeInt, value)
 		_node.Year = value
+	}
+	if value, ok := _c.mutation.Genre(); ok {
+		_spec.SetField(song.FieldGenre, field.TypeString, value)
+		_node.Genre = value
+	}
+	if value, ok := _c.mutation.Language(); ok {
+		_spec.SetField(song.FieldLanguage, field.TypeString, value)
+		_node.Language = value
+	}
+	if value, ok := _c.mutation.Style(); ok {
+		_spec.SetField(song.FieldStyle, field.TypeString, value)
+		_node.Style = value
+	}
+	if value, ok := _c.mutation.Track(); ok {
+		_spec.SetField(song.FieldTrack, field.TypeString, value)
+		_node.Track = value
 	}
 	if value, ok := _c.mutation.LyricsEmbedded(); ok {
 		_spec.SetField(song.FieldLyricsEmbedded, field.TypeString, value)

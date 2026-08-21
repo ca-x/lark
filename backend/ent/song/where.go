@@ -160,6 +160,26 @@ func Year(v int) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldYear, v))
 }
 
+// Genre applies equality check predicate on the "genre" field. It's identical to GenreEQ.
+func Genre(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldGenre, v))
+}
+
+// Language applies equality check predicate on the "language" field. It's identical to LanguageEQ.
+func Language(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldLanguage, v))
+}
+
+// Style applies equality check predicate on the "style" field. It's identical to StyleEQ.
+func Style(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldStyle, v))
+}
+
+// Track applies equality check predicate on the "track" field. It's identical to TrackEQ.
+func Track(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldTrack, v))
+}
+
 // LyricsEmbedded applies equality check predicate on the "lyrics_embedded" field. It's identical to LyricsEmbeddedEQ.
 func LyricsEmbedded(v string) predicate.Song {
 	return predicate.Song(sql.FieldEQ(FieldLyricsEmbedded, v))
@@ -1408,6 +1428,266 @@ func YearLT(v int) predicate.Song {
 // YearLTE applies the LTE predicate on the "year" field.
 func YearLTE(v int) predicate.Song {
 	return predicate.Song(sql.FieldLTE(FieldYear, v))
+}
+
+// GenreEQ applies the EQ predicate on the "genre" field.
+func GenreEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldGenre, v))
+}
+
+// GenreNEQ applies the NEQ predicate on the "genre" field.
+func GenreNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldGenre, v))
+}
+
+// GenreIn applies the In predicate on the "genre" field.
+func GenreIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldGenre, vs...))
+}
+
+// GenreNotIn applies the NotIn predicate on the "genre" field.
+func GenreNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldGenre, vs...))
+}
+
+// GenreGT applies the GT predicate on the "genre" field.
+func GenreGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldGenre, v))
+}
+
+// GenreGTE applies the GTE predicate on the "genre" field.
+func GenreGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldGenre, v))
+}
+
+// GenreLT applies the LT predicate on the "genre" field.
+func GenreLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldGenre, v))
+}
+
+// GenreLTE applies the LTE predicate on the "genre" field.
+func GenreLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldGenre, v))
+}
+
+// GenreContains applies the Contains predicate on the "genre" field.
+func GenreContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldGenre, v))
+}
+
+// GenreHasPrefix applies the HasPrefix predicate on the "genre" field.
+func GenreHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldGenre, v))
+}
+
+// GenreHasSuffix applies the HasSuffix predicate on the "genre" field.
+func GenreHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldGenre, v))
+}
+
+// GenreEqualFold applies the EqualFold predicate on the "genre" field.
+func GenreEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldGenre, v))
+}
+
+// GenreContainsFold applies the ContainsFold predicate on the "genre" field.
+func GenreContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldGenre, v))
+}
+
+// LanguageEQ applies the EQ predicate on the "language" field.
+func LanguageEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldLanguage, v))
+}
+
+// LanguageNEQ applies the NEQ predicate on the "language" field.
+func LanguageNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldLanguage, v))
+}
+
+// LanguageIn applies the In predicate on the "language" field.
+func LanguageIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldLanguage, vs...))
+}
+
+// LanguageNotIn applies the NotIn predicate on the "language" field.
+func LanguageNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldLanguage, vs...))
+}
+
+// LanguageGT applies the GT predicate on the "language" field.
+func LanguageGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldLanguage, v))
+}
+
+// LanguageGTE applies the GTE predicate on the "language" field.
+func LanguageGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldLanguage, v))
+}
+
+// LanguageLT applies the LT predicate on the "language" field.
+func LanguageLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldLanguage, v))
+}
+
+// LanguageLTE applies the LTE predicate on the "language" field.
+func LanguageLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldLanguage, v))
+}
+
+// LanguageContains applies the Contains predicate on the "language" field.
+func LanguageContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldLanguage, v))
+}
+
+// LanguageHasPrefix applies the HasPrefix predicate on the "language" field.
+func LanguageHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldLanguage, v))
+}
+
+// LanguageHasSuffix applies the HasSuffix predicate on the "language" field.
+func LanguageHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldLanguage, v))
+}
+
+// LanguageEqualFold applies the EqualFold predicate on the "language" field.
+func LanguageEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldLanguage, v))
+}
+
+// LanguageContainsFold applies the ContainsFold predicate on the "language" field.
+func LanguageContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldLanguage, v))
+}
+
+// StyleEQ applies the EQ predicate on the "style" field.
+func StyleEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldStyle, v))
+}
+
+// StyleNEQ applies the NEQ predicate on the "style" field.
+func StyleNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldStyle, v))
+}
+
+// StyleIn applies the In predicate on the "style" field.
+func StyleIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldStyle, vs...))
+}
+
+// StyleNotIn applies the NotIn predicate on the "style" field.
+func StyleNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldStyle, vs...))
+}
+
+// StyleGT applies the GT predicate on the "style" field.
+func StyleGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldStyle, v))
+}
+
+// StyleGTE applies the GTE predicate on the "style" field.
+func StyleGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldStyle, v))
+}
+
+// StyleLT applies the LT predicate on the "style" field.
+func StyleLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldStyle, v))
+}
+
+// StyleLTE applies the LTE predicate on the "style" field.
+func StyleLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldStyle, v))
+}
+
+// StyleContains applies the Contains predicate on the "style" field.
+func StyleContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldStyle, v))
+}
+
+// StyleHasPrefix applies the HasPrefix predicate on the "style" field.
+func StyleHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldStyle, v))
+}
+
+// StyleHasSuffix applies the HasSuffix predicate on the "style" field.
+func StyleHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldStyle, v))
+}
+
+// StyleEqualFold applies the EqualFold predicate on the "style" field.
+func StyleEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldStyle, v))
+}
+
+// StyleContainsFold applies the ContainsFold predicate on the "style" field.
+func StyleContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldStyle, v))
+}
+
+// TrackEQ applies the EQ predicate on the "track" field.
+func TrackEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldEQ(FieldTrack, v))
+}
+
+// TrackNEQ applies the NEQ predicate on the "track" field.
+func TrackNEQ(v string) predicate.Song {
+	return predicate.Song(sql.FieldNEQ(FieldTrack, v))
+}
+
+// TrackIn applies the In predicate on the "track" field.
+func TrackIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldIn(FieldTrack, vs...))
+}
+
+// TrackNotIn applies the NotIn predicate on the "track" field.
+func TrackNotIn(vs ...string) predicate.Song {
+	return predicate.Song(sql.FieldNotIn(FieldTrack, vs...))
+}
+
+// TrackGT applies the GT predicate on the "track" field.
+func TrackGT(v string) predicate.Song {
+	return predicate.Song(sql.FieldGT(FieldTrack, v))
+}
+
+// TrackGTE applies the GTE predicate on the "track" field.
+func TrackGTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldGTE(FieldTrack, v))
+}
+
+// TrackLT applies the LT predicate on the "track" field.
+func TrackLT(v string) predicate.Song {
+	return predicate.Song(sql.FieldLT(FieldTrack, v))
+}
+
+// TrackLTE applies the LTE predicate on the "track" field.
+func TrackLTE(v string) predicate.Song {
+	return predicate.Song(sql.FieldLTE(FieldTrack, v))
+}
+
+// TrackContains applies the Contains predicate on the "track" field.
+func TrackContains(v string) predicate.Song {
+	return predicate.Song(sql.FieldContains(FieldTrack, v))
+}
+
+// TrackHasPrefix applies the HasPrefix predicate on the "track" field.
+func TrackHasPrefix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasPrefix(FieldTrack, v))
+}
+
+// TrackHasSuffix applies the HasSuffix predicate on the "track" field.
+func TrackHasSuffix(v string) predicate.Song {
+	return predicate.Song(sql.FieldHasSuffix(FieldTrack, v))
+}
+
+// TrackEqualFold applies the EqualFold predicate on the "track" field.
+func TrackEqualFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldEqualFold(FieldTrack, v))
+}
+
+// TrackContainsFold applies the ContainsFold predicate on the "track" field.
+func TrackContainsFold(v string) predicate.Song {
+	return predicate.Song(sql.FieldContainsFold(FieldTrack, v))
 }
 
 // LyricsEmbeddedEQ applies the EQ predicate on the "lyrics_embedded" field.

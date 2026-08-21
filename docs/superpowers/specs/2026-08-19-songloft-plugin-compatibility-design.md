@@ -89,6 +89,30 @@ Package Manager -> Ent Repository -> Plugin Manager
 
 ## HTTP API
 
+### 曲库兼容面
+
+SongLoft 插件同时通过 `songloft.songs` / `songloft.playlists` bridge 和
+`songloft.plugin.getHostUrl()` + `getToken()` 访问宿主 `/api/v1`。两条路径是同一个
+兼容面，不能只实现 bridge 或只注册几个浏览器别名。
+
+- `getToken()` 返回短期宿主插件令牌。令牌绑定 `entryPath`，服务端每次请求重新读取
+  已安装插件的启用状态和 manifest 权限；令牌只允许访问对应的 songs/playlists
+  路由，不建立管理员登录会话，也不能访问 Lark 的用户、设置或插件管理 API。
+- `GET /api/v1/songs`、`GET /api/v1/songs/{id}` 和 bridge 歌曲 DTO 至少包含 SongLoft
+  `Song` 的曲库字段：`id/type/title/artist/album/year/genre/language/style/duration/file_path`
+  `file_size/format/bit_rate/sample_rate/is_live/is_video/cover_url/lyric_url/track/added_at`
+  `updated_at/file_modified_at/plugin_entry_path/source_data/dedup_key`。不得把 Lark 内部
+  Ent 对象或缓存路径直接序列化给插件。
+- 写入契约覆盖 `POST /api/v1/songs/remote`、`PUT/DELETE /api/v1/songs/{id}`、
+  `PUT /api/v1/songs/{id}/lyrics` 和 `PUT /api/v1/songs/{id}/tags`。本地歌曲标签写回
+  使用 Lark 的 metadata writeback 服务；写数据库和写音频文件必须返回可区分结果，
+  不得在文件写入失败时返回假成功。
+- 歌单兼容覆盖列表、创建、详情、更新、删除、取歌、加歌、删歌和重排，并保持
+  SongLoft 的请求字段（例如 `song_ids`）和响应包裹结构。
+- 至少用 `library-plus`、`subsonic`、`lyrics`、`stats` 四个真实包执行黑盒测试；
+  安装和启用本身不算兼容通过，测试必须实际触发曲库读取、远程歌曲导入、歌单写入、
+  本地标签/歌词写回中的适用能力。
+
 管理 API 仅管理员可用：
 
 - `GET /api/v1/jsplugins`
@@ -181,6 +205,11 @@ type LyricProvider interface {
 - `fs` 使用解析后的绝对路径做 containment 检查，防止 traversal 和 symlink escape。
 - 插件日志不得记录认证头、cookie、token 或 storage value。
 - VM 设置内存、栈、执行时间和并发上限；插件异常不得导致主服务退出。
+- 宿主插件令牌必须使用不可伪造的签名并做常量时间校验；插件停用、删除或权限变更后
+  旧令牌立即失效。HTTP 写操作按路由再次检查 `songs.write` 或 `playlists.write`。
+- 本地标签写回只能按已入库歌曲 ID 定位文件，规范化后必须位于该用户可访问的曲库根，
+  拒绝 CUE 虚拟轨、软链接逃逸、目录、非本地歌曲和超限封面数据；文件写入沿用 Lark
+  的原子/受控 metadata writeback 路径，不接受插件提供的任意宿主路径。
 
 ## 测试策略
 
@@ -209,6 +238,10 @@ type LyricProvider interface {
 - 标准 SongLoft `.jsplugin.zip` 可以不修改内容直接安装并通过 hash 校验。
 - 插件生命周期、HTTP、静态页面、存储和权限行为与 SongLoft 测试 fixture 一致。
 - 已映射的 `songloft.*` API 返回结构与 SongLoft 一致；未映射能力返回显式稳定错误。
+- `songloft.plugin.getToken()` 可让真实插件后端按声明权限调用宿主曲库 API；空 token、
+  伪造 token、停用插件 token 和缺少写权限的写请求均被拒绝。
+- “歌曲库 Plus”可读取完整曲库字段并修改本地歌曲标签/歌词；Subsonic 可通过
+  `/api/v1/songs/remote` 导入歌曲并创建、填充歌单。
 - 一个真实歌词插件能在 Lark 中返回候选和歌词，超时或崩溃不会影响其他插件与主服务。
 - 在线歌词不再调用 Lark 内置 provider；内嵌、sidecar 和已有缓存仍可用。
 - 首次初始化添加的社区聚合订阅源可刷新其包含的官方和社区插件，也可像普通记录一样被删除；重复插件只显示一条，并可辨识其所有来源。

@@ -8473,6 +8473,10 @@ type SongMutation struct {
 	addbit_depth          *int
 	year                  *int
 	addyear               *int
+	genre                 *string
+	language              *string
+	style                 *string
+	track                 *string
 	lyrics_embedded       *string
 	lyrics_source         *string
 	lyrics_remote_url     *string
@@ -9499,6 +9503,150 @@ func (m *SongMutation) ResetYear() {
 	m.addyear = nil
 }
 
+// SetGenre sets the "genre" field.
+func (m *SongMutation) SetGenre(s string) {
+	m.genre = &s
+}
+
+// Genre returns the value of the "genre" field in the mutation.
+func (m *SongMutation) Genre() (r string, exists bool) {
+	v := m.genre
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGenre returns the old "genre" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldGenre(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGenre is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGenre requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGenre: %w", err)
+	}
+	return oldValue.Genre, nil
+}
+
+// ResetGenre resets all changes to the "genre" field.
+func (m *SongMutation) ResetGenre() {
+	m.genre = nil
+}
+
+// SetLanguage sets the "language" field.
+func (m *SongMutation) SetLanguage(s string) {
+	m.language = &s
+}
+
+// Language returns the value of the "language" field in the mutation.
+func (m *SongMutation) Language() (r string, exists bool) {
+	v := m.language
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLanguage returns the old "language" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldLanguage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLanguage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLanguage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLanguage: %w", err)
+	}
+	return oldValue.Language, nil
+}
+
+// ResetLanguage resets all changes to the "language" field.
+func (m *SongMutation) ResetLanguage() {
+	m.language = nil
+}
+
+// SetStyle sets the "style" field.
+func (m *SongMutation) SetStyle(s string) {
+	m.style = &s
+}
+
+// Style returns the value of the "style" field in the mutation.
+func (m *SongMutation) Style() (r string, exists bool) {
+	v := m.style
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStyle returns the old "style" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldStyle(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStyle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStyle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStyle: %w", err)
+	}
+	return oldValue.Style, nil
+}
+
+// ResetStyle resets all changes to the "style" field.
+func (m *SongMutation) ResetStyle() {
+	m.style = nil
+}
+
+// SetTrack sets the "track" field.
+func (m *SongMutation) SetTrack(s string) {
+	m.track = &s
+}
+
+// Track returns the value of the "track" field in the mutation.
+func (m *SongMutation) Track() (r string, exists bool) {
+	v := m.track
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTrack returns the old "track" field's value of the Song entity.
+// If the Song object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SongMutation) OldTrack(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTrack is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTrack requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTrack: %w", err)
+	}
+	return oldValue.Track, nil
+}
+
+// ResetTrack resets all changes to the "track" field.
+func (m *SongMutation) ResetTrack() {
+	m.track = nil
+}
+
 // SetLyricsEmbedded sets the "lyrics_embedded" field.
 func (m *SongMutation) SetLyricsEmbedded(s string) {
 	m.lyrics_embedded = &s
@@ -10238,7 +10386,7 @@ func (m *SongMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SongMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 37)
 	if m.title != nil {
 		fields = append(fields, song.FieldTitle)
 	}
@@ -10301,6 +10449,18 @@ func (m *SongMutation) Fields() []string {
 	}
 	if m.year != nil {
 		fields = append(fields, song.FieldYear)
+	}
+	if m.genre != nil {
+		fields = append(fields, song.FieldGenre)
+	}
+	if m.language != nil {
+		fields = append(fields, song.FieldLanguage)
+	}
+	if m.style != nil {
+		fields = append(fields, song.FieldStyle)
+	}
+	if m.track != nil {
+		fields = append(fields, song.FieldTrack)
 	}
 	if m.lyrics_embedded != nil {
 		fields = append(fields, song.FieldLyricsEmbedded)
@@ -10388,6 +10548,14 @@ func (m *SongMutation) Field(name string) (ent.Value, bool) {
 		return m.BitDepth()
 	case song.FieldYear:
 		return m.Year()
+	case song.FieldGenre:
+		return m.Genre()
+	case song.FieldLanguage:
+		return m.Language()
+	case song.FieldStyle:
+		return m.Style()
+	case song.FieldTrack:
+		return m.Track()
 	case song.FieldLyricsEmbedded:
 		return m.LyricsEmbedded()
 	case song.FieldLyricsSource:
@@ -10463,6 +10631,14 @@ func (m *SongMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldBitDepth(ctx)
 	case song.FieldYear:
 		return m.OldYear(ctx)
+	case song.FieldGenre:
+		return m.OldGenre(ctx)
+	case song.FieldLanguage:
+		return m.OldLanguage(ctx)
+	case song.FieldStyle:
+		return m.OldStyle(ctx)
+	case song.FieldTrack:
+		return m.OldTrack(ctx)
 	case song.FieldLyricsEmbedded:
 		return m.OldLyricsEmbedded(ctx)
 	case song.FieldLyricsSource:
@@ -10642,6 +10818,34 @@ func (m *SongMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetYear(v)
+		return nil
+	case song.FieldGenre:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGenre(v)
+		return nil
+	case song.FieldLanguage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLanguage(v)
+		return nil
+	case song.FieldStyle:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStyle(v)
+		return nil
+	case song.FieldTrack:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTrack(v)
 		return nil
 	case song.FieldLyricsEmbedded:
 		v, ok := value.(string)
@@ -10946,6 +11150,18 @@ func (m *SongMutation) ResetField(name string) error {
 		return nil
 	case song.FieldYear:
 		m.ResetYear()
+		return nil
+	case song.FieldGenre:
+		m.ResetGenre()
+		return nil
+	case song.FieldLanguage:
+		m.ResetLanguage()
+		return nil
+	case song.FieldStyle:
+		m.ResetStyle()
+		return nil
+	case song.FieldTrack:
+		m.ResetTrack()
 		return nil
 	case song.FieldLyricsEmbedded:
 		m.ResetLyricsEmbedded()

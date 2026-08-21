@@ -20,11 +20,16 @@ type Song struct {
 	Format          string     `json:"format"`
 	Mime            string     `json:"mime"`
 	SizeBytes       int64      `json:"size_bytes"`
+	ModTimeUnixNano int64      `json:"-"`
 	DurationSeconds float64    `json:"duration_seconds"`
 	SampleRate      int        `json:"sample_rate"`
 	BitRate         int        `json:"bit_rate"`
 	BitDepth        int        `json:"bit_depth"`
 	Year            int        `json:"year"`
+	Genre           string     `json:"genre"`
+	Language        string     `json:"language,omitempty"`
+	Style           string     `json:"style,omitempty"`
+	Track           string     `json:"track,omitempty"`
 	NeteaseID       string     `json:"netease_id"`
 	Favorite        bool       `json:"favorite"`
 	PlayCount       int        `json:"play_count"`

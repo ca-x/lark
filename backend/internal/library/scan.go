@@ -311,6 +311,10 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 			SetBitRate(meta.BitRate).
 			SetBitDepth(meta.BitDepth).
 			SetYear(meta.Year).
+			SetGenre(meta.Genre).
+			SetLanguage(meta.Language).
+			SetStyle(meta.Style).
+			SetTrack(meta.Track).
 			SetArtist(artistEntity).
 			SetAlbum(albumEntity).
 			SetHasLyrics(meta.HasLyrics)
@@ -338,6 +342,10 @@ func (s *Service) importFile(ctx context.Context, path string, invalidate bool) 
 		SetBitRate(meta.BitRate).
 		SetBitDepth(meta.BitDepth).
 		SetYear(meta.Year).
+		SetGenre(meta.Genre).
+		SetLanguage(meta.Language).
+		SetStyle(meta.Style).
+		SetTrack(meta.Track).
 		SetArtist(artistEntity).
 		SetAlbum(albumEntity)
 	if meta.HasLyrics {
@@ -494,6 +502,10 @@ func (s *Service) upsertCUETrack(ctx context.Context, virtualPath, audioPath str
 			SetBitRate(meta.BitRate).
 			SetBitDepth(meta.BitDepth).
 			SetYear(meta.Year).
+			SetGenre(meta.Genre).
+			SetLanguage(meta.Language).
+			SetStyle(meta.Style).
+			SetTrack(meta.Track).
 			SetArtist(artistEntity).
 			SetAlbum(albumEntity).
 			SetHasLyrics(meta.HasLyrics)
@@ -517,6 +529,10 @@ func (s *Service) upsertCUETrack(ctx context.Context, virtualPath, audioPath str
 		SetBitRate(meta.BitRate).
 		SetBitDepth(meta.BitDepth).
 		SetYear(meta.Year).
+		SetGenre(meta.Genre).
+		SetLanguage(meta.Language).
+		SetStyle(meta.Style).
+		SetTrack(meta.Track).
 		SetArtist(artistEntity).
 		SetAlbum(albumEntity)
 	if meta.HasLyrics {

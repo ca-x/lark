@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dhowden/tag"
+	taglib "go.senan.xyz/taglib"
 
 	"lark/backend/ent"
 	"lark/backend/ent/album"
@@ -144,6 +145,10 @@ func (s *Service) probeViaFFprobe(ctx context.Context, path string, options prob
 		Album:       first(tags, "album"),
 		AlbumArtist: first(tags, "album_artist", "albumartist"),
 		Year:        parseYear(first(tags, "date", "year", "originaldate", "originalyear", "releasedate")),
+		Genre:       first(tags, "genre"),
+		Language:    first(tags, "language"),
+		Style:       first(tags, "style"),
+		Track:       first(tags, "track", "tracknumber"),
 	}
 	if options.ReadLyrics {
 		meta.Lyrics = first(tags, "lyrics", "unsyncedlyrics", "unsynced_lyrics", "syncedlyrics")
@@ -198,6 +203,12 @@ func (s *Service) probeTags(path string, options probeOptions) fileMetadata {
 		AlbumArtist: cleanMetadataText(m.AlbumArtist()),
 		Year:        m.Year(),
 	}
+	if rawTags, readErr := taglib.ReadTags(path); readErr == nil {
+		meta.Genre = firstTagValue(rawTags, taglib.Genre)
+		meta.Language = firstTagValue(rawTags, taglib.Language)
+		meta.Style = firstTagValue(rawTags, "STYLE")
+		meta.Track = firstTagValue(rawTags, taglib.TrackNumber)
+	}
 	if options.ReadLyrics {
 		meta.Lyrics = cleanMetadataText(m.Lyrics())
 		meta.HasLyrics = strings.TrimSpace(meta.Lyrics) != ""
@@ -208,4 +219,11 @@ func (s *Service) probeTags(path string, options probeOptions) fileMetadata {
 		meta.Artist = cleanMetadataText(m.Composer())
 	}
 	return meta
+}
+
+func firstTagValue(tags map[string][]string, key string) string {
+	if values := tags[key]; len(values) > 0 {
+		return cleanMetadataText(values[0])
+	}
+	return ""
 }

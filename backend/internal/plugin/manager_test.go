@@ -189,6 +189,42 @@ func TestManagerPermissionDeniedBeforeHostDispatch(t *testing.T) {
 	}
 }
 
+func TestManagerHostTokenIsScopedToActivePluginPermissions(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	repo := NewEntRepository(client)
+	item, err := repo.Create(t.Context(), Plugin{
+		Name: "Library", Version: "1.0.0", EntryPath: "library", Main: "main.js",
+		Permissions: []string{PermSongsRead}, Status: StatusActive,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager(repo, t.TempDir(), t.TempDir())
+	t.Cleanup(func() { _ = manager.Close() })
+
+	token := manager.HostToken(item.EntryPath)
+	if token == "" {
+		t.Fatal("HostToken returned an empty token")
+	}
+	authenticated, err := manager.AuthenticateHostToken(t.Context(), token, PermSongsRead)
+	if err != nil || authenticated.EntryPath != item.EntryPath {
+		t.Fatalf("read token authentication: plugin=%+v err=%v", authenticated, err)
+	}
+	if _, err := manager.AuthenticateHostToken(t.Context(), token, PermSongsWrite); err == nil {
+		t.Fatal("read-only token authorized songs.write")
+	}
+	if _, err := manager.AuthenticateHostToken(t.Context(), token+"tampered", PermSongsRead); err == nil {
+		t.Fatal("tampered token was accepted")
+	}
+	if err := repo.SetStatus(t.Context(), item.ID, StatusInactive); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.AuthenticateHostToken(t.Context(), token, PermSongsRead); err == nil {
+		t.Fatal("disabled plugin token remained valid")
+	}
+}
+
 func TestManagerBroadcastsPlayEventsToSubscribers(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
 	defer client.Close()

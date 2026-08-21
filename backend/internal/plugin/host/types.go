@@ -1,6 +1,9 @@
 package host
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 type Page struct {
 	Limit  int `json:"limit"`
@@ -19,21 +22,36 @@ type SongQuery struct {
 // Song mirrors the public SongLoft plugin DTO. Filesystem-only internal fields
 // must be filtered by the Lark adapter before this value reaches JavaScript.
 type Song struct {
-	ID              int     `json:"id"`
-	Type            string  `json:"type"`
-	Title           string  `json:"title"`
-	Artist          string  `json:"artist"`
-	Album           string  `json:"album"`
-	Duration        float64 `json:"duration"`
-	FilePath        string  `json:"file_path,omitempty"`
-	URL             string  `json:"url,omitempty"`
-	CoverURL        string  `json:"cover_url,omitempty"`
-	Lyric           string  `json:"lyric,omitempty"`
-	LyricSource     string  `json:"lyric_source,omitempty"`
-	PluginEntryPath string  `json:"plugin_entry_path,omitempty"`
-	SourceData      string  `json:"source_data,omitempty"`
-	DedupKey        string  `json:"dedup_key,omitempty"`
-	IsVideo         bool    `json:"is_video"`
+	ID              int        `json:"id"`
+	Type            string     `json:"type"`
+	Title           string     `json:"title"`
+	Artist          string     `json:"artist"`
+	Album           string     `json:"album"`
+	Year            int        `json:"year"`
+	Genre           string     `json:"genre"`
+	Language        string     `json:"language,omitempty"`
+	Style           string     `json:"style,omitempty"`
+	Duration        float64    `json:"duration"`
+	FilePath        string     `json:"file_path"`
+	FileSize        int64      `json:"file_size"`
+	Format          string     `json:"format"`
+	BitRate         int        `json:"bit_rate"`
+	SampleRate      int        `json:"sample_rate"`
+	URL             string     `json:"url,omitempty"`
+	CoverURL        string     `json:"cover_url,omitempty"`
+	Lyric           string     `json:"lyric,omitempty"`
+	LyricSource     string     `json:"lyric_source,omitempty"`
+	LyricRemoteURL  string     `json:"lyric_remote_url,omitempty"`
+	LyricURL        string     `json:"lyric_url,omitempty"`
+	PluginEntryPath string     `json:"plugin_entry_path,omitempty"`
+	SourceData      string     `json:"source_data,omitempty"`
+	DedupKey        string     `json:"dedup_key,omitempty"`
+	Track           string     `json:"track,omitempty"`
+	IsLive          bool       `json:"is_live"`
+	IsVideo         bool       `json:"is_video"`
+	AddedAt         time.Time  `json:"added_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	FileModifiedAt  *time.Time `json:"file_modified_at,omitempty"`
 }
 
 type SongCreate struct {

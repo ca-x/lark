@@ -53,6 +53,11 @@ type MetadataWritebackInput struct {
 	Album            string
 	AlbumArtist      string
 	Year             int
+	Genre            string
+	Language         string
+	Style            string
+	Track            string
+	Lyrics           string
 	CoverURL         string
 	CoverData        []byte
 	CoverMime        string
@@ -865,13 +870,18 @@ func normalizeMetadataWritebackInput(input MetadataWritebackInput) MetadataWrite
 	input.Artist = strings.TrimSpace(input.Artist)
 	input.Album = strings.TrimSpace(input.Album)
 	input.AlbumArtist = strings.TrimSpace(input.AlbumArtist)
+	input.Genre = strings.TrimSpace(input.Genre)
+	input.Language = strings.TrimSpace(input.Language)
+	input.Style = strings.TrimSpace(input.Style)
+	input.Track = strings.TrimSpace(input.Track)
+	input.Lyrics = strings.TrimSpace(input.Lyrics)
 	input.CoverURL = strings.TrimSpace(input.CoverURL)
 	input.CoverMime = strings.TrimSpace(input.CoverMime)
 	return input
 }
 
 func metadataWritebackHasChanges(input MetadataWritebackInput) bool {
-	return input.Title != "" || input.Artist != "" || input.Album != "" || input.AlbumArtist != "" || input.Year > 0 || input.CoverURL != "" || len(input.CoverData) > 0
+	return input.Title != "" || input.Artist != "" || input.Album != "" || input.AlbumArtist != "" || input.Year > 0 || input.Genre != "" || input.Language != "" || input.Style != "" || input.Track != "" || input.Lyrics != "" || input.CoverURL != "" || len(input.CoverData) > 0
 }
 
 func taglibTagsForSong(input MetadataWritebackInput) map[string][]string {
@@ -887,6 +897,21 @@ func taglibTagsForSong(input MetadataWritebackInput) map[string][]string {
 	}
 	if input.Year > 0 {
 		tags[taglib.Date] = []string{strconv.Itoa(input.Year)}
+	}
+	if input.Genre != "" {
+		tags[taglib.Genre] = []string{input.Genre}
+	}
+	if input.Language != "" {
+		tags[taglib.Language] = []string{input.Language}
+	}
+	if input.Style != "" {
+		tags["STYLE"] = []string{input.Style}
+	}
+	if input.Track != "" {
+		tags[taglib.TrackNumber] = []string{input.Track}
+	}
+	if input.Lyrics != "" {
+		tags[taglib.Lyrics] = []string{input.Lyrics}
 	}
 	return tags
 }
@@ -1179,14 +1204,35 @@ func (s *Service) updateSongRowAfterWriteback(ctx context.Context, item *ent.Son
 	if _, err := item.Update().
 		SetTitle(title).
 		SetYear(year).
+		SetGenre(firstString(input.Genre, item.Genre)).
+		SetLanguage(firstString(input.Language, item.Language)).
+		SetStyle(firstString(input.Style, item.Style)).
+		SetTrack(firstString(input.Track, item.Track)).
 		SetSizeBytes(info.Size()).
 		SetModTimeUnixNano(info.ModTime().UnixNano()).
 		SetArtist(artistItem).
 		SetAlbum(albumItem).
+		SetNillableLyricsEmbedded(nonEmptyStringPointer(input.Lyrics)).
+		SetNillableLyricsSource(nonEmptyStringPointerIf(input.Lyrics, "manual")).
+		SetHasLyrics(item.HasLyrics || input.Lyrics != "").
 		Save(ctx); err != nil {
 		return nil, err
 	}
 	return s.client.Song.Query().Where(song.ID(item.ID)).WithArtist().WithAlbum().Only(ctx)
+}
+
+func nonEmptyStringPointer(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func nonEmptyStringPointerIf(condition, value string) *string {
+	if condition == "" {
+		return nil
+	}
+	return &value
 }
 
 func (s *Service) updateAlbumSongRowAfterWriteback(ctx context.Context, item *ent.Song, targetArtist *ent.Artist, targetAlbum *ent.Album, year int, audioPath string) error {

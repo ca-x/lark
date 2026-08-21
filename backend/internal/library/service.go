@@ -189,6 +189,10 @@ type fileMetadata struct {
 	BitRate     int
 	BitDepth    int
 	Year        int
+	Genre       string
+	Language    string
+	Style       string
+	Track       string
 	Lyrics      string
 }
 
@@ -1001,6 +1005,7 @@ var browseSongColumns = []string{
 	song.FieldFormat, song.FieldMime, song.FieldSizeBytes, song.FieldModTimeUnixNano,
 	song.FieldContentHash, song.FieldDurationSeconds, song.FieldSampleRate,
 	song.FieldBitRate, song.FieldBitDepth, song.FieldYear, song.FieldNeteaseID,
+	song.FieldGenre, song.FieldLanguage, song.FieldStyle, song.FieldTrack,
 	song.FieldFavorite, song.FieldPlayCount, song.FieldLastPlayedAt,
 	song.FieldHasLyrics, song.FieldLyricsSource, song.FieldLyricsRemoteURL,
 	song.FieldIsLive, song.FieldIsVideo,

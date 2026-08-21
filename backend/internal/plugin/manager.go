@@ -137,12 +137,13 @@ type Manager struct {
 	packageMu  sync.Mutex
 	loadMu     sync.Mutex
 
-	mu         sync.RWMutex
-	services   map[string]*Service
-	lyrics     map[string]bool
-	covers     map[string]bool
-	playEvents map[string]bool
-	closed     bool
+	mu              sync.RWMutex
+	services        map[string]*Service
+	lyrics          map[string]bool
+	covers          map[string]bool
+	playEvents      map[string]bool
+	hostTokenSecret []byte
+	closed          bool
 }
 
 type Service struct {
@@ -165,7 +166,8 @@ func NewManager(repo Repository, packageDir, dataDir string, args ...any) *Manag
 		repo: repo, packageDir: packageDir, dataDir: dataDir,
 		runtime: jsruntime.NewJSEnvManager(), services: make(map[string]*Service),
 		lyrics: make(map[string]bool), covers: make(map[string]bool),
-		playEvents: make(map[string]bool),
+		playEvents:      make(map[string]bool),
+		hostTokenSecret: newHostTokenSecret(),
 	}
 	for _, arg := range args {
 		switch value := arg.(type) {
@@ -179,6 +181,15 @@ func NewManager(repo Repository, packageDir, dataDir string, args ...any) *Manag
 }
 
 func (m *Manager) SetHost(value host.Host) { m.mu.Lock(); m.host = value; m.mu.Unlock() }
+
+func (m *Manager) SongsHost() host.SongHost {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.host == nil {
+		return nil
+	}
+	return m.host.Songs()
+}
 
 func (m *Manager) List(ctx context.Context) ([]Plugin, error) {
 	items, err := m.repo.List(ctx)

@@ -300,6 +300,10 @@ func mergeFileMetadata(dst *fileMetadata, src fileMetadata) {
 	dst.Artist = preferredMetadataField(dst.Artist, src.Artist)
 	dst.Album = preferredMetadataField(dst.Album, src.Album)
 	dst.AlbumArtist = preferredMetadataField(dst.AlbumArtist, src.AlbumArtist)
+	dst.Genre = preferredMetadataField(dst.Genre, src.Genre)
+	dst.Language = preferredMetadataField(dst.Language, src.Language)
+	dst.Style = preferredMetadataField(dst.Style, src.Style)
+	dst.Track = preferredMetadataField(dst.Track, src.Track)
 	dst.Lyrics = preferredMetadataField(dst.Lyrics, src.Lyrics)
 	if dst.Year == 0 {
 		dst.Year = src.Year

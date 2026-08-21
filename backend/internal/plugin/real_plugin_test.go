@@ -16,7 +16,10 @@ import (
 	"testing"
 	"time"
 
+	"lark/backend/ent"
 	"lark/backend/ent/enttest"
+	"lark/backend/internal/library"
+	"lark/backend/internal/plugin/larkhost"
 
 	_ "github.com/lib-x/entsqlite"
 )
@@ -101,7 +104,27 @@ func TestRealSongLoftPluginMatrix(t *testing.T) {
 			if manifest.EntryPath == "subsonic" {
 				assertRealSubsonicPlaybackResolution(t, ctx, manager, manifest.EntryPath)
 			}
+			if manifest.EntryPath == "library-plus" {
+				assertRealLibraryPlusReadsLibrary(t, ctx, client, manager, manifest.EntryPath)
+			}
 		})
+	}
+}
+
+func assertRealLibraryPlusReadsLibrary(t *testing.T, ctx context.Context, client *ent.Client, manager *Manager, entryPath string) {
+	t.Helper()
+	libraryDir := t.TempDir()
+	if _, err := client.Song.Create().SetTitle("Fixture").SetSourceType("local").SetSourceArtist("Artist").SetSourceAlbum("Album").SetPath(filepath.Join(libraryDir, "fixture.mp3")).SetFileName("fixture.mp3").SetFormat("mp3").SetSizeBytes(10).SetDurationSeconds(12).SetYear(2026).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	service := library.New(client, t.TempDir(), libraryDir, "", "", nil, nil)
+	manager.SetHost(larkhost.New(client, service, larkhost.Config{DataDir: t.TempDir(), MusicDir: libraryDir}))
+	response, err := manager.InvokeHTTP(ctx, entryPath, HTTPRequest{Method: http.MethodGet, Path: "/api/index", Headers: map[string]string{}})
+	if err != nil {
+		t.Fatalf("library-plus index call: %v", err)
+	}
+	if response.StatusCode != http.StatusOK || !strings.Contains(response.Body, `"total":1`) {
+		t.Fatalf("library-plus index status=%d body=%s", response.StatusCode, response.Body)
 	}
 }
 

@@ -56,6 +56,14 @@ const (
 	FieldBitDepth = "bit_depth"
 	// FieldYear holds the string denoting the year field in the database.
 	FieldYear = "year"
+	// FieldGenre holds the string denoting the genre field in the database.
+	FieldGenre = "genre"
+	// FieldLanguage holds the string denoting the language field in the database.
+	FieldLanguage = "language"
+	// FieldStyle holds the string denoting the style field in the database.
+	FieldStyle = "style"
+	// FieldTrack holds the string denoting the track field in the database.
+	FieldTrack = "track"
 	// FieldLyricsEmbedded holds the string denoting the lyrics_embedded field in the database.
 	FieldLyricsEmbedded = "lyrics_embedded"
 	// FieldLyricsSource holds the string denoting the lyrics_source field in the database.
@@ -151,6 +159,10 @@ var Columns = []string{
 	FieldBitRate,
 	FieldBitDepth,
 	FieldYear,
+	FieldGenre,
+	FieldLanguage,
+	FieldStyle,
+	FieldTrack,
 	FieldLyricsEmbedded,
 	FieldLyricsSource,
 	FieldLyricsRemoteURL,
@@ -236,6 +248,14 @@ var (
 	DefaultBitDepth int
 	// DefaultYear holds the default value on creation for the "year" field.
 	DefaultYear int
+	// DefaultGenre holds the default value on creation for the "genre" field.
+	DefaultGenre string
+	// DefaultLanguage holds the default value on creation for the "language" field.
+	DefaultLanguage string
+	// DefaultStyle holds the default value on creation for the "style" field.
+	DefaultStyle string
+	// DefaultTrack holds the default value on creation for the "track" field.
+	DefaultTrack string
 	// DefaultLyricsEmbedded holds the default value on creation for the "lyrics_embedded" field.
 	DefaultLyricsEmbedded string
 	// DefaultLyricsSource holds the default value on creation for the "lyrics_source" field.
@@ -373,6 +393,26 @@ func ByBitDepth(opts ...sql.OrderTermOption) OrderOption {
 // ByYear orders the results by the year field.
 func ByYear(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldYear, opts...).ToFunc()
+}
+
+// ByGenre orders the results by the genre field.
+func ByGenre(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGenre, opts...).ToFunc()
+}
+
+// ByLanguage orders the results by the language field.
+func ByLanguage(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLanguage, opts...).ToFunc()
+}
+
+// ByStyle orders the results by the style field.
+func ByStyle(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStyle, opts...).ToFunc()
+}
+
+// ByTrack orders the results by the track field.
+func ByTrack(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTrack, opts...).ToFunc()
 }
 
 // ByLyricsEmbedded orders the results by the lyrics_embedded field.

@@ -61,6 +61,14 @@ type Song struct {
 	BitDepth int `json:"bit_depth,omitempty"`
 	// Year holds the value of the "year" field.
 	Year int `json:"year,omitempty"`
+	// Genre holds the value of the "genre" field.
+	Genre string `json:"genre,omitempty"`
+	// Language holds the value of the "language" field.
+	Language string `json:"language,omitempty"`
+	// Style holds the value of the "style" field.
+	Style string `json:"style,omitempty"`
+	// Track holds the value of the "track" field.
+	Track string `json:"track,omitempty"`
 	// LyricsEmbedded holds the value of the "lyrics_embedded" field.
 	LyricsEmbedded string `json:"lyrics_embedded,omitempty"`
 	// LyricsSource holds the value of the "lyrics_source" field.
@@ -170,7 +178,7 @@ func (*Song) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case song.FieldID, song.FieldSizeBytes, song.FieldModTimeUnixNano, song.FieldSampleRate, song.FieldBitRate, song.FieldBitDepth, song.FieldYear, song.FieldPlayCount:
 			values[i] = new(sql.NullInt64)
-		case song.FieldTitle, song.FieldSourceType, song.FieldSourceArtist, song.FieldSourceAlbum, song.FieldPath, song.FieldFileName, song.FieldFormat, song.FieldMime, song.FieldContentHash, song.FieldURL, song.FieldCoverURL, song.FieldPluginEntryPath, song.FieldSourceData, song.FieldDedupKey, song.FieldLyricsEmbedded, song.FieldLyricsSource, song.FieldLyricsRemoteURL, song.FieldNeteaseID:
+		case song.FieldTitle, song.FieldSourceType, song.FieldSourceArtist, song.FieldSourceAlbum, song.FieldPath, song.FieldFileName, song.FieldFormat, song.FieldMime, song.FieldContentHash, song.FieldURL, song.FieldCoverURL, song.FieldPluginEntryPath, song.FieldSourceData, song.FieldDedupKey, song.FieldGenre, song.FieldLanguage, song.FieldStyle, song.FieldTrack, song.FieldLyricsEmbedded, song.FieldLyricsSource, song.FieldLyricsRemoteURL, song.FieldNeteaseID:
 			values[i] = new(sql.NullString)
 		case song.FieldLastPlayedAt, song.FieldCreatedAt, song.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -324,6 +332,30 @@ func (_m *Song) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field year", values[i])
 			} else if value.Valid {
 				_m.Year = int(value.Int64)
+			}
+		case song.FieldGenre:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field genre", values[i])
+			} else if value.Valid {
+				_m.Genre = value.String
+			}
+		case song.FieldLanguage:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field language", values[i])
+			} else if value.Valid {
+				_m.Language = value.String
+			}
+		case song.FieldStyle:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field style", values[i])
+			} else if value.Valid {
+				_m.Style = value.String
+			}
+		case song.FieldTrack:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field track", values[i])
+			} else if value.Valid {
+				_m.Track = value.String
 			}
 		case song.FieldLyricsEmbedded:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -535,6 +567,18 @@ func (_m *Song) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("year=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Year))
+	builder.WriteString(", ")
+	builder.WriteString("genre=")
+	builder.WriteString(_m.Genre)
+	builder.WriteString(", ")
+	builder.WriteString("language=")
+	builder.WriteString(_m.Language)
+	builder.WriteString(", ")
+	builder.WriteString("style=")
+	builder.WriteString(_m.Style)
+	builder.WriteString(", ")
+	builder.WriteString("track=")
+	builder.WriteString(_m.Track)
 	builder.WriteString(", ")
 	builder.WriteString("lyrics_embedded=")
 	builder.WriteString(_m.LyricsEmbedded)

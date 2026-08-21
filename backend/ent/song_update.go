@@ -376,6 +376,62 @@ func (_u *SongUpdate) AddYear(v int) *SongUpdate {
 	return _u
 }
 
+// SetGenre sets the "genre" field.
+func (_u *SongUpdate) SetGenre(v string) *SongUpdate {
+	_u.mutation.SetGenre(v)
+	return _u
+}
+
+// SetNillableGenre sets the "genre" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableGenre(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetGenre(*v)
+	}
+	return _u
+}
+
+// SetLanguage sets the "language" field.
+func (_u *SongUpdate) SetLanguage(v string) *SongUpdate {
+	_u.mutation.SetLanguage(v)
+	return _u
+}
+
+// SetNillableLanguage sets the "language" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableLanguage(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetLanguage(*v)
+	}
+	return _u
+}
+
+// SetStyle sets the "style" field.
+func (_u *SongUpdate) SetStyle(v string) *SongUpdate {
+	_u.mutation.SetStyle(v)
+	return _u
+}
+
+// SetNillableStyle sets the "style" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableStyle(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetStyle(*v)
+	}
+	return _u
+}
+
+// SetTrack sets the "track" field.
+func (_u *SongUpdate) SetTrack(v string) *SongUpdate {
+	_u.mutation.SetTrack(v)
+	return _u
+}
+
+// SetNillableTrack sets the "track" field if the given value is not nil.
+func (_u *SongUpdate) SetNillableTrack(v *string) *SongUpdate {
+	if v != nil {
+		_u.SetTrack(*v)
+	}
+	return _u
+}
+
 // SetLyricsEmbedded sets the "lyrics_embedded" field.
 func (_u *SongUpdate) SetLyricsEmbedded(v string) *SongUpdate {
 	_u.mutation.SetLyricsEmbedded(v)
@@ -863,6 +919,18 @@ func (_u *SongUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedYear(); ok {
 		_spec.AddField(song.FieldYear, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Genre(); ok {
+		_spec.SetField(song.FieldGenre, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Language(); ok {
+		_spec.SetField(song.FieldLanguage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Style(); ok {
+		_spec.SetField(song.FieldStyle, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Track(); ok {
+		_spec.SetField(song.FieldTrack, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LyricsEmbedded(); ok {
 		_spec.SetField(song.FieldLyricsEmbedded, field.TypeString, value)
@@ -1462,6 +1530,62 @@ func (_u *SongUpdateOne) AddYear(v int) *SongUpdateOne {
 	return _u
 }
 
+// SetGenre sets the "genre" field.
+func (_u *SongUpdateOne) SetGenre(v string) *SongUpdateOne {
+	_u.mutation.SetGenre(v)
+	return _u
+}
+
+// SetNillableGenre sets the "genre" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableGenre(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetGenre(*v)
+	}
+	return _u
+}
+
+// SetLanguage sets the "language" field.
+func (_u *SongUpdateOne) SetLanguage(v string) *SongUpdateOne {
+	_u.mutation.SetLanguage(v)
+	return _u
+}
+
+// SetNillableLanguage sets the "language" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableLanguage(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetLanguage(*v)
+	}
+	return _u
+}
+
+// SetStyle sets the "style" field.
+func (_u *SongUpdateOne) SetStyle(v string) *SongUpdateOne {
+	_u.mutation.SetStyle(v)
+	return _u
+}
+
+// SetNillableStyle sets the "style" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableStyle(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetStyle(*v)
+	}
+	return _u
+}
+
+// SetTrack sets the "track" field.
+func (_u *SongUpdateOne) SetTrack(v string) *SongUpdateOne {
+	_u.mutation.SetTrack(v)
+	return _u
+}
+
+// SetNillableTrack sets the "track" field if the given value is not nil.
+func (_u *SongUpdateOne) SetNillableTrack(v *string) *SongUpdateOne {
+	if v != nil {
+		_u.SetTrack(*v)
+	}
+	return _u
+}
+
 // SetLyricsEmbedded sets the "lyrics_embedded" field.
 func (_u *SongUpdateOne) SetLyricsEmbedded(v string) *SongUpdateOne {
 	_u.mutation.SetLyricsEmbedded(v)
@@ -1979,6 +2103,18 @@ func (_u *SongUpdateOne) sqlSave(ctx context.Context) (_node *Song, err error) {
 	}
 	if value, ok := _u.mutation.AddedYear(); ok {
 		_spec.AddField(song.FieldYear, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Genre(); ok {
+		_spec.SetField(song.FieldGenre, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Language(); ok {
+		_spec.SetField(song.FieldLanguage, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Style(); ok {
+		_spec.SetField(song.FieldStyle, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Track(); ok {
+		_spec.SetField(song.FieldTrack, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LyricsEmbedded(); ok {
 		_spec.SetField(song.FieldLyricsEmbedded, field.TypeString, value)
