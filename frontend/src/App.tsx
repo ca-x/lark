@@ -9772,14 +9772,21 @@ function FullLyrics({
                 candidates.map((candidate, index) => (
                   <button
                     key={`${candidate.source}-${candidate.id}`}
+                    type="button"
                     className="lyrics-candidate-item"
                     onClick={() => onSelectCandidate(candidate)}
                   >
-                    <strong>{candidate.title}</strong>
-                    <span>{candidate.artist || t("artist")}</span>
-                    <em>
-                      {t("candidate")} {index + 1}
-                    </em>
+                    <span className="lyrics-candidate-icon" aria-hidden="true">
+                      <MusicNotes weight="fill" />
+                    </span>
+                    <span className="lyrics-candidate-copy">
+                      <strong>{candidate.title}</strong>
+                      <span>{candidate.artist || t("artist")}</span>
+                    </span>
+                    <span className="lyrics-candidate-meta">
+                      <em title={candidate.source}>{candidate.source}</em>
+                      <small>{t("candidate")} {index + 1}</small>
+                    </span>
                   </button>
                 ))
               ) : (

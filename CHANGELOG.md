@@ -5,6 +5,28 @@
 
 ---
 
+## 0.10.3：歌词插件选择界面优化
+
+发布日期 / Released: 2026-08-23
+
+### 歌词体验
+
+- **修复全屏歌词界面错位。** 短屏桌面端不再因播放器占用隐式网格列而压缩歌词区域，标题、歌词和选择面板都会保持在可视范围内。
+- **重新设计歌词候选列表。** 每个候选项会分别显示歌曲、歌手、插件来源和序号，长标题与长来源名称不会再互相挤压。
+- **优化移动端布局。** 手机竖屏使用更大的触控区域，横屏会并排显示面板标题与选项卡，为候选列表保留更多空间。
+
+## v0.10.3: Lyrics plugin picker improvements
+
+Released: 2026-08-23
+
+### Lyrics experience
+
+- **Fixed full-screen lyrics alignment.** Short desktop viewports no longer collapse the lyrics area into an implicit grid column, keeping the header, lyrics, and picker visible.
+- **Redesigned the lyrics candidate list.** Each candidate now separates the song, artist, plugin source, and index so long labels no longer compete for the same space.
+- **Improved mobile layouts.** Portrait mode uses larger touch targets, while landscape mode places the picker header and tabs side by side to preserve room for candidates.
+
+---
+
 ## 0.10.2：SongLoft 曲库 API 兼容性
 
 发布日期 / Released: 2026-08-22

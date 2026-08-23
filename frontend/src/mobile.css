@@ -8846,7 +8846,7 @@
     max-height:min(44dvh, 380px);
     margin:10px 0 0;
     padding:10px;
-    gap:10px;
+    gap:var(--lyrics-tools-gap);
     border-radius:18px;
     color:var(--mobile-lyrics-live);
     background:var(--mobile-lyrics-chip-bg);
@@ -8875,7 +8875,7 @@
 
   .app-shell.lyrics-mode .lyrics-tools-tabs button {
     min-width:0;
-    min-height:40px;
+    min-height:44px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -8915,21 +8915,35 @@
   .app-shell.lyrics-mode .lyrics-candidate-item {
     min-width:0;
     display:grid;
-    grid-template-columns:minmax(0, 1fr) auto;
-    gap:2px 10px;
-    padding:10px 11px;
+    grid-template-columns:36px minmax(0, 1fr) minmax(62px, auto);
+    gap:9px;
+    min-height:60px;
+    padding:8px 9px;
     border-radius:14px;
     color:var(--mobile-lyrics-live);
     background:var(--mobile-lyrics-chip-bg);
     border:1px solid var(--mobile-lyrics-border);
   }
 
-  .app-shell.lyrics-mode .lyrics-candidate-item span {
+  .app-shell.lyrics-mode .lyrics-candidate-copy > span,
+  .app-shell.lyrics-mode .lyrics-candidate-meta small {
     color:var(--mobile-lyrics-muted);
   }
 
-  .app-shell.lyrics-mode .lyrics-candidate-item em {
+  .app-shell.lyrics-mode .lyrics-candidate-meta em,
+  .app-shell.lyrics-mode .lyrics-candidate-icon {
     color:var(--mobile-lyrics-accent);
+  }
+
+  .app-shell.lyrics-mode .lyrics-candidate-icon {
+    width:36px;
+    height:36px;
+    border-radius:11px;
+    background:color-mix(in srgb, var(--mobile-lyrics-accent) 12%, transparent);
+  }
+
+  .app-shell.lyrics-mode .lyrics-candidate-meta em {
+    max-width:82px;
   }
 
   .app-shell.lyrics-mode .lyrics-offset-panel--embedded {
@@ -8987,6 +9001,23 @@
   .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-reset {
     width:42px;
     min-width:42px;
+  }
+}
+
+@media (max-width:960px) and (max-height:500px) and (orientation:landscape) {
+  .app-shell.lyrics-mode .lyrics-candidates.lyrics-tools {
+    grid-template-columns:minmax(220px, .8fr) minmax(320px, 1.2fr);
+    grid-template-rows:auto minmax(0, 1fr);
+    max-height:min(60dvh, 240px);
+  }
+
+  .app-shell.lyrics-mode .lyrics-tools-tabs {
+    align-self:center;
+  }
+
+  .app-shell.lyrics-mode .lyrics-candidates-list,
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded {
+    grid-column:1 / -1;
   }
 }
 
