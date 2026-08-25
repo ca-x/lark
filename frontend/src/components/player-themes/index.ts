@@ -1,14 +1,17 @@
 export { AlbumSlidePlayer } from "./AlbumSlidePlayer";
 export { AudioScopePlayer } from "./AudioScopePlayer";
 export { CassetteDeck } from "./CassetteDeck";
+export { CelestialTransmutationLayer } from "./CelestialTransmutationLayer";
 export { GramophonePlayer } from "./GramophonePlayer";
 export { IpodPlayer } from "./IpodPlayer";
 export { MiniCoverArt } from "./MiniCoverArt";
 export { MineradioStagePlayer } from "./MineradioStagePlayer";
+export { NeuralCathedralPlayer } from "./NeuralCathedralPlayer";
 export { MobileArtPlayer } from "./MobileArtPlayer";
 export { PaperShaderLayer } from "./PaperShaderLayer";
 export { RunningKittenTurntable } from "./RunningKittenTurntable";
 export { SmartisanTurntable } from "./SmartisanTurntable";
+export { SingularityPlayer } from "./SingularityPlayer";
 export { VinylTurntable } from "./VinylTurntable";
 export { WalkmanPlayer } from "./WalkmanPlayer";
 export type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode } from "./types";

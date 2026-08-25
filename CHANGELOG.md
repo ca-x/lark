@@ -5,6 +5,30 @@
 
 ---
 
+## 0.11.0：沉浸式 Three.js 播放主题
+
+发布日期 / Released: 2026-08-25
+
+### 播放器主题
+
+- **新增奇点吸积盘主题。** 首页播放器加入黑洞、吸积盘、HUD 遥测和可切换的稳定 / 湍流 / 相对论坍缩场景，同时沿用原有播放、进度和播放模式控制。
+- **将蓝调音箱替换为 Neural Cathedral。** 现在使用可交互的神经网络、突触节点和脉冲状态 HUD，播放控制契约保持不变。
+- **为暗场电台加入 Celestial Transmutation。** 开启暗场效果后才创建行星、星尘与轨道过渡的第二个 WebGL 层，关闭时不产生额外渲染循环。
+- **补齐性能与可访问性边界。** Three.js 画布使用容器尺寸与 ResizeObserver，监听动态 reduced-motion，交互控件保留键盘焦点和 44px 触控目标。
+
+## v0.11.0: Immersive Three.js player themes
+
+Released: 2026-08-25
+
+### Player themes
+
+- **Added the Singularity Disk theme.** The home player now includes a black hole, accretion disk, HUD telemetry, and selectable stable / turbulence / relativistic-collapse fields while keeping the existing playback, seeking, and play-mode controls.
+- **Replaced Audio Scope with Neural Cathedral.** The visual now uses an interactive neural network, synapse nodes, and signal-phase HUD without changing the playback contract.
+- **Added Celestial Transmutation to Mineradio Stage.** Planet, star-dust, and orbital transitions are mounted as a second WebGL layer only when Mineradio effects are enabled, so the disabled path creates no extra render loop.
+- **Covered performance and accessibility boundaries.** Three.js canvases use container sizing and ResizeObserver, react to live reduced-motion changes, and keep keyboard focus plus 44px touch targets on controls.
+
+---
+
 ## 0.10.3：歌词插件选择界面优化
 
 发布日期 / Released: 2026-08-23

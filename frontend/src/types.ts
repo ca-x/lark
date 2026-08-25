@@ -248,7 +248,7 @@ export interface UISoundSettings {
 export interface PlaybackHistorySettings {
   separate_by_device: boolean;
 }
-export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide" | "smartisan-turntable" | "gramophone" | "running-kitten" | "mineradio-stage" | "walkman";
+export type HomePlayerStyle = "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide" | "smartisan-turntable" | "gramophone" | "running-kitten" | "mineradio-stage" | "walkman" | "singularity";
 export type MobileHomePlayerStyle = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic";
 export type ArtistAlbumDisplayStyle = "classic" | "showcase";
 export type LyricsDisplayStyle = "immersive" | "classic" | "folia-monet" | "folia-fume" | "folia-tilt" | "folia-cadenza";

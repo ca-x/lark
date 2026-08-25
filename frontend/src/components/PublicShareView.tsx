@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { LoadingStage } from "./LoadingStage";
-import { AlbumSlidePlayer, AudioScopePlayer, CassetteDeck, VinylTurntable } from "./player-themes";
+import { AlbumSlidePlayer, CassetteDeck, NeuralCathedralPlayer, VinylTurntable } from "./player-themes";
 import { api } from "../services/api";
 import type { PublicShare, Settings, Song } from "../types";
 import type { createT } from "../i18n";
@@ -187,7 +187,7 @@ export function PublicShareView({
                     onSeek={seek}
                   />
                 ) : playerStyle === "audio-scope" ? (
-                  <AudioScopePlayer
+                  <NeuralCathedralPlayer
                     playing={playing}
                     progress={progress}
                     duration={duration || currentSong.duration_seconds || 0}
