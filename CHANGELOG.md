@@ -5,6 +5,20 @@
 
 ---
 
+## 0.11.3：播放器长标题可读性修正
+
+发布日期 / Released: 2026-08-26
+
+- **缩小并放宽两个沉浸式主题的歌曲标题。** 奇点吸积盘和 Neural Cathedral 现在允许长歌名自然换行，不再用过大的单行标题截断全名；移动端也使用独立字号边界。
+
+## v0.11.3: Long player-title readability fix
+
+Released: 2026-08-26
+
+- **Improved long-title readability in both immersive themes.** Singularity Disk and Neural Cathedral now wrap long song names instead of truncating oversized single-line headings, with dedicated mobile type limits.
+
+---
+
 ## 0.11.2：吸积盘状态轮换补齐
 
 发布日期 / Released: 2026-08-25
