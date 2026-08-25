@@ -5,6 +5,20 @@
 
 ---
 
+## 0.11.2：吸积盘状态轮换补齐
+
+发布日期 / Released: 2026-08-25
+
+- **恢复吸积盘参考实现的自动状态轮换。** 三种拓扑现在会按 10 秒节奏平滑切换，同时保留手动 SHIFT FIELD 控制和 reduced-motion 停止行为。
+
+## v0.11.2: Accretion field rotation completion
+
+Released: 2026-08-25
+
+- **Restored the reference auto-cycle.** The three accretion topologies now transition smoothly every 10 seconds while keeping manual SHIFT FIELD control and stopping under reduced motion.
+
+---
+
 ## 0.11.1：沉浸式主题视觉修正
 
 发布日期 / Released: 2026-08-25
