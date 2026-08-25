@@ -5,6 +5,28 @@
 
 ---
 
+## 0.11.1：沉浸式主题视觉修正
+
+发布日期 / Released: 2026-08-25
+
+### 播放器主题
+
+- **对齐 Neural Cathedral 参考实现。** 恢复递归神经树、噪声球体、阶段脉冲、突触节点与 Bloom 光晕，修正替换后视觉结构偏离的问题。
+- **对齐奇点吸积盘参考实现。** 使用黑洞 rim aura、5000 个实例吸积条、Doppler 着色和三档镜头 / 吸积状态平滑过渡。
+- **修复主题布局回归。** Neural Cathedral 的 HUD、画布、歌曲信息和播放控制现在拥有独立的桌面、移动端与横屏布局规则。
+
+## v0.11.1: Immersive theme visual corrections
+
+Released: 2026-08-25
+
+### Player themes
+
+- **Aligned Neural Cathedral with the reference implementation.** Restored recursive neural branches, noisy soma shading, staged impulses, synapse nodes, and Bloom glow.
+- **Aligned the Singularity Disk with the reference implementation.** Uses the black-hole rim aura, 5,000 instanced accretion streaks, Doppler coloring, and smooth camera / field transitions.
+- **Fixed the theme layout regression.** Neural Cathedral now has dedicated desktop, mobile, and landscape rules for its HUD, canvas, metadata, and transport controls.
+
+---
+
 ## 0.11.0：沉浸式 Three.js 播放主题
 
 发布日期 / Released: 2026-08-25

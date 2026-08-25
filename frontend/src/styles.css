@@ -95,6 +95,125 @@
 @media (prefers-reduced-motion:reduce) {
   .singularity-field-button, .singularity-transport button { transition:none; }
 }
+
+/* Neural Cathedral replaces the former Audio Scope hero. Keep the canvas and
+   telemetry in one bounded stage so the global hero grid cannot flatten it. */
+.hero.neural-cathedral-hero {
+  display:block;
+  min-height:clamp(480px, calc(100dvh - var(--player-h) - 142px), 760px);
+  padding:0;
+  overflow:hidden;
+  border:1px solid rgba(0,240,255,.2);
+  background:#010204;
+  box-shadow:0 28px 90px rgba(0,0,0,.52), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.hero.neural-cathedral-hero::after { display:none; }
+.hero.neural-cathedral-hero > div:not(.neural-cathedral-player) { display:none; }
+.neural-cathedral-player {
+  position:relative;
+  min-height:inherit;
+  width:100%;
+  overflow:hidden;
+  isolation:isolate;
+  color:#fff;
+  background:#010204;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+.neural-cathedral-canvas,
+.neural-cathedral-overlay {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+}
+.neural-cathedral-canvas { z-index:0; touch-action:none; }
+.neural-cathedral-overlay {
+  z-index:1;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 50% 45%, transparent 34%, rgba(0,0,0,.2) 66%, rgba(0,0,0,.78) 100%),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 1px, transparent 1px 3px);
+  box-shadow:inset 0 0 100px rgba(0,0,0,.78);
+}
+.neural-cathedral-hud,
+.neural-cathedral-copy,
+.neural-cathedral-controls {
+  position:absolute;
+  z-index:2;
+}
+.neural-cathedral-hud {
+  top:clamp(18px,3vw,30px);
+  left:clamp(18px,3vw,30px);
+  width:min(250px,calc(100% - 36px));
+  display:grid;
+  gap:9px;
+  padding:15px;
+  border:1px solid rgba(255,255,255,.24);
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(255,255,255,.19),rgba(255,255,255,.055) 46%,rgba(0,240,255,.08));
+  box-shadow:0 18px 45px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.32),inset 0 -1px 0 rgba(255,255,255,.08);
+  backdrop-filter:blur(24px) saturate(165%);
+  -webkit-backdrop-filter:blur(24px) saturate(165%);
+  pointer-events:auto;
+}
+.neural-cathedral-hud-head { display:grid; gap:4px; padding-bottom:9px; margin-bottom:1px; border-bottom:1px solid rgba(255,255,255,.12); }
+.neural-cathedral-hud-head strong { color:#00f0ff; font:700 11px/1.2 "JetBrains Mono",ui-monospace,monospace; letter-spacing:.18em; text-shadow:0 0 10px rgba(0,240,255,.4); }
+.neural-cathedral-hud-head small { color:rgba(255,255,255,.44); font:8px/1.2 "JetBrains Mono",ui-monospace,monospace; letter-spacing:.08em; }
+.neural-cathedral-hud > div:not(.neural-cathedral-hud-head) { display:flex; align-items:baseline; justify-content:space-between; gap:12px; min-width:0; font:9px/1.2 "JetBrains Mono",ui-monospace,monospace; letter-spacing:.06em; }
+.neural-cathedral-hud > div:not(.neural-cathedral-hud-head) span { color:rgba(255,255,255,.54); }
+.neural-cathedral-hud b { color:#00f0ff; font-weight:650; text-align:right; text-shadow:0 0 8px rgba(0,240,255,.5); font-variant-numeric:tabular-nums; }
+.neural-cathedral-hud b.neural-value-active { color:#ffaa00; text-shadow:0 0 10px rgba(255,170,0,.6); }
+.neural-impulse { min-height:38px; margin-top:3px; padding:8px 10px; border:1px solid rgba(255,255,255,.24); border-radius:999px; color:#00f0ff; background:rgba(255,255,255,.09); font:700 9px/1 "JetBrains Mono",ui-monospace,monospace; letter-spacing:.14em; cursor:pointer; transition:transform .16s var(--ease-out),background-color .16s ease,box-shadow .16s ease,border-color .16s ease; }
+.neural-impulse:hover:not(:disabled) { transform:translateY(-1px); border-color:rgba(0,240,255,.55); background:rgba(0,240,255,.14); box-shadow:0 0 20px rgba(0,240,255,.3); }
+.neural-impulse:active:not(:disabled) { transform:scale(.97); }
+.neural-impulse:disabled { opacity:.42; cursor:not-allowed; }
+.neural-impulse:focus-visible,
+.neural-transport button:focus-visible,
+.neural-progress-row input:focus-visible { outline:2px solid #00f0ff; outline-offset:3px; }
+.neural-cathedral-copy { left:clamp(20px,4vw,64px); bottom:clamp(112px,15vh,164px); width:min(460px,calc(100% - 40px)); display:grid; gap:5px; pointer-events:none; text-shadow:0 4px 26px rgba(0,0,0,.9); }
+.neural-cathedral-copy span { color:#00f0ff; font:650 10px/1.2 "JetBrains Mono",ui-monospace,monospace; letter-spacing:.2em; }
+.neural-cathedral-copy strong { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#f4f8ff; font-size:clamp(32px,5vw,64px); font-weight:300; line-height:.94; letter-spacing:-.045em; }
+.neural-cathedral-copy small { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(220,235,255,.62); font-size:13px; }
+.neural-cathedral-controls { left:50%; bottom:22px; width:min(560px,calc(100% - 40px)); display:grid; gap:11px; transform:translateX(-50%); pointer-events:auto; }
+.neural-progress-row { display:grid; grid-template-columns:42px minmax(0,1fr) 42px; align-items:center; gap:10px; }
+.neural-progress-row time { color:rgba(255,255,255,.5); font:10px "JetBrains Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+.neural-progress-row time:last-child { text-align:right; }
+.neural-progress-row input { width:100%; min-height:26px; accent-color:#00f0ff; cursor:pointer; }
+.neural-transport { display:flex; align-items:center; justify-content:center; gap:8px; }
+.neural-transport button { width:44px; min-width:44px; min-height:44px; display:grid; place-items:center; border:1px solid transparent; border-radius:50%; color:rgba(255,255,255,.82); background:transparent; transition:transform .16s var(--ease-out),color .16s ease,background-color .16s ease; }
+.neural-transport button:hover:not(:disabled) { color:#00f0ff; background:rgba(255,255,255,.08); }
+.neural-transport button:active:not(:disabled) { transform:scale(.97); }
+.neural-transport button:disabled { opacity:.35; cursor:not-allowed; }
+.neural-transport .neural-play { width:56px; min-width:56px; min-height:56px; color:#001014; background:#00f0ff; box-shadow:0 0 25px rgba(0,240,255,.35); }
+.neural-transport .neural-play:hover:not(:disabled) { color:#001014; background:#fff; }
+@media (max-width:720px) {
+  .hero.neural-cathedral-hero { min-height:calc(100dvh - var(--player-h) - 126px); border-radius:24px; }
+  .neural-cathedral-hud { top:max(10px,var(--safe-top)); left:10px; width:min(220px,calc(100% - 20px)); padding:10px; border-radius:13px; gap:6px; }
+  .neural-cathedral-hud-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding-bottom:6px; }
+  .neural-cathedral-hud-head strong { font-size:9px; letter-spacing:.1em; }
+  .neural-cathedral-hud-head small { font-size:6px; text-align:right; }
+  .neural-cathedral-hud > div:not(.neural-cathedral-hud-head) { font-size:8px; }
+  .neural-impulse { min-height:34px; padding:7px 8px; font-size:8px; }
+  .neural-cathedral-copy { left:18px; bottom:126px; width:calc(100% - 36px); }
+  .neural-cathedral-copy strong { font-size:clamp(36px,12vw,58px); }
+  .neural-cathedral-controls { bottom:12px; width:calc(100% - 24px); }
+}
+@media (max-width:420px) {
+  .neural-cathedral-hud { display:grid; grid-template-columns:1fr 1fr; column-gap:10px; row-gap:5px; width:min(236px,calc(100% - 16px)); left:8px; padding:8px; }
+  .neural-cathedral-hud-head, .neural-impulse { grid-column:1 / -1; }
+  .neural-cathedral-hud-head { display:block; }
+  .neural-cathedral-hud-head small { display:none; }
+  .neural-cathedral-copy small { font-size:12px; }
+}
+@media (max-height:620px) and (orientation:landscape) {
+  .neural-cathedral-copy { bottom:82px; }
+  .neural-cathedral-copy small { display:none; }
+  .neural-cathedral-controls { left:auto; right:12px; bottom:12px; transform:none; width:min(360px,calc(100% - 300px)); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .neural-impulse, .neural-transport button { transition:none; }
+}
 .sr-only { position:absolute !important; width:1px !important; height:1px !important; min-width:1px !important; min-height:1px !important; margin:-1px !important; padding:0 !important; overflow:hidden !important; clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important; }
 html, body, .app-shell, .song-row, .library-summary-stat, .album-card, .artist-card, .playlist-card, .card, .nav, .sidebar, .player, .settings-page, .empty-state, .lyrics-empty, .lyrics-candidates, button, input, select, textarea {
   transition: background-color .32s var(--ease), color .32s var(--ease), border-color .32s var(--ease), box-shadow .32s var(--ease);

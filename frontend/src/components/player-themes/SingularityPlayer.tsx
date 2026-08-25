@@ -2,240 +2,58 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import type { PlayerThemePlayMode } from "./types";
 
-type SingularityPlayerProps = {
-  cover?: string;
-  playing: boolean;
-  progress?: number;
-  duration?: number;
-  title?: string;
-  artist?: string;
-  album?: string;
-  playMode?: PlayerThemePlayMode;
-  playModeLabel?: string;
-  onToggle?: () => void;
-  onPrevious?: () => void;
-  onNext?: () => void;
-  onCyclePlayMode?: () => void;
-  onSeek?: (seconds: number) => void;
-};
-
-type FieldMode = {
-  name: string;
-  topology: string;
-  color: string;
-  mass: string;
-  velocity: string;
-  compression: number;
-  turbulence: number;
-};
-
-const FIELD_MODES: FieldMode[] = [
-  { name: "Stable Singularity", topology: "NOMINAL", color: "#65e9ff", mass: "4.2M SOL", velocity: "0.45c", compression: 1, turbulence: 0.08 },
-  { name: "Accretion Turbulence", topology: "FLUCTUATING", color: "#ffb14a", mass: "8.7M SOL", velocity: "0.78c", compression: 1.1, turbulence: 0.65 },
-  { name: "Relativistic Collapse", topology: "CRITICAL", color: "#ff5478", mass: "12.1M SOL", velocity: "0.99c", compression: 0.58, turbulence: 0.22 },
+type Props = { cover?: string; playing: boolean; progress?: number; duration?: number; title?: string; artist?: string; album?: string; playMode?: PlayerThemePlayMode; playModeLabel?: string; onToggle?: () => void; onPrevious?: () => void; onNext?: () => void; onCyclePlayMode?: () => void; onSeek?: (seconds: number) => void };
+type Field = { title: string; status: string; color: string; mass: string; velocity: string; morph: number; compress: number; intensity: number; rotate: number; camY: number; camDist: number; orbit: number };
+const FIELDS: Field[] = [
+  { title: "Stable Singularity", status: "Topology: Nominal", color: "#00f3ff", mass: "4.2M SOL", velocity: "0.45c", morph: 0.1, compress: 1, intensity: 1, rotate: 0.4, camY: 25, camDist: 85, orbit: 1 },
+  { title: "Accretion Turbulence", status: "Topology: Fluctuating", color: "#ffaa00", mass: "8.7M SOL", velocity: "0.78c", morph: 4.5, compress: 1.15, intensity: 1.4, rotate: 1.5, camY: 45, camDist: 95, orbit: 1.8 },
+  { title: "Relativistic Collapse", status: "Topology: Critical", color: "#ff0044", mass: "12.1M SOL", velocity: "0.99c", morph: 0.8, compress: 0.38, intensity: 3.5, rotate: 5, camY: 12, camDist: 55, orbit: 4.5 },
 ];
 
-export function SingularityPlayer({
-  playing,
-  progress = 0,
-  duration = 0,
-  title = "Lark",
-  artist = "Unknown artist",
-  album = "Now Playing",
-  playMode = "sequence",
-  playModeLabel = "Play mode",
-  onToggle,
-  onPrevious,
-  onNext,
-  onCyclePlayMode,
-  onSeek,
-}: SingularityPlayerProps) {
+export function SingularityPlayer({ playing, progress = 0, duration = 0, title = "Lark", artist = "Unknown artist", album = "Now Playing", playMode = "sequence", playModeLabel = "Play mode", onToggle, onPrevious, onNext, onCyclePlayMode, onSeek }: Props) {
   const [fieldIndex, setFieldIndex] = useState(0);
-  const field = FIELD_MODES[fieldIndex];
+  const field = FIELDS[fieldIndex];
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
-  const style = {
-    "--singularity-accent": field.color,
-    "--singularity-progress": `${(pct * 100).toFixed(2)}%`,
-  } as CSSProperties;
   const playModeIcon = playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
-
-  return (
-    <div className="singularity-player" data-playing={playing ? "true" : "false"} data-field={fieldIndex} style={style}>
-      <SingularityCanvas playing={playing} turbulence={field.turbulence} compression={field.compression} />
-      <div className="singularity-vignette" aria-hidden="true" />
-      <div className="singularity-overlay">
-        <header className="singularity-header">
-          <span className="singularity-eyebrow">LARK / DEEP SPACE AUDIO</span>
-          <h2>{field.name}</h2>
-          <span className="singularity-status"><i aria-hidden="true" /> TOPOLOGY: {field.topology}</span>
-        </header>
-
-        <div className="singularity-now-playing">
-          <span className="singularity-kicker">NOW TRANSMITTING</span>
-          <strong title={title}>{title}</strong>
-          <span title={`${artist} · ${album}`}>{artist} <em aria-hidden="true">/</em> {album}</span>
-        </div>
-
-        <div className="singularity-hud">
-          <div className="singularity-metrics" aria-label="Singularity telemetry">
-            <span>MASS_INDEX <b>{field.mass}</b></span>
-            <span>LENSING <b>SCHWARZSCHILD</b></span>
-          </div>
-          <button type="button" className="singularity-field-button" onClick={() => setFieldIndex((value) => (value + 1) % FIELD_MODES.length)} aria-label="Change singularity field">
-            SHIFT FIELD <span aria-hidden="true">↗</span>
-          </button>
-          <div className="singularity-metrics singularity-metrics-right">
-            <span>RELATIVITY <b>{field.velocity}</b></span>
-            <span>RADIATION <b>DETECTION ON</b></span>
-          </div>
-        </div>
-
-        <div className="singularity-controls">
-          <div className="singularity-progress-row">
-            <span className="singularity-time">{formatTime(progress)}</span>
-            <input aria-label="Position" type="range" min="0" max={Math.max(0, duration || 0)} step="0.01" value={Math.min(progress, duration || progress || 0)} disabled={!duration || !onSeek} onChange={(event) => onSeek?.(Number(event.target.value))} />
-            <span className="singularity-time">{formatTime(duration)}</span>
-          </div>
-          <div className="singularity-transport">
-            <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
-            <button type="button" className="singularity-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
-            <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
-            <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>{playModeIcon}</button>
-          </div>
-        </div>
-      </div>
+  return <div className="singularity-player" data-playing={playing ? "true" : "false"} style={{ "--singularity-accent": field.color, "--singularity-progress": `${pct * 100}%` } as CSSProperties}>
+    <SingularityCanvas field={field} fieldIndex={fieldIndex} playing={playing} />
+    <div className="singularity-vignette" aria-hidden="true" />
+    <div className="singularity-overlay">
+      <header className="singularity-header"><span className="singularity-eyebrow">LARK / DEEP SPACE AUDIO</span><h2>{field.title}</h2><span className="singularity-status"><i aria-hidden="true" /> {field.status.toUpperCase()}</span></header>
+      <div className="singularity-now-playing"><span className="singularity-kicker">NOW TRANSMITTING</span><strong title={title}>{title}</strong><span title={`${artist} · ${album}`}>{artist} <em aria-hidden="true">/</em> {album}</span></div>
+      <div className="singularity-hud"><div className="singularity-metrics"><span>MASS_INDEX <b>{field.mass}</b></span><span>LENSING <b>SCHWARZSCHILD</b></span></div><button type="button" className="singularity-field-button" onClick={() => setFieldIndex((value) => (value + 1) % FIELDS.length)} aria-label="Change singularity field">SHIFT FIELD <span aria-hidden="true">↗</span></button><div className="singularity-metrics singularity-metrics-right"><span>RELATIVITY <b>{field.velocity}</b></span><span>RADIATION <b>DETECTION ON</b></span></div></div>
+      <div className="singularity-controls"><div className="singularity-progress-row"><span className="singularity-time">{formatTime(progress)}</span><input aria-label="Position" type="range" min="0" max={Math.max(0, duration)} step="0.01" value={Math.min(progress, duration || progress || 0)} disabled={!duration || !onSeek} onChange={(event) => onSeek?.(Number(event.target.value))} /><span className="singularity-time">{formatTime(duration)}</span></div><div className="singularity-transport"><button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button><button type="button" className="singularity-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button><button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button><button type="button" aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>{playModeIcon}</button></div></div>
     </div>
-  );
+  </div>;
 }
 
-function formatTime(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return "00:00";
-  const minutes = Math.floor(value / 60);
-  const seconds = Math.floor(value % 60);
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
+function formatTime(value: number) { if (!Number.isFinite(value) || value <= 0) return "00:00"; return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(Math.floor(value % 60)).padStart(2, "0")}`; }
 
-function SingularityCanvas({ playing, turbulence, compression }: { playing: boolean; turbulence: number; compression: number }) {
+function SingularityCanvas({ field, fieldIndex, playing }: { field: Field; fieldIndex: number; playing: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const sceneStateRef = useRef({ playing, turbulence, compression });
-
+  const stateRef = useRef({ field, fieldIndex, playing });
+  useEffect(() => { stateRef.current = { field, fieldIndex, playing }; }, [field, fieldIndex, playing]);
   useEffect(() => {
-    sceneStateRef.current = { playing, turbulence, compression };
-  }, [playing, turbulence, compression]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const host = canvas.parentElement;
-    if (!host) return;
+    const canvas = canvasRef.current; const host = canvas?.parentElement; if (!canvas || !host) return;
     let reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onMotionChange = (event: MediaQueryListEvent) => { reducedMotion = event.matches; };
-    motionQuery.addEventListener("change", onMotionChange);
-
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
-    renderer.setClearColor(0x000000, 0);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.35;
-    renderer.domElement.setAttribute("role", "img");
-    renderer.domElement.setAttribute("aria-label", "Animated accretion disk visualization");
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(37, 1, 0.1, 200);
-    camera.position.set(0, 27, 34);
-    camera.lookAt(0, 0, 0);
-    const world = new THREE.Group();
-    world.rotation.x = -0.14;
-    scene.add(world);
-
-    const core = new THREE.Mesh(new THREE.SphereGeometry(4.3, 48, 48), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-    world.add(core);
-    const photonRing = new THREE.Mesh(new THREE.TorusGeometry(5.4, 0.24, 10, 160), new THREE.MeshBasicMaterial({ color: 0xff812e, transparent: true, opacity: 0.82, blending: THREE.AdditiveBlending }));
-    photonRing.rotation.x = Math.PI / 2;
-    world.add(photonRing);
-    const outerRing = new THREE.Mesh(new THREE.TorusGeometry(11.5, 0.055, 6, 180), new THREE.MeshBasicMaterial({ color: 0x28c7ff, transparent: true, opacity: 0.48, blending: THREE.AdditiveBlending }));
-    outerRing.rotation.x = Math.PI / 2;
-    world.add(outerRing);
-
-    const count = 2600;
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-    const sizes = new Float32Array(count);
-    for (let index = 0; index < count; index += 1) {
-      const radius = 5.8 + Math.pow(Math.random(), 1.25) * 27;
-      const angle = Math.random() * Math.PI * 2;
-      const spread = (Math.random() - 0.5) * (0.24 + 3 / radius);
-      const offset = index * 3;
-      positions[offset] = Math.cos(angle) * radius;
-      positions[offset + 1] = spread;
-      positions[offset + 2] = Math.sin(angle) * radius;
-      const heat = 1 - Math.min(1, (radius - 5.8) / 27);
-      colors[offset] = 0.12 + heat * 0.88;
-      colors[offset + 1] = 0.3 + heat * 0.44;
-      colors[offset + 2] = 0.95 - heat * 0.82;
-      sizes[index] = 0.45 + Math.random() * (1.2 + heat * 1.5);
-    }
-    const diskGeometry = new THREE.BufferGeometry();
-    diskGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    diskGeometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    diskGeometry.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
-    const diskMaterial = new THREE.PointsMaterial({ size: 0.13, vertexColors: true, transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
-    const disk = new THREE.Points(diskGeometry, diskMaterial);
-    disk.rotation.x = Math.PI / 2;
-    world.add(disk);
-
-    const resize = () => {
-      const width = Math.max(1, host.clientWidth);
-      const height = Math.max(1, host.clientHeight);
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
-      camera.position.z = width < 620 ? 39 : 34;
-      camera.position.y = width < 620 ? 30 : 27;
-      camera.lookAt(0, 0, 0);
-      camera.updateProjectionMatrix();
-    };
-    resize();
-    const observer = new ResizeObserver(resize);
-    observer.observe(host);
-    const clock = new THREE.Clock();
-    let frame = 0;
-    const render = () => {
-      const time = clock.getElapsedTime();
-      if (!reducedMotion) {
-        const { playing: isPlaying, turbulence: fieldTurbulence } = sceneStateRef.current;
-        const speed = isPlaying ? 0.17 + fieldTurbulence * 0.38 : 0.035;
-        disk.rotation.z += speed * 0.012;
-        photonRing.rotation.z += speed * 0.02;
-        outerRing.rotation.z -= speed * 0.007;
-        world.rotation.y = Math.sin(time * 0.18) * 0.07;
-      }
-      const { playing: isPlaying, compression: fieldCompression } = sceneStateRef.current;
-      const pulse = reducedMotion ? 1 : 1 + Math.sin(time * (isPlaying ? 1.8 : 0.45)) * (isPlaying ? 0.035 : 0.012);
-      core.scale.setScalar(pulse);
-      disk.scale.set(fieldCompression, 1, fieldCompression);
-      renderer.render(scene, camera);
-      frame = requestAnimationFrame(render);
-    };
-    render();
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      motionQuery.removeEventListener("change", onMotionChange);
-      diskGeometry.dispose();
-      diskMaterial.dispose();
-      core.geometry.dispose();
-      (core.material as THREE.Material).dispose();
-      photonRing.geometry.dispose();
-      (photonRing.material as THREE.Material).dispose();
-      outerRing.geometry.dispose();
-      (outerRing.material as THREE.Material).dispose();
-      renderer.dispose();
-    };
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)"); const onMotionChange = (event: MediaQueryListEvent) => { reducedMotion = event.matches; }; motionQuery.addEventListener("change", onMotionChange);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" }); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setClearColor(0x010103, 0); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.6; renderer.domElement.setAttribute("role", "img"); renderer.domElement.setAttribute("aria-label", "Interactive accretion disk visualization");
+    const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1000); camera.position.set(60, 30, 60); const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.03; controls.autoRotate = !reducedMotion; controls.autoRotateSpeed = 0.4;
+    const coreGroup = new THREE.Group(); scene.add(coreGroup);
+    const blackHole = new THREE.Mesh(new THREE.SphereGeometry(4, 64, 64), new THREE.MeshBasicMaterial({ color: 0x000000 })); coreGroup.add(blackHole);
+    const aura = new THREE.ShaderMaterial({ uniforms: { uIntensity: { value: 1 } }, vertexShader: `varying vec3 vNormal; varying vec3 vView; void main(){vNormal=normalize(normalMatrix*normal);vView=normalize(-(modelViewMatrix*vec4(position,1.0)).xyz);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`, fragmentShader: `uniform float uIntensity; varying vec3 vNormal; varying vec3 vView; void main(){float rim=pow(1.0-max(dot(vNormal,vView),0.0),4.0);gl_FragColor=vec4(vec3(1.0,0.45,0.1)*rim*uIntensity*5.0,1.0);}`, side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending }); coreGroup.add(new THREE.Mesh(new THREE.SphereGeometry(4.25, 64, 64), aura));
+    const noise = `vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;} vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;} vec4 permute(vec4 x){return mod289(((x*34.0)+1.0)*x);} vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;} float snoise(vec3 v){const vec2 C=vec2(1.0/6.0,1.0/3.0);const vec4 D=vec4(0.0,0.5,1.0,2.0);vec3 i=floor(v+dot(v,C.yyy));vec3 x0=v-i+dot(i,C.xxx);vec3 g=step(x0.yzx,x0.xyz);vec3 l=1.0-g;vec3 i1=min(g.xyz,l.zxy);vec3 i2=max(g.xyz,l.zxy);vec3 x1=x0-i1+C.xxx;vec3 x2=x0-i2+C.yyy;vec3 x3=x0-D.yyy;i=mod289(i);vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));float n_=0.142857142857;vec3 ns=n_*D.wyz-D.xzx;vec4 j=p-49.0*floor(p*ns.z*ns.z);vec4 x_=floor(j*ns.z);vec4 y_=floor(j-7.0*x_);vec4 x=x_*ns.x+ns.yyyy;vec4 y=y_*ns.x+ns.yyyy;vec4 h=1.0-abs(x)-abs(y);vec4 b0=vec4(x.xy,y.xy);vec4 b1=vec4(x.zw,y.zw);vec4 s0=floor(b0)*2.0+1.0;vec4 s1=floor(b1)*2.0+1.0;vec4 sh=-step(h,vec4(0.0));vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy;vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;vec3 p0=vec3(a0.xy,h.x);vec3 p1=vec3(a0.zw,h.y);vec3 p2=vec3(a1.xy,h.z);vec3 p3=vec3(a1.zw,h.w);vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));p0*=norm.x;p1*=norm.y;p2*=norm.z;p3*=norm.w;vec4 m=max(0.6-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0);m*=m;return 42.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));}`;
+    const diskMaterial = new THREE.ShaderMaterial({ uniforms: { uTime: { value: 0 }, uMorph: { value: 0.1 }, uCompression: { value: 1 }, uIntensity: { value: 1 }, uOrbitScale: { value: 1 } }, vertexShader: `${noise} uniform float uTime;uniform float uMorph;uniform float uCompression;uniform float uIntensity;uniform float uOrbitScale;varying vec3 vColor;varying float vOpacity;void main(){vec4 instPos=instanceMatrix*vec4(0.0,0.0,0.0,1.0);float rOriginal=length(instPos.xz);float r=rOriginal*uCompression;float initialAngle=atan(instPos.z,instPos.x);float orbitalVelocity=(1.5/sqrt(rOriginal))*uOrbitScale;float currentAngle=initialAngle+uTime*orbitalVelocity;vec3 p=vec3(cos(currentAngle)*r,instPos.y,sin(currentAngle)*r);float n=snoise(vec3(p.x*0.08,p.z*0.08,uTime*0.3));p.y+=n*uMorph*4.0;vec3 viewDir=normalize(cameraPosition-p);vec3 orbitDir=normalize(vec3(-sin(currentAngle),0.0,cos(currentAngle)));float doppler=dot(orbitDir,viewDir);vec3 hot=vec3(1.0,0.95,0.9),warm=vec3(1.0,0.45,0.1),cool=vec3(0.1,0.35,1.0);vec3 c=mix(cool,warm,smoothstep(45.0,12.0,r));c=mix(c,hot,smoothstep(10.0,4.0,r));vColor=c*(1.3+doppler*0.7)*uIntensity;vOpacity=smoothstep(3.8,5.5,r)*(1.0-smoothstep(38.0,48.0,r))*0.8;float da=currentAngle-initialAngle;float co=cos(da),si=sin(da);mat3 rotY=mat3(co,0,si,0,1,0,-si,0,co);vec3 localPos=(instanceMatrix*vec4(position,0.0)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(p+rotY*localPos,1.0);}`, fragmentShader: `varying vec3 vColor;varying float vOpacity;void main(){gl_FragColor=vec4(vColor,vOpacity);}`, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    const streakGeometry = new THREE.CylinderGeometry(0.01, 0.12, 2.2, 3); streakGeometry.rotateX(Math.PI / 2); const disk = new THREE.InstancedMesh(streakGeometry, diskMaterial, 5000); const dummy = new THREE.Object3D(); for (let index = 0; index < 5000; index += 1) { const radius = 5 + Math.pow(Math.random(), 1.3) * 40; const angle = Math.random() * Math.PI * 2; dummy.position.set(Math.cos(angle) * radius, (Math.random() - 0.5) * (8 / radius), Math.sin(angle) * radius); dummy.lookAt(dummy.position.x + Math.sin(angle), dummy.position.y, dummy.position.z - Math.cos(angle)); dummy.updateMatrix(); disk.setMatrixAt(index, dummy.matrix); } disk.instanceMatrix.needsUpdate = true; scene.add(disk);
+    const targetRef = { field: stateRef.current.field, distance: FIELDS[0].camDist };
+    const resize = () => { const width = Math.max(1, host.clientWidth); const height = Math.max(1, host.clientHeight); renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix(); }; resize(); const observer = new ResizeObserver(resize); observer.observe(host);
+    const clock = new THREE.Clock(); let frame = 0; let previousIndex = stateRef.current.fieldIndex;
+    const render = () => { const delta = Math.min(clock.getDelta(), 0.04); const time = clock.elapsedTime; const state = stateRef.current; if (state.fieldIndex !== previousIndex) { previousIndex = state.fieldIndex; targetRef.field = state.field; } if (!reducedMotion) { diskMaterial.uniforms.uTime.value = time; disk.rotation.y += (state.playing ? 0.0009 : 0.00022) * (1 + targetRef.field.orbit * 0.4); coreGroup.rotation.y = Math.sin(time * 0.08) * 0.04; controls.autoRotate = true; } else controls.autoRotate = false; const current = diskMaterial.uniforms; const blend = 1 - Math.pow(0.0008, delta); current.uMorph.value += (targetRef.field.morph - current.uMorph.value) * blend; current.uCompression.value += (targetRef.field.compress - current.uCompression.value) * blend; current.uIntensity.value += (targetRef.field.intensity - current.uIntensity.value) * blend; current.uOrbitScale.value += (targetRef.field.orbit - current.uOrbitScale.value) * blend; aura.uniforms.uIntensity.value += (targetRef.field.intensity - aura.uniforms.uIntensity.value) * blend; const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize(); targetRef.distance += (targetRef.field.camDist - targetRef.distance) * blend; camera.position.x = controls.target.x + direction.x * targetRef.distance; camera.position.z = controls.target.z + direction.z * targetRef.distance; camera.position.y += (targetRef.field.camY - camera.position.y) * blend; controls.update(); renderer.render(scene, camera); frame = requestAnimationFrame(render); }; render();
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); motionQuery.removeEventListener("change", onMotionChange); controls.dispose(); streakGeometry.dispose(); diskMaterial.dispose(); disk.geometry.dispose(); (disk.material as THREE.Material).dispose(); blackHole.geometry.dispose(); (blackHole.material as THREE.Material).dispose(); coreGroup.children.forEach((child) => { if (child instanceof THREE.Mesh) child.geometry.dispose(); }); aura.dispose(); renderer.dispose(); };
   }, []);
-
-  return <canvas ref={canvasRef} className="singularity-canvas" role="img" aria-label="Animated accretion disk visualization" />;
+  return <canvas ref={canvasRef} className="singularity-canvas" role="img" aria-label="Interactive accretion disk visualization" />;
 }

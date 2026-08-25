@@ -6919,7 +6919,7 @@ function HomeView({
 
   return (
     <section className="home-view">
-      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : homePlayerStyle === "walkman" ? "hero walkman-hero" : homePlayerStyle === "singularity" ? "hero singularity-hero" : "hero"}>
+      <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : homePlayerStyle === "walkman" ? "hero walkman-hero" : homePlayerStyle === "singularity" ? "hero singularity-hero" : homePlayerStyle === "audio-scope" ? "hero neural-cathedral-hero" : "hero"}>
         {currentRadio ? (
           <RadioReceiver
             title={currentRadio.name || t("onlineRadio")}
