@@ -18,6 +18,9 @@ test("folder metadata correction previews before confirmed execution", () => {
   assert.match(component, /update_database/);
   assert.match(component, /role="dialog"/);
   assert.match(component, /useDialogLifecycle/);
+  assert.match(component, /await onDatabaseUpdated\(saved\)/);
+  assert.match(component, /initialField/);
+  assert.match(component, /folderMetadataDone/);
 });
 
 test("folder metadata correction exposes the supported fields and destinations", () => {
@@ -32,6 +35,11 @@ test("folder metadata correction exposes the supported fields and destinations",
 test("folder browser wires the admin-only correction action and localized API", () => {
   assert.match(app, /FolderMetadataCorrectionDialog/);
   assert.match(app, /userRole === "admin"/);
+  assert.match(app, /onMetadataCorrected=\{\(result, path\) => refreshMetadataAfterCorrection\(result, path\)\}/);
+  assert.match(app, /await api\.folderDirectory\(directory\.path\)/);
+  assert.match(app, /api\.folderSongs\(path, 0\)/);
+  assert.match(app, /directory\.breadcrumbs\.length >= 3 \? "album" : "artist"/);
+  assert.match(app, /directory\.breadcrumbs\.length > 1/);
   assert.match(api, /\/api\/folders\/metadata-correction\/preview/);
   assert.match(api, /\/api\/folders\/metadata-correction/);
   for (const key of ["folderMetadataCorrect", "folderMetadataPreview", "folderMetadataWriteFiles", "folderMetadataUpdateDatabase"]) {

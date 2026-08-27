@@ -10,25 +10,28 @@ import { readableErrorMessage } from "../utils/app";
 export function FolderMetadataCorrectionDialog({
   path,
   folderName,
+  initialField,
   t,
   onClose,
   onDatabaseUpdated,
 }: {
   path: string;
   folderName: string;
+  initialField: FolderMetadataField;
   t: ReturnType<typeof createT>;
   onClose: () => void;
-  onDatabaseUpdated: () => void;
+  onDatabaseUpdated: (result: FolderMetadataCorrectionResult) => void | Promise<void>;
 }) {
-  const [field, setField] = useState<FolderMetadataField>("artist");
+  const [field, setField] = useState<FolderMetadataField>(initialField);
   const [value, setValue] = useState(folderName);
   const [writeFiles, setWriteFiles] = useState(true);
   const [updateDatabase, setUpdateDatabase] = useState(true);
   const [preview, setPreview] = useState<FolderMetadataCorrectionPreview | null>(null);
   const [result, setResult] = useState<FolderMetadataCorrectionResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [busyStage, setBusyStage] = useState<"" | "preview" | "write" | "refresh">("");
   const [error, setError] = useState("");
   const dialogRef = useDialogLifecycle<HTMLFormElement>(onClose);
+  const loading = busyStage !== "";
 
   const invalidatePreview = () => {
     setPreview(null);
@@ -47,7 +50,7 @@ export function FolderMetadataCorrectionDialog({
   const loadPreview = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (invalid || loading) return;
-    setLoading(true);
+    setBusyStage("preview");
     setError("");
     setResult(null);
     try {
@@ -55,30 +58,39 @@ export function FolderMetadataCorrectionDialog({
     } catch (err) {
       setError(readableErrorMessage(err, t("folderMetadataPreviewFailed")));
     } finally {
-      setLoading(false);
+      setBusyStage("");
     }
   };
 
   const applyCorrection = async () => {
     if (!preview || invalid || loading) return;
-    setLoading(true);
+    setBusyStage("write");
     setError("");
+    let saved: FolderMetadataCorrectionResult;
     try {
-      const saved = await api.folderMetadataCorrection({
+      saved = await api.folderMetadataCorrection({
         ...input,
         confirm: true,
         expected_song_count: preview.song_count,
         expected_file_count: preview.file_count,
         expected_snapshot: preview.snapshot,
       });
-      setResult(saved);
-      setPreview(null);
-      if (saved.database_updated > 0) onDatabaseUpdated();
     } catch (err) {
       setError(readableErrorMessage(err, t("folderMetadataCorrectionFailed")));
-    } finally {
-      setLoading(false);
+      setBusyStage("");
+      return;
     }
+    if (saved.database_updated > 0) {
+      setBusyStage("refresh");
+      try {
+        await onDatabaseUpdated(saved);
+      } catch {
+        setError(t("folderMetadataRefreshFailed"));
+      }
+    }
+    setResult(saved);
+    setPreview(null);
+    setBusyStage("");
   };
 
   return createPortal(
@@ -102,6 +114,32 @@ export function FolderMetadataCorrectionDialog({
           </button>
         </div>
 
+        {result ? (
+          <div className="folder-metadata-completion">
+            <section className="folder-metadata-result" role="status" data-failed={result.failed > 0}>
+              {result.failed > 0 ? <WarningCircle weight="fill" aria-hidden="true" /> : <CheckCircle weight="fill" aria-hidden="true" />}
+              <span>
+                <strong>{t(result.failed > 0 ? "folderMetadataCorrectionPartial" : "folderMetadataCorrectionDone")}</strong>
+                <small>
+                  {t("folderMetadataResultSummary")
+                    .replace("{files}", String(result.file_updated))
+                    .replace("{database}", String(result.database_updated))
+                    .replace("{failed}", String(result.failed))}
+                </small>
+                {result.database_updated > 0 && !error ? <small>{t("folderMetadataLibraryRefreshed")}</small> : null}
+                {result.failed > 0 ? (
+                  <span className="folder-metadata-failures">
+                    {result.items.filter((item) => item.file_status === "failed" || item.database_status === "failed" || item.message).slice(0, 6).map((item) => (
+                      <em key={item.song_id}>{item.file_name}: {item.message || t("metadataStatusFailed")}</em>
+                    ))}
+                  </span>
+                ) : null}
+              </span>
+            </section>
+            {error ? <div className="metadata-error" role="alert">{error}</div> : null}
+          </div>
+        ) : (
+          <>
         <div className="folder-metadata-context">
           <FolderSimple weight="fill" aria-hidden="true" />
           <span>
@@ -210,40 +248,30 @@ export function FolderMetadataCorrectionDialog({
           </section>
         ) : null}
 
-        {result ? (
-          <section className="folder-metadata-result" role="status" data-failed={result.failed > 0}>
-            {result.failed > 0 ? <WarningCircle weight="fill" aria-hidden="true" /> : <CheckCircle weight="fill" aria-hidden="true" />}
-            <span>
-              <strong>{t(result.failed > 0 ? "folderMetadataCorrectionPartial" : "folderMetadataCorrectionDone")}</strong>
-              <small>
-                {t("folderMetadataResultSummary")
-                  .replace("{files}", String(result.file_updated))
-                  .replace("{database}", String(result.database_updated))
-                  .replace("{failed}", String(result.failed))}
-              </small>
-              {result.failed > 0 ? (
-                <span className="folder-metadata-failures">
-                  {result.items.filter((item) => item.file_status === "failed" || item.database_status === "failed" || item.message).slice(0, 6).map((item) => (
-                    <em key={item.song_id}>{item.file_name}: {item.message || t("metadataStatusFailed")}</em>
-                  ))}
-                </span>
-              ) : null}
-            </span>
-          </section>
-        ) : null}
+          </>
+        )}
 
         <div className="modal-actions folder-metadata-actions">
+          {result ? (
+            <>
+              {result.failed > 0 ? <button type="button" onClick={() => { setResult(null); setError(""); }}>{t("folderMetadataBackToEdit")}</button> : null}
+              <button className="primary" type="button" onClick={onClose}>{t("folderMetadataDone")}</button>
+            </>
+          ) : (
+            <>
           <button type="button" onClick={onClose} disabled={loading}>{t("close")}</button>
           {preview ? (
             <button className="primary" type="button" onClick={() => void applyCorrection()} disabled={(!writeFiles && !updateDatabase) || loading}>
               {loading ? <CircleNotch className="offline-cache-spinner" aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
-              {loading ? t("loading") : t("folderMetadataConfirmApply")}
+              {loading ? t(busyStage === "refresh" ? "folderMetadataRefreshing" : "folderMetadataWriting") : t("folderMetadataConfirmApply")}
             </button>
           ) : (
             <button className="primary" type="submit" disabled={(!writeFiles && !updateDatabase) || !value.trim() || loading}>
               {loading ? <CircleNotch className="offline-cache-spinner" aria-hidden="true" /> : null}
-              {loading ? t("loading") : t("folderMetadataPreview")}
+              {loading ? t("folderMetadataPreviewing") : t("folderMetadataPreview")}
             </button>
+          )}
+            </>
           )}
         </div>
       </form>

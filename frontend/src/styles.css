@@ -2352,6 +2352,7 @@ body, button, input, select { font-family: var(--app-font); }
 .folder-metadata-preview-list strong, .folder-metadata-preview-list span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .folder-metadata-preview-list span { color:var(--muted); }
 .folder-metadata-preview-list span:last-child { color:var(--text); }
+.folder-metadata-completion { min-height:180px; display:grid; align-content:center; gap:12px; padding:12px 0; }
 .folder-metadata-result { display:grid; grid-template-columns:24px minmax(0,1fr); gap:10px; align-items:start; padding:11px 12px; border:1px solid color-mix(in srgb, var(--accent) 34%, var(--line)); border-radius:14px; background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); }
 .folder-metadata-result > svg { width:22px; height:22px; color:var(--accent); }
 .folder-metadata-result[data-failed='true'] { border-color:color-mix(in srgb, var(--danger,#e05d52) 42%, var(--line)); background:color-mix(in srgb, var(--danger,#e05d52) 10%, var(--panel2)); }

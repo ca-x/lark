@@ -109,6 +109,7 @@ import type {
   DLNAStatus,
   Folder,
   FolderDirectory,
+  FolderMetadataCorrectionResult,
   HealthInfo,
   HomePlayerStyle,
   Language,
@@ -2820,6 +2821,56 @@ export default function App() {
     setRecentAddedSongs(recentAddedItems);
     setFolders(folderItems);
     setLibraryStats(libraryStatsItem);
+  }
+
+  async function refreshMetadataAfterCorrection(result: FolderMetadataCorrectionResult, path: string) {
+    if (offlineModeRef.current) throw new Error("library refresh is unavailable offline");
+    const albumQuery = { ...albumBrowseIntentRef.current };
+    const artistQuery = { ...artistBrowseIntentRef.current };
+    const affectedSongIDs = new Set(result.items.map((item) => item.song_id).filter((id) => id > 0));
+    const currentSong = currentRef.current;
+    const [
+      songPageItem,
+      recentPlayedItems,
+      recentAddedItems,
+      dailyItems,
+      folderItems,
+      libraryStatsItem,
+      albumPageItem,
+      artistPageItem,
+      favoriteAlbumItems,
+      favoriteArtistItems,
+      correctedFolderSongs,
+      refreshedCurrent,
+    ] = await Promise.all([
+      api.songsPage(query, libraryPage, libraryPageSize, false, { sort: librarySort, review: libraryReview }),
+      api.recentPlayedSongs(HOME_RECENT_LIMIT),
+      api.recentAddedSongs(HOME_RECENT_LIMIT),
+      api.dailyMix(24),
+      api.folders(STARTUP_FOLDER_LIMIT),
+      api.libraryStats(),
+      loadAlbumPage(albumQuery.page, albumQuery.artistID, albumQuery.favoritesOnly, albumQuery.artistName, albumQuery.limit),
+      loadArtistPage(artistQuery.page, artistQuery.initial, artistQuery.favoritesOnly, artistQuery.limit),
+      api.favoriteAlbums(FAVORITES_FETCH_LIMIT),
+      api.favoriteArtists(FAVORITES_FETCH_LIMIT),
+      api.folderSongs(path, 0),
+      currentSong && affectedSongIDs.has(currentSong.id) ? api.song(currentSong.id) : Promise.resolve(null),
+    ]);
+    if (!albumPageItem || !artistPageItem) throw new Error("metadata collection refresh was superseded");
+
+    setSongs(songPageItem.items);
+    setLibrarySongPage(songPageItem);
+    setRecentPlayedSongs(recentPlayedItems);
+    setRecentAddedSongs(recentAddedItems);
+    setDailyMix(dailyItems);
+    setFolders(folderItems);
+    setLibraryStats(libraryStatsItem);
+    setAlbums(albumPageItem.items);
+    setArtists(artistPageItem.items);
+    setFavoriteAlbums(favoriteAlbumItems);
+    setFavoriteArtists(favoriteArtistItems);
+    applyUpdatedSongs([...correctedFolderSongs, ...songPageItem.items, ...recentPlayedItems, ...recentAddedItems, ...dailyItems]);
+    if (refreshedCurrent) updateSongState(refreshedCurrent);
   }
 
   async function loadLibrarySongsPage(page: number, search = query, sort = librarySort, review = libraryReview) {
@@ -5747,6 +5798,7 @@ export default function App() {
                 reviewCount={libraryReviewSummary?.incomplete_songs}
                 onSortChange={(next) => void changeLibrarySort(next)}
                 onReviewToggle={() => void toggleLibraryReview()}
+                onMetadataCorrected={(result, path) => refreshMetadataAfterCorrection(result, path)}
                 onSongSearch={(value) => {
                   setQuery(value);
                   setLibraryPage(1);
@@ -8529,6 +8581,7 @@ function LibraryView({
   onPageChange,
   onSortChange,
   onReviewToggle,
+  onMetadataCorrected,
 }: {
   songs: Song[];
   folders: Folder[];
@@ -8571,6 +8624,7 @@ function LibraryView({
   onPageChange: (page: number) => void | Promise<void>;
   onSortChange: (sort: SongSort) => void;
   onReviewToggle: () => void;
+  onMetadataCorrected: (result: FolderMetadataCorrectionResult, path: string) => void | Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
   const [tab, setTabState] = useState<LibraryTab>(() => storedLibraryTab());
@@ -8763,6 +8817,7 @@ function LibraryView({
           onOpenArtist={onOpenArtist}
           onPlayFolder={onPlayFolder}
           canCorrectMetadata={userRole === "admin"}
+          onMetadataCorrected={onMetadataCorrected}
         />
       ) : pageLoading && activeTab === "songs" ? (
         <SkeletonSongList count={mobileBasic ? 6 : 8} />
@@ -9183,6 +9238,7 @@ function FolderBrowser({
   onOpenArtist,
   onPlayFolder,
   canCorrectMetadata,
+  onMetadataCorrected,
 }: {
   current: Song | null;
   t: ReturnType<typeof createT>;
@@ -9196,13 +9252,13 @@ function FolderBrowser({
   onOpenArtist: (song: Song) => void;
   onPlayFolder: (folder: Folder) => void;
   canCorrectMetadata: boolean;
+  onMetadataCorrected: (result: FolderMetadataCorrectionResult, path: string) => void | Promise<void>;
 }) {
   const [path, setPath] = useState(".");
   const [directory, setDirectory] = useState<FolderDirectory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [correctionOpen, setCorrectionOpen] = useState(false);
-  const [correctionRevision, setCorrectionRevision] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -9221,7 +9277,7 @@ function FolderBrowser({
     return () => {
       cancelled = true;
     };
-  }, [path, correctionRevision]);
+  }, [path]);
 
   const currentFolder: Folder | null = directory
     ? {
@@ -9232,6 +9288,7 @@ function FolderBrowser({
         cover_song_id: directory.cover_song_id,
       }
     : null;
+  const correctionAvailable = Boolean(currentFolder?.song_count && directory && directory.breadcrumbs.length > 1);
 
   const insertFolderNext = async (folder: Folder) => {
     const items = await api.folderSongs(folder.path, MAX_PLAYBACK_QUEUE_SIZE);
@@ -9280,7 +9337,7 @@ function FolderBrowser({
           </button>
           {canCorrectMetadata ? (
             <button
-              disabled={!currentFolder || !currentFolder.song_count}
+              disabled={!correctionAvailable}
               onClick={() => setCorrectionOpen(true)}
             >
               <PencilSimple aria-hidden="true" /> {t("folderMetadataCorrect")}
@@ -9367,9 +9424,14 @@ function FolderBrowser({
         <FolderMetadataCorrectionDialog
           path={directory.path}
           folderName={directory.name}
+          initialField={directory.breadcrumbs.length >= 3 ? "album" : "artist"}
           t={t}
           onClose={() => setCorrectionOpen(false)}
-          onDatabaseUpdated={() => setCorrectionRevision((value) => value + 1)}
+          onDatabaseUpdated={async (result) => {
+            await onMetadataCorrected(result, directory.path);
+            const refreshedDirectory = await api.folderDirectory(directory.path);
+            setDirectory(refreshedDirectory);
+          }}
         />
       ) : null}
     </section>

@@ -5,6 +5,22 @@
 
 ---
 
+## 0.11.5：目录校正结果即时同步
+
+发布日期 / Released: 2026-08-27
+
+- **修复校正成功后仍显示旧信息的问题。** 写入完成后会刷新歌曲、专辑、歌手、目录和首页数据，无需重新加载页面即可看到新信息。
+- **简化目录校正流程。** 歌手目录默认选择歌手字段，专辑目录默认选择专辑字段；曲库根目录不再允许直接批量校正，完成后改为独立结果页，并明确显示预览、写入和刷新进度。
+
+## v0.11.5: Immediate metadata-correction sync
+
+Released: 2026-08-27
+
+- **Fixed stale metadata after a successful correction.** Songs, albums, artists, folders, and home data now refresh after writeback, so updated information appears without reloading the page.
+- **Streamlined the folder-correction flow.** Artist and album folders choose a matching default field, root-level bulk correction is disabled, and a dedicated completion screen with clearer progress labels replaces the previous return to the edit form.
+
+---
+
 ## 0.11.4：按目录批量校正歌曲信息
 
 发布日期 / Released: 2026-08-27
