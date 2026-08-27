@@ -183,6 +183,18 @@ type libraryDirectoryUpdateRequest struct {
 	WatchEnabled bool `json:"watch_enabled"`
 }
 
+type folderMetadataCorrectionRequest struct {
+	Path              string `json:"path"`
+	Field             string `json:"field"`
+	Value             string `json:"value"`
+	WriteFiles        bool   `json:"write_files"`
+	UpdateDatabase    bool   `json:"update_database"`
+	Confirm           bool   `json:"confirm"`
+	ExpectedSongCount *int   `json:"expected_song_count"`
+	ExpectedFileCount *int   `json:"expected_file_count"`
+	ExpectedSnapshot  string `json:"expected_snapshot"`
+}
+
 type networkSourceRequest struct {
 	ID       string `json:"id"`
 	Provider string `json:"provider"`
@@ -412,6 +424,8 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/folders", s.handleFolders, auth)
 	e.GET("/api/folders/tree", s.handleFolderDirectory, auth)
 	e.GET("/api/folders/songs", s.handleFolderSongs, auth)
+	e.POST("/api/folders/metadata-correction/preview", s.handlePreviewFolderMetadataCorrection, admin)
+	e.POST("/api/folders/metadata-correction", s.handleFolderMetadataCorrection, admin)
 	e.GET("/api/fonts", s.handleWebFonts, admin)
 	e.POST("/api/fonts", s.handleUploadWebFont, admin)
 	e.DELETE("/api/fonts/:name", s.handleDeleteWebFont, admin)
@@ -1945,6 +1959,53 @@ func (s *Server) handleFolderSongs(c *echo.Context) error {
 		return mapError(err)
 	}
 	return c.JSON(http.StatusOK, items)
+}
+
+func (s *Server) handlePreviewFolderMetadataCorrection(c *echo.Context) error {
+	input, err := bindFolderMetadataCorrection(c)
+	if err != nil {
+		return err
+	}
+	result, err := s.lib.PreviewFolderMetadataCorrection(c.Request().Context(), currentUserID(c), input)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
+func (s *Server) handleFolderMetadataCorrection(c *echo.Context) error {
+	input, err := bindFolderMetadataCorrection(c)
+	if err != nil {
+		return err
+	}
+	result, err := s.lib.CorrectFolderMetadata(c.Request().Context(), currentUserID(c), input)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
+func bindFolderMetadataCorrection(c *echo.Context) (library.FolderMetadataCorrectionInput, error) {
+	c.Request().Body = http.MaxBytesReader(c.Response(), c.Request().Body, 16<<10)
+	var req folderMetadataCorrectionRequest
+	if err := c.Bind(&req); err != nil {
+		return library.FolderMetadataCorrectionInput{}, echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	field, err := library.ParseFolderMetadataField(req.Field)
+	if err != nil {
+		return library.FolderMetadataCorrectionInput{}, echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	return library.FolderMetadataCorrectionInput{
+		Path:              req.Path,
+		Field:             field,
+		Value:             req.Value,
+		WriteFiles:        req.WriteFiles,
+		UpdateDatabase:    req.UpdateDatabase,
+		Confirm:           req.Confirm,
+		ExpectedSongCount: req.ExpectedSongCount,
+		ExpectedFileCount: req.ExpectedFileCount,
+		ExpectedSnapshot:  req.ExpectedSnapshot,
+	}, nil
 }
 
 func (s *Server) handleAlbums(c *echo.Context) error {

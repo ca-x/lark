@@ -185,6 +185,7 @@ import { TerminalShell } from "./components/terminal/TerminalShell";
 import { AuthView } from "./components/AuthView";
 import { AddToPlaylistDialog, PlaylistDialog } from "./components/PlaylistDialogs";
 import { MetadataEditorDialog, type MetadataEditorTarget } from "./components/MetadataEditorDialog";
+import { FolderMetadataCorrectionDialog } from "./components/FolderMetadataCorrectionDialog";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import { useScrollRestore } from "./hooks/useScrollRestore";
 import { useKeyboardAware } from "./hooks/useKeyboardAware";
@@ -8761,6 +8762,7 @@ function LibraryView({
           onOpenAlbum={onOpenAlbum}
           onOpenArtist={onOpenArtist}
           onPlayFolder={onPlayFolder}
+          canCorrectMetadata={userRole === "admin"}
         />
       ) : pageLoading && activeTab === "songs" ? (
         <SkeletonSongList count={mobileBasic ? 6 : 8} />
@@ -9180,6 +9182,7 @@ function FolderBrowser({
   onOpenAlbum,
   onOpenArtist,
   onPlayFolder,
+  canCorrectMetadata,
 }: {
   current: Song | null;
   t: ReturnType<typeof createT>;
@@ -9192,11 +9195,14 @@ function FolderBrowser({
   onOpenAlbum: (song: Song) => void;
   onOpenArtist: (song: Song) => void;
   onPlayFolder: (folder: Folder) => void;
+  canCorrectMetadata: boolean;
 }) {
   const [path, setPath] = useState(".");
   const [directory, setDirectory] = useState<FolderDirectory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [correctionRevision, setCorrectionRevision] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -9215,7 +9221,7 @@ function FolderBrowser({
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, correctionRevision]);
 
   const currentFolder: Folder | null = directory
     ? {
@@ -9272,6 +9278,14 @@ function FolderBrowser({
           >
             <SkipForward /> {t("insertFolderNext")}
           </button>
+          {canCorrectMetadata ? (
+            <button
+              disabled={!currentFolder || !currentFolder.song_count}
+              onClick={() => setCorrectionOpen(true)}
+            >
+              <PencilSimple aria-hidden="true" /> {t("folderMetadataCorrect")}
+            </button>
+          ) : null}
         </div>
       </div>
       {loading ? <div className="collection-inline-status" role="status">{t("loadingContent")}</div> : null}
@@ -9348,6 +9362,15 @@ function FolderBrowser({
             )}
           </div>
         </>
+      ) : null}
+      {correctionOpen && directory ? (
+        <FolderMetadataCorrectionDialog
+          path={directory.path}
+          folderName={directory.name}
+          t={t}
+          onClose={() => setCorrectionOpen(false)}
+          onDatabaseUpdated={() => setCorrectionRevision((value) => value + 1)}
+        />
       ) : null}
     </section>
   );

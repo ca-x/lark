@@ -69,6 +69,38 @@ func TestWriteAudioMetadataUpdatesTagsAndCover(t *testing.T) {
 	}
 }
 
+func TestWriteAudioMetadataRejectsSilentReadOnlyFLACWrite(t *testing.T) {
+	audioPath := copyTaglibTestdata(t, "normal.flac")
+	if err := os.Chmod(audioPath, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	written, err := writeAudioMetadata(audioPath, map[string][]string{
+		taglib.Artist: {"陈粒"},
+	}, fileMetadata{}, nil, "")
+	if err == nil {
+		t.Fatalf("writeAudioMetadata reported success for unchanged read-only FLAC, written=%v", written)
+	}
+	tags, readErr := taglib.ReadTags(audioPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if got := firstTaglibValue(tags, taglib.Artist); got == "陈粒" {
+		t.Fatal("read-only FLAC unexpectedly changed")
+	}
+}
+
+func TestWriteAndVerifyAudioTagsRejectsSilentNoop(t *testing.T) {
+	audioPath := copyTaglibTestdata(t, "normal.flac")
+	err := writeAndVerifyAudioTags(audioPath, map[string][]string{
+		taglib.Artist: {"陈粒"},
+	}, func(string, map[string][]string, taglib.WriteOption) error {
+		return nil
+	})
+	if err == nil {
+		t.Fatal("silent no-op tag writer passed readback verification")
+	}
+}
+
 func TestWriteAudioMetadataMergesWAVInfoFields(t *testing.T) {
 	audioPath := filepath.Join(t.TempDir(), "merge.wav")
 	writeMinimalWAVFile(t, audioPath)

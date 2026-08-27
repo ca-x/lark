@@ -1,4 +1,4 @@
-import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, SongSort, SongReview, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, LibraryReviewSummary, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings, DLNADevice, DLNAStatus, Plugin, PluginCapability, PluginRegistry, PluginRegistryEntry } from '../types'
+import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, FolderMetadataCorrectionInput, FolderMetadataCorrectionPreview, FolderMetadataCorrectionResult, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, SongSort, SongReview, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, LibraryReviewSummary, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings, DLNADevice, DLNAStatus, Plugin, PluginCapability, PluginRegistry, PluginRegistryEntry } from '../types'
 
 function currentDeviceType() {
   if (typeof navigator === 'undefined') return 'pc'
@@ -158,6 +158,8 @@ export const api = {
   },
   folders: (limit = 0) => request<Folder[]>(`/api/folders?limit=${limit}`),
   folderDirectory: (path = '.') => request<FolderDirectory>(`/api/folders/tree?path=${encodeURIComponent(path)}`),
+  folderMetadataCorrectionPreview: (input: FolderMetadataCorrectionInput) => request<FolderMetadataCorrectionPreview>('/api/folders/metadata-correction/preview', { method: 'POST', body: JSON.stringify(input) }),
+  folderMetadataCorrection: (input: FolderMetadataCorrectionInput & { confirm: true; expected_song_count: number; expected_file_count: number; expected_snapshot: string }) => request<FolderMetadataCorrectionResult>('/api/folders/metadata-correction', { method: 'POST', body: JSON.stringify(input) }),
   folderSongs: (path: string, limit = 0) => {
     const params = new URLSearchParams({ path })
     if (limit > 0) params.set('limit', String(limit))

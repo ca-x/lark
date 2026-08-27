@@ -298,6 +298,42 @@ type FolderDirectory struct {
 	CoverSongID     int                `json:"cover_song_id"`
 }
 
+type FolderMetadataCorrectionPreviewItem struct {
+	SongID   int    `json:"song_id"`
+	FileName string `json:"file_name"`
+	Title    string `json:"title"`
+	Before   string `json:"before"`
+	After    string `json:"after"`
+}
+
+type FolderMetadataCorrectionPreview struct {
+	Field     string                                `json:"field"`
+	Value     string                                `json:"value"`
+	Snapshot  string                                `json:"snapshot"`
+	SongCount int                                   `json:"song_count"`
+	FileCount int                                   `json:"file_count"`
+	Items     []FolderMetadataCorrectionPreviewItem `json:"items"`
+}
+
+type FolderMetadataCorrectionItem struct {
+	SongID         int    `json:"song_id"`
+	FileName       string `json:"file_name"`
+	Title          string `json:"title"`
+	FileStatus     string `json:"file_status,omitempty"`
+	DatabaseStatus string `json:"database_status,omitempty"`
+	Message        string `json:"message,omitempty"`
+}
+
+type FolderMetadataCorrectionResult struct {
+	SongCount       int                            `json:"song_count"`
+	FileCount       int                            `json:"file_count"`
+	FileUpdated     int                            `json:"file_updated"`
+	DatabaseUpdated int                            `json:"database_updated"`
+	Skipped         int                            `json:"skipped"`
+	Failed          int                            `json:"failed"`
+	Items           []FolderMetadataCorrectionItem `json:"items"`
+}
+
 type Lyrics struct {
 	SongID  int    `json:"song_id"`
 	Source  string `json:"source"`

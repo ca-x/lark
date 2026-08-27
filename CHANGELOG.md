@@ -5,6 +5,26 @@
 
 ---
 
+## 0.11.4：按目录批量校正歌曲信息
+
+发布日期 / Released: 2026-08-27
+
+- **新增按目录校正。** 管理员可在真实目录浏览中递归选择歌曲，批量修改歌名、歌手、专辑、专辑艺人、流派、年份、语言、风格或音轨号，目标值默认使用当前目录名并允许编辑。
+- **文件与曲库可独立更新。** “写入音频文件”和“更新曲库数据库”可分别勾选，执行前会预览影响歌曲与文件，完成后分别显示写入、更新与失败数量。
+- **增强 FLAC Tag 写入可靠性。** 文件 Tag 写入后立即回读验证，验证失败时不会把对应数据库记录标记为已同步；专辑页原有批量写入也使用同一校验。
+- **完善移动端安全操作。** 校正弹窗在 375px 与横屏下保持可操作，避免底部播放器遮挡确认按钮，并显示失败文件和原因。
+
+## v0.11.4: Folder-based bulk metadata correction
+
+Released: 2026-08-27
+
+- **Added correction from real folders.** Administrators can recursively bulk-edit title, artist, album, album artist, genre, year, language, style, or track number, with the current folder name used as an editable default.
+- **Separated file and library destinations.** Audio-file tags and the library database can be selected independently, with an impact preview before execution and separate result counts afterward.
+- **Hardened FLAC tag writes.** Written tags are read back immediately; failed verification no longer allows the corresponding database row to appear synchronized. Existing album bulk writeback uses the same check.
+- **Kept the safety flow usable on mobile.** The dialog remains operable at 375px and in landscape, stays above the mini player, and exposes failed files with their reasons.
+
+---
+
 ## 0.11.3：播放器长标题可读性修正
 
 发布日期 / Released: 2026-08-26

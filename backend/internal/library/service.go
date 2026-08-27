@@ -98,7 +98,8 @@ type Service struct {
 	candidateNow  func() time.Time
 	// userVersionMu serializes bumpUserCacheVersion read-modify-write so concurrent
 	// favorite/playlist toggles don't lose a version bump.
-	userVersionMu sync.Mutex
+	userVersionMu   sync.Mutex
+	metadataWriteMu sync.RWMutex
 
 	// countCache holds materialized GROUP BY aggregates that change only on scan/import.
 	// Each entry is guarded by a mutex + timestamp so callers can read the cached map
@@ -531,7 +532,9 @@ func (s *Service) runLibraryWatcher(ctx context.Context, state *libraryWatcher) 
 			}
 			if event.Op&(fsnotify.Remove|fsnotify.Rename) != 0 {
 				cleanupCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+				s.metadataWriteMu.Lock()
 				_ = s.cleanupMissingLibraryEntries(cleanupCtx, []string{state.root.Path})
+				s.metadataWriteMu.Unlock()
 				cancel()
 				s.invalidateLibraryCache(context.Background())
 				s.invalidateSearchCatalogs(context.Background())
@@ -545,11 +548,11 @@ func (s *Service) importLibraryWatcherFile(ctx context.Context, path string) {
 	importCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	if isCUEFile(path) {
-		_, _ = s.importCUEFile(importCtx, path, true)
+		_, _ = s.ImportFile(importCtx, path)
 		return
 	}
 	if cuePath, ok := s.firstCueReferencingAudio(importCtx, path); ok {
-		_, _ = s.importCUEFile(importCtx, cuePath, true)
+		_, _ = s.ImportFile(importCtx, cuePath)
 		return
 	}
 	_, _ = s.ImportFile(importCtx, path)

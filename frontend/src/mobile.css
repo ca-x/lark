@@ -251,6 +251,14 @@
     min-width:0;
   }
   .metadata-editor-actions button { width:100%; justify-content:center; min-height:44px; }
+  .folder-metadata-dialog { width:100%; max-height:min(90dvh, 760px); overflow:auto; padding-bottom:calc(18px + var(--safe-bottom)); }
+  .folder-metadata-fields, .folder-metadata-destinations { grid-template-columns:1fr; }
+  .folder-metadata-destinations label { min-height:72px; }
+  .folder-metadata-preview-list { max-height:22dvh; padding-right:0; }
+  .folder-metadata-preview-list > div { grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:6px; }
+  .folder-metadata-preview-list strong { grid-column:1 / -1; }
+  .folder-metadata-actions { display:grid; grid-template-columns:1fr; }
+  .folder-metadata-actions button { width:100%; min-height:44px; }
   .metadata-write-confirm-layer {
     place-items:end stretch;
     padding:10px;

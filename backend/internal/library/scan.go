@@ -29,6 +29,8 @@ func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, erro
 		return models.ScanResult{Errors: []string{ErrScanRunning.Error()}}, ErrScanRunning
 	}
 	defer s.scanRunMu.Unlock()
+	s.metadataWriteMu.RLock()
+	defer s.metadataWriteMu.RUnlock()
 	started := time.Now()
 	roots, err := s.effectiveLibraryRoots(ctx, userID)
 	if err != nil {
@@ -210,6 +212,8 @@ func cloneScanStatus(status models.ScanStatus) models.ScanStatus {
 	return status
 }
 func (s *Service) ImportFile(ctx context.Context, path string) (bool, error) {
+	s.metadataWriteMu.RLock()
+	defer s.metadataWriteMu.RUnlock()
 	return s.importFile(ctx, path, true)
 }
 func (s *Service) importFile(ctx context.Context, path string, invalidate bool) (bool, error) {

@@ -2324,6 +2324,51 @@ body, button, input, select { font-family: var(--app-font); }
   justify-content:center;
   gap:8px;
 }
+.folder-metadata-dialog { width:min(680px, 100%); gap:14px; }
+.folder-metadata-dialog .modal-card-head button { min-width:44px; min-height:44px; padding:10px; }
+.folder-metadata-context { min-width:0; display:grid; grid-template-columns:40px minmax(0,1fr); gap:12px; align-items:center; padding:11px 12px; border:1px solid var(--line); border-radius:16px; background:var(--panel2); }
+.folder-metadata-context > svg { width:22px; height:22px; justify-self:center; color:var(--accent); }
+.folder-metadata-context span, .folder-metadata-context strong, .folder-metadata-context small { min-width:0; display:block; }
+.folder-metadata-context strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
+.folder-metadata-context small { margin-top:3px; color:var(--muted); line-height:1.45; }
+.folder-metadata-fields { display:grid; grid-template-columns:minmax(0, .8fr) minmax(0, 1.2fr); gap:12px; }
+.folder-metadata-fields label { min-width:0; }
+.folder-metadata-fields input, .folder-metadata-fields select { width:100%; min-width:0; min-height:44px; padding:10px 12px; border:1px solid var(--line); border-radius:14px; color:var(--text); background:var(--panel2); }
+.folder-metadata-warning { display:grid; grid-template-columns:20px minmax(0,1fr); gap:8px; align-items:start; padding:10px 12px; border:1px solid color-mix(in srgb, var(--warning,#d29321) 38%, var(--line)); border-radius:14px; color:var(--text); background:color-mix(in srgb, var(--warning,#d29321) 10%, var(--panel2)); }
+.folder-metadata-warning svg { width:18px; height:18px; margin-top:1px; color:var(--warning,#d29321); }
+.folder-metadata-warning span { font-size:13px; line-height:1.5; }
+.folder-metadata-destinations { min-width:0; margin:0; padding:0; border:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.folder-metadata-destinations legend { grid-column:1 / -1; margin-bottom:8px; padding:0; color:var(--muted); font-weight:800; }
+.folder-metadata-destinations label { min-width:0; min-height:70px; display:grid; grid-template-columns:20px 24px minmax(0,1fr); gap:10px; align-items:start; padding:12px; border:1px solid var(--line); border-radius:16px; color:var(--text); background:var(--panel2); cursor:pointer; transition:border-color 160ms cubic-bezier(.23,1,.32,1), background-color 160ms ease, transform 140ms cubic-bezier(.23,1,.32,1); }
+.folder-metadata-destinations label[data-selected='true'] { border-color:color-mix(in srgb, var(--accent) 52%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); }
+.folder-metadata-destinations label:active { transform:scale(.985); }
+.folder-metadata-destinations input { width:18px !important; height:18px; margin:2px 0 0; accent-color:var(--accent); }
+.folder-metadata-destinations label > svg { width:22px; height:22px; color:var(--accent); }
+.folder-metadata-destinations span, .folder-metadata-destinations strong, .folder-metadata-destinations small { min-width:0; display:block; }
+.folder-metadata-destinations small { margin-top:3px; color:var(--muted); line-height:1.4; }
+.folder-metadata-preview { min-width:0; display:grid; gap:9px; }
+.folder-metadata-preview-list { max-height:min(24dvh, 190px); overflow:auto; display:grid; gap:6px; padding-right:2px; }
+.folder-metadata-preview-list > div { min-width:0; display:grid; grid-template-columns:minmax(120px,1.1fr) minmax(80px,1fr) auto minmax(80px,1fr); gap:8px; align-items:center; padding:9px 10px; border:1px solid var(--line); border-radius:12px; background:var(--panel2); }
+.folder-metadata-preview-list strong, .folder-metadata-preview-list span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.folder-metadata-preview-list span { color:var(--muted); }
+.folder-metadata-preview-list span:last-child { color:var(--text); }
+.folder-metadata-result { display:grid; grid-template-columns:24px minmax(0,1fr); gap:10px; align-items:start; padding:11px 12px; border:1px solid color-mix(in srgb, var(--accent) 34%, var(--line)); border-radius:14px; background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); }
+.folder-metadata-result > svg { width:22px; height:22px; color:var(--accent); }
+.folder-metadata-result[data-failed='true'] { border-color:color-mix(in srgb, var(--danger,#e05d52) 42%, var(--line)); background:color-mix(in srgb, var(--danger,#e05d52) 10%, var(--panel2)); }
+.folder-metadata-result[data-failed='true'] > svg { color:var(--danger,#e05d52); }
+.folder-metadata-result span, .folder-metadata-result strong, .folder-metadata-result small { min-width:0; display:block; }
+.folder-metadata-result small { margin-top:3px; color:var(--muted); line-height:1.45; }
+.folder-metadata-failures { display:grid !important; gap:4px; margin-top:8px; }
+.folder-metadata-failures em { min-width:0; overflow:hidden; color:var(--text); text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-style:normal; }
+.folder-metadata-actions button { display:inline-flex; align-items:center; justify-content:center; gap:8px; transition:transform 140ms cubic-bezier(.23,1,.32,1), background-color 160ms ease, border-color 160ms ease; }
+.folder-metadata-actions button:not(:disabled):active { transform:scale(.97); }
+@media (hover:hover) and (pointer:fine) {
+  .folder-metadata-destinations label:hover { border-color:color-mix(in srgb, var(--accent) 42%, var(--line)); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .folder-metadata-destinations label, .folder-metadata-actions button { transition:color 120ms, background-color 120ms, border-color 120ms; }
+  .folder-metadata-destinations label:active, .folder-metadata-actions button:not(:disabled):active { transform:none; }
+}
 .metadata-write-confirm-layer {
   position:absolute;
   inset:0;

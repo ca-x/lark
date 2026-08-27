@@ -161,6 +161,50 @@ export interface FolderDirectory {
   duration_seconds: number;
   cover_song_id: number;
 }
+export type FolderMetadataField = "title" | "artist" | "album" | "album_artist" | "genre" | "year" | "language" | "style" | "track";
+export interface FolderMetadataCorrectionInput {
+  path: string;
+  field: FolderMetadataField;
+  value: string;
+  write_files: boolean;
+  update_database: boolean;
+  confirm?: boolean;
+  expected_song_count?: number;
+  expected_file_count?: number;
+  expected_snapshot?: string;
+}
+export interface FolderMetadataCorrectionPreviewItem {
+  song_id: number;
+  file_name: string;
+  title: string;
+  before: string;
+  after: string;
+}
+export interface FolderMetadataCorrectionPreview {
+  field: FolderMetadataField;
+  value: string;
+  snapshot: string;
+  song_count: number;
+  file_count: number;
+  items: FolderMetadataCorrectionPreviewItem[];
+}
+export interface FolderMetadataCorrectionItem {
+  song_id: number;
+  file_name: string;
+  title: string;
+  file_status?: string;
+  database_status?: string;
+  message?: string;
+}
+export interface FolderMetadataCorrectionResult {
+  song_count: number;
+  file_count: number;
+  file_updated: number;
+  database_updated: number;
+  skipped: number;
+  failed: number;
+  items: FolderMetadataCorrectionItem[];
+}
 export interface Lyrics {
   song_id: number;
   source: string;

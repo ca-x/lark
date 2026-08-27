@@ -283,6 +283,8 @@ func (s *Service) UpdateSongMetadata(ctx context.Context, userID, id int, input 
 	if !input.ConfirmWriteback {
 		return models.MetadataWritebackResult{}, errMetadataWritebackConfirmationRequired
 	}
+	s.metadataWriteMu.Lock()
+	defer s.metadataWriteMu.Unlock()
 	input = normalizeMetadataWritebackInput(input)
 	if input.Year < 0 || input.Year > 9999 {
 		return models.MetadataWritebackResult{}, fmt.Errorf("year must be between 0 and 9999")
@@ -397,6 +399,8 @@ func (s *Service) UpdateAlbumMetadata(ctx context.Context, userID, id int, input
 	if !input.ConfirmWriteback {
 		return models.MetadataWritebackResult{}, errMetadataWritebackConfirmationRequired
 	}
+	s.metadataWriteMu.Lock()
+	defer s.metadataWriteMu.Unlock()
 	input = normalizeMetadataWritebackInput(input)
 	if input.Year < 0 || input.Year > 9999 {
 		return models.MetadataWritebackResult{}, fmt.Errorf("year must be between 0 and 9999")
@@ -1032,7 +1036,7 @@ func writeAudioMetadata(path string, tags map[string][]string, wavPatch fileMeta
 			}
 			written = written || ok
 		} else {
-			if err := taglib.WriteTags(path, tags, 0); err != nil {
+			if err := writeAndVerifyAudioTags(path, tags, taglib.WriteTags); err != nil {
 				return false, err
 			}
 			written = true
@@ -1045,6 +1049,39 @@ func writeAudioMetadata(path string, tags map[string][]string, wavPatch fileMeta
 		written = true
 	}
 	return written, nil
+}
+
+type audioTagWriter func(string, map[string][]string, taglib.WriteOption) error
+
+func writeAndVerifyAudioTags(path string, tags map[string][]string, write audioTagWriter) error {
+	if err := write(path, tags, 0); err != nil {
+		return err
+	}
+	return verifyWrittenAudioTags(path, tags)
+}
+
+func verifyWrittenAudioTags(path string, expected map[string][]string) error {
+	actual, err := taglib.ReadTags(path)
+	if err != nil {
+		return fmt.Errorf("read back audio tags: %w", err)
+	}
+	for key, values := range expected {
+		if len(values) == 0 {
+			continue
+		}
+		want := strings.TrimSpace(values[0])
+		if want == "" {
+			continue
+		}
+		got := ""
+		if actualValues := actual[key]; len(actualValues) > 0 {
+			got = strings.TrimSpace(actualValues[0])
+		}
+		if got != want {
+			return fmt.Errorf("audio tag verification failed for %s", strings.ToLower(key))
+		}
+	}
+	return nil
 }
 
 func isWAVMetadataPath(path string) bool {
