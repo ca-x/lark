@@ -7,7 +7,8 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
+import { createAnimationActivity, type AnimationActivity } from "./animationActivity";
 
 type Props = {
   playing: boolean;
@@ -17,6 +18,9 @@ type Props = {
   artist?: string;
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
+  labels?: PlayerThemeLabels;
+  telemetryLabel?: string;
+  manualOverrideLabel?: string;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -24,30 +28,31 @@ type Props = {
   onSeek?: (seconds: number) => void;
 };
 
-export function NeuralCathedralPlayer({ playing, progress = 0, duration = 0, title = "Lark", artist = "Unknown artist", playMode = "sequence", playModeLabel = "Play mode", onToggle, onPrevious, onNext, onCyclePlayMode, onSeek }: Props) {
+export function NeuralCathedralPlayer({ playing, progress = 0, duration = 0, title = "Lark", artist = "Unknown artist", playMode = "sequence", playModeLabel = "Play mode", labels, telemetryLabel = "Player telemetry", manualOverrideLabel = "Manual override", onToggle, onPrevious, onNext, onCyclePlayMode, onSeek }: Props) {
   const [pulseNonce, setPulseNonce] = useState(0);
+  const text = resolvePlayerThemeLabels(labels);
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const playModeIcon = playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
   return (
     <div className="neural-cathedral-player" data-playing={playing ? "true" : "false"} style={{ "--neural-progress": `${(pct * 100).toFixed(2)}%` } as CSSProperties}>
       <NeuralCathedralCanvas playing={playing} pulseNonce={pulseNonce} />
       <span className="neural-cathedral-overlay" aria-hidden="true" />
-      <div className="neural-cathedral-hud neural-cathedral-hud-left" aria-label="Neural Cathedral telemetry">
+      <div className="neural-cathedral-hud neural-cathedral-hud-left" aria-label={telemetryLabel}>
         <div className="neural-cathedral-hud-head"><strong>NEURAL CATHEDRAL</strong><small>ID: NC-09 // BIOELECTRIC ENGINE</small></div>
         <div><span>MEMBRANE V</span><b>{playing ? "+40.0 mV" : "-70.0 mV"}</b></div>
         <div><span>DENDRITE STATE</span><b className={playing ? "neural-value-active" : ""}>{playing ? "ACTIVE LOAD" : "CALM"}</b></div>
         <div><span>AXON LOAD</span><b className={playing ? "neural-value-active" : ""}>{playing ? "98%" : "02%"}</b></div>
         <div><span>SIGNAL PHASE</span><b className={playing ? "neural-value-active" : ""}>{playing ? "OUTFLOW" : "RESTING"}</b></div>
         <div><span>SYNAPTIC COH</span><b>{playing ? "85%" : "24%"}</b></div>
-        <button type="button" className="neural-impulse" onClick={() => setPulseNonce((value) => value + 1)}>MANUAL OVERRIDE</button>
+        <button type="button" className="neural-impulse" aria-label={manualOverrideLabel} onClick={() => setPulseNonce((value) => value + 1)}>MANUAL OVERRIDE</button>
       </div>
       <div className="neural-cathedral-copy"><span>LIVE SIGNAL</span><strong title={title}>{title}</strong><small title={artist}>{artist}</small></div>
       <div className="neural-cathedral-controls">
-        <div className="neural-progress-row"><time>{formatTime(progress)}</time><input aria-label="Position" type="range" min="0" max={Math.max(0, duration || 0)} step="0.01" value={Math.min(progress, duration || progress || 0)} disabled={!duration || !onSeek} onChange={(event) => onSeek?.(Number(event.target.value))} /><time>{formatTime(duration)}</time></div>
+        <div className="neural-progress-row"><time>{formatTime(progress)}</time><input aria-label={text.position} type="range" min="0" max={Math.max(0, duration || 0)} step="0.01" value={Math.min(progress, duration || progress || 0)} disabled={!duration || !onSeek} onChange={(event) => onSeek?.(Number(event.target.value))} /><time>{formatTime(duration)}</time></div>
         <div className="neural-transport">
-          <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
-          <button type="button" className="neural-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
-          <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
+          <button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
+          <button type="button" className="neural-play" aria-label={playing ? text.pause : text.play} disabled={!onToggle} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
+          <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
           <button type="button" aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>{playModeIcon}</button>
         </div>
       </div>
@@ -68,17 +73,49 @@ function NeuralCathedralCanvas({ playing, pulseNonce }: { playing: boolean; puls
     const canvas = canvasRef.current;
     const host = canvas?.parentElement;
     if (!canvas || !host) return;
+    const markWebGLUnavailable = (error?: unknown) => {
+      canvas.setAttribute("data-webgl-unavailable", "true");
+      host.setAttribute("data-webgl-unavailable", "true");
+      if (error) console.warn("Neural Cathedral WebGL unavailable; using the static signal field.", error);
+      else console.warn("Neural Cathedral WebGL unavailable; using the static signal field.");
+    };
+    canvas.removeAttribute("data-webgl-unavailable");
+    host.removeAttribute("data-webgl-unavailable");
+    let activity: AnimationActivity | null = null;
     let reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onMotionChange = (event: MediaQueryListEvent) => { reduceMotion = event.matches; };
+    const onMotionChange = (event: MediaQueryListEvent) => { reduceMotion = event.matches; activity?.request(); };
     motionQuery.addEventListener("change", onMotionChange);
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: "high-performance" });
+    const contextAttributes: WebGLContextAttributes = {
+      alpha: true,
+      antialias: false,
+      powerPreference: "high-performance",
+    };
+    const context = canvas.getContext("webgl2", contextAttributes) || canvas.getContext("webgl", contextAttributes);
+    if (!context) {
+      markWebGLUnavailable();
+      motionQuery.removeEventListener("change", onMotionChange);
+      return;
+    }
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, context, ...contextAttributes });
+    } catch (error) {
+      markWebGLUnavailable(error);
+      motionQuery.removeEventListener("change", onMotionChange);
+      return;
+    }
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      activity?.dispose();
+      markWebGLUnavailable();
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.7));
     renderer.setClearColor(0x010204, 0);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
-    renderer.domElement.setAttribute("role", "img");
-    renderer.domElement.setAttribute("aria-label", "Animated neural network signal visualization");
+    renderer.domElement.setAttribute("aria-hidden", "true");
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x010204, 0.015);
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
@@ -158,22 +195,31 @@ function NeuralCathedralCanvas({ playing, pulseNonce }: { playing: boolean; puls
 
     const phase = { value: 0, progress: 0, active: false, lastPulse: stateRef.current.pulseNonce, elapsedSincePulse: 0 };
     const beginPulse = () => { phase.active = true; phase.value = 1; phase.progress = 0; };
-    const resize = () => { const width = Math.max(1, host.clientWidth); const height = Math.max(1, host.clientHeight); renderer.setSize(width, height, false); composer.setSize(width, height); camera.aspect = width / height; camera.fov = width < 720 ? 52 : 45; camera.updateProjectionMatrix(); };
+    const resize = () => { const width = Math.max(1, host.clientWidth); const height = Math.max(1, host.clientHeight); renderer.setSize(width, height, false); composer.setSize(width, height); camera.aspect = width / height; camera.fov = width < 720 ? 52 : 45; camera.updateProjectionMatrix(); activity?.request(); };
     resize(); const observer = new ResizeObserver(resize); observer.observe(host);
-    const clock = new THREE.Clock(); let frame = 0;
+    const clock = new THREE.Clock();
     const render = () => {
       const delta = Math.min(clock.getDelta(), 0.04); const elapsed = clock.elapsedTime; const current = stateRef.current;
-      if (current.pulseNonce !== phase.lastPulse) { phase.lastPulse = current.pulseNonce; beginPulse(); }
-      phase.elapsedSincePulse += delta;
-      if (current.playing && !phase.active && phase.elapsedSincePulse > 8) { phase.elapsedSincePulse = 0; beginPulse(); }
-      if (phase.active) { const speed = phase.value === 2 ? 2.5 : phase.value === 4 ? 0.5 : phase.value === 1 ? 0.8 : 0.95; phase.progress += delta * speed; if (phase.progress >= 1) { phase.progress = 0; phase.value += 1; if (phase.value === 2) camera.position.multiplyScalar(0.86); if (phase.value === 3) camera.position.multiplyScalar(1.18); if (phase.value > 4) { phase.value = 0; phase.active = false; } } }
-      uniforms.uTime.value = elapsed; uniforms.uPhase.value = phase.value; uniforms.uProgress.value = phase.progress;
+      if (reduceMotion) {
+        phase.active = false;
+        phase.value = 0;
+        phase.progress = 0;
+        phase.elapsedSincePulse = 0;
+        phase.lastPulse = current.pulseNonce;
+      } else {
+        if (current.pulseNonce !== phase.lastPulse) { phase.lastPulse = current.pulseNonce; beginPulse(); }
+        phase.elapsedSincePulse += delta;
+        if (current.playing && !phase.active && phase.elapsedSincePulse > 8) { phase.elapsedSincePulse = 0; beginPulse(); }
+        if (phase.active) { const speed = phase.value === 2 ? 2.5 : phase.value === 4 ? 0.5 : phase.value === 1 ? 0.8 : 0.95; phase.progress += delta * speed; if (phase.progress >= 1) { phase.progress = 0; phase.value += 1; if (phase.value === 2) camera.position.multiplyScalar(0.86); if (phase.value === 3) camera.position.multiplyScalar(1.18); if (phase.value > 4) { phase.value = 0; phase.active = false; } } }
+      }
+      uniforms.uTime.value = reduceMotion ? 0 : elapsed; uniforms.uPhase.value = phase.value; uniforms.uProgress.value = phase.progress;
       if (!reduceMotion) { network.rotation.y += (current.playing ? 0.028 : 0.006); network.rotation.x = Math.sin(elapsed * 0.12) * 0.025; dust.rotation.y = elapsed * 0.02; }
       controls.autoRotate = !reduceMotion; controls.update(); bloomPass.strength += ((phase.active ? 2.45 : 1.8) - bloomPass.strength) * 0.05; composer.render();
-      frame = requestAnimationFrame(render);
     };
-    render();
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); motionQuery.removeEventListener("change", onMotionChange); controls.dispose(); composer.dispose(); network.traverse((object) => { if (object instanceof THREE.Mesh || object instanceof THREE.Points) { object.geometry.dispose(); (object.material as THREE.Material).dispose(); } }); dustGeometry.dispose(); (dust.material as THREE.Material).dispose(); renderer.dispose(); };
+    activity = createAnimationActivity(host, render, () => !reduceMotion);
+    const requestControlRender = () => activity?.request();
+    controls.addEventListener("change", requestControlRender);
+    return () => { activity?.dispose(); observer.disconnect(); motionQuery.removeEventListener("change", onMotionChange); canvas.removeEventListener("webglcontextlost", onContextLost); controls.removeEventListener("change", requestControlRender); controls.dispose(); composer.dispose(); network.traverse((object) => { if (object instanceof THREE.Mesh || object instanceof THREE.Points) { object.geometry.dispose(); (object.material as THREE.Material).dispose(); } }); dustGeometry.dispose(); (dust.material as THREE.Material).dispose(); renderer.dispose(); };
   }, []);
-  return <canvas ref={canvasRef} className="neural-cathedral-canvas" role="img" aria-label="Animated neural network signal visualization" />;
+  return <canvas ref={canvasRef} className="neural-cathedral-canvas" aria-hidden="true" />;
 }

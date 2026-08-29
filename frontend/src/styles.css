@@ -1,5 +1,5 @@
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, ui-sans-serif, Inter, sans-serif;
   color: var(--text);
   background: var(--bg);
   color-scheme: dark;
@@ -2588,7 +2588,7 @@ body, button, input, select { font-family: var(--app-font); }
 .copy-token-button svg { flex:0 0 auto; }
 
 /* v0.2.2 user menu and uploaded site font */
-:root { --app-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', var(--font-cjk); }
+:root { --app-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, ui-sans-serif, Inter, Roboto, 'Helvetica Neue', Arial, var(--font-cjk); }
 body, button, input, select { font-family: var(--app-font); }
 :root[data-custom-font='true'] body,
 :root[data-custom-font='true'] button,
@@ -5952,7 +5952,7 @@ body, button, input, select { font-family: var(--app-font); }
 .eq-power svg, .eq-close svg { width:15px; height:15px; }
 .eq-presets { display:flex; gap:6px; padding:12px 18px; border-bottom:0.5px solid var(--line); overflow-x:auto; scrollbar-width:none; }
 .eq-presets::-webkit-scrollbar { display:none; }
-.eq-presets button { flex-shrink:0; padding:6px 12px; border-radius:20px; border:0.5px solid color-mix(in srgb, var(--text) 14%, var(--line)); background:transparent; cursor:pointer; font-size:12px; color:var(--muted); transition:all .15s; white-space:nowrap; }
+.eq-presets button { flex-shrink:0; padding:6px 12px; border-radius:20px; border:0.5px solid color-mix(in srgb, var(--text) 14%, var(--line)); background:transparent; cursor:pointer; font-size:12px; color:var(--muted); transition:color .15s ease, background-color .15s ease, border-color .15s ease, transform .15s var(--ease-out); white-space:nowrap; }
 .eq-presets button:hover:not(:disabled) { background:var(--panel2); color:var(--text); }
 .eq-presets button.active { background:color-mix(in srgb, var(--accent) 10%, var(--panel)); border-color:color-mix(in srgb, var(--accent) 70%, var(--line)); color:var(--accent); font-weight:800; }
 .eq-presets button:disabled { opacity:.46; cursor:not-allowed; }
@@ -5981,7 +5981,7 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .gain-display { display:flex; align-items:baseline; gap:4px; }
 .gain-num { font-size:20px; font-weight:760; color:var(--text); font-variant-numeric:tabular-nums; }
 .gain-unit, .gain-label { font-size:12px; color:var(--muted); }
-.reset-btn { padding:7px 14px; border:0.5px solid color-mix(in srgb, var(--text) 14%, var(--line)); border-radius:14px; background:transparent; cursor:pointer; font-size:12px; color:var(--muted); transition:all .15s; }
+.reset-btn { padding:7px 14px; border:0.5px solid color-mix(in srgb, var(--text) 14%, var(--line)); border-radius:14px; background:transparent; cursor:pointer; font-size:12px; color:var(--muted); transition:color .15s ease, background-color .15s ease, border-color .15s ease, transform .15s var(--ease-out); }
 .reset-btn:hover { background:var(--panel2); color:var(--text); }
 .reset-btn:active { transform:scale(.97); }
 
@@ -8215,8 +8215,8 @@ input[type='tel'], textarea {
   .feature-entry-button, .recent-tabs button,
   .collection-tabs button, .settings-tabs button,
   .segmented-control button):not(:disabled):active {
-  transform: scale(0.985);
-  transition-duration: 0.06s;
+  transform: scale(0.97);
+  transition-duration: 0.12s;
 }
 
 /* Underlines belong on hyperlinks, not on row titles or list metadata.

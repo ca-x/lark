@@ -9,5 +9,7 @@ test("settings search indexes only rendered permission-filtered controls", () =>
   assert.match(source, /onTabChange/);
   assert.match(source, /scrollIntoView/);
   assert.match(source, /\.focus\(/);
+  assert.match(source, /nativeEvent\.isComposing/);
+  assert.match(source, /tabIndex=\{-1\}/);
   assert.doesNotMatch(source, /adminEntry/);
 });

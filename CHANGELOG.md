@@ -5,6 +5,26 @@
 
 ---
 
+## 0.11.6：主题与播放器体验精修
+
+发布日期 / Released: 2026-08-29
+
+- **统一主题的阅读层级。** 21 套全局主题现在使用更稳定的文字、强调按钮与材质对比，系统字体也会优先匹配 macOS、Windows 和移动平台。
+- **完善桌面与移动布局。** 中等宽度和短屏桌面不再拆散首页标题或遮挡空状态操作，八种移动播放器在小屏与横屏下都保留完整控件和足够的触控区域。
+- **增强沉浸式播放器兼容性。** Neural Cathedral 和奇点吸积盘在设备无法创建 3D 画面时会显示静态主题场与完整播放控件，不再退出整个界面。
+- **补齐交互与无障碍细节。** 登录页新增密码显示与提交反馈，设置导航和搜索支持完整键盘操作，主题播放器控制也会跟随界面语言并尊重减弱动态效果偏好。
+
+## v0.11.6: Theme and player experience refinement
+
+Released: 2026-08-29
+
+- **Unified readability across themes.** All 21 global themes now use more consistent text, accent-control, and material contrast, with platform-native fonts preferred on macOS, Windows, and mobile.
+- **Improved desktop and mobile layouts.** Medium-width and short desktop screens keep titles and empty-state actions visible, while all eight mobile players retain complete controls and comfortable touch targets on small and landscape screens.
+- **Hardened immersive-player compatibility.** Neural Cathedral and Singularity Disk now preserve their full controls and show a static themed field when a device cannot create the 3D scene instead of taking down the interface.
+- **Completed interaction and accessibility details.** Authentication adds password visibility and pending feedback, settings navigation and search support full keyboard use, and themed player controls follow the selected language and reduced-motion preference.
+
+---
+
 ## 0.11.5：目录校正结果即时同步
 
 发布日期 / Released: 2026-08-27

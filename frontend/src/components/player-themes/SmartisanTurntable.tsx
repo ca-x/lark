@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 import { useDiscScratchSeek } from "./useDiscScratchSeek";
@@ -15,6 +15,7 @@ export function SmartisanTurntable({
   artist = "Sonora",
   playMode = "sequence",
   playModeLabel = "Play mode",
+  labels,
   onToggle,
   onPrevious,
   onNext,
@@ -29,12 +30,14 @@ export function SmartisanTurntable({
   artist?: string;
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
+  labels?: PlayerThemeLabels;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
+  const text = resolvePlayerThemeLabels(labels);
   const scratchSeek = useDiscScratchSeek({ duration, progress, onSeek });
   const displayProgress = scratchSeek.progress;
   const pct = scratchSeek.pct;
@@ -65,7 +68,7 @@ export function SmartisanTurntable({
           className="smartisan-turntable-record"
           data-has-cover={coverState.hasCover ? "true" : "false"}
           data-fallback-label={fallbackLabel}
-          aria-label={playing ? "Pause" : "Play"}
+          aria-label={playing ? text.pause : text.play}
           disabled={!onToggle && !onSeek}
           onClick={onToggle}
           {...scratchSeek.scratchProps}
@@ -96,7 +99,7 @@ export function SmartisanTurntable({
         <div className="smartisan-turntable-progress">
           <span className="smartisan-turntable-progress-track" aria-hidden="true"><span /></span>
           <input
-            aria-label="Position"
+            aria-label={text.position}
             type="range"
             min="0"
             max={Math.max(0, duration || 0)}
@@ -110,11 +113,11 @@ export function SmartisanTurntable({
       </div>
 
       <div className="smartisan-turntable-controls">
-        <button type="button" data-control="previous" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
-        <button type="button" data-control={playing ? "pause" : "play"} className="smartisan-turntable-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>
+        <button type="button" data-control="previous" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
+        <button type="button" data-control={playing ? "pause" : "play"} className="smartisan-turntable-play" aria-label={playing ? text.pause : text.play} disabled={!onToggle} onClick={onToggle}>
           {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
         </button>
-        <button type="button" data-control="next" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
+        <button type="button" data-control="next" aria-label={text.next} disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
         <button type="button" data-control="mode" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>
           {playModeIcon}
         </button>

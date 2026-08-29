@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
@@ -16,6 +16,7 @@ export function AlbumSlidePlayer({
   album = "Now Playing",
   playMode = "sequence",
   playModeLabel = "Play mode",
+  labels,
   onToggle,
   onPrevious,
   onNext,
@@ -32,12 +33,14 @@ export function AlbumSlidePlayer({
   album?: string;
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
+  labels?: PlayerThemeLabels;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
+  const text = resolvePlayerThemeLabels(labels);
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
@@ -83,7 +86,7 @@ export function AlbumSlidePlayer({
             <div className="album-slide-progress">
               <span className="album-slide-progress-track" aria-hidden="true"><span /></span>
               <input
-                aria-label="Position"
+                aria-label={text.position}
                 type="range"
                 min="0"
                 max={Math.max(0, duration || 0)}
@@ -95,11 +98,11 @@ export function AlbumSlidePlayer({
             </div>
 
             <div className="album-slide-controls">
-              <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
-              <button type="button" className="album-slide-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>
+              <button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
+              <button type="button" className="album-slide-play" aria-label={playing ? text.pause : text.play} disabled={!onToggle} onClick={onToggle}>
                 {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
               </button>
-              <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
+              <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
               <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>
                 {playModeIcon}
               </button>

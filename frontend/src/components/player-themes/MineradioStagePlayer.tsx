@@ -4,7 +4,7 @@ import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from 
 import * as THREE from "three";
 
 import type { Playlist } from "../../types";
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { CelestialTransmutationLayer } from "./CelestialTransmutationLayer";
 import { useCoverFallback } from "./useCoverFallback";
@@ -19,6 +19,7 @@ type MineradioStagePlayerProps = {
   album?: string;
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
+  labels?: PlayerThemeLabels;
   immersiveStage?: boolean;
   activeLyricText?: string;
   audioElement?: HTMLAudioElement | null;
@@ -86,6 +87,7 @@ export function MineradioStagePlayer({
   album = "Now Playing",
   playMode = "sequence",
   playModeLabel = "Play mode",
+  labels,
   immersiveStage = false,
   activeLyricText = "",
   audioElement = null,
@@ -97,6 +99,7 @@ export function MineradioStagePlayer({
   onSeek,
   onOpenPlaylist,
 }: MineradioStagePlayerProps) {
+  const text = resolvePlayerThemeLabels(labels);
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
@@ -283,7 +286,7 @@ export function MineradioStagePlayer({
         </span>
         <span className="mineradio-stage-splash-line" aria-hidden="true" />
         <span className="mineradio-stage-splash-sub">Private visual radio</span>
-        <span className="mineradio-stage-splash-enter">点击进入</span>
+        <span className="mineradio-stage-splash-enter">{text.enter}</span>
       </button>
 
       <div className="mineradio-stage-title">
@@ -301,7 +304,7 @@ export function MineradioStagePlayer({
           type="button"
           className="mineradio-stage-art"
           data-has-cover={coverState.hasCover ? "true" : "false"}
-          aria-label={playing ? "Pause" : "Play"}
+          aria-label={playing ? text.pause : text.play}
           disabled={!onToggle}
           onClick={(event) => {
             if (coverDragMovedRef.current) {
@@ -372,7 +375,7 @@ export function MineradioStagePlayer({
             <div className="mineradio-stage-progress-rail">
               <span aria-hidden="true"><i /></span>
               <input
-                aria-label="Position"
+                aria-label={text.position}
                 type="range"
                 min="0"
                 max={Math.max(0, duration || 0)}
@@ -386,11 +389,11 @@ export function MineradioStagePlayer({
           </div>
 
           <div className="mineradio-stage-controls">
-            <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
-            <button type="button" className="mineradio-stage-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>
+            <button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
+            <button type="button" className="mineradio-stage-play" aria-label={playing ? text.pause : text.play} disabled={!onToggle} onClick={onToggle}>
               {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
             </button>
-            <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
+            <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
             <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>
               {playModeIcon}
             </button>

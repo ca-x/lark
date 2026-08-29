@@ -4,9 +4,10 @@ import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
+import { createAnimationActivity, type AnimationActivity } from "./animationActivity";
 
-type Props = { cover?: string; playing: boolean; progress?: number; duration?: number; title?: string; artist?: string; album?: string; playMode?: PlayerThemePlayMode; playModeLabel?: string; onToggle?: () => void; onPrevious?: () => void; onNext?: () => void; onCyclePlayMode?: () => void; onSeek?: (seconds: number) => void };
+type Props = { cover?: string; playing: boolean; progress?: number; duration?: number; title?: string; artist?: string; album?: string; playMode?: PlayerThemePlayMode; playModeLabel?: string; labels?: PlayerThemeLabels; changeFieldLabel?: string; onToggle?: () => void; onPrevious?: () => void; onNext?: () => void; onCyclePlayMode?: () => void; onSeek?: (seconds: number) => void };
 type Field = { title: string; status: string; color: string; mass: string; velocity: string; morph: number; compress: number; intensity: number; rotate: number; camY: number; camDist: number; orbit: number };
 const FIELDS: Field[] = [
   { title: "Stable Singularity", status: "Topology: Nominal", color: "#00f3ff", mass: "4.2M SOL", velocity: "0.45c", morph: 0.1, compress: 1, intensity: 1, rotate: 0.4, camY: 25, camDist: 85, orbit: 1 },
@@ -14,8 +15,9 @@ const FIELDS: Field[] = [
   { title: "Relativistic Collapse", status: "Topology: Critical", color: "#ff0044", mass: "12.1M SOL", velocity: "0.99c", morph: 0.8, compress: 0.38, intensity: 3.5, rotate: 5, camY: 12, camDist: 55, orbit: 4.5 },
 ];
 
-export function SingularityPlayer({ playing, progress = 0, duration = 0, title = "Lark", artist = "Unknown artist", album = "Now Playing", playMode = "sequence", playModeLabel = "Play mode", onToggle, onPrevious, onNext, onCyclePlayMode, onSeek }: Props) {
+export function SingularityPlayer({ playing, progress = 0, duration = 0, title = "Lark", artist = "Unknown artist", album = "Now Playing", playMode = "sequence", playModeLabel = "Play mode", labels, changeFieldLabel = "Change visual field", onToggle, onPrevious, onNext, onCyclePlayMode, onSeek }: Props) {
   const [fieldIndex, setFieldIndex] = useState(0);
+  const text = resolvePlayerThemeLabels(labels);
   const field = FIELDS[fieldIndex];
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const playModeIcon = playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
@@ -25,8 +27,8 @@ export function SingularityPlayer({ playing, progress = 0, duration = 0, title =
     <div className="singularity-overlay">
       <header className="singularity-header"><span className="singularity-eyebrow">LARK / DEEP SPACE AUDIO</span><h2>{field.title}</h2><span className="singularity-status"><i aria-hidden="true" /> {field.status.toUpperCase()}</span></header>
       <div className="singularity-now-playing"><span className="singularity-kicker">NOW TRANSMITTING</span><strong title={title}>{title}</strong><span title={`${artist} · ${album}`}>{artist} <em aria-hidden="true">/</em> {album}</span></div>
-      <div className="singularity-hud"><div className="singularity-metrics"><span>MASS_INDEX <b>{field.mass}</b></span><span>LENSING <b>SCHWARZSCHILD</b></span></div><button type="button" className="singularity-field-button" onClick={() => setFieldIndex((value) => (value + 1) % FIELDS.length)} aria-label="Change singularity field">SHIFT FIELD <span aria-hidden="true">↗</span></button><div className="singularity-metrics singularity-metrics-right"><span>RELATIVITY <b>{field.velocity}</b></span><span>RADIATION <b>DETECTION ON</b></span></div></div>
-      <div className="singularity-controls"><div className="singularity-progress-row"><span className="singularity-time">{formatTime(progress)}</span><input aria-label="Position" type="range" min="0" max={Math.max(0, duration)} step="0.01" value={Math.min(progress, duration || progress || 0)} disabled={!duration || !onSeek} onChange={(event) => onSeek?.(Number(event.target.value))} /><span className="singularity-time">{formatTime(duration)}</span></div><div className="singularity-transport"><button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button><button type="button" className="singularity-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button><button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button><button type="button" aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>{playModeIcon}</button></div></div>
+      <div className="singularity-hud"><div className="singularity-metrics"><span>MASS_INDEX <b>{field.mass}</b></span><span>LENSING <b>SCHWARZSCHILD</b></span></div><button type="button" className="singularity-field-button" onClick={() => setFieldIndex((value) => (value + 1) % FIELDS.length)} aria-label={changeFieldLabel}>SHIFT FIELD <span aria-hidden="true">↗</span></button><div className="singularity-metrics singularity-metrics-right"><span>RELATIVITY <b>{field.velocity}</b></span><span>RADIATION <b>DETECTION ON</b></span></div></div>
+      <div className="singularity-controls"><div className="singularity-progress-row"><span className="singularity-time">{formatTime(progress)}</span><input aria-label={text.position} type="range" min="0" max={Math.max(0, duration)} step="0.01" value={Math.min(progress, duration || progress || 0)} disabled={!duration || !onSeek} onChange={(event) => onSeek?.(Number(event.target.value))} /><span className="singularity-time">{formatTime(duration)}</span></div><div className="singularity-transport"><button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button><button type="button" className="singularity-play" aria-label={playing ? text.pause : text.play} disabled={!onToggle} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button><button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button><button type="button" aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>{playModeIcon}</button></div></div>
     </div>
   </div>;
 }
@@ -36,12 +38,33 @@ function formatTime(value: number) { if (!Number.isFinite(value) || value <= 0) 
 function SingularityCanvas({ field, fieldIndex, playing, onAutoCycle }: { field: Field; fieldIndex: number; playing: boolean; onAutoCycle: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef({ field, fieldIndex, playing, onAutoCycle });
-  useEffect(() => { stateRef.current = { field, fieldIndex, playing, onAutoCycle }; }, [field, fieldIndex, playing, onAutoCycle]);
+  const requestRenderRef = useRef<() => void>(() => undefined);
+  useEffect(() => { stateRef.current = { field, fieldIndex, playing, onAutoCycle }; requestRenderRef.current(); }, [field, fieldIndex, playing, onAutoCycle]);
   useEffect(() => {
     const canvas = canvasRef.current; const host = canvas?.parentElement; if (!canvas || !host) return;
+    const markWebGLUnavailable = (error?: unknown) => {
+      canvas.setAttribute("data-webgl-unavailable", "true");
+      host.setAttribute("data-webgl-unavailable", "true");
+      if (error) console.warn("Singularity WebGL unavailable; using the static accretion field.", error);
+      else console.warn("Singularity WebGL unavailable; using the static accretion field.");
+    };
+    canvas.removeAttribute("data-webgl-unavailable"); host.removeAttribute("data-webgl-unavailable");
+    let activity: AnimationActivity | null = null;
     let reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)"); const onMotionChange = (event: MediaQueryListEvent) => { reducedMotion = event.matches; }; motionQuery.addEventListener("change", onMotionChange);
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" }); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setClearColor(0x010103, 0); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.6; renderer.domElement.setAttribute("role", "img"); renderer.domElement.setAttribute("aria-label", "Interactive accretion disk visualization");
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)"); const onMotionChange = (event: MediaQueryListEvent) => { reducedMotion = event.matches; activity?.request(); }; motionQuery.addEventListener("change", onMotionChange);
+    const contextAttributes: WebGLContextAttributes = { alpha: true, antialias: true, powerPreference: "high-performance" };
+    const context = canvas.getContext("webgl2", contextAttributes) || canvas.getContext("webgl", contextAttributes);
+    if (!context) { markWebGLUnavailable(); motionQuery.removeEventListener("change", onMotionChange); return; }
+    let renderer: THREE.WebGLRenderer;
+    try { renderer = new THREE.WebGLRenderer({ canvas, context, ...contextAttributes }); }
+    catch (error) { markWebGLUnavailable(error); motionQuery.removeEventListener("change", onMotionChange); return; }
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      activity?.dispose();
+      markWebGLUnavailable();
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setClearColor(0x010103, 0); renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.6; renderer.domElement.setAttribute("aria-hidden", "true");
     const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1000); camera.position.set(60, 30, 60); const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = 0.03; controls.autoRotate = !reducedMotion; controls.autoRotateSpeed = 0.4;
     const coreGroup = new THREE.Group(); scene.add(coreGroup);
     const blackHole = new THREE.Mesh(new THREE.SphereGeometry(4, 64, 64), new THREE.MeshBasicMaterial({ color: 0x000000 })); coreGroup.add(blackHole);
@@ -50,10 +73,50 @@ function SingularityCanvas({ field, fieldIndex, playing, onAutoCycle }: { field:
     const diskMaterial = new THREE.ShaderMaterial({ uniforms: { uTime: { value: 0 }, uMorph: { value: 0.1 }, uCompression: { value: 1 }, uIntensity: { value: 1 }, uOrbitScale: { value: 1 } }, vertexShader: `${noise} uniform float uTime;uniform float uMorph;uniform float uCompression;uniform float uIntensity;uniform float uOrbitScale;varying vec3 vColor;varying float vOpacity;void main(){vec4 instPos=instanceMatrix*vec4(0.0,0.0,0.0,1.0);float rOriginal=length(instPos.xz);float r=rOriginal*uCompression;float initialAngle=atan(instPos.z,instPos.x);float orbitalVelocity=(1.5/sqrt(rOriginal))*uOrbitScale;float currentAngle=initialAngle+uTime*orbitalVelocity;vec3 p=vec3(cos(currentAngle)*r,instPos.y,sin(currentAngle)*r);float n=snoise(vec3(p.x*0.08,p.z*0.08,uTime*0.3));p.y+=n*uMorph*4.0;vec3 viewDir=normalize(cameraPosition-p);vec3 orbitDir=normalize(vec3(-sin(currentAngle),0.0,cos(currentAngle)));float doppler=dot(orbitDir,viewDir);vec3 hot=vec3(1.0,0.95,0.9),warm=vec3(1.0,0.45,0.1),cool=vec3(0.1,0.35,1.0);vec3 c=mix(cool,warm,smoothstep(45.0,12.0,r));c=mix(c,hot,smoothstep(10.0,4.0,r));vColor=c*(1.3+doppler*0.7)*uIntensity;vOpacity=smoothstep(3.8,5.5,r)*(1.0-smoothstep(38.0,48.0,r))*0.8;float da=currentAngle-initialAngle;float co=cos(da),si=sin(da);mat3 rotY=mat3(co,0,si,0,1,0,-si,0,co);vec3 localPos=(instanceMatrix*vec4(position,0.0)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(p+rotY*localPos,1.0);}`, fragmentShader: `varying vec3 vColor;varying float vOpacity;void main(){gl_FragColor=vec4(vColor,vOpacity);}`, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     const streakGeometry = new THREE.CylinderGeometry(0.01, 0.12, 2.2, 3); streakGeometry.rotateX(Math.PI / 2); const disk = new THREE.InstancedMesh(streakGeometry, diskMaterial, 5000); const dummy = new THREE.Object3D(); for (let index = 0; index < 5000; index += 1) { const radius = 5 + Math.pow(Math.random(), 1.3) * 40; const angle = Math.random() * Math.PI * 2; dummy.position.set(Math.cos(angle) * radius, (Math.random() - 0.5) * (8 / radius), Math.sin(angle) * radius); dummy.lookAt(dummy.position.x + Math.sin(angle), dummy.position.y, dummy.position.z - Math.cos(angle)); dummy.updateMatrix(); disk.setMatrixAt(index, dummy.matrix); } disk.instanceMatrix.needsUpdate = true; scene.add(disk);
     const targetRef = { field: stateRef.current.field, distance: FIELDS[0].camDist };
-    const resize = () => { const width = Math.max(1, host.clientWidth); const height = Math.max(1, host.clientHeight); renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix(); }; resize(); const observer = new ResizeObserver(resize); observer.observe(host);
-    const clock = new THREE.Clock(); let frame = 0; let previousIndex = stateRef.current.fieldIndex; let lastAutoCycle = 0;
-    const render = () => { const delta = Math.min(clock.getDelta(), 0.04); const time = clock.elapsedTime; const state = stateRef.current; if (state.fieldIndex !== previousIndex) { previousIndex = state.fieldIndex; targetRef.field = state.field; } if (!reducedMotion && time - lastAutoCycle > 10) { lastAutoCycle = time; state.onAutoCycle(); } if (!reducedMotion) { diskMaterial.uniforms.uTime.value = time; disk.rotation.y += (state.playing ? 0.0009 : 0.00022) * (1 + targetRef.field.orbit * 0.4); coreGroup.rotation.y = Math.sin(time * 0.08) * 0.04; controls.autoRotate = true; } else controls.autoRotate = false; const current = diskMaterial.uniforms; const blend = 1 - Math.pow(0.0008, delta); current.uMorph.value += (targetRef.field.morph - current.uMorph.value) * blend; current.uCompression.value += (targetRef.field.compress - current.uCompression.value) * blend; current.uIntensity.value += (targetRef.field.intensity - current.uIntensity.value) * blend; current.uOrbitScale.value += (targetRef.field.orbit - current.uOrbitScale.value) * blend; aura.uniforms.uIntensity.value += (targetRef.field.intensity - aura.uniforms.uIntensity.value) * blend; const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize(); targetRef.distance += (targetRef.field.camDist - targetRef.distance) * blend; camera.position.x = controls.target.x + direction.x * targetRef.distance; camera.position.z = controls.target.z + direction.z * targetRef.distance; camera.position.y += (targetRef.field.camY - camera.position.y) * blend; controls.update(); renderer.render(scene, camera); frame = requestAnimationFrame(render); }; render();
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); motionQuery.removeEventListener("change", onMotionChange); controls.dispose(); streakGeometry.dispose(); diskMaterial.dispose(); disk.geometry.dispose(); (disk.material as THREE.Material).dispose(); blackHole.geometry.dispose(); (blackHole.material as THREE.Material).dispose(); coreGroup.children.forEach((child) => { if (child instanceof THREE.Mesh) child.geometry.dispose(); }); aura.dispose(); renderer.dispose(); };
+    const resize = () => { const width = Math.max(1, host.clientWidth); const height = Math.max(1, host.clientHeight); renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix(); activity?.request(); }; resize(); const observer = new ResizeObserver(resize); observer.observe(host);
+    const clock = new THREE.Clock(); let previousIndex = stateRef.current.fieldIndex; let lastAutoCycle = 0;
+    const render = () => {
+      const delta = Math.min(clock.getDelta(), 0.04); const time = clock.elapsedTime; const state = stateRef.current;
+      if (state.fieldIndex !== previousIndex) { previousIndex = state.fieldIndex; targetRef.field = state.field; }
+      if (!reducedMotion && time - lastAutoCycle > 10) { lastAutoCycle = time; state.onAutoCycle(); }
+      const current = diskMaterial.uniforms;
+      const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+      if (reducedMotion) {
+        current.uTime.value = 0;
+        current.uMorph.value = targetRef.field.morph;
+        current.uCompression.value = targetRef.field.compress;
+        current.uIntensity.value = targetRef.field.intensity;
+        current.uOrbitScale.value = targetRef.field.orbit;
+        aura.uniforms.uIntensity.value = targetRef.field.intensity;
+        targetRef.distance = targetRef.field.camDist;
+        camera.position.x = controls.target.x + direction.x * targetRef.distance;
+        camera.position.z = controls.target.z + direction.z * targetRef.distance;
+        camera.position.y = targetRef.field.camY;
+        coreGroup.rotation.y = 0;
+        controls.autoRotate = false;
+      } else {
+        current.uTime.value = time;
+        disk.rotation.y += (state.playing ? 0.0009 : 0.00022) * (1 + targetRef.field.orbit * 0.4);
+        coreGroup.rotation.y = Math.sin(time * 0.08) * 0.04;
+        controls.autoRotate = true;
+        const blend = 1 - Math.pow(0.0008, delta);
+        current.uMorph.value += (targetRef.field.morph - current.uMorph.value) * blend;
+        current.uCompression.value += (targetRef.field.compress - current.uCompression.value) * blend;
+        current.uIntensity.value += (targetRef.field.intensity - current.uIntensity.value) * blend;
+        current.uOrbitScale.value += (targetRef.field.orbit - current.uOrbitScale.value) * blend;
+        aura.uniforms.uIntensity.value += (targetRef.field.intensity - aura.uniforms.uIntensity.value) * blend;
+        targetRef.distance += (targetRef.field.camDist - targetRef.distance) * blend;
+        camera.position.x = controls.target.x + direction.x * targetRef.distance;
+        camera.position.z = controls.target.z + direction.z * targetRef.distance;
+        camera.position.y += (targetRef.field.camY - camera.position.y) * blend;
+      }
+      controls.update(); renderer.render(scene, camera);
+    };
+    activity = createAnimationActivity(host, render, () => !reducedMotion);
+    requestRenderRef.current = activity.request;
+    const requestControlRender = () => activity?.request();
+    controls.addEventListener("change", requestControlRender);
+    return () => { requestRenderRef.current = () => undefined; activity?.dispose(); observer.disconnect(); motionQuery.removeEventListener("change", onMotionChange); canvas.removeEventListener("webglcontextlost", onContextLost); controls.removeEventListener("change", requestControlRender); controls.dispose(); streakGeometry.dispose(); diskMaterial.dispose(); disk.geometry.dispose(); (disk.material as THREE.Material).dispose(); blackHole.geometry.dispose(); (blackHole.material as THREE.Material).dispose(); coreGroup.children.forEach((child) => { if (child instanceof THREE.Mesh) child.geometry.dispose(); }); aura.dispose(); renderer.dispose(); };
   }, []);
-  return <canvas ref={canvasRef} className="singularity-canvas" role="img" aria-label="Interactive accretion disk visualization" />;
+  return <canvas ref={canvasRef} className="singularity-canvas" aria-hidden="true" />;
 }

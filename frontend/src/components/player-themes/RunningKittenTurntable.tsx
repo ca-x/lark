@@ -1,6 +1,6 @@
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
@@ -16,6 +16,7 @@ export function RunningKittenTurntable({
   artist = "Sonora",
   playMode = "sequence",
   playModeLabel = "Play mode",
+  labels,
   onToggle,
   onPrevious,
   onNext,
@@ -30,12 +31,14 @@ export function RunningKittenTurntable({
   artist?: string;
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
+  labels?: PlayerThemeLabels;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
+  const text = resolvePlayerThemeLabels(labels);
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const isAtEnd = duration > 0 && progress >= duration - 0.2;
   const active = playing && !isAtEnd;
@@ -84,7 +87,7 @@ export function RunningKittenTurntable({
           <div className="running-kitten-progress-rail">
             <span><i style={{ width: progressPct }} /></span>
             <input
-              aria-label="Position"
+              aria-label={text.position}
               type="range"
               min="0"
               max={Math.max(0, duration || 0)}
@@ -96,13 +99,13 @@ export function RunningKittenTurntable({
           </div>
         </div>
         <div className="running-kitten-controls">
-          <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}>
+          <button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}>
             <SkipBack weight="fill" />
           </button>
-          <button type="button" className="running-kitten-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>
+          <button type="button" className="running-kitten-play" aria-label={playing ? text.pause : text.play} disabled={!onToggle} onClick={onToggle}>
             {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
           </button>
-          <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}>
+          <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}>
             <SkipForward weight="fill" />
           </button>
           <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>

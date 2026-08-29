@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
@@ -15,6 +15,7 @@ export function IpodPlayer({
   artist = "Sonora",
   playMode = "sequence",
   playModeLabel = "Play mode",
+  labels,
   onToggle,
   onPrevious,
   onNext,
@@ -30,12 +31,14 @@ export function IpodPlayer({
   artist?: string;
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
+  labels?: PlayerThemeLabels;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
+  const text = resolvePlayerThemeLabels(labels);
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
@@ -83,7 +86,7 @@ export function IpodPlayer({
                   <span className="ipod-progress-fill"><i /></span>
                 </span>
                 <input
-                  aria-label="Position"
+                  aria-label={text.position}
                   type="range"
                   min="0"
                   max={Math.max(0, duration || 0)}
@@ -114,16 +117,16 @@ export function IpodPlayer({
               <span>MENU</span>
               <em>{playModeIcon}</em>
             </button>
-            <button type="button" className="ipod-wheel-button ipod-wheel-prev" aria-label="Previous" onClick={onPrevious} disabled={!onPrevious}>
+            <button type="button" className="ipod-wheel-button ipod-wheel-prev" aria-label={text.previous} onClick={onPrevious} disabled={!onPrevious}>
               <SkipBack weight="fill" />
             </button>
-            <button type="button" className="ipod-wheel-button ipod-wheel-next" aria-label="Next" onClick={onNext} disabled={!onNext}>
+            <button type="button" className="ipod-wheel-button ipod-wheel-next" aria-label={text.next} onClick={onNext} disabled={!onNext}>
               <SkipForward weight="fill" />
             </button>
             <button
               type="button"
               className="ipod-wheel-button ipod-wheel-play"
-              aria-label={playing ? "Pause" : "Play"}
+              aria-label={playing ? text.pause : text.play}
               onClick={onToggle}
               disabled={!onToggle}
             >
@@ -132,7 +135,7 @@ export function IpodPlayer({
             <button
               type="button"
               className="ipod-center-button"
-              aria-label={playing ? "Pause" : "Play"}
+              aria-label={playing ? text.pause : text.play}
               onClick={onToggle}
               disabled={!onToggle}
             >

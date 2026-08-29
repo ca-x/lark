@@ -1660,7 +1660,7 @@ export default function App() {
       delete document.documentElement.dataset.customFont;
       document.documentElement.style.setProperty(
         "--app-font",
-        "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', var(--font-cjk)",
+        "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, ui-sans-serif, Inter, Roboto, 'Helvetica Neue', Arial, var(--font-cjk)",
       );
     }
     if (lyricsFontFamily && lyricsFontURL) {
@@ -6876,6 +6876,18 @@ function HomeView({
   onOpenPlaylists: () => void;
   onOpenRadio: () => void;
 }) {
+  const playerThemeLabels = {
+    position: t("position"),
+    volume: t("volume"),
+    previous: t("previous"),
+    next: t("next"),
+    play: t("play"),
+    pause: t("pause"),
+    seekBackward10: t("seekBackward10"),
+    seekForward10: t("seekForward10"),
+    enter: t("enterPlayer"),
+    controls: t("playerControls"),
+  };
   const [recentTab, setRecentTab] = useState<RecentHomeTab>("played");
   const [dailyView, setDailyView] = useState<DailyDiscoveryView>("songs");
   const recentSongs = (recentTab === "played" ? recentPlayedSongs : recentAddedSongs).slice(0, 5);
@@ -6954,6 +6966,7 @@ function HomeView({
             album={displaySong?.album}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
             immersiveStage={mineradioStageEnabled}
             activeLyricText={activeLyricText}
             audioElement={audioElement}
@@ -6991,6 +7004,7 @@ function HomeView({
             artist={displaySong?.artist}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
@@ -7007,6 +7021,7 @@ function HomeView({
             artist={displaySong?.artist}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
@@ -7022,6 +7037,9 @@ function HomeView({
             artist={displaySong?.artist}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
+            telemetryLabel={t("playerTelemetry")}
+            manualOverrideLabel={t("manualOverride")}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
@@ -7039,6 +7057,7 @@ function HomeView({
             album={displaySong?.album}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
@@ -7055,6 +7074,7 @@ function HomeView({
             artist={displaySong?.artist}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
@@ -7072,6 +7092,7 @@ function HomeView({
             album={displaySong?.album}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
@@ -7088,6 +7109,7 @@ function HomeView({
             artist={displaySong?.artist}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
@@ -7105,6 +7127,7 @@ function HomeView({
             album={displaySong?.album}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
@@ -7121,6 +7144,8 @@ function HomeView({
             album={displaySong?.album}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
+            changeFieldLabel={t("changeVisualField")}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
@@ -7140,6 +7165,7 @@ function HomeView({
             trebleGain={trebleGain}
             playMode={playMode}
             playModeLabel={playModeLabel}
+            labels={playerThemeLabels}
             resetToneLabel={t("resetEqualizer")}
             onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
@@ -7154,7 +7180,9 @@ function HomeView({
         )}
         <div>
           <p>{currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : heroCanResume ? t("jumpBackIn") : t("quickStart")}</p>
-          <h1>{currentRadio?.name ?? displaySong?.title ?? `${t("brand")} Music`}</h1>
+          <h1 className={!currentRadio && !displaySong ? "hero-product-title" : undefined}>
+            {currentRadio?.name ?? displaySong?.title ?? `${t("brand")} Music`}
+          </h1>
           {currentRadio ? (
             <h2 className="home-hero-meta">
               {[currentRadio.country, currentRadio.codec, currentRadio.bitrate ? `${currentRadio.bitrate}kbps` : ""].filter(Boolean).join(" · ") || t("onlineRadio")}
@@ -10884,6 +10912,7 @@ function SettingsPanel({
             label={t("searchSettings")}
             placeholder={t("searchSettingsPlaceholder")}
             emptyLabel={t("searchSettingsEmpty")}
+            clearLabel={t("clearSettingsSearch")}
             onTabChange={onTabChange}
           />
           <SettingsNavigation

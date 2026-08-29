@@ -48,6 +48,18 @@ export function PublicShareView({
   const autoplayAfterSwitchRef = useRef(false);
   const currentSong = share?.songs[currentIndex] ?? share?.songs[0] ?? null;
   const encodedToken = encodeURIComponent(token);
+  const playerThemeLabels = {
+    position: t("position"),
+    volume: t("volume"),
+    previous: t("previous"),
+    next: t("next"),
+    play: t("play"),
+    pause: t("pause"),
+    seekBackward10: t("seekBackward10"),
+    seekForward10: t("seekForward10"),
+    enter: t("enterPlayer"),
+    controls: t("playerControls"),
+  };
 
   useEffect(() => {
     setShare(null);
@@ -181,6 +193,7 @@ export function PublicShareView({
                     duration={duration || currentSong.duration_seconds || 0}
                     title={currentSong.title}
                     artist={currentSong.artist || share.share.title}
+                    labels={playerThemeLabels}
                     onToggle={togglePlayback}
                     onPrevious={previous}
                     onNext={next}
@@ -193,6 +206,9 @@ export function PublicShareView({
                     duration={duration || currentSong.duration_seconds || 0}
                     title={currentSong.title}
                     artist={currentSong.artist || share.share.title}
+                    labels={playerThemeLabels}
+                    telemetryLabel={t("playerTelemetry")}
+                    manualOverrideLabel={t("manualOverride")}
                     onToggle={togglePlayback}
                     onPrevious={previous}
                     onNext={next}
@@ -207,6 +223,7 @@ export function PublicShareView({
                     title={currentSong.title}
                     artist={currentSong.artist || share.share.title}
                     album={currentSong.album || share.share.title}
+                    labels={playerThemeLabels}
                     onToggle={togglePlayback}
                     onPrevious={previous}
                     onNext={next}
@@ -221,6 +238,7 @@ export function PublicShareView({
                     title={currentSong.title}
                     artist={currentSong.artist || share.share.title}
                     volume={volume}
+                    labels={playerThemeLabels}
                     onVolume={setVolume}
                     onToggle={togglePlayback}
                     onPrevious={previous}

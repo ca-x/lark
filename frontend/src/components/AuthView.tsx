@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import { CircleNotch, Eye, EyeSlash } from "@phosphor-icons/react";
 import type { Settings } from "../types";
 import { createT } from "../i18n";
 import { LoadingStage } from "./LoadingStage";
@@ -14,11 +15,16 @@ export function AuthView({
   settings: Settings;
   error?: string;
   registrationEnabled?: boolean;
-  onSubmit: (mode: "setup" | "login" | "register", username: string, password: string) => void;
+  onSubmit: (mode: "setup" | "login" | "register", username: string, password: string) => void | Promise<void>;
 }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [registerMode, setRegisterMode] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [pending, setPending] = useState(false);
+  const usernameId = useId();
+  const passwordId = useId();
+  const errorId = useId();
   const isSetup = mode === "setup";
   const action = isSetup ? "setup" : registerMode ? "register" : "login";
   const zh = settings.language === "zh-CN";
@@ -68,35 +74,66 @@ export function AuthView({
         </div>
         <form
           className="auth-form"
-          onSubmit={(event) => {
+          aria-busy={pending}
+          onSubmit={async (event) => {
             event.preventDefault();
-            onSubmit(action, username, password);
+            if (pending) return;
+            setPending(true);
+            try {
+              await onSubmit(action, username, password);
+            } finally {
+              setPending(false);
+            }
           }}
         >
-          <label>
-            {zh ? "账号" : "Username"}
+          <div className="auth-field">
+            <label htmlFor={usernameId}>{zh ? "账号" : "Username"}</label>
             <input
+              id={usernameId}
               value={username}
               autoComplete="username"
               minLength={2}
               required
+              disabled={pending}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? errorId : undefined}
               onChange={(event) => setUsername(event.target.value)}
             />
-          </label>
-          <label>
-            {zh ? "密码" : "Password"}
-            <input
-              value={password}
-              type="password"
-              autoComplete={isSetup || registerMode ? "new-password" : "current-password"}
-              minLength={6}
-              required
-              onChange={(event) => setPassword(event.target.value)}
-            />
-          </label>
-          {error ? <div className="auth-error">{error}</div> : null}
-          <button className="primary" type="submit">
-            {isSetup
+          </div>
+          <div className="auth-field">
+            <label htmlFor={passwordId}>{zh ? "密码" : "Password"}</label>
+            <div className="auth-password-control">
+              <input
+                id={passwordId}
+                value={password}
+                type={passwordVisible ? "text" : "password"}
+                autoComplete={isSetup || registerMode ? "new-password" : "current-password"}
+                minLength={6}
+                required
+                disabled={pending}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? errorId : undefined}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              <button
+                type="button"
+                className="auth-password-toggle"
+                aria-label={passwordVisible
+                  ? zh ? "隐藏密码" : "Hide password"
+                  : zh ? "显示密码" : "Show password"}
+                aria-pressed={passwordVisible}
+                disabled={pending}
+                onClick={() => setPasswordVisible((visible) => !visible)}
+              >
+                {passwordVisible ? <EyeSlash aria-hidden="true" /> : <Eye aria-hidden="true" />}
+              </button>
+            </div>
+          </div>
+          {error ? <div id={errorId} className="auth-error" role="alert">{error}</div> : null}
+          <button className="primary auth-submit" type="submit" disabled={pending}>
+            {pending ? (
+              <><CircleNotch className="spin" aria-hidden="true" /> {zh ? "请稍候…" : "Please wait…"}</>
+            ) : isSetup
               ? zh
                 ? "创建管理员"
                 : "Create admin"
@@ -112,6 +149,7 @@ export function AuthView({
             <button
               type="button"
               className="auth-link"
+              disabled={pending}
               onClick={() => setRegisterMode((value) => !value)}
             >
               {registerMode

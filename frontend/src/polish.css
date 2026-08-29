@@ -1,0 +1,617 @@
+/* Final product-quality layer.
+   This file stays intentionally semantic: theme palettes keep their identity while
+   shared hierarchy, contrast, material, motion, and responsive rules stay coherent. */
+
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-press: 120ms;
+  --motion-control: 160ms;
+  --motion-popover: 200ms;
+  --motion-modal: 250ms;
+  --on-accent: var(--bg);
+  --chrome-edge: color-mix(in srgb, var(--text) 10%, var(--line));
+  --surface-highlight: color-mix(in srgb, #fff 7%, transparent);
+  --focus-strong: color-mix(in srgb, var(--accent) 74%, var(--text));
+}
+
+/* Theme-aware ink keeps labels readable on accent-filled controls. */
+:root[data-theme='deep-space'],
+:root[data-theme='amber-film'],
+:root[data-theme='neon-coral'],
+:root[data-theme='arctic-aurora'],
+:root[data-theme='carbon-volt'],
+:root[data-theme='apple-dark'],
+:root[data-theme='spotify-dark'],
+:root[data-theme='winamp-dark'],
+:root[data-theme='foobar-dark'],
+:root[data-theme='smartisan-classic'],
+:root[data-theme='mint-soda'],
+:root[data-theme='dusk-amber'],
+:root[data-theme='apple-light'],
+:root[data-theme='spotify-light'],
+:root[data-theme='winamp-light'],
+:root[data-theme='foobar-light'] {
+  --on-accent: #08090c;
+}
+
+:root[data-theme='netease-dark'],
+:root[data-theme='milk-porcelain'],
+:root[data-theme='oat-latte'],
+:root[data-theme='sakura-washi'],
+:root[data-theme='netease-light'] {
+  --on-accent: #fff;
+}
+
+:root[data-theme='foobar-dark'],
+:root[data-theme='foobar-light'] {
+  --on-accent: #000;
+}
+
+/* Raise only the four muted palettes that fell below AA on their primary panels. */
+:root[data-theme='amber-film'] { --muted: #c39a52; }
+:root[data-theme='neon-coral'] { --muted: #d9789b; }
+:root[data-theme='arctic-aurora'] { --muted: #67acd0; }
+:root[data-theme='foobar-dark'] { --muted: #a0a0a0; }
+
+html {
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-width: 320px;
+  overscroll-behavior: none;
+}
+
+:where(button, [role='button'], input, select, textarea) {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-strong);
+  outline-offset: 3px;
+}
+
+/* Accent-filled controls use a per-theme foreground rather than assuming --bg contrasts.
+   Keep material-specific players and the Smartisan skin free to override the base primary. */
+:root[data-theme] :where(.primary) {
+  color: var(--on-accent);
+}
+
+:root[data-theme]:not([data-theme='smartisan-classic']) :is(
+  .recent-tabs button.active,
+  .settings-tabs button.active,
+  .collection-tabs button.active,
+  .collection-tabs button:hover,
+  .segmented-control button.active,
+  .public-share-theme-toggle button.active,
+  .profile-settings-card > button,
+  .modal-actions .primary,
+  .mcp-actions .primary,
+  .subsonic-actions .primary,
+  .status-pill.active,
+  .sleep-control span,
+  .dlna-cast-row em,
+  .public-share-kicker-row > p,
+  .user-avatar,
+  .user-avatar-fallback span,
+  .mini-play,
+  .station-play,
+  .share-target-card span,
+  .share-duration-options label.active,
+  .history-calendar-panel .react-calendar__tile--active,
+  .queue-list button.active > span:first-child,
+  .folder-tree-actions [role='button'],
+  .sleep-custom-row button,
+  .font-actions button:first-child,
+  .font-item-actions button.active,
+  .card-play:hover,
+  .card-favorite:hover,
+  .card-favorite.active
+) {
+  color: var(--on-accent);
+}
+
+/* Floating chrome is translucent; reading surfaces remain opaque and calm. */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sidebar,
+  .player,
+  .topbar,
+  .queue-panel,
+  .user-menu-popover {
+    -webkit-backdrop-filter: blur(22px) saturate(145%);
+    backdrop-filter: blur(22px) saturate(145%);
+  }
+
+  .sidebar,
+  .player {
+    background-color: color-mix(in srgb, var(--panel) 88%, transparent);
+  }
+}
+
+.sidebar,
+.player,
+.topbar {
+  border-color: var(--chrome-edge);
+  box-shadow:
+    inset 0 1px 0 var(--surface-highlight),
+    0 16px 48px color-mix(in srgb, #000 18%, transparent);
+}
+
+.main {
+  scrollbar-color: color-mix(in srgb, var(--muted) 56%, transparent) transparent;
+  scrollbar-gutter: stable;
+}
+
+.summary-panel,
+.quick-panel,
+.settings-section,
+.settings-card,
+.media-card,
+.artist-album-card,
+.about-row,
+.version-card {
+  box-shadow: inset 0 1px 0 var(--surface-highlight);
+}
+
+/* A quiet signal field keeps Neural Cathedral useful when a WebView has no WebGL. */
+.neural-cathedral-player[data-webgl-unavailable='true']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(0, 229, 255, 0.24) 0 2px, transparent 3px),
+    radial-gradient(ellipse at 50% 46%, rgba(0, 229, 255, 0.12), transparent 24%),
+    repeating-conic-gradient(from 18deg at 50% 46%, rgba(0, 229, 255, 0.08) 0 0.6deg, transparent 0.8deg 12deg),
+    radial-gradient(circle at 50% 46%, #07131d, #010204 62%);
+  -webkit-mask-image: radial-gradient(circle at 50% 46%, #000 0 12%, rgba(0, 0, 0, 0.84) 34%, transparent 76%);
+  mask-image: radial-gradient(circle at 50% 46%, #000 0 12%, rgba(0, 0, 0, 0.84) 34%, transparent 76%);
+  opacity: 0.82;
+}
+
+.neural-cathedral-canvas[data-webgl-unavailable='true'] {
+  opacity: 0;
+}
+
+.singularity-player[data-webgl-unavailable='true']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 47%, #000 0 7%, rgba(255, 170, 64, 0.92) 7.4% 8%, transparent 8.8%),
+    repeating-conic-gradient(from 12deg at 50% 47%, rgba(255, 178, 72, 0.2) 0 1deg, transparent 1.4deg 8deg),
+    radial-gradient(ellipse at 50% 47%, rgba(255, 112, 24, 0.2), transparent 30%),
+    #020306;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 47%, #000 0 34%, transparent 72%);
+  mask-image: radial-gradient(ellipse at 50% 47%, #000 0 34%, transparent 72%);
+  opacity: 0.78;
+}
+
+.singularity-canvas[data-webgl-unavailable='true'] {
+  opacity: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.media-card, .artist-album-card, .mini-card, .song-row):hover {
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+  }
+}
+
+/* The product title is a wordmark, so it must not orphan “Music” at medium desktop widths. */
+.hero-product-title {
+  max-width: 10ch;
+  overflow-wrap: normal !important;
+  word-break: keep-all !important;
+  text-wrap: balance;
+}
+
+@media (min-width: 1181px) and (max-width: 1360px) {
+  .app-shell {
+    grid-template-columns: 228px minmax(0, 1fr);
+  }
+
+  .main {
+    padding: 20px;
+  }
+
+  .home-view > .hero:not(.singularity-hero):not(.neural-cathedral-hero):not(.mineradio-stage-hero) {
+    gap: 24px;
+    padding: 28px;
+  }
+
+  .home-view .hero-product-title {
+    max-width: none;
+    font-size: clamp(44px, 4.8vw, 62px);
+    letter-spacing: -0.045em;
+  }
+}
+
+@media (min-width: 1181px) and (max-height: 700px) {
+  .sidebar {
+    gap: 10px;
+    padding: 14px 16px;
+  }
+
+  .sidebar > .brand img {
+    width: 56px;
+    height: 56px;
+  }
+
+  .sidebar nav {
+    gap: 2px;
+  }
+
+  .sidebar nav button {
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 14px;
+  }
+
+  .sidebar .nav-section-label {
+    padding: 5px 12px 2px;
+    font-size: 11px;
+  }
+
+  .sidebar .nav-divider {
+    margin: 4px 12px;
+  }
+
+  .player .volume input[type='range'] {
+    width: 72px;
+    min-width: 0;
+  }
+
+  .empty-library {
+    min-height: 220px;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 24px;
+  }
+
+  .empty-library .disc-art {
+    width: 72px;
+    height: 72px;
+  }
+
+  .empty-library h2 {
+    font-size: 27px;
+  }
+
+  .empty-library small {
+    display: none;
+  }
+
+  .empty-state-rich {
+    min-height: 220px;
+    padding: 22px 20px;
+  }
+
+  .empty-state-rich .empty-state-icon {
+    width: 54px;
+    height: 54px;
+  }
+
+  .empty-state-rich .empty-state-title {
+    font-size: 25px;
+  }
+}
+
+/* A scroll-edge material makes the mobile settings tabs obviously pannable. */
+.settings-tabs-shell {
+  position: relative;
+  z-index: 0;
+  display: inline-grid;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.settings-tabs-shell::before,
+.settings-tabs-shell::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  z-index: 2;
+  width: 28px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-control) ease;
+}
+
+.settings-tabs-shell::before {
+  left: 1px;
+  background: linear-gradient(90deg, var(--panel2), transparent);
+}
+
+.settings-tabs-shell::after {
+  right: 1px;
+  background: linear-gradient(270deg, var(--panel2), transparent);
+}
+
+.settings-tabs-shell[data-overflow-start='true']::before,
+.settings-tabs-shell[data-overflow-end='true']::after {
+  opacity: 1;
+}
+
+.settings-tabs-shell .settings-tabs {
+  max-width: 100%;
+  scroll-padding-inline: 28px;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.settings-section {
+  border-color: color-mix(in srgb, var(--text) 9%, var(--line));
+  background: color-mix(in srgb, var(--panel2) 84%, var(--panel));
+}
+
+.settings-section-head:focus-visible .settings-section-caret {
+  transition: none;
+}
+
+.settings-search-results > button[aria-selected='true'] {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* Existing sections mount on demand; this is a short state cue, not page choreography. */
+.settings-section-body {
+  animation: none;
+}
+
+/* Authentication details: explicit labels, a stable password affordance, and pending feedback. */
+.auth-card {
+  border-color: var(--chrome-edge);
+  box-shadow:
+    inset 0 1px 0 var(--surface-highlight),
+    0 24px 70px color-mix(in srgb, #000 32%, transparent);
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-field > label {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.auth-password-control {
+  position: relative;
+  min-width: 0;
+}
+
+.auth-password-control > input {
+  padding-right: 56px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  color: var(--muted);
+  background: transparent;
+  transform: translateY(-50%);
+  transition: color var(--motion-control) ease, background-color var(--motion-control) ease;
+}
+
+.auth-password-toggle svg {
+  width: 19px;
+  height: 19px;
+}
+
+.auth-password-toggle:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .auth-password-toggle:hover:not(:disabled) {
+    color: var(--text);
+    background: var(--hover-bg);
+  }
+}
+
+.auth-submit {
+  min-height: 50px;
+}
+
+.auth-submit .spin {
+  width: 18px;
+  height: 18px;
+}
+
+/* Occasional overlays get spatially coherent, interruptible entrances. */
+.modal-card {
+  transform-origin: center;
+  transition:
+    opacity var(--motion-modal) var(--ease-out),
+    transform var(--motion-modal) var(--ease-out);
+}
+
+.modal-scrim {
+  opacity: 1;
+  transition: opacity var(--motion-modal) var(--ease-out);
+}
+
+.user-menu-popover {
+  transform-origin: top right;
+  transition:
+    opacity var(--motion-popover) var(--ease-out),
+    transform var(--motion-popover) var(--ease-out);
+}
+
+@starting-style {
+  .modal-card {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  .modal-scrim {
+    opacity: 0;
+  }
+
+  .user-menu-popover {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (max-width: 720px), (max-width: 960px) and (max-height: 500px) and (orientation: landscape) {
+  .player,
+  .topbar,
+  .queue-panel,
+  .user-menu-popover {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .settings-tabs-shell {
+    width: 100%;
+  }
+
+  .settings-tabs-shell .settings-tabs {
+    width: 100%;
+  }
+
+  .settings-section {
+    padding: 15px;
+    border-radius: 18px;
+  }
+
+  .settings-page button {
+    min-height: 44px;
+  }
+
+  .mobile-art-progress input[type='range'] {
+    height: 44px;
+    min-height: 44px;
+    margin-block: -8px;
+  }
+
+  .mobile-art-volume-ticks {
+    overflow: visible;
+  }
+
+  .mobile-art-volume input[type='range'] {
+    top: 50%;
+    bottom: auto;
+    height: 44px;
+    min-height: 44px;
+    transform: translateY(-50%);
+  }
+
+  .mobile-art-actions button.active {
+    animation: none;
+  }
+
+  .settings-section-body > .segmented-control {
+    padding: 4px;
+    border-color: color-mix(in srgb, var(--mobile-ui-text, var(--text)) 10%, transparent);
+    background: color-mix(in srgb, var(--mobile-ui-surface, var(--panel)) 54%, transparent);
+  }
+
+  .auth-shell {
+    padding:
+      calc(18px + var(--safe-top))
+      calc(18px + var(--safe-right))
+      calc(18px + var(--safe-bottom))
+      calc(18px + var(--safe-left));
+  }
+
+  .auth-card {
+    gap: 20px;
+    padding: 24px;
+    border-radius: 26px;
+  }
+
+  .auth-form input {
+    min-height: 48px;
+    font-size: max(16px, 1rem);
+  }
+
+  .user-menu-popover {
+    transform-origin: top right;
+  }
+}
+
+@media (max-width: 380px) {
+  .auth-card {
+    padding: 20px;
+    border-radius: 22px;
+  }
+
+  .auth-card h1 {
+    font-size: clamp(32px, 12vw, 44px);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .sidebar,
+  .player,
+  .topbar,
+  .queue-panel,
+  .user-menu-popover,
+  .modal-card,
+  .auth-card {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: var(--panel) !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --chrome-edge: color-mix(in srgb, var(--text) 46%, var(--line));
+    --focus-strong: var(--text);
+  }
+
+  .sidebar,
+  .player,
+  .topbar,
+  .settings-section,
+  .modal-card,
+  .queue-panel,
+  .user-menu-popover {
+    background-color: var(--panel);
+    border-color: var(--chrome-edge);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, input, select, textarea, .app-shell, .sidebar, .main, .player, .settings-page, .empty-state) {
+    transition-duration: 120ms !important;
+    transition-property: opacity, color, background-color, border-color !important;
+  }
+
+  .settings-tabs-shell::before,
+  .settings-tabs-shell::after,
+  .auth-password-toggle,
+  .modal-card,
+  .modal-scrim,
+  .user-menu-popover {
+    transition-duration: 120ms !important;
+    transition-property: opacity, color, background-color, border-color !important;
+  }
+
+  .modal-card,
+  .user-menu-popover {
+    transform: none !important;
+  }
+}

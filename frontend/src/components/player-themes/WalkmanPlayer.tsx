@@ -4,9 +4,10 @@ import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from 
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
+import { createAnimationActivity } from "./animationActivity";
 
 type WalkmanPlayerProps = {
   cover?: string;
@@ -19,6 +20,7 @@ type WalkmanPlayerProps = {
   album?: string;
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
+  labels?: PlayerThemeLabels;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -72,12 +74,14 @@ export function WalkmanPlayer({
   album = "Now Playing",
   playMode = "sequence",
   playModeLabel = "Play mode",
+  labels,
   onToggle,
   onPrevious,
   onNext,
   onCyclePlayMode,
   onSeek,
 }: WalkmanPlayerProps) {
+  const text = resolvePlayerThemeLabels(labels);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<WalkmanSceneHandle | null>(null);
@@ -163,7 +167,7 @@ export function WalkmanPlayer({
       ) : null}
       <PaperShaderLayer variant="walkman" playing={playing} cover={coverState.displayUrl} />
       <span className="walkman-grid" aria-hidden="true" />
-      <section className="walkman-scene" aria-label="Walkman 3D player">
+      <section className="walkman-scene" data-scene-label="Walkman 3D player" aria-hidden="true">
         <canvas ref={canvasRef} className="walkman-canvas" aria-hidden="true" />
         <span className="walkman-webgl-fallback" aria-hidden="true">
           <span className="walkman-fallback-shell">
@@ -173,7 +177,7 @@ export function WalkmanPlayer({
           </span>
         </span>
       </section>
-      <aside className="walkman-console" aria-label="Walkman controls">
+      <aside className="walkman-console" aria-label={text.controls}>
         <div className="walkman-status">
           <span className="walkman-status-led" aria-hidden="true" />
           <span>{playing ? "PLAYING" : "READY"}</span>
@@ -199,7 +203,7 @@ export function WalkmanPlayer({
         <div className="walkman-progress-row">
           <span className="walkman-progress-track" aria-hidden="true"><span /></span>
           <input
-            aria-label="Position"
+            aria-label={text.position}
             type="range"
             min="0"
             max={Math.max(0, duration || 0)}
@@ -214,17 +218,17 @@ export function WalkmanPlayer({
           </div>
         </div>
         <div className="walkman-controls">
-          <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
+          <button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
           <button
             type="button"
             className="walkman-play"
-            aria-label={playing ? "Pause" : "Play"}
+            aria-label={playing ? text.pause : text.play}
             disabled={!onToggle}
             onClick={onToggle}
           >
             {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
           </button>
-          <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
+          <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
           <button
             type="button"
             className={playMode === "sequence" ? "" : "active"}
@@ -326,7 +330,6 @@ function createWalkmanScene(
   const raycaster = new THREE.Raycaster();
   const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   let reduced = reducedQuery.matches;
-  let raf = 0;
   let lastTime = performance.now();
   let activeAction: WalkmanAction | null = null;
   let hoverAction: WalkmanAction | null = null;
@@ -497,14 +500,13 @@ function createWalkmanScene(
       vu,
     }, reduced, rotationOffset);
     renderer.render(scene, camera);
-    raf = requestAnimationFrame(frame);
   };
-  raf = requestAnimationFrame(frame);
+  const activity = createAnimationActivity(root, frame);
 
   return {
     dispose: () => {
       disposed = true;
-      cancelAnimationFrame(raf);
+      activity.dispose();
       reducedQuery.removeEventListener("change", updateReduced);
       resizeObserver.disconnect();
       canvas.removeEventListener("pointermove", onPointerMove);

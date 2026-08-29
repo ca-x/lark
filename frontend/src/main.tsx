@@ -4,6 +4,7 @@ import App from './App'
 import { registerServiceWorker } from './features/offline'
 import './styles.css'
 import './mobile.css'
+import './polish.css'
 
 void registerServiceWorker().catch(() => undefined)
 

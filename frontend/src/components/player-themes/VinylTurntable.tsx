@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Pause, Play, Power, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
@@ -20,6 +20,7 @@ export function VinylTurntable({
   playMode = "sequence",
   playModeLabel = "Play mode",
   resetToneLabel = "Reset",
+  labels,
   onToggle,
   onPrevious,
   onNext,
@@ -43,6 +44,7 @@ export function VinylTurntable({
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
   resetToneLabel?: string;
+  labels?: PlayerThemeLabels;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -53,6 +55,7 @@ export function VinylTurntable({
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
+  const text = resolvePlayerThemeLabels(labels);
   const [rpm, setRpm] = useState<"33" | "45" | "78">("33");
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const rpmLabel = rpm === "33" ? "33⅓" : rpm;
@@ -103,7 +106,7 @@ export function VinylTurntable({
                 <small>{Math.round(volume * 100)}%</small>
                 VOL
                 <input
-                  aria-label="Volume"
+                  aria-label={text.volume}
                   type="range"
                   min="0"
                   max="1"
@@ -116,16 +119,16 @@ export function VinylTurntable({
               <ToneKnob name="TREBLE" subtitle="8 kHz" value={trebleGain} tone="treble" onChange={onTreble} />
             </div>
             <div className="vinyl-mini-transport">
-              <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
-              <button type="button" aria-label={playing ? "Pause" : "Play"} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
-              <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
+              <button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
+              <button type="button" aria-label={playing ? text.pause : text.play} onClick={onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
+              <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
               <div className="vinyl-position-row">
                 <span className="vinyl-position-track" aria-hidden="true">
                   <span className="vinyl-position-fill" />
                   <span className="vinyl-position-dot" />
                 </span>
                 <input
-                  aria-label="Position"
+                  aria-label={text.position}
                   type="range"
                   min="0"
                   max={Math.max(0, duration || 0)}

@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 
 export function AudioScopePlayer({
@@ -13,6 +13,7 @@ export function AudioScopePlayer({
   artist = "Sonora",
   playMode = "sequence",
   playModeLabel = "Play mode",
+  labels,
   onToggle,
   onPrevious,
   onNext,
@@ -27,12 +28,14 @@ export function AudioScopePlayer({
   artist?: string;
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
+  labels?: PlayerThemeLabels;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
+  const text = resolvePlayerThemeLabels(labels);
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
   const playerStyle = {
@@ -48,11 +51,11 @@ export function AudioScopePlayer({
       style={playerStyle}
     >
       <PaperShaderLayer variant="audio-scope" playing={playing} />
-      <span className="audio-scope-hover-label" aria-hidden="true">{playing ? "pause" : "play"}</span>
+      <span className="audio-scope-hover-label" aria-hidden="true">{playing ? text.pause : text.play}</span>
       <button
         type="button"
         className="audio-scope-plate"
-        aria-label={playing ? "Pause" : "Play"}
+        aria-label={playing ? text.pause : text.play}
         onClick={onToggle}
         disabled={!onToggle}
       >
@@ -67,7 +70,7 @@ export function AudioScopePlayer({
       <div className="audio-scope-progress">
         <span className="audio-scope-progress-track" aria-hidden="true"><span /></span>
         <input
-          aria-label="Position"
+          aria-label={text.position}
           type="range"
           min="0"
           max={Math.max(0, duration || 0)}
@@ -79,11 +82,11 @@ export function AudioScopePlayer({
       </div>
 
       <div className="audio-scope-controls">
-        <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
-        <button type="button" className="audio-scope-play" aria-label={playing ? "Pause" : "Play"} disabled={!onToggle} onClick={onToggle}>
+        <button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
+        <button type="button" className="audio-scope-play" aria-label={playing ? text.pause : text.play} disabled={!onToggle} onClick={onToggle}>
           {playing ? <Pause weight="fill" /> : <Play weight="fill" />}
         </button>
-        <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
+        <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
         <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} onClick={onCyclePlayMode} disabled={!onCyclePlayMode}>
           {playModeIcon}
         </button>

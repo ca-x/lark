@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
-import type { PlayerThemePlayMode } from "./types";
+import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 
@@ -15,6 +15,7 @@ export function CassetteDeck({
   artist = "Sonora",
   playMode = "sequence",
   playModeLabel = "Play mode",
+  labels,
   onToggle,
   onPrevious,
   onNext,
@@ -30,12 +31,14 @@ export function CassetteDeck({
   artist?: string;
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
+  labels?: PlayerThemeLabels;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
   onCyclePlayMode?: () => void;
   onSeek?: (seconds: number) => void;
 }) {
+  const text = resolvePlayerThemeLabels(labels);
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const leftReel = 35 - pct * 13;
   const rightReel = 23 + pct * 13;
@@ -86,7 +89,7 @@ export function CassetteDeck({
         <div className="cassette-progress-row">
           <span className="cassette-progress-track" aria-hidden="true"><span /></span>
           <input
-            aria-label="Position"
+            aria-label={text.position}
             type="range"
             min="0"
             max={Math.max(0, duration || 0)}
@@ -103,11 +106,11 @@ export function CassetteDeck({
         </div>
 
         <div className="cassette-controls">
-          <button type="button" aria-label="Previous" disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
-          <button type="button" aria-label="Back 10 seconds" disabled={!canSeek} onClick={() => seekBy(-10)}>-10</button>
-          <button type="button" className="cassette-play" aria-label={playing ? "Pause" : "Play"} onClick={onToggle} disabled={!onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
-          <button type="button" aria-label="Forward 10 seconds" disabled={!canSeek} onClick={() => seekBy(10)}>+10</button>
-          <button type="button" aria-label="Next" disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
+          <button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}><SkipBack weight="fill" /></button>
+          <button type="button" aria-label={text.seekBackward10} disabled={!canSeek} onClick={() => seekBy(-10)}>-10</button>
+          <button type="button" className="cassette-play" aria-label={playing ? text.pause : text.play} onClick={onToggle} disabled={!onToggle}>{playing ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
+          <button type="button" aria-label={text.seekForward10} disabled={!canSeek} onClick={() => seekBy(10)}>+10</button>
+          <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}><SkipForward weight="fill" /></button>
           <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} title={playModeLabel} onClick={onCyclePlayMode} disabled={!onCyclePlayMode}>
             {playMode === "shuffle" ? <Shuffle /> : playMode === "repeat-one" ? <RepeatOnce /> : <Repeat />}
           </button>
