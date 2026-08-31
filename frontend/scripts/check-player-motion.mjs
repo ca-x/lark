@@ -68,6 +68,38 @@ assert.match(
   "mobile.css: mobile home section actions need a 44px touch target",
 );
 
+const coarseDesktopPlayer = styles.slice(
+  styles.lastIndexOf("@media (min-width:721px) and (pointer:coarse)"),
+);
+assert.ok(coarseDesktopPlayer.length < styles.length, "styles.css: missing coarse-pointer compact desktop player guard");
+for (const needle of [
+  "display:flex",
+  "flex-wrap:wrap",
+  "width:44px",
+  "min-width:44px",
+  "height:44px",
+  "min-height:44px",
+]) {
+  requireSource(coarseDesktopPlayer, needle, "styles.css coarse-pointer compact desktop player");
+}
+for (const needle of [
+  ".volume:has(.cast-toggle)",
+  "grid-template-columns:repeat(6,36px) 18px",
+  "grid-template-columns:repeat(6,32px) 18px minmax(40px,46px)",
+]) {
+  requireSource(styles, needle, "styles.css optional cast compact desktop player");
+}
+requireSource(
+  styles,
+  "@media (min-width:721px) and (max-width:820px) and (min-height:501px) and (max-height:700px)",
+  "styles.css narrow short-window player guard",
+);
+requireSource(
+  styles,
+  "@media (min-width:1181px) and (max-height:700px)",
+  "styles.css wide short-window player guard",
+);
+
 const liveLyrics = blockFor(
   mobile,
   ".app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] .full-lyrics-lines p.live .lyric-line-text",

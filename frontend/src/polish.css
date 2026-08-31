@@ -86,7 +86,7 @@ body {
   .settings-tabs button.active,
   .collection-tabs button.active,
   .collection-tabs button:hover,
-  .segmented-control button.active,
+  .segmented-control:not(.player-style-picker) button.active,
   .public-share-theme-toggle button.active,
   .profile-settings-card > button,
   .modal-actions .primary,

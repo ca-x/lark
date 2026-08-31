@@ -66,6 +66,9 @@ export function RunningKittenTurntable({
           </div>
           <div className="running-kitten-cat-orbit" data-motion-model="upper-groove-lap">
             <div className="running-kitten-cat-runner">
+              <span className="running-kitten-sleep-symbol" aria-hidden="true">
+                <i>Z</i><i>z</i><i>z</i>
+              </span>
               <div className="running-kitten-cat-facing">
                 <KittenSilhouette />
               </div>
@@ -119,8 +122,45 @@ export function RunningKittenTurntable({
 
 function KittenSilhouette() {
   return (
-    <svg className="running-kitten-cat" viewBox="0 0 1024 1024" aria-hidden="true">
-      <path d={RUNNING_KITTEN_PATH} />
+    <svg className="running-kitten-cat" viewBox="0 0 220 154" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <g className="running-kitten-body">
+        <path className="running-kitten-body-shape" d="M47 91C51 60 75 46 108 48c27 1 47 13 53 34 6 22-7 37-33 40H73c-23 0-31-12-26-31Z" />
+        <path className="running-kitten-coat-mark" d="M71 61c11-7 25-9 39-7M65 72c15-8 33-10 49-5" />
+      </g>
+      <g className="running-kitten-head-group">
+        <path className="running-kitten-head" d="M134 58c1-23 16-37 39-37 23 0 39 15 40 37 1 23-15 39-39 40-23 0-41-16-40-40Z" />
+        <g className="running-kitten-ears">
+          <path className="running-kitten-ear running-kitten-ear-left" d="M143 36 141 8l23 18Z" />
+          <path className="running-kitten-ear running-kitten-ear-right" d="m184 24 22-14-4 31Z" />
+          <path className="running-kitten-ear-detail" d="m148 27-1-9 8 7m36 1 9-7-2 11" />
+        </g>
+        <g className="running-kitten-eyes">
+          <g className="running-kitten-eye running-kitten-eye-left">
+            <ellipse className="running-kitten-eye-white" cx="160" cy="56" rx="6.4" ry="7.2" />
+            <ellipse className="running-kitten-pupil" cx="161" cy="57" rx="2.2" ry="3.9" />
+          </g>
+          <g className="running-kitten-eye running-kitten-eye-right">
+            <ellipse className="running-kitten-eye-white" cx="188" cy="54" rx="6.4" ry="7.2" />
+            <ellipse className="running-kitten-pupil" cx="189" cy="55" rx="2.2" ry="3.9" />
+          </g>
+        </g>
+        <path className="running-kitten-nose" d="m176 67 4 2-4 4-4-3Z" />
+        <path className="running-kitten-mouth" d="M176 72c-1 5-5 7-9 6m9-6c1 5 5 6 9 4" />
+        <path className="running-kitten-whiskers" d="m164 70-22-4m22 10-23 3m46-11 20-7m-19 13 21 1" />
+      </g>
+      <g className="running-kitten-tail">
+        <path className="running-kitten-tail-outline" d="M55 98C29 99 16 86 19 67c2-17 15-26 28-20 9 4 11 14 5 21" />
+        <path className="running-kitten-tail-fill" d="M55 98C29 99 16 86 19 67c2-17 15-26 28-20 9 4 11 14 5 21" />
+      </g>
+      <g className="running-kitten-backlegs">
+        <path className="running-kitten-leg running-kitten-backleg-one" d="M62 106c-2 11-4 23-3 34 1 8 14 9 16 1 1-11 3-22 7-33Z" />
+        <path className="running-kitten-leg running-kitten-backleg-two" d="M83 108c0 10 1 22 4 32 2 8 15 7 16-1-2-12-2-22 0-32Z" />
+      </g>
+      <g className="running-kitten-frontlegs">
+        <path className="running-kitten-leg running-kitten-frontleg-one" d="M145 105c2 11 6 22 11 33 3 7 16 4 15-4-4-12-6-22-6-33Z" />
+        <path className="running-kitten-leg running-kitten-frontleg-two" d="M164 101c3 11 8 22 14 31 4 7 16 2 14-6-6-11-9-21-9-31Z" />
+      </g>
+      <path className="running-kitten-legacy-silhouette" d={RUNNING_KITTEN_PATH} />
     </svg>
   );
 }

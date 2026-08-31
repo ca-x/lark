@@ -10997,10 +10997,11 @@ function SettingsPanel({
                 title={t("homePlayerStyle")}
                 description={t("homePlayerStyleHint")}
               >
-                <div className="segmented-control segmented-control-fluid" role="group" aria-label={t("homePlayerStyle")}>
+                <div className="segmented-control segmented-control-fluid player-style-picker" role="group" aria-label={t("homePlayerStyle")}>
               <button
                 type="button"
                 className={homePlayerStyle === "vinyl" ? "active" : ""}
+                aria-pressed={homePlayerStyle === "vinyl"}
                 onClick={() => onHomePlayerStyleChange("vinyl")}
               >
                 {t("homePlayerVinyl")}
@@ -11008,6 +11009,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "cassette" ? "active" : ""}
+                aria-pressed={homePlayerStyle === "cassette"}
                 onClick={() => onHomePlayerStyleChange("cassette")}
               >
                 {t("homePlayerCassette")}
@@ -11015,6 +11017,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "ipod" ? "active" : ""}
+                aria-pressed={homePlayerStyle === "ipod"}
                 onClick={() => onHomePlayerStyleChange("ipod")}
               >
                 {t("homePlayerIpod")}
@@ -11022,6 +11025,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "audio-scope" ? "active" : ""}
+                aria-pressed={homePlayerStyle === "audio-scope"}
                 onClick={() => onHomePlayerStyleChange("audio-scope")}
               >
                 {t("homePlayerAudioScope")}
@@ -11029,6 +11033,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "album-slide" ? "active" : ""}
+                aria-pressed={homePlayerStyle === "album-slide"}
                 onClick={() => onHomePlayerStyleChange("album-slide")}
               >
                 {t("homePlayerAlbumSlide")}
@@ -11036,6 +11041,8 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "smartisan-turntable" ? "active" : ""}
+                data-player-style="smartisan-turntable"
+                aria-pressed={homePlayerStyle === "smartisan-turntable"}
                 onClick={() => onHomePlayerStyleChange("smartisan-turntable")}
               >
                 {t("homePlayerSmartisanTurntable")}
@@ -11043,6 +11050,8 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "gramophone" ? "active" : ""}
+                data-player-style="gramophone"
+                aria-pressed={homePlayerStyle === "gramophone"}
                 onClick={() => onHomePlayerStyleChange("gramophone")}
               >
                 {t("homePlayerGramophone")}
@@ -11050,6 +11059,8 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "running-kitten" ? "active" : ""}
+                data-player-style="running-kitten"
+                aria-pressed={homePlayerStyle === "running-kitten"}
                 onClick={() => onHomePlayerStyleChange("running-kitten")}
               >
                 {t("homePlayerRunningKitten")}
@@ -11057,6 +11068,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "mineradio-stage" ? "active" : ""}
+                aria-pressed={homePlayerStyle === "mineradio-stage"}
                 onClick={() => onHomePlayerStyleChange("mineradio-stage")}
               >
                 {t("homePlayerMineradioStage")}
@@ -11064,6 +11076,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "walkman" ? "active" : ""}
+                aria-pressed={homePlayerStyle === "walkman"}
                 onClick={() => onHomePlayerStyleChange("walkman")}
               >
                 {t("homePlayerWalkman")}
@@ -11071,6 +11084,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "singularity" ? "active" : ""}
+                aria-pressed={homePlayerStyle === "singularity"}
                 onClick={() => onHomePlayerStyleChange("singularity")}
               >
                 {t("homePlayerSingularity")}
@@ -11108,6 +11122,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={mobileHomePlayerStyle === "neon-console" ? "active" : ""}
+                aria-pressed={mobileHomePlayerStyle === "neon-console"}
                 onClick={() => onMobileHomePlayerStyleChange("neon-console")}
               >
                 {t("mobileHomePlayerNeonConsole")}
@@ -11115,6 +11130,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={mobileHomePlayerStyle === "soft-vinyl" ? "active" : ""}
+                aria-pressed={mobileHomePlayerStyle === "soft-vinyl"}
                 onClick={() => onMobileHomePlayerStyleChange("soft-vinyl")}
               >
                 {t("mobileHomePlayerSoftVinyl")}
@@ -11122,6 +11138,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={mobileHomePlayerStyle === "gramophone" ? "active" : ""}
+                aria-pressed={mobileHomePlayerStyle === "gramophone"}
                 onClick={() => onMobileHomePlayerStyleChange("gramophone")}
               >
                 {t("mobileHomePlayerGramophone")}
@@ -11129,6 +11146,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={mobileHomePlayerStyle === "indiewave" ? "active" : ""}
+                aria-pressed={mobileHomePlayerStyle === "indiewave"}
                 onClick={() => onMobileHomePlayerStyleChange("indiewave")}
               >
                 {t("mobileHomePlayerIndiewave")}
@@ -11136,6 +11154,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={mobileHomePlayerStyle === "editorial-pulse" ? "active" : ""}
+                aria-pressed={mobileHomePlayerStyle === "editorial-pulse"}
                 onClick={() => onMobileHomePlayerStyleChange("editorial-pulse")}
               >
                 {t("mobileHomePlayerEditorialPulse")}
@@ -11143,6 +11162,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={mobileHomePlayerStyle === "stage-glass" ? "active" : ""}
+                aria-pressed={mobileHomePlayerStyle === "stage-glass"}
                 onClick={() => onMobileHomePlayerStyleChange("stage-glass")}
               >
                 {t("mobileHomePlayerStageGlass")}
@@ -11150,6 +11170,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={mobileHomePlayerStyle === "blue-halo" ? "active" : ""}
+                aria-pressed={mobileHomePlayerStyle === "blue-halo"}
                 onClick={() => onMobileHomePlayerStyleChange("blue-halo")}
               >
                 {t("mobileHomePlayerBlueHalo")}
@@ -11157,6 +11178,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={mobileHomePlayerStyle === "smartisan-classic" ? "active" : ""}
+                aria-pressed={mobileHomePlayerStyle === "smartisan-classic"}
                 onClick={() => onMobileHomePlayerStyleChange("smartisan-classic")}
               >
                 {t("mobileHomePlayerSmartisanClassic")}

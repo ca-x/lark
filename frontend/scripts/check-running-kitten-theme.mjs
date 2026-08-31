@@ -15,6 +15,9 @@ for (const needle of [
   "running-kitten-cat-orbit",
   "running-kitten-cat-runner",
   "running-kitten-cat-facing",
+  "running-kitten-head-group",
+  "running-kitten-tail-outline",
+  "running-kitten-sleep-symbol",
   'data-motion-model="upper-groove-lap"',
 ]) {
   requireInSource(component, needle, "RunningKittenTurntable.tsx");
@@ -25,10 +28,24 @@ for (const needle of [
   "@keyframes running-kitten-counter-lap",
   "@keyframes running-kitten-facing",
   ".running-kitten-player[data-playing='true'] .running-kitten-cat-orbit",
+  ".running-kitten-cat .running-kitten-body-shape",
+  ".running-kitten-cat .running-kitten-coat-mark",
+  ".running-kitten-cat .running-kitten-tail-outline",
+  ".running-kitten-player:not([data-playing='true']) .running-kitten-head-group",
+  ".running-kitten-player[data-playing='true'] .running-kitten-cat-facing::before",
+  ".running-kitten-player:not([data-playing='true']) .running-kitten-cat-facing::after",
+  "@media (min-width:721px) and (max-width:1020px)",
   "@media (hover:hover) and (pointer:fine)",
   "prefers-reduced-motion: reduce",
 ]) {
   requireInSource(css, needle, "styles.css");
+}
+
+const pausedMotionRule = ".running-kitten-player:not([data-playing='true']) :is(";
+const pausedMotionStart = css.lastIndexOf(pausedMotionRule);
+const pausedMotionEnd = pausedMotionStart < 0 ? -1 : css.indexOf("}", pausedMotionStart);
+if (pausedMotionStart < 0 || pausedMotionEnd < 0 || !css.slice(pausedMotionStart, pausedMotionEnd).includes("animation-name:none")) {
+  failures.push("styles.css: paused kitten parts must release the animation cascade so sleep and hover transforms can apply");
 }
 
 const recordMarker = '<div className="running-kitten-record">';

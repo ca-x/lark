@@ -5,6 +5,24 @@
 
 ---
 
+## 0.11.7：三款桌面唱机主题精修
+
+发布日期 / Released: 2026-08-31
+
+- **重做复古唱机的材质与配色。** 胡桃木机身、做旧缎面黄铜、唱臂、唱盘和控制台使用更克制的明暗层次，较长的歌曲标题也可使用两行排布。
+- **让锤子唱机与小猫主题更有完整器材感。** 锤子唱机改为紧凑的深色金属舞台，小猫则拥有更自然的轮廓、四肢与尾巴步态，并会在暂停时入睡、在鼠标靠近时醒来。
+- **完善主题选择与短屏体验。** 三款主题提供独立材质预览，在 1280 × 633 短屏下避开底部播放栏，同时补齐选中状态语义和减弱动态效果支持。
+
+## v0.11.7: Three desktop turntable themes refined
+
+Released: 2026-08-31
+
+- **Reworked the gramophone materials and palette.** Walnut, aged satin brass, tonearm, platter, and console details now use more restrained depth, while longer song titles can wrap across two lines.
+- **Gave the Smartisan and running-kitten themes a complete hardware presence.** The Smartisan player now uses a compact dark-metal stage, while the kitten has a more natural silhouette, articulated gait and tail, a sleeping pause state, and a pointer-aware wake response.
+- **Improved theme selection and short-screen behavior.** Each theme has its own material preview, all three stay clear of the bottom player at 1280 × 633, and selection semantics and reduced-motion behavior are now complete.
+
+---
+
 ## 0.11.6：主题与播放器体验精修
 
 发布日期 / Released: 2026-08-29
