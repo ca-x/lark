@@ -18,6 +18,9 @@ assert.match(api, /refresh=true/);
 assert.match(app, /metadata_issues/);
 assert.match(app, /onEditMetadata=\{auth\.user\.role === "admin"/);
 assert.match(app, /className="song-metadata-issues" onClick/);
+const songTableHeader = app.match(/const columnHeader = \([\s\S]*?\n  \);/)?.[0] || "";
+assert.match(songTableHeader, /t\("songs"\)[\s\S]*t\("album"\)[\s\S]*t\("quality"\)/, "song table headers must follow the rendered song, album, and quality columns");
+assert.doesNotMatch(songTableHeader, /t\("artist"\)/, "artist is rendered inside the song cell and must not claim the album column header");
 for (const key of ["sortAddedDesc", "sortAddedAsc", "sortFilenameAsc", "sortFilenameDesc", "libraryReview", "searchSettings", "refreshOnlineCandidates"]) {
   assert.equal((i18n.match(new RegExp(`${key}:`, "g")) || []).length, 2, `${key} must have Chinese and English copy`);
 }

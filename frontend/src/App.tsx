@@ -11001,6 +11001,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "vinyl" ? "active" : ""}
+                data-player-style="vinyl"
                 aria-pressed={homePlayerStyle === "vinyl"}
                 onClick={() => onHomePlayerStyleChange("vinyl")}
               >
@@ -11009,6 +11010,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "cassette" ? "active" : ""}
+                data-player-style="cassette"
                 aria-pressed={homePlayerStyle === "cassette"}
                 onClick={() => onHomePlayerStyleChange("cassette")}
               >
@@ -11017,6 +11019,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "ipod" ? "active" : ""}
+                data-player-style="ipod"
                 aria-pressed={homePlayerStyle === "ipod"}
                 onClick={() => onHomePlayerStyleChange("ipod")}
               >
@@ -11025,6 +11028,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "audio-scope" ? "active" : ""}
+                data-player-style="audio-scope"
                 aria-pressed={homePlayerStyle === "audio-scope"}
                 onClick={() => onHomePlayerStyleChange("audio-scope")}
               >
@@ -11033,6 +11037,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "album-slide" ? "active" : ""}
+                data-player-style="album-slide"
                 aria-pressed={homePlayerStyle === "album-slide"}
                 onClick={() => onHomePlayerStyleChange("album-slide")}
               >
@@ -11068,6 +11073,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "mineradio-stage" ? "active" : ""}
+                data-player-style="mineradio-stage"
                 aria-pressed={homePlayerStyle === "mineradio-stage"}
                 onClick={() => onHomePlayerStyleChange("mineradio-stage")}
               >
@@ -11076,6 +11082,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "walkman" ? "active" : ""}
+                data-player-style="walkman"
                 aria-pressed={homePlayerStyle === "walkman"}
                 onClick={() => onHomePlayerStyleChange("walkman")}
               >
@@ -11084,6 +11091,7 @@ function SettingsPanel({
               <button
                 type="button"
                 className={homePlayerStyle === "singularity" ? "active" : ""}
+                data-player-style="singularity"
                 aria-pressed={homePlayerStyle === "singularity"}
                 onClick={() => onHomePlayerStyleChange("singularity")}
               >
@@ -12421,8 +12429,8 @@ function SongTable({
       <span>#</span>
       <span />
       <span>{t("songs")}</span>
-      <span>{t("artist")}</span>
       <span>{t("album")}</span>
+      <span>{t("quality")}</span>
       <span />
       <span />
     </div>

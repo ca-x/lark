@@ -5,6 +5,22 @@
 
 ---
 
+## 0.11.8：歌曲表头与主题预览修正
+
+发布日期 / Released: 2026-09-03
+
+- **修正所有歌曲列表的表头映射。** 歌手继续显示在歌曲标题下方，后续表头改为专辑与音质，与每行实际内容保持一致。
+- **补齐首页播放器的主题预览。** 11 个桌面播放器选项现在都使用对应的唱片、磁带、金属、纸张、暗场或太空材质，并在超宽屏与紧凑桌面上保持均衡分组。
+
+## v0.11.8: Song headers and theme previews corrected
+
+Released: 2026-09-03
+
+- **Corrected headers across every song list.** Artist names remain beneath song titles, while the following headers now read Album and Quality to match the actual row content.
+- **Completed the home-player theme previews.** All 11 desktop player choices now use matching vinyl, cassette, metal, paper, dark-stage, or space materials with balanced grouping on ultrawide and compact desktop layouts.
+
+---
+
 ## 0.11.7：三款桌面唱机主题精修
 
 发布日期 / Released: 2026-08-31

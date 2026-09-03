@@ -9,6 +9,23 @@ const mobile = readFileSync(join(root, "src/mobile.css"), "utf8");
 const app = readFileSync(join(root, "src/App.tsx"), "utf8");
 const mobileHome = readFileSync(join(root, "src/components/mobile/MobileHomeSurface.tsx"), "utf8");
 
+for (const style of [
+  "vinyl",
+  "cassette",
+  "ipod",
+  "audio-scope",
+  "album-slide",
+  "smartisan-turntable",
+  "gramophone",
+  "running-kitten",
+  "mineradio-stage",
+  "walkman",
+  "singularity",
+]) {
+  requireSource(app, `data-player-style="${style}"`, `App.tsx desktop player picker ${style}`);
+  requireSource(styles, `button[data-player-style='${style}']`, `styles.css desktop player picker ${style}`);
+}
+
 function requireSource(source, needle, label) {
   assert.ok(source.includes(needle), `${label}: missing ${needle}`);
 }

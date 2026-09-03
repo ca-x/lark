@@ -11445,7 +11445,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 @media (min-width:721px) {
   .player-style-picker {
-    grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns:repeat(auto-fit, minmax(136px, 1fr));
     gap:8px;
     padding:8px;
     border-radius:20px;
@@ -11483,6 +11483,184 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
     border-radius:50%;
     transform:translateY(-50%);
     pointer-events:none;
+  }
+
+  .player-style-picker > button[data-player-style] {
+    color:var(--player-style-ink,var(--text));
+    background:var(--player-style-material,var(--panel2));
+    border-color:var(--player-style-border,var(--line));
+    box-shadow:inset 0 1px 0 var(--player-style-highlight,rgba(255,255,255,.12));
+    text-shadow:var(--player-style-text-shadow,none);
+  }
+
+  .player-style-picker > button[data-player-style]::before {
+    background:var(--player-style-preview);
+    box-shadow:var(--player-style-preview-shadow,0 2px 6px rgba(0,0,0,.28));
+  }
+
+  :root[data-theme] .settings-page .player-style-picker > button[data-player-style].active {
+    color:var(--player-style-active-ink,var(--player-style-ink,var(--text)));
+    background:var(--player-style-active-material,var(--player-style-material,var(--panel2)));
+    border-color:var(--player-style-active-border,var(--player-style-accent,var(--accent)));
+    box-shadow:
+      inset 3px 0 0 var(--player-style-accent,var(--accent)),
+      inset 0 1px 0 var(--player-style-highlight,rgba(255,255,255,.16)),
+      0 8px 20px var(--player-style-active-shadow,rgba(0,0,0,.18));
+  }
+
+  .player-style-picker > button[data-player-style='vinyl'] {
+    --player-style-ink:#e9e3d9;
+    --player-style-material:
+      repeating-linear-gradient(96deg,rgba(255,255,255,.025) 0 1px,transparent 1px 5px),
+      linear-gradient(145deg,#292720,#10100f);
+    --player-style-border:#4c473c;
+    --player-style-preview:radial-gradient(circle,#b94b3f 0 15%,#d7c39a 16% 22%,#171716 23% 63%,#050505 64% 100%);
+    --player-style-preview-shadow:0 2px 7px rgba(0,0,0,.42),inset 0 0 0 1px rgba(255,255,255,.14);
+    --player-style-active-ink:#fff6e5;
+    --player-style-active-material:
+      repeating-linear-gradient(96deg,rgba(255,255,255,.035) 0 1px,transparent 1px 5px),
+      linear-gradient(145deg,#38342a,#171511);
+    --player-style-active-border:#a07c46;
+    --player-style-accent:#d0a257;
+    --player-style-active-shadow:rgba(67,50,25,.28);
+  }
+
+  .player-style-picker > button[data-player-style='cassette'] {
+    --player-style-ink:#e3ded1;
+    --player-style-material:
+      repeating-linear-gradient(180deg,rgba(255,255,255,.025) 0 1px,transparent 1px 5px),
+      linear-gradient(145deg,#4a4945,#242522);
+    --player-style-border:#62615b;
+    --player-style-preview:
+      radial-gradient(circle at 31% 50%,#151513 0 14%,#bdb7a8 15% 22%,transparent 23%),
+      radial-gradient(circle at 69% 50%,#151513 0 14%,#bdb7a8 15% 22%,transparent 23%),
+      linear-gradient(155deg,#d3c9b4,#68645b);
+    --player-style-preview-shadow:0 2px 6px rgba(0,0,0,.36),inset 0 0 0 2px rgba(27,27,25,.34);
+    --player-style-active-ink:#fff4df;
+    --player-style-active-material:
+      repeating-linear-gradient(180deg,rgba(255,255,255,.035) 0 1px,transparent 1px 5px),
+      linear-gradient(145deg,#5a554c,#2c2b26);
+    --player-style-active-border:#c28649;
+    --player-style-accent:#d6924c;
+    --player-style-active-shadow:rgba(74,48,24,.28);
+  }
+
+  .player-style-picker > button[data-player-style='cassette']::before,
+  .player-style-picker > button[data-player-style='walkman']::before {
+    border-radius:7px;
+  }
+
+  .player-style-picker > button[data-player-style='ipod'] {
+    --player-style-ink:#44484d;
+    --player-style-material:
+      repeating-linear-gradient(90deg,rgba(255,255,255,.38) 0 1px,rgba(185,190,195,.08) 1px 3px),
+      linear-gradient(155deg,#fafafa,#d8dcdf);
+    --player-style-border:#b9bec3;
+    --player-style-highlight:rgba(255,255,255,.82);
+    --player-style-preview:radial-gradient(circle,#f7f7f5 0 18%,#aeb4b8 19% 25%,#eceeec 26% 57%,#7b8288 58% 63%,#cdd1d3 64% 100%);
+    --player-style-preview-shadow:0 2px 5px rgba(54,61,67,.24),inset 0 1px 0 #fff;
+    --player-style-active-ink:#25292d;
+    --player-style-active-material:
+      repeating-linear-gradient(90deg,rgba(255,255,255,.46) 0 1px,rgba(170,176,181,.1) 1px 3px),
+      linear-gradient(155deg,#fff,#e7eaec);
+    --player-style-active-border:#737b82;
+    --player-style-accent:#59636c;
+    --player-style-active-shadow:rgba(48,57,64,.2);
+  }
+
+  .player-style-picker > button[data-player-style='audio-scope'] {
+    --player-style-ink:#d9f8fb;
+    --player-style-material:
+      repeating-linear-gradient(90deg,rgba(87,221,231,.035) 0 1px,transparent 1px 9px),
+      linear-gradient(145deg,#17343a,#09171b);
+    --player-style-border:#2d5961;
+    --player-style-preview:repeating-radial-gradient(circle,rgba(119,239,244,.68) 0 1px,transparent 1px 5px),radial-gradient(circle,#52d7de 0 8%,#102c32 9% 64%,#061114 65% 100%);
+    --player-style-preview-shadow:0 0 0 1px rgba(102,227,235,.24),0 2px 8px rgba(1,11,14,.42);
+    --player-style-active-ink:#eaffff;
+    --player-style-active-material:
+      repeating-linear-gradient(90deg,rgba(95,237,244,.05) 0 1px,transparent 1px 9px),
+      linear-gradient(145deg,#20505a,#0b2228);
+    --player-style-active-border:#4ccbd5;
+    --player-style-accent:#61dbe3;
+    --player-style-active-shadow:rgba(18,112,121,.25);
+  }
+
+  .player-style-picker > button[data-player-style='album-slide'] {
+    --player-style-ink:#362923;
+    --player-style-material:
+      linear-gradient(90deg,rgba(106,70,49,.1) 0 1px,transparent 1px 68%),
+      radial-gradient(circle at 18% 22%,rgba(255,255,255,.58),transparent 30%),
+      linear-gradient(145deg,#f2e3c8,#cbb391);
+    --player-style-border:#b79b77;
+    --player-style-highlight:rgba(255,255,255,.62);
+    --player-style-preview:linear-gradient(90deg,#dbc6a4 0 43%,transparent 44%),radial-gradient(circle,#b55441 0 13%,#171514 14% 62%,#050505 63% 100%);
+    --player-style-preview-shadow:0 2px 6px rgba(70,44,29,.28),inset 0 0 0 1px rgba(255,255,255,.38);
+    --player-style-active-ink:#241916;
+    --player-style-active-material:
+      linear-gradient(90deg,rgba(119,75,48,.13) 0 1px,transparent 1px 68%),
+      radial-gradient(circle at 18% 22%,rgba(255,255,255,.68),transparent 30%),
+      linear-gradient(145deg,#fff0d4,#d8b992);
+    --player-style-active-border:#b46342;
+    --player-style-accent:#ad593d;
+    --player-style-active-shadow:rgba(103,62,38,.22);
+  }
+
+  .player-style-picker > button[data-player-style='mineradio-stage'] {
+    --player-style-ink:#c9f7e7;
+    --player-style-material:
+      radial-gradient(circle at 22% 35%,rgba(98,224,177,.14) 0 1px,transparent 2px),
+      radial-gradient(circle at 72% 68%,rgba(148,204,255,.1) 0 1px,transparent 2px),
+      linear-gradient(145deg,#111b1b,#030606);
+    --player-style-border:#25443e;
+    --player-style-preview:radial-gradient(circle,#c9fff0 0 5%,#4fd9ae 6% 12%,#112a25 13% 48%,#050707 49% 100%);
+    --player-style-preview-shadow:0 0 10px rgba(80,221,173,.24),0 2px 8px rgba(0,0,0,.5);
+    --player-style-active-ink:#e7fff7;
+    --player-style-active-material:
+      radial-gradient(circle at 22% 35%,rgba(98,224,177,.22) 0 1px,transparent 2px),
+      radial-gradient(circle at 72% 68%,rgba(148,204,255,.14) 0 1px,transparent 2px),
+      linear-gradient(145deg,#17342e,#06100e);
+    --player-style-active-border:#55cda5;
+    --player-style-accent:#65ddb4;
+    --player-style-active-shadow:rgba(24,119,88,.22);
+  }
+
+  .player-style-picker > button[data-player-style='walkman'] {
+    --player-style-ink:#e9edf1;
+    --player-style-material:
+      repeating-linear-gradient(90deg,rgba(255,255,255,.035) 0 1px,transparent 1px 4px),
+      linear-gradient(145deg,#44535d,#202a31);
+    --player-style-border:#60717b;
+    --player-style-preview:
+      radial-gradient(circle at 30% 50%,#e8a14f 0 8%,#20262a 9% 20%,transparent 21%),
+      radial-gradient(circle at 70% 50%,#e8a14f 0 8%,#20262a 9% 20%,transparent 21%),
+      linear-gradient(155deg,#8d9da6,#37454e);
+    --player-style-preview-shadow:0 2px 6px rgba(0,0,0,.38),inset 0 0 0 1px rgba(255,255,255,.18);
+    --player-style-active-ink:#fff4e4;
+    --player-style-active-material:
+      repeating-linear-gradient(90deg,rgba(255,255,255,.05) 0 1px,transparent 1px 4px),
+      linear-gradient(145deg,#566a75,#26343c);
+    --player-style-active-border:#d18a44;
+    --player-style-accent:#ed9d4c;
+    --player-style-active-shadow:rgba(31,51,62,.28);
+  }
+
+  .player-style-picker > button[data-player-style='singularity'] {
+    --player-style-ink:#f2dfbd;
+    --player-style-material:
+      radial-gradient(circle at 28% 48%,rgba(232,166,82,.13),transparent 23%),
+      radial-gradient(circle at 72% 42%,rgba(114,83,184,.12),transparent 28%),
+      linear-gradient(145deg,#17131b,#050507);
+    --player-style-border:#493d53;
+    --player-style-preview:radial-gradient(circle,#030304 0 27%,transparent 28%),conic-gradient(from 12deg,#3c244f,#e5a354,#fff0b6,#7e4f91,#3c244f);
+    --player-style-preview-shadow:0 0 11px rgba(224,156,76,.28),0 2px 8px rgba(0,0,0,.52);
+    --player-style-active-ink:#fff1d5;
+    --player-style-active-material:
+      radial-gradient(circle at 28% 48%,rgba(232,166,82,.2),transparent 23%),
+      radial-gradient(circle at 72% 42%,rgba(130,91,204,.17),transparent 28%),
+      linear-gradient(145deg,#241a28,#09070c);
+    --player-style-active-border:#c58b4e;
+    --player-style-accent:#e4a052;
+    --player-style-active-shadow:rgba(102,60,30,.26);
   }
 
   .player-style-picker > button[data-player-style='smartisan-turntable'] {
@@ -12435,6 +12613,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 .running-kitten-player:not([data-playing='true']) .running-kitten-cat-facing::after {
   opacity:0;
   animation-name:none;
+}
+
+@media (min-width:721px) and (max-width:820px) {
+  .player-style-picker {
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media (min-width:821px) and (max-width:1180px) {
+  .player-style-picker {
+    grid-template-columns:repeat(4,minmax(0,1fr));
+  }
 }
 
 @media (prefers-reduced-motion:reduce) {
