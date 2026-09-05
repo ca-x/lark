@@ -5,6 +5,7 @@ import { registerServiceWorker } from './features/offline'
 import './styles.css'
 import './mobile.css'
 import './polish.css'
+import './mobile-experience.css'
 
 void registerServiceWorker().catch(() => undefined)
 

@@ -1,8 +1,9 @@
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Queue, Record, SkipForward } from "@phosphor-icons/react";
 
 import type { MobileHomePlayerStyle } from "../../types";
+import { resolvePlayerSwipe } from "./playerSwipe";
 
 export function MobileMiniPlayer({
   theme,
@@ -40,6 +41,8 @@ export function MobileMiniPlayer({
   onNext?: () => void;
 }) {
   const [failedCover, setFailedCover] = useState("");
+  const swipe = useRef<{ x: number; y: number; time: number } | null>(null);
+  const suppressClick = useRef(false);
   useEffect(() => {
     if (cover !== failedCover) setFailedCover("");
   }, [cover, failedCover]);
@@ -55,7 +58,27 @@ export function MobileMiniPlayer({
 
   return (
     <div className="mobile-mini-player" data-mobile-theme={theme} data-playing={playing ? "true" : "false"} style={style}>
-      <button type="button" className="mobile-mini-main" aria-label={expandLabel} disabled={!available} onClick={onExpand}>
+      <button type="button" className="mobile-mini-main" aria-label={expandLabel} disabled={!available}
+        onTouchStart={(event) => {
+          suppressClick.current = false;
+          const touch = event.touches[0];
+          swipe.current = event.touches.length === 1 ? { x: touch.clientX, y: touch.clientY, time: performance.now() } : null;
+        }}
+        onTouchMove={(event) => {
+          if (event.touches.length !== 1) { swipe.current = null; suppressClick.current = true; }
+        }}
+        onTouchCancel={() => { swipe.current = null; suppressClick.current = true; }}
+        onTouchEnd={(event) => {
+          const start = swipe.current;
+          swipe.current = null;
+          if (!start) return;
+          const touch = event.changedTouches[0];
+          const dx = touch.clientX - start.x;
+          const dy = touch.clientY - start.y;
+          suppressClick.current = Math.max(Math.abs(dx), Math.abs(dy)) > 10;
+          if (resolvePlayerSwipe(dx, dy, performance.now() - start.time) === "expand") onExpand();
+        }}
+        onClick={(event) => { if (event.detail === 0 || !suppressClick.current) onExpand(); suppressClick.current = false; }}>
         <span className="mobile-mini-art" data-has-cover={displayCover ? "true" : "false"} data-fallback-label={fallbackLabel} aria-hidden="true">
           {displayCover ? (
             <img src={displayCover} alt="" loading="eager" decoding="async" onError={() => setFailedCover(displayCover)} />

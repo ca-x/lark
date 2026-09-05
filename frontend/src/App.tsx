@@ -1,4 +1,5 @@
 import type { ChangeEvent, ReactNode, UIEvent } from "react";
+import { createPortal, flushSync } from "react-dom";
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
@@ -1079,6 +1080,8 @@ export default function App() {
   const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>(storedInterfaceMode);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("account");
   const [query, setQuery] = useState("");
+  const [mobileSearchActive, setMobileSearchActive] = useState(false);
+  const [mobileSearchRequest, setMobileSearchRequest] = useState(0);
   const [albumArtistFilter, setAlbumArtistFilter] = useState(0);
   const [albumArtistQuery, setAlbumArtistQuery] = useState("");
   const [albumFavoritesOnly, setAlbumFavoritesOnly] = useState(false);
@@ -5058,6 +5061,7 @@ export default function App() {
     { id: "about", label: t("about"), icon: <Info /> },
   ];
   const openNavigationView = (id: View) => {
+    setMobileSearchActive(false);
     setLyricsFullScreen(false);
     setMobilePlayerExpanded(false);
     setView(id);
@@ -5117,21 +5121,33 @@ export default function App() {
     view === "about";
   const mobileBottomNavItems = [
     { key: "home", label: t("home"), icon: <House />, active: !mobilePlayerExpanded && view === "home", onSelect: () => openNavigationView("home") },
-    { key: "library", label: t("library"), icon: <MusicNotes />, active: !mobilePlayerExpanded && mobileLibraryActive, onSelect: () => openNavigationView("library") },
+    { key: "library", label: t("library"), icon: <MusicNotes />, active: !mobilePlayerExpanded && mobileLibraryActive && !(mobileSearchActive && view === "library"), onSelect: () => openNavigationView("library") },
     {
-      key: "player",
-      label: t("playback"),
-      icon: <Play />,
-      active: mobilePlayerExpanded || lyricsFullScreen,
-      disabled: !mobilePlayerAvailable,
-      onSelect: () => {
-        if (!mobilePlayerAvailable) return;
-        setLyricsFullScreen(false);
-        setMobilePlayerExpanded(true);
-      },
+      key: "search",
+      label: t("searchAction"),
+      icon: <MagnifyingGlass />,
+      active: !mobilePlayerExpanded && mobileSearchActive && view === "library",
+      onSelect: openMobileSearch,
     },
     { key: "my", label: t("my"), icon: <UserCircle />, active: !mobilePlayerExpanded && mobileMyActive, onSelect: () => openNavigationView("my") },
   ];
+  function openMobileSearch() {
+    flushSync(() => {
+      openNavigationView("library");
+      setMobileSearchActive(true);
+      setMobileSearchRequest(value => value + 1);
+    });
+    // Focus inside the tap event, after mounting the song tab, for iOS keyboards.
+    mainRef.current?.querySelector<HTMLInputElement>(".search input")?.focus();
+  }
+  useEffect(() => {
+    if (!mobileViewport || !mobileSearchActive || view !== "library") return;
+    const frame = requestAnimationFrame(() => {
+      mainRef.current?.scrollTo({ top: 0, behavior: "instant" });
+      mainRef.current?.querySelector<HTMLInputElement>(".search input")?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [mobileSearchActive, mobileSearchRequest, mobileViewport, view]);
   const screenTitle =
     collection && view === "collection"
       ? collection.title
@@ -5474,7 +5490,7 @@ export default function App() {
   return (
     <>
     <div
-      className={lyricsFullScreen ? "app-shell lyrics-mode" : "app-shell"}
+      className={lyricsFullScreen ? "app-shell mobile-experience lyrics-mode" : "app-shell mobile-experience"}
       data-interface-mode={effectiveInterfaceMode}
       data-view={view}
       data-mobile-player-expanded={mobilePlayerExpanded ? "true" : "false"}
@@ -5569,13 +5585,18 @@ export default function App() {
         ) : (
           <>
             <header className="topbar">
+              {mobileViewport && view === "home" ? <div className="listening-page-header">
+                <div><span>{t("brand")}</span><h1>{t("mobileListenHeading")}</h1></div>
+                <button type="button" aria-label={t("searchAction")} onClick={openMobileSearch}><MagnifyingGlass /></button>
+                <button type="button" aria-label={t("my")} onClick={() => openNavigationView("my")}><UserAvatar user={auth.user} /></button>
+              </div> : null}
               {showTopbarScreenTitle ? (
                 <div className="top-title">
                   <span>{t("brand")}</span>
                   <h1>{screenTitle}</h1>
                 </div>
               ) : null}
-              {view !== "radio" && view !== "library" && view !== "history" && view !== "my" && !(mobileViewport && view === "settings") ? (
+              {view !== "radio" && view !== "library" && view !== "history" && view !== "my" && !(mobileViewport && (view === "settings" || view === "home")) ? (
                 <SongSearchBox
                   t={t}
                   value={query}
@@ -5747,6 +5768,7 @@ export default function App() {
 
             {view === "library" && (
               <LibraryView
+                searchRequest={mobileViewport && mobileSearchActive ? mobileSearchRequest : 0}
                 songs={songs}
                 folders={folders}
                 networkSources={networkSources}
@@ -6187,7 +6209,8 @@ export default function App() {
           onQueue={current || currentRadio || currentNetworkTrack ? toggleQueuePanel : undefined}
           onNext={mobilePlaybackActive ? () => next(1) : undefined}
         />
-        <MobilePlayerDock
+        {mobileViewport && mobilePlayerExpanded && !lyricsFullScreen ? <MobilePlayerDock
+          mediaKey={current ? `song:${current.id}` : currentNetworkTrack ? `network:${currentNetworkTrack.source_id}:${currentNetworkTrack.id}` : currentRadio ? `radio:${currentRadio.url}` : `song:${mobileDisplaySong?.id ?? 0}`}
           theme={mobileHomePlayerStyle}
           cover={currentArtwork || coverUrl(mobileDisplaySong)}
           playing={playerPlaying}
@@ -6223,7 +6246,7 @@ export default function App() {
           queueActive={queueOpen}
           sleepTimerActive={sleepTimerMode !== "off"}
           lyricsActive={lyricsFullScreen || inlineLyrics}
-        />
+        /> : null}
         <PlayerMood
           theme={settings.theme}
           playing={playerPlaying}
@@ -6906,7 +6929,7 @@ function HomeView({
   const heroAlbum = displaySong
     ? albums.find((album) => album.id === displaySong.album_id)
     : undefined;
-  const mobileRecent = recentSongs.length ? recentSongs : songs.slice(0, 5);
+  const mobileRecent = recentPlayedSongs.slice(0, 8);
   const mobileLibrary = dailySongs.length ? dailySongs : songs.slice(0, 8);
   if (mobileViewport) {
     return (
@@ -6931,9 +6954,9 @@ function HomeView({
           recentSongs={mobileRecent}
           recentAddedSongs={recentAddedSongs.slice(0, 6)}
           recommendedSongs={mobileLibrary}
-          albums={featuredAlbums}
-          artists={featuredArtists}
-          playlists={featuredPlaylists}
+          albums={albums.slice(0, 8)}
+          artists={artists.slice(0, 8)}
+          playlists={playlists.slice(0, 4)}
           stats={stats}
           t={t}
           onPlay={onPlay}
@@ -8568,6 +8591,7 @@ function CollectionCover({ collection }: { collection: Collection }) {
 }
 
 function LibraryView({
+  searchRequest,
   songs,
   folders,
   networkSources,
@@ -8611,6 +8635,7 @@ function LibraryView({
   onReviewToggle,
   onMetadataCorrected,
 }: {
+  searchRequest: number;
   songs: Song[];
   folders: Folder[];
   networkSources: NetworkSource[];
@@ -8655,7 +8680,13 @@ function LibraryView({
   onMetadataCorrected: (result: FolderMetadataCorrectionResult, path: string) => void | Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
-  const [tab, setTabState] = useState<LibraryTab>(() => storedLibraryTab());
+  const [mobileSelecting, setMobileSelecting] = useState(false);
+  const [tab, setTabState] = useState<LibraryTab>(() => searchRequest ? "songs" : storedLibraryTab());
+  useLayoutEffect(() => {
+    if (!searchRequest) return;
+    setTabState("songs");
+    rememberLibraryTab("songs");
+  }, [searchRequest]);
   const scanRunning = Boolean(scanStatus?.running);
   const activeTab = mobileBasic && tab !== "songs" && tab !== "folders" && tab !== "manage" ? "songs" : tab;
   const setTab = (nextTab: LibraryTab) => {
@@ -8704,6 +8735,7 @@ function LibraryView({
               onChange={onSortChange}
             />
           ) : null}
+          {mobileBasic && activeTab === "songs" ? <button type="button" className="library-select-toggle" aria-pressed={mobileSelecting} onClick={() => { setMobileSelecting(value => !value); setSelected(new Set()); }}>{t(mobileSelecting ? "done" : "mobileSelectSongs")}</button> : null}
           {activeTab === "songs" ? (
             <button type="button" className={review === "incomplete" ? "library-review-filter active" : "library-review-filter"} aria-pressed={review === "incomplete"} onClick={onReviewToggle}>
               <WarningCircle /> {t(reviewCount === 0 ? "libraryReviewComplete" : "libraryReview")}{reviewCount == null ? "" : ` · ${reviewCount}`}
@@ -8865,7 +8897,7 @@ function LibraryView({
             onOpenArtist={onOpenArtist}
             onEditMetadata={onEditMetadata}
             selectedIds={selected}
-            onToggleSelected={toggleSelected}
+            onToggleSelected={!mobileBasic || mobileSelecting ? toggleSelected : undefined}
           />
           <PaginationControls page={songPage} itemCount={songs.length} loading={pageLoading} t={t} onPageChange={onPageChange} />
         </>
@@ -12186,14 +12218,17 @@ const SongRow = memo(function SongRow({
       ) : (
         <span>{index + 1}</span>
       )}
-      <button onClick={() => onPlay(song)} aria-label={t("play")}>
+      <button className="song-row-cover-play" onClick={() => onPlay(song)} aria-label={`${t("play")}: ${song.title}`}>
+        <span className="song-row-mobile-cover"><LazyCoverImage src={coverUrl(song)} /></span>
         <Play weight="fill" />
       </button>
-      <div>
-        <strong>{song.title}</strong>
-        <small className="song-mobile-meta">
+      <div className="song-row-copy">
+        <button type="button" className="song-title-play" onClick={() => onPlay(song)} aria-label={`${t("play")}: ${song.title}`}>
+          <strong>{song.title}</strong>
+          <small className="song-mobile-meta">
           {[song.artist, song.album].filter(Boolean).join(" · ")}
-        </small>
+          </small>
+        </button>
         {song.metadata_issues?.length ? (canEditMetadata ? (
           <button type="button" className="song-metadata-issues" onClick={() => onEditMetadata(song)}>
             {song.metadata_issues.map((issue) => t(issue === "missing_title" ? "missingTitle" : issue === "missing_artist" ? "missingArtist" : "missingAlbum")).join(" · ")}
@@ -12305,6 +12340,10 @@ function SongTable({
   const [moreMenuSongId, setMoreMenuSongId] = useState<number | null>(null);
   const moreButtonRefs = useRef(new Map<number, HTMLButtonElement | null>());
   const [moreMenuPos, setMoreMenuPos] = useState<{ right: number; top: number } | null>(null);
+  const moreMenuRef = useDialogLifecycle<HTMLDivElement>(
+    () => setMoreMenuSongId(null),
+    moreMenuSongId != null && moreMenuPos != null && songs.some(song => song.id === moreMenuSongId),
+  );
   const virtual = songs.length > VIRTUAL_TABLE_THRESHOLD;
   useLayoutEffect(() => {
     if (!virtual || !scrollerRef.current) return;
@@ -12332,16 +12371,20 @@ function SongTable({
     const close = () => setMoreMenuSongId(null);
     const onPointer = (event: Event) => {
       const target = event.target as HTMLElement | null;
-      if (target?.closest(".song-row-more-menu, .song-row-actions-more")) return;
+      if (target?.closest(".song-row-more-menu, .song-row-actions-more, .song-row-more-scrim")) return;
+      close();
+    };
+    const onScroll = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest(".song-row-more-menu")) return;
       close();
     };
     updatePos();
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", updatePos);
     document.addEventListener("mousedown", onPointer);
     document.addEventListener("touchstart", onPointer, { passive: true });
     return () => {
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", updatePos);
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("touchstart", onPointer);
@@ -12436,13 +12479,20 @@ function SongTable({
     </div>
   );
   const moreMenuSong = moreMenuSongId != null ? songs.find((s) => s.id === moreMenuSongId) : null;
-  const moreMenu = moreMenuSong && moreMenuPos ? (
+  const moreMenu = moreMenuSong && moreMenuPos ? createPortal(
+    <>
+    <button type="button" className="song-row-more-scrim" aria-label={t("close")} onClick={() => setMoreMenuSongId(null)} />
     <div
+      ref={moreMenuRef}
       className="song-row-more-menu"
       role="menu"
+      aria-label={`${t("more")}: ${moreMenuSong.title}`}
       style={{ right: moreMenuPos.right, top: moreMenuPos.top }}
       onClick={(event) => event.stopPropagation()}
     >
+      <div className="song-row-more-heading"><strong>{moreMenuSong.title}</strong><small>{moreMenuSong.artist}</small></div>
+      {onOpenAlbum && moreMenuSong.album_id ? <button role="menuitem" onClick={() => { onOpenAlbum(moreMenuSong); setMoreMenuSongId(null); }}><Disc /><span>{t("mobileGoToAlbum")}</span></button> : null}
+      {onOpenArtist && moreMenuSong.artist_id ? <button role="menuitem" onClick={() => { onOpenArtist(moreMenuSong); setMoreMenuSongId(null); }}><UserCircle /><span>{t("mobileGoToArtist")}</span></button> : null}
       {onInsertNext ? (
         <button role="menuitem" onClick={() => { onInsertNext(moreMenuSong); setMoreMenuSongId(null); }}>
           <SkipForward />
@@ -12472,6 +12522,8 @@ function SongTable({
         </button>
       ) : null}
     </div>
+    </>,
+    document.querySelector(".app-shell") ?? document.body,
   ) : null;
   if (virtual) {
     return (

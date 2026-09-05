@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import {
-  CaretLeft,
+  CaretDown,
   ChatText,
   HeartStraight,
   MusicNotes,
@@ -22,6 +22,7 @@ import type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 import { useDiscScratchSeek } from "./useDiscScratchSeek";
+import { resolvePlayerSwipe } from "../mobile/playerSwipe";
 
 const DEFAULT_LABELS = {
   nowPlaying: "Now playing",
@@ -61,6 +62,7 @@ function isSwipeIgnoredTarget(target: EventTarget | null) {
 }
 
 export function MobileArtPlayer({
+  mediaKey,
   variant,
   cover,
   playing,
@@ -94,6 +96,7 @@ export function MobileArtPlayer({
   sleepTimerActive = false,
   lyricsActive = false,
 }: {
+  mediaKey?: string;
   variant: MobileArtPlayerVariant;
   cover?: string;
   playing: boolean;
@@ -128,6 +131,8 @@ export function MobileArtPlayer({
   lyricsActive?: boolean;
 }) {
   const text = { ...DEFAULT_LABELS, ...labels };
+  const [seekPreview, setSeekPreview] = useState<number | null>(null);
+  const seeking = useRef<number | null>(null);
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const smartisanScratch = useDiscScratchSeek({
     duration,
@@ -135,8 +140,8 @@ export function MobileArtPlayer({
     onSeek,
     disabled: variant !== "smartisan-classic",
   });
-  const displayProgress = variant === "smartisan-classic" ? smartisanScratch.progress : progress;
-  const displayPct = variant === "smartisan-classic" ? smartisanScratch.pct : pct;
+  const displayProgress = seekPreview ?? (variant === "smartisan-classic" ? smartisanScratch.progress : progress);
+  const displayPct = seekPreview !== null && duration > 0 ? seekPreview / duration : variant === "smartisan-classic" ? smartisanScratch.pct : pct;
   const volumePct = Math.min(1, Math.max(0, volume));
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
@@ -165,11 +170,19 @@ export function MobileArtPlayer({
   });
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (isSwipeIgnoredTarget(e.target)) {
+    if (e.touches.length !== 1 || isSwipeIgnoredTarget(e.target) || e.currentTarget.scrollTop > 0) {
       swipeStart.current.tracking = false;
+      setSwipeY(0);
+      setSwipeX(0);
       return;
     }
     const touch = e.touches[0];
+    if (touch.clientX < 24 || touch.clientX > window.innerWidth - 24) {
+      swipeStart.current.tracking = false;
+      setSwipeY(0);
+      setSwipeX(0);
+      return;
+    }
     const now = performance.now();
     swipeStart.current = {
       x: touch.clientX,
@@ -185,6 +198,12 @@ export function MobileArtPlayer({
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!swipeStart.current.tracking) return;
+    if (e.touches.length !== 1) {
+      swipeStart.current.tracking = false;
+      setSwipeY(0);
+      setSwipeX(0);
+      return;
+    }
     const touch = e.touches[0];
     const deltaY = touch.clientY - swipeStart.current.y;
     const deltaX = touch.clientX - swipeStart.current.x;
@@ -207,27 +226,33 @@ export function MobileArtPlayer({
 
   const handleTouchEnd = useCallback(() => {
     const gesture = swipeStart.current;
-    const elapsed = Math.max(16, gesture.lastAt - gesture.startedAt);
+    if (!gesture.tracking) return;
+    const elapsed = Math.max(16, performance.now() - gesture.startedAt);
     const deltaX = gesture.lastX - gesture.x;
     const deltaY = gesture.lastY - gesture.y;
-    const projectedX = deltaX + (deltaX / elapsed) * 180;
-    const projectedY = deltaY + (deltaY / elapsed) * 180;
-    if (gesture.axis === "y" && deltaY > 54 && projectedY > 110) onBack?.();
-    else if (gesture.axis === "x" && deltaX > 48 && projectedX > 96) onPrevious?.();
-    else if (gesture.axis === "x" && deltaX < -48 && projectedX < -96) {
-      if (onLyrics) onLyrics();
-      else onNext?.();
-    }
+    const action = resolvePlayerSwipe(deltaX, deltaY, elapsed);
+    if (action === "collapse") onBack?.();
+    else if (action === "previous") onPrevious?.();
+    else if (action === "next") onNext?.();
     swipeStart.current.tracking = false;
     setSwipeY(0);
     setSwipeX(0);
-  }, [onBack, onPrevious, onNext, onLyrics]);
+  }, [onBack, onPrevious, onNext]);
 
   const handleTouchCancel = useCallback(() => {
     swipeStart.current.tracking = false;
     setSwipeY(0);
     setSwipeX(0);
   }, []);
+  useEffect(() => {
+    // A seek or swipe belongs to the track on which it started. Natural track
+    // changes must not apply the old preview position to the next song.
+    seeking.current = null;
+    setSeekPreview(null);
+    swipeStart.current.tracking = false;
+    setSwipeY(0);
+    setSwipeX(0);
+  }, [mediaKey]);
   const modeIcon =
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
 
@@ -235,23 +260,14 @@ export function MobileArtPlayer({
     <div className={`mobile-art-player mobile-art-${variant}`} data-playing={playing ? "true" : "false"} style={style}>
       <div className="mobile-art-phone" data-swiping={swipeY !== 0 || swipeX !== 0 ? "true" : "false"} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchCancel} style={{ transform: swipeY > 0 ? `translateY(${swipeY * 0.72}px) scale(${Math.max(.97, 1 - swipeY / 5000)})` : swipeX !== 0 ? `translateX(${swipeX * 0.42}px)` : undefined, transition: swipeY === 0 && swipeX === 0 ? "transform .38s cubic-bezier(.32,.72,0,1), opacity .3s ease" : "none", opacity: swipeY > 0 ? Math.max(0, 1 - swipeY / 520) : undefined }}>
         <div className="mobile-art-bg" aria-hidden="true" />
-        {coverState.displayUrl ? (
-          <div className="mobile-art-blur-bg" style={{ backgroundImage: `url(${coverState.displayUrl})` }} aria-hidden="true" />
-        ) : null}
         <PaperShaderLayer variant={`mobile-${variant}`} playing={playing} cover={coverState.displayUrl} compact />
         {onBack ? (
           <div className="mobile-art-topbar">
             <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>
-              <CaretLeft weight="bold" />
+              <CaretDown weight="bold" />
             </button>
             <span>{text.nowPlaying}</span>
             <span className="mobile-art-topbar-spacer" aria-hidden="true" />
-          </div>
-        ) : null}
-        {onLyrics ? (
-          <div className="mobile-art-page-dots" aria-hidden="true">
-            <span className="active" />
-            <span />
           </div>
         ) : null}
 
@@ -294,40 +310,20 @@ export function MobileArtPlayer({
         )}
 
         <div className="mobile-art-meta">
-          <span>{variant === "stage-glass" ? `${text.by} ${artist}` : artist}</span>
           <strong>{title}</strong>
+          <span>{variant === "stage-glass" ? `${text.by} ${artist}` : artist}</span>
           <em>{album}</em>
-        </div>
-
-        <div className="mobile-art-actions" role="group" aria-label={text.menu}>
-          <button type="button" className={favoriteActive ? "active" : ""} aria-label={text.favorite} aria-pressed={favoriteActive} disabled={!onFavorite} onClick={onFavorite}>
+          <button type="button" className={favoriteActive ? "mobile-art-favorite active" : "mobile-art-favorite"} aria-label={text.favorite} aria-pressed={favoriteActive} disabled={!onFavorite} onClick={onFavorite}>
             <HeartStraight weight={favoriteActive ? "fill" : "regular"} />
           </button>
-          <button type="button" className={soundEffectsActive ? "active" : ""} aria-label={text.soundEffects} aria-pressed={soundEffectsActive} disabled={!onSoundEffects} onClick={onSoundEffects}>
-            <MusicNotes weight={soundEffectsActive ? "fill" : "regular"} />
-          </button>
-          {onCast ? (
-            <button type="button" className={castActive ? "active" : ""} aria-label={castLabel || text.cast} title={castLabel || text.cast} aria-pressed={castActive} onClick={onCast}>
-              <Screencast weight={castActive ? "fill" : "regular"} />
-            </button>
-          ) : null}
-          <button type="button" className={sleepTimerActive ? "active" : ""} aria-label={text.sleepTimer} aria-pressed={sleepTimerActive} disabled={!onSleepTimer} onClick={onSleepTimer}>
-            <Timer weight={sleepTimerActive ? "fill" : "regular"} />
-          </button>
-          <button type="button" className={lyricsActive ? "active" : ""} aria-label={text.lyrics} aria-pressed={lyricsActive} disabled={!onLyrics} onClick={onLyrics}>
-            <ChatText weight={lyricsActive ? "fill" : "regular"} />
-          </button>
-          <button type="button" className={queueActive ? "active" : ""} aria-label={text.queue} aria-pressed={queueActive} disabled={!onQueue} onClick={onQueue}>
-            <Queue weight={queueActive ? "fill" : "regular"} />
-          </button>
         </div>
 
-        <VolumeTicks value={volumePct} label={text.volume} onChange={onVolume} />
 
         <div className="mobile-art-progress">
           <div className="mobile-art-progress-rail">
             <span aria-hidden="true"><i /></span>
             <input
+              key={mediaKey}
               aria-label={text.position}
               type="range"
               min="0"
@@ -335,7 +331,24 @@ export function MobileArtPlayer({
               step="0.01"
               value={Math.min(displayProgress, duration || displayProgress || 0)}
               disabled={!canSeek}
-              onChange={(event) => onSeek?.(Number(event.target.value))}
+              aria-valuetext={`${formatThemeTime(displayProgress)} / ${formatThemeTime(duration)}`}
+              onPointerDown={(event) => {
+                if (!event.isPrimary || seeking.current !== null) { event.preventDefault(); return; }
+                seeking.current = event.pointerId;
+              }}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                if (seeking.current !== null) setSeekPreview(value);
+                else onSeek?.(value);
+              }}
+              onPointerUp={(event) => {
+                if (seeking.current !== event.pointerId) return;
+                onSeek?.(Number(event.currentTarget.value));
+                seeking.current = null;
+                setSeekPreview(null);
+              }}
+              onPointerCancel={(event) => { if (seeking.current === event.pointerId) { seeking.current = null; setSeekPreview(null); } }}
+              onBlur={() => { seeking.current = null; setSeekPreview(null); }}
             />
           </div>
           <div className="mobile-art-time">
@@ -345,6 +358,9 @@ export function MobileArtPlayer({
         </div>
 
         <div className="mobile-art-controls">
+          <button type="button" className={playMode === "sequence" ? "mobile-art-mode" : "mobile-art-mode active"} aria-label={playModeLabel} aria-pressed={playMode !== "sequence"} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>
+            {modeIcon}
+          </button>
           <button type="button" aria-label={text.previous} disabled={!onPrevious} onClick={onPrevious}>
             <SkipBack weight="fill" />
           </button>
@@ -354,10 +370,33 @@ export function MobileArtPlayer({
           <button type="button" aria-label={text.next} disabled={!onNext} onClick={onNext}>
             <SkipForward weight="fill" />
           </button>
-          <button type="button" className={playMode === "sequence" ? "" : "active"} aria-label={playModeLabel} aria-pressed={playMode !== "sequence"} title={playModeLabel} disabled={!onCyclePlayMode} onClick={onCyclePlayMode}>
-            {modeIcon}
+          <button type="button" className={queueActive ? "mobile-art-queue active" : "mobile-art-queue"} aria-label={text.queue} aria-pressed={queueActive} disabled={!onQueue} onClick={onQueue}>
+            <Queue weight={queueActive ? "fill" : "regular"} />
           </button>
         </div>
+        <VolumeTicks value={volumePct} label={text.volume} onChange={onVolume} />
+
+        <div className="mobile-art-actions" role="group" aria-label={text.menu}>
+          <button type="button" className={soundEffectsActive ? "active" : ""} aria-label={text.soundEffects} aria-pressed={soundEffectsActive} disabled={!onSoundEffects} onClick={onSoundEffects}>
+            <MusicNotes weight={soundEffectsActive ? "fill" : "regular"} />
+            <span>{text.soundEffects}</span>
+          </button>
+          {onCast ? (
+            <button type="button" className={castActive ? "active" : ""} aria-label={castLabel || text.cast} title={castLabel || text.cast} aria-pressed={castActive} onClick={onCast}>
+              <Screencast weight={castActive ? "fill" : "regular"} />
+              <span>{text.cast}</span>
+            </button>
+          ) : null}
+          <button type="button" className={sleepTimerActive ? "active" : ""} aria-label={text.sleepTimer} aria-pressed={sleepTimerActive} disabled={!onSleepTimer} onClick={onSleepTimer}>
+            <Timer weight={sleepTimerActive ? "fill" : "regular"} />
+            <span>{text.sleepTimer}</span>
+          </button>
+          <button type="button" className={lyricsActive ? "active" : ""} aria-label={text.lyrics} aria-pressed={lyricsActive} disabled={!onLyrics} onClick={onLyrics}>
+            <ChatText weight={lyricsActive ? "fill" : "regular"} />
+            <span>{text.lyrics}</span>
+          </button>
+        </div>
+
       </div>
     </div>
   );

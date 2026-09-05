@@ -133,8 +133,8 @@ assert.match(app, /className="lyric-line-text" data-text=\{line\.text\}/);
 
 assert.match(
   mobileHome,
-  /aria-label=\{highlightSong \? `\$\{t\("play"\)\}: \$\{highlightSong\.title\}` : t\("play"\)\}/,
-  "MobileHomeSurface.tsx: highlighted play button needs a localized accessible name",
+  /aria-label=\{`\$\{t\("playAll"\)\}: \$\{t\("dailyRecommendedSongs"\)\}`\}/,
+  "MobileHomeSurface.tsx: the daily-mix play action needs a localized accessible name",
 );
 
 console.log("player motion and mobile theme checks passed");

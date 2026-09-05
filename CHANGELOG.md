@@ -5,6 +5,26 @@
 
 ---
 
+## 0.12.0：移动端收听体验改版
+
+发布日期 / Released: 2026-09-05
+
+- **重做八套主题的移动首页。** 专辑封面架、曲库快捷入口与最近播放让音乐更容易找到，最近播放和最近添加可以就地切换，各主题保留自己的配色与材质。
+- **简化手机上的找歌与歌曲操作。** 底部新增常驻搜索入口，歌曲列表支持点击封面或标题播放，批量选择收进“多选”，更多操作改为可滚动的底部菜单，并可直接查看专辑和歌手。
+- **统一八套播放器的操作。** 收藏、播放模式、队列和歌词拥有一致的位置，支持上滑展开、下滑收起与左右切歌，拖动进度时先预览、松手再跳播，多指操作和自动切歌会正确取消旧手势。
+- **改善小屏阅读与触控。** 调整短屏和横屏布局，修正队列、设置与设备投放中的文字对比度，并补齐菜单焦点、键盘退出和减弱动态效果支持。
+
+## v0.12.0: Mobile listening redesigned
+
+Released: 2026-09-05
+
+- **Redesigned the mobile home across all eight themes.** Album shelves, library shortcuts, and switchable recently played and recently added lists make music easier to find while preserving each theme's colors and materials.
+- **Made browsing and song actions easier on phones.** Search has a permanent bottom tab, artwork and titles start playback, selection is available on demand, and a scrollable action sheet includes direct album and artist links.
+- **Unified controls across all eight players.** Favorites, playback modes, queue, and lyrics share consistent positions, with swipe gestures to expand, dismiss, and change tracks, seek previews that commit on release, and cancellation when another finger or track interrupts a gesture.
+- **Improved compact layouts and readability.** Short screens and landscape keep playback controls accessible, queue and settings text and device labels have better contrast, and action sheets support focus management, keyboard dismissal, and reduced motion.
+
+---
+
 ## 0.11.8：歌曲表头与主题预览修正
 
 发布日期 / Released: 2026-09-03
