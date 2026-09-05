@@ -156,6 +156,7 @@ export function VinylTurntable({
       </div>
       <div
         className={playing ? "turntable-status vinyl-power-status on" : "turntable-status vinyl-power-status"}
+        role="img"
         aria-label={playing ? "Power status on" : "Power status off"}
         title={playing ? "Power on" : "Power off"}
       >
@@ -193,7 +194,7 @@ function ToneKnob({
   const dash = Math.max(0, Math.min(157, pct * 157));
   const label = `${name} ${clamped > 0 ? "+" : ""}${clamped.toFixed(clamped % 1 ? 1 : 0)} dB`;
   return (
-    <div className={`vinyl-tone-unit ${tone}`} aria-label={label}>
+    <div className={`vinyl-tone-unit ${tone}`}>
       <span className="vinyl-tone-knob">
         <svg viewBox="0 0 76 76" aria-hidden="true">
           <circle cx="38" cy="38" r="30" fill="none" stroke="var(--vinyl-tone-track)" strokeWidth="4" strokeLinecap="round" strokeDasharray="157 220" strokeDashoffset="-31" pathLength="220" />

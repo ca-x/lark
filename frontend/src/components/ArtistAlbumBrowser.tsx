@@ -386,6 +386,7 @@ function ArtistAlbumShowcase({
         onPointerUp={finishPointer}
         onPointerCancel={finishPointer}
         onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return;
           if (event.key === "ArrowRight") {
             event.preventDefault();
             syncPosition(positionRef.current + 1);

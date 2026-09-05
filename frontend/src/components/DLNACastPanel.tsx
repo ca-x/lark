@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
 import { Monitor, Screencast, X } from "@phosphor-icons/react";
 import type { DLNADevice, DLNAStatus } from "../types";
 import type { TKey } from "../i18n";
+import { useDialogLifecycle } from "../hooks/useDialogLifecycle";
 
 function deviceStateLabel(state: string, t: (key: TKey) => string) {
   switch (state) {
@@ -41,17 +41,7 @@ export function DLNACastPanel({
   onSelectDevice: (device: DLNADevice) => void;
   t: (key: TKey) => string;
 }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    closeRef.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
+  const dialogRef = useDialogLifecycle<HTMLElement>(onClose, open);
 
   if (!open) return null;
   const activeID = status?.output === "dlna" ? status.device_id || "" : "";
@@ -59,7 +49,7 @@ export function DLNACastPanel({
   return (
     <div className="dlna-cast-layer">
       <button type="button" className="dlna-cast-scrim" aria-label={t("close")} onClick={onClose} />
-      <section className="dlna-cast-panel" role="dialog" aria-modal="true" aria-label={t("playToDevice")}>
+      <section ref={dialogRef} className="dlna-cast-panel" role="dialog" aria-modal="true" aria-label={t("playToDevice")}>
         <div className="dlna-cast-head">
           <div>
             <strong>{t("playToDevice")}</strong>
@@ -69,7 +59,7 @@ export function DLNACastPanel({
             <button type="button" onClick={onRefresh} disabled={loading}>
               {loading ? t("connecting") : t("refresh")}
             </button>
-            <button type="button" ref={closeRef} onClick={onClose} aria-label={t("close")}>
+            <button type="button" data-autofocus onClick={onClose} aria-label={t("close")}>
               <X weight="bold" />
             </button>
           </div>

@@ -1,12 +1,12 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.12.0",
+  "version": "0.12.1",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/check-album-slide-theme.mjs && node scripts/check-favorite-filters.mjs && node scripts/check-mobile-theme-palette.mjs && node --experimental-strip-types --test src/features/plugins/songloftPlayerMode.test.mjs src/components/mobile/playerSwipe.test.mjs && tsc -b && vite build",
+    "build": "node scripts/check-album-slide-theme.mjs && node scripts/check-favorite-filters.mjs && node scripts/check-mobile-theme-palette.mjs && node --experimental-strip-types --test src/features/plugins/songloftPlayerMode.test.mjs src/components/mobile/playerSwipe.test.mjs src/components/DesktopInteractions.test.mjs && tsc -b && vite build",
     "lint": "eslint .",
     "test:candidate-cache": "node --test src/services/candidateCache.test.mjs",
     "test:library-curation": "node --test src/components/LibrarySortControl.test.mjs src/components/settings/SettingsSearch.test.mjs && node scripts/check-library-curation.mjs",
@@ -20,6 +20,7 @@
     "test:player-motion": "node scripts/check-player-motion.mjs",
     "test:mobile-theme-palette": "node scripts/check-mobile-theme-palette.mjs",
     "test:mobile-interactions": "node --experimental-strip-types --test src/components/mobile/playerSwipe.test.mjs",
+    "test:desktop-layout": "node scripts/check-song-row-layout.mjs",
     "test:smartisan-tonearm": "node scripts/check-smartisan-tonearm.mjs",
     "test:walkman-theme": "node scripts/check-walkman-theme.mjs",
     "preview": "vite preview"

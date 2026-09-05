@@ -17,6 +17,7 @@ export function ShareManagementView({
   const [shares, setShares] = useState<Share[]>([]);
   const [sharesLoading, setSharesLoading] = useState(false);
   const [sharesError, setSharesError] = useState("");
+  const [copyErrorURL, setCopyErrorURL] = useState("");
 
   useEffect(() => {
     void refreshShares();
@@ -36,8 +37,15 @@ export function ShareManagementView({
   }
 
   async function copyShare(share: Share) {
-    if (!share.url) return;
-    await navigator.clipboard?.writeText(share.url).catch(() => undefined);
+    const url = share.url || `${window.location.origin}/share/${encodeURIComponent(share.token)}`;
+    setCopyErrorURL("");
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(url);
+    } catch {
+      setCopyErrorURL(url);
+      return;
+    }
     onToast(t("shareLinkCopied"));
     playUISound("copy");
   }
@@ -79,6 +87,22 @@ export function ShareManagementView({
       </div>
       <div className="share-management-card">
         {sharesError ? <div className="settings-error">{sharesError}</div> : null}
+        {copyErrorURL ? (
+          <div className="share-copy-fallback">
+            <div id="share-copy-error" className="settings-error" role="alert">{t("shareLinkCopyFailed")}</div>
+            <label className="share-copy-link">
+              <span>{t("sharingEndpoint")}</span>
+              <input
+                type="url"
+                readOnly
+                value={copyErrorURL}
+                aria-describedby="share-copy-error"
+                onFocus={(event) => event.currentTarget.select()}
+                onClick={(event) => event.currentTarget.select()}
+              />
+            </label>
+          </div>
+        ) : null}
         <div className="share-management-list">
           {shares.map((share) => (
             <div className="share-management-row" key={share.token}>

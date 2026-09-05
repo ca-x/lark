@@ -1,0 +1,282 @@
+/* Desktop listening workspace. Existing theme tokens and player materials are
+   shared with the mobile app; layout and input conventions remain independent. */
+.desktop-location, .search-shortcut { display:none; }
+.share-copy-link, .share-copy-fallback { display:grid; gap:8px; min-width:0; }
+.share-copy-link input { width:100%; min-width:0; padding:10px 12px; color:var(--text); background:var(--panel2); border:1px solid var(--line); border-radius:10px; }
+
+@media (min-width:721px) and (min-height:501px), (min-width:961px) {
+  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) {
+    --desktop-sidebar-width:208px;
+    --desktop-gutter:28px;
+    --desktop-song-columns:36px 36px minmax(140px,1.8fr) minmax(110px,1.15fr) minmax(130px,.8fr) 64px 96px;
+    --player-h:100px;
+    grid-template-columns:var(--desktop-sidebar-width) minmax(0,1fr);
+    grid-template-rows:minmax(0,1fr) var(--player-h);
+    gap:0;
+    padding:0;
+    background:var(--bg);
+  }
+  .app-shell:not([data-mineradio-stage-active='true']) > .sidebar {
+    padding:24px 14px 18px;
+    gap:22px;
+    border:0;
+    border-radius:0;
+    background:var(--bg);
+    box-shadow:none;
+    backdrop-filter:none;
+  }
+  .app-shell.lyrics-mode:not([data-interface-mode='shell']) { grid-template-columns:minmax(0,1fr); }
+  .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand { gap:10px; font-size:22px; font-weight:700; padding:0 8px; }
+  .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand img { width:42px; height:42px; }
+  .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav { gap:3px; }
+  .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav button { min-height:42px; padding:9px 12px; gap:12px; border:0; border-radius:9px; background:transparent; box-shadow:none; font-size:14px; font-weight:550; }
+  .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav button.active { background:color-mix(in srgb,var(--accent) 13%,var(--bg)); color:var(--text); font-weight:700; }
+  .app-shell .desktop-sidebar nav button.active::before, .app-shell .desktop-sidebar nav button.active::after { content:none !important; }
+  .desktop-sidebar nav button svg { width:20px; height:20px; }
+  .desktop-sidebar .nav-section-label { font-size:11px; font-weight:550; letter-spacing:0; padding:4px 12px 8px; }
+  .desktop-sidebar .nav-divider { margin:16px 12px; }
+  .app-shell:not(.lyrics-mode):not([data-mineradio-stage-active='true']) > .main {
+    padding:0 var(--desktop-gutter) 28px;
+    border:0;
+    border-left:1px solid var(--line);
+    border-radius:0;
+    background:var(--panel);
+    box-shadow:none;
+    scroll-padding-top:86px;
+    scrollbar-gutter:stable;
+  }
+  .app-shell:not(.lyrics-mode):not([data-mineradio-stage-active='true']) .topbar {
+    grid-template-columns:minmax(100px,1fr) minmax(260px,440px) auto;
+    gap:20px;
+    min-height:76px;
+    top:0;
+    margin:0 calc(-1 * var(--desktop-gutter)) 24px;
+    padding:14px var(--desktop-gutter);
+    border:0;
+    border-bottom:1px solid var(--line);
+    background:var(--panel);
+    box-shadow:none;
+    backdrop-filter:none;
+  }
+  .desktop-location { display:block; grid-column:1; grid-row:1; min-width:0; color:var(--muted); font-size:14px; }
+  .desktop-location > span { display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .app-shell .topbar .song-search-combobox { grid-column:2 !important; grid-row:1 !important; width:100%; max-width:none; }
+  .app-shell .topbar .user-menu { grid-column:3 !important; grid-row:1 !important; }
+  .topbar .search { min-height:42px; padding-inline:13px 8px; border-radius:10px; background:var(--panel2); border:1px solid transparent; }
+  .topbar .search input { font-size:14px; }
+  .search-shortcut { display:block; flex:none; padding:3px 6px; border:1px solid var(--line); border-radius:5px; color:var(--muted); font-family:inherit; font-size:11px; line-height:1.4; white-space:nowrap; }
+  .topbar .user-menu-trigger { min-height:40px; padding:4px 8px; border:0; border-radius:10px; box-shadow:none; background:transparent; }
+  .topbar .user-avatar { width:30px; height:30px; min-width:30px; }
+  .topbar .user-menu-trigger > span { font-size:13px; }
+  .topbar .song-search-options { background:var(--panel); border-radius:12px; }
+
+  /* The column definitions are shared by header and rows. Text is centered as
+     a group, not by centering the title independently of the artist. */
+  :root[data-theme] .app-shell .song-table-header, :root[data-theme] .app-shell .song-row {
+    grid-template-columns:var(--desktop-song-columns);
+    gap:12px;
+    padding-inline:8px;
+    align-items:center;
+    text-align:center;
+  }
+  .app-shell .song-table-header { min-height:40px; font-size:12px; font-weight:550; letter-spacing:0; text-transform:none; background:var(--panel); }
+  .app-shell .song-table-header > span { min-width:0; text-align:center; }
+  .app-shell .song-table { gap:0; margin-top:14px; }
+  :root[data-theme] .app-shell .song-row { min-height:64px; padding-block:8px; border-radius:8px; border:0; background:transparent; box-shadow:none; }
+  .app-shell .song-table.virtual .song-row { height:64px; }
+  .app-shell .song-row.active { background:color-mix(in srgb,var(--accent) 11%,var(--panel)); }
+  .app-shell .song-row > .song-row-copy { display:grid; justify-items:center; align-content:center; gap:2px; min-width:0; }
+  .app-shell .song-row .song-title-play { display:grid; justify-items:center; align-content:center; width:100%; padding:0; text-align:center; }
+  .app-shell .song-title-play strong { width:100%; text-align:center; font-size:14px; line-height:20px; }
+  .app-shell .song-row-copy > :is(.artist-link,small) { max-width:100%; justify-self:center; text-align:center !important; font-size:12px; line-height:18px; }
+  .app-shell .song-row :is(.song-album,.song-quality,.song-duration) { text-align:center; justify-self:stretch; }
+  .app-shell .song-row .song-album > .artist-link { display:block; width:100%; text-align:center !important; }
+  .app-shell .song-row .song-quality { font-size:11px; line-height:1.5; }
+  .app-shell .song-row .song-duration { font-size:12px; font-variant-numeric:tabular-nums; }
+  .app-shell .song-row > .row-check { width:36px; justify-self:center; }
+  .app-shell .song-row > .song-row-cover-play { display:grid; place-items:center; width:36px; min-width:36px; min-height:36px; height:36px; padding:0; justify-self:center; }
+  .app-shell .song-row-cover-play > svg { width:17px; height:17px; transform:translateX(1px); }
+  .app-shell .song-row-actions { justify-content:center; gap:2px; }
+  .app-shell .song-row-actions button { width:32px; min-width:32px; height:36px; min-height:36px; flex:0 0 32px; padding:0; }
+  .app-shell .song-row-actions-primary { gap:2px; }
+  .app-shell .song-row-actions-primary { display:none; }
+  .app-shell .song-row-actions-more { display:inline-flex; }
+  .app-shell .song-row-actions svg { width:18px; height:18px; }
+  .app-shell .song-row-more-menu { max-height:min(520px,75dvh); overflow-y:auto; overscroll-behavior:contain; background:var(--panel); border-radius:12px; }
+  .app-shell .song-row-more-menu button { min-height:38px; }
+  .app-shell .song-row-more-menu button:focus-visible { outline-offset:-3px; }
+  .song-row .song-metadata-issues { font-size:10px; line-height:14px; min-height:0; }
+
+  .app-shell .library-actions { align-items:center; gap:18px; flex-wrap:wrap; margin-bottom:16px; }
+  .app-shell .library-actions h2, .app-shell .section-head h2 { font-size:26px; line-height:1.3; letter-spacing:0; }
+  .app-shell .library-actions > div { gap:8px; }
+  .app-shell .library-actions > div > :is(button,label), .app-shell .library-sort-trigger { min-height:38px; padding:8px 12px; border-radius:9px; font-size:12px; }
+  .app-shell .library-tabs, .app-shell .collection-tabs { width:max-content; max-width:100%; border:0; border-radius:0; padding:0; gap:20px; background:transparent; }
+  .app-shell .library-tabs button, .app-shell .collection-tabs button { min-height:42px; padding:8px 1px; border:0; border-radius:0; background:transparent; color:var(--muted); font-size:13px; box-shadow:none; }
+  .app-shell .library-tabs button.active, .app-shell .collection-tabs button.active { color:var(--text) !important; box-shadow:inset 0 -2px 0 var(--accent); }
+  .app-shell .pagination-controls { left:calc(var(--desktop-sidebar-width) + var(--desktop-gutter)); right:var(--desktop-gutter); bottom:calc(var(--player-h) + 12px); border-radius:12px; background:var(--panel); box-shadow:0 4px 20px #0002; backdrop-filter:none; }
+
+  .app-shell .cards { grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:24px 20px; }
+  .app-shell .media-card { padding:0; border:0; border-radius:8px; background:transparent; box-shadow:none; gap:6px; }
+  .app-shell .media-card .cover { border-radius:8px; margin-bottom:4px; }
+  .app-shell .media-card-title { white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:14px; line-height:1.5; font-weight:650; }
+  .app-shell .card-meta { font-size:12px; line-height:1.5; gap:3px; }
+  .app-shell .media-card:focus-within :is(.card-play,.card-favorite) { opacity:1; transform:none; }
+  .app-shell .collection-browse-actions { gap:10px; }
+  .app-shell .collection-page-title { font-size:13px; }
+  .app-shell .collection-page-title .label { flex-shrink:0; white-space:nowrap; }
+  .app-shell .collection-hero { padding:24px 0 28px; border:0; border-radius:0; background:transparent; box-shadow:none; gap:28px; }
+  .app-shell .collection-hero > .cover { width:208px; height:208px; min-height:208px; border-radius:10px; }
+  .app-shell .collection-hero h1 { font-size:clamp(28px,3vw,44px); line-height:1.25; letter-spacing:0; overflow-wrap:anywhere; }
+  .app-shell .collection-hero .primary { box-shadow:none; }
+
+  .app-shell .desktop-home-view { gap:26px; }
+  .app-shell .desktop-home-view .album-slide-hero { grid-template-columns:minmax(0,1fr); justify-items:center; padding:20px 28px; min-height:410px; }
+  .app-shell .album-slide-hero > div:not(.album-slide-player) { display:none; }
+  :root[data-theme] .desktop-home-view .singularity-header h2 { color:#eef5fa; }
+  .app-shell .desktop-home-view .walkman-player { height:var(--walkman-hero-height); min-height:0; }
+  .app-shell .desktop-home-view .walkman-scene, .app-shell .desktop-home-view .walkman-canvas, .app-shell .desktop-home-view .walkman-console { height:calc(var(--walkman-hero-height) - 56px); min-height:0; }
+  .app-shell .desktop-home-view .walkman-console { grid-template-columns:120px minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) 48px 40px 44px; align-items:start; gap:10px 14px; padding:16px; overflow:hidden; }
+  .app-shell .desktop-home-view .walkman-status { grid-column:1 / -1; }
+  .app-shell .desktop-home-view .walkman-cover { grid-column:1; grid-row:2 / span 3; align-self:start; }
+  .app-shell .desktop-home-view .walkman-track { grid-column:2; grid-row:2; }
+  .app-shell .desktop-home-view .walkman-track h2 { font-size:clamp(20px,2vw,30px); -webkit-line-clamp:2; }
+  .app-shell .desktop-home-view .walkman-meter { grid-column:2; grid-row:3; }
+  .app-shell .desktop-home-view .walkman-progress-row { grid-column:2; grid-row:4; }
+  .app-shell .desktop-home-view .walkman-controls { grid-column:1 / -1; grid-row:5; }
+  .app-shell .desktop-home-view > .hero:not(.singularity-hero):not(.neural-cathedral-hero):not(.mineradio-stage-hero):not(.smartisan-turntable-hero):not(.gramophone-hero):not(.running-kitten-hero):not(.walkman-hero):not(.album-slide-hero) { grid-template-columns:auto minmax(0,1fr); min-height:300px; gap:28px; padding:24px 28px; border-radius:16px; border:1px solid var(--line); box-shadow:none; }
+  .desktop-home-view > .hero:not(.singularity-hero):not(.neural-cathedral-hero) h1 { font-size:clamp(30px,3.2vw,50px); line-height:1.16; letter-spacing:0; text-wrap:balance; }
+  .desktop-home-view .home-hero-meta { font-size:15px; line-height:1.65; }
+  .desktop-home-view .hero-meta-link { font-weight:500; text-decoration:none; }
+  .desktop-home-view .hero-actions .primary { min-height:42px; padding:10px 22px; box-shadow:none; }
+  .app-shell .home-dashboard { grid-template-columns:minmax(220px,.65fr) minmax(360px,1.35fr); gap:24px; }
+  .app-shell :is(.summary-panel,.quick-panel,.daily-song-panel) { border:0; border-radius:0; padding:8px 0; background:transparent; box-shadow:none; }
+  .app-shell .summary-panel { padding-right:24px; border-right:1px solid var(--line); }
+  .app-shell .home-dashboard .section-head h2, .app-shell .daily-discovery-head h2 { font-size:21px; letter-spacing:0; }
+  .app-shell .section-subtitle { font-size:12px; line-height:1.6; }
+  .app-shell .library-summary-stat { border-radius:10px; min-height:86px; padding:14px; box-shadow:none; }
+  .app-shell .library-summary-stat strong { font-size:28px; }
+  .app-shell .quick-song-list > button { min-height:58px; grid-template-columns:44px minmax(0,1fr) 36px; padding:6px 8px; border-radius:8px; background:transparent; }
+  .app-shell .quick-song-list .mini-art { width:44px; height:44px; min-width:44px; min-height:44px; border-radius:7px; }
+  .app-shell .recent-tabs { border:0; background:var(--panel2); border-radius:9px; padding:3px; }
+  .app-shell .recent-tabs button { min-height:30px; padding:6px 10px; border-radius:7px; font-size:12px; }
+  .app-shell .daily-discovery { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+  .app-shell .daily-discovery-layout { gap:24px; }
+  .app-shell .daily-song-list > button { border-radius:8px; }
+
+  .app-shell:not([data-mineradio-stage-active='true']) > .player { grid-template-columns:104px minmax(190px,1fr) minmax(240px,1.25fr) minmax(360px,auto); gap:20px; padding:10px 24px; border:0; border-top:1px solid var(--line); border-radius:0; background:var(--panel); box-shadow:none; backdrop-filter:none; }
+  .app-shell > .player > .player-mood { grid-column:1; grid-row:1; max-width:104px; }
+  .app-shell > .player > .now { grid-column:2; grid-row:1; }
+  .app-shell > .player > .transport { grid-column:3; grid-row:1; }
+  :root[data-theme] .app-shell > .player > .transport { grid-template-rows:44px 14px 14px; gap:2px; align-content:center; }
+  .app-shell > .player > .volume { grid-column:4; grid-row:1; display:flex; flex-wrap:nowrap; justify-content:flex-end; align-items:center; gap:4px; }
+  .app-shell > .player .volume .eq-toggle { display:grid; }
+  .app-shell > .player .wave-eq-button { display:none; }
+  .app-shell > .player .volume > button { flex:0 0 36px; width:36px; min-width:36px; height:40px; min-height:40px; padding:0; }
+  .app-shell > .player .volume > svg { flex:0 0 18px; width:18px; height:18px; margin-left:4px; }
+  .app-shell > .player .volume input[type='range'] { flex:1 1 80px; min-width:48px; max-width:100px; width:80px; }
+  .app-shell > .player .now { gap:12px; }
+  .app-shell > .player .mini-art { width:52px; height:52px; min-width:52px; min-height:52px; border-radius:8px; }
+  .app-shell > .player .now strong { font-size:14px; line-height:1.5; }
+  .app-shell > .player .now span { font-size:12px; }
+  .app-shell > .player .playback-buttons .play { width:42px; height:42px; }
+  .app-shell .queue-panel { right:24px; bottom:calc(var(--player-h) + 12px); background:var(--panel); border-radius:14px; backdrop-filter:none; }
+
+  .app-shell .settings-section { border-radius:14px; padding:18px; box-shadow:none; }
+  .app-shell .settings-section-text > strong { font-size:15px; }
+  .app-shell .settings-section-text > span { line-height:1.65; }
+  .app-shell .settings-empty { color:var(--text); }
+  :root[data-theme] .app-shell .profile-settings-card > button { color:var(--on-accent) !important; }
+  .app-shell .settings-tabs { border-radius:10px; }
+  .app-shell .settings-tabs button { border-radius:8px; }
+  .app-shell .history-entry { border-radius:10px; box-shadow:none; }
+  .app-shell .folder-tree-row { grid-template-columns:minmax(0,1fr) 40px; gap:8px; padding:6px 8px; }
+  .app-shell .folder-tree-open { min-width:0; min-height:52px; display:grid; grid-template-columns:42px minmax(0,1fr) 20px; align-items:center; gap:10px; padding:0; color:var(--text); background:transparent; text-align:left; }
+  .app-shell .folder-tree-open > span:nth-child(2) { min-width:0; }
+  .app-shell .folder-tree-open > svg { color:var(--muted); }
+  .app-shell .folder-tree-play { width:40px; min-width:40px; height:40px; min-height:40px; align-self:center; display:grid; place-items:center; border-radius:50%; color:var(--on-accent); background:var(--accent); }
+  .app-shell .folder-browser-actions button { color:var(--text); background:var(--panel); border-color:var(--line); }
+  .app-shell .history-calendar-panel { border-radius:14px; padding:16px; }
+  .app-shell .history-calendar-panel .react-calendar__month-view__days__day--neighboringMonth { color:var(--muted); }
+  .app-shell .about-hero a, .app-shell .about-row a { color:var(--text); text-decoration:underline; text-decoration-color:var(--accent); text-underline-offset:4px; }
+  :root[data-theme='smartisan-classic'] .app-shell { --smartisan-body-text:#353535; --smartisan-sub-text:#616161; --text:#353535; --muted:#616161; }
+  :root[data-theme='smartisan-classic'] .app-shell .desktop-sidebar :is(nav button,.nav-section-label) { color:var(--muted); }
+  :root[data-theme='smartisan-classic'] .app-shell .desktop-sidebar nav button.active { color:var(--text); }
+  :root[data-theme='apple-light'] .app-shell { --muted:#64646b; --muted-strong:#5a5a62; }
+  :root[data-theme='foobar-light'] .app-shell { --muted:#606060; }
+  .app-shell .share-management-row { border-radius:12px; box-shadow:none; }
+  .public-share-list-head, .public-share-list > button { align-items:center; justify-items:center; text-align:center; }
+  .public-share-list > button > :is(span,strong,em) { text-align:center; justify-self:center; }
+  .public-share-list > button.active > :is(span,em) { color:var(--text); }
+  .full-lyrics-lines [role='button']:focus-visible { outline:2px solid var(--accent); outline-offset:4px; border-radius:8px; }
+}
+
+@media (min-width:961px) and (max-height:700px), (min-width:721px) and (min-height:501px) and (max-height:700px) {
+  :root[data-theme] .desktop-home-view > :is(.neural-cathedral-hero,.singularity-hero) { min-height:max(360px,calc(100dvh - var(--player-h) - 112px)); }
+  .app-shell .desktop-home-view .singularity-overlay { padding:20px 24px; }
+  .app-shell .desktop-home-view .vinyl-component { width:min(400px,100%); }
+  .app-shell .desktop-home-view .vinyl-component .vinyl-plinth { padding:14px 14px 8px; }
+  .app-shell .desktop-home-view .vinyl-top-row { gap:12px; }
+  .app-shell .desktop-home-view .vinyl-platter-wrap { width:200px; height:200px; }
+  .app-shell .desktop-home-view .vinyl-tonearm { transform:scale(.72); transform-origin:top right; }
+  .app-shell .desktop-home-view .vinyl-controls { min-width:160px; gap:8px; }
+  .app-shell .desktop-home-view .vinyl-knobs { gap:4px; }
+  .app-shell .desktop-home-view .vinyl-tone-unit { min-width:46px; }
+  .app-shell .desktop-home-view .vinyl-tone-knob { width:46px; height:46px; }
+  .app-shell .desktop-home-view .vinyl-bottom-strip { margin-top:8px; }
+  .app-shell .desktop-home-view .cassette-component { width:min(380px,100%); padding:10px; }
+  .app-shell .desktop-home-view .cassette-deck { padding:8px 12px 10px; }
+  .app-shell .desktop-home-view .cassette-brand-bar { margin-bottom:6px; }
+  .app-shell .desktop-home-view .cassette-bay { padding:8px 10px 6px; margin-bottom:6px; }
+  .app-shell .desktop-home-view .cassette-svg { height:110px; }
+  .app-shell .desktop-home-view .cassette-lcd { padding:5px 8px; margin-bottom:6px; }
+  .app-shell .desktop-home-view .cassette-lcd-left { flex:1; overflow:hidden; }
+  .app-shell .desktop-home-view .cassette-lcd div div { width:100%; max-width:100%; }
+  .app-shell .desktop-home-view .cassette-lcd strong { max-width:100%; }
+  .app-shell .desktop-home-view .cassette-lcd time { flex:none; font-size:14px; }
+  .app-shell .desktop-home-view .cassette-progress-row { margin-bottom:4px; }
+  .app-shell .desktop-home-view .cassette-controls { gap:4px; }
+}
+
+@media (min-width:721px) and (max-width:900px) and (min-height:501px) {
+  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-song-columns:28px 32px minmax(110px,1.5fr) minmax(90px,1fr) 50px 76px; }
+  .app-shell .song-row .song-quality, .app-shell .song-table-header > span:nth-child(5) { display:none; }
+}
+
+@media (min-width:721px) and (min-height:501px) and (max-width:1400px), (min-width:961px) and (max-width:1400px) {
+  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-sidebar-width:188px; --desktop-gutter:22px; --desktop-song-columns:30px 34px minmax(120px,1.6fr) minmax(96px,1fr) 116px 54px 96px; }
+  .app-shell:not([data-mineradio-stage-active='true']) > .player { grid-template-columns:minmax(180px,1fr) minmax(230px,1.15fr) minmax(330px,auto); gap:16px; padding-inline:20px; }
+  .app-shell > .player > .player-mood { display:none; }
+  .app-shell > .player > .now { grid-column:1; }
+  .app-shell > .player > .transport { grid-column:2; }
+  .app-shell > .player > .volume { grid-column:3; }
+  .app-shell .song-row-actions-primary { display:none; }
+  .app-shell .song-row-actions-more { display:inline-flex; }
+  .app-shell .history-layout { grid-template-columns:240px minmax(0,1fr); gap:20px; }
+  .app-shell .history-day { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .app-shell .history-day-marker { position:static; }
+  .app-shell .history-entry { grid-template-columns:52px 48px minmax(0,1fr); gap:10px; }
+  .app-shell .history-entry-actions { grid-column:1 / -1; display:flex; justify-content:flex-end; flex-wrap:wrap; }
+}
+
+@media (min-width:721px) and (min-height:501px) and (max-width:1100px), (min-width:961px) and (max-width:1100px) {
+  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-sidebar-width:72px; --desktop-gutter:20px; --desktop-song-columns:28px 32px minmax(110px,1.5fr) minmax(90px,1fr) 100px 50px 76px; }
+  .app-shell:not([data-mineradio-stage-active='true']) > .sidebar { padding:18px 10px; }
+  .app-shell .desktop-sidebar :is(.brand > span,nav button > span,.nav-section-label) { display:none; }
+  .app-shell .desktop-sidebar .brand { padding:0; justify-content:center; }
+  .app-shell .desktop-sidebar nav button { justify-content:center; padding:10px 0; }
+  .app-shell:not([data-mineradio-stage-active='true']) > .player { grid-template-columns:minmax(140px,1fr) minmax(200px,1fr) 304px; gap:12px; padding-inline:14px; }
+  .app-shell > .player .volume > button { flex-basis:32px; width:32px; min-width:32px; }
+  .app-shell > .player .volume input[type='range'] { max-width:56px; }
+  .app-shell .history-layout { grid-template-columns:minmax(0,1fr); }
+  .app-shell .history-calendar-panel { position:static; max-width:420px; }
+  .app-shell .home-dashboard { grid-template-columns:minmax(0,1fr); }
+  .app-shell .desktop-home-view > .hero:not(.singularity-hero):not(.neural-cathedral-hero):not(.mineradio-stage-hero):not(.smartisan-turntable-hero):not(.gramophone-hero):not(.running-kitten-hero):not(.walkman-hero):not(.album-slide-hero) { grid-template-columns:minmax(0,1fr); justify-items:center; }
+  .app-shell .summary-panel { border-right:0; padding-right:0; }
+  .app-shell .library-summary-stats { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .app-shell:not(.lyrics-mode):not([data-mineradio-stage-active='true']) .topbar { grid-template-columns:minmax(0,1fr) minmax(240px,380px) auto; gap:12px; }
+}
+
+@media (hover:hover) and (pointer:fine) {
+  .desktop-sidebar nav button:hover { background:var(--panel2); }
+}

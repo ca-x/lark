@@ -1,6 +1,6 @@
 import type { ChangeEvent, ReactNode, UIEvent } from "react";
 import { createPortal, flushSync } from "react-dom";
-import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import {
@@ -192,6 +192,7 @@ import { useMediaQuery } from "./hooks/useMediaQuery";
 import { useScrollRestore } from "./hooks/useScrollRestore";
 import { useKeyboardAware } from "./hooks/useKeyboardAware";
 import { useDialogLifecycle } from "./hooks/useDialogLifecycle";
+import { useDesktopShortcuts } from "./hooks/useDesktopShortcuts";
 import type { View, PlayMode, ResumeMode, PlaybackStartMode, PlaybackSourceInput, PlaySongOptions, StreamMode, RecentHomeTab, DailyDiscoveryView, PageSizing, SettingsTab, LibraryTab, Collection, OfflineCacheControls } from "./types/app";
 import { MOBILE_PLAYBACK_VIEWS } from "./types/app";
 import {
@@ -860,10 +861,12 @@ function SongSearchBox({
   t,
   value,
   onSearch,
+  shortcut,
 }: {
   t: ReturnType<typeof createT>;
   value: string;
   onSearch: (value: string) => void;
+  shortcut?: string;
 }) {
   const [draft, setDraft] = useState(value);
   const [suggestions, setSuggestions] = useState<Song[]>([]);
@@ -940,6 +943,7 @@ function SongSearchBox({
           role="combobox"
           aria-autocomplete="list"
           aria-label={t("search")}
+          aria-keyshortcuts={shortcut ? "Control+K Meta+K" : undefined}
           aria-expanded={open && trimmedDraft.length > 0}
           aria-controls={open && trimmedDraft ? "song-search-options" : undefined}
           aria-activedescendant={open && !loading && suggestions[activeIndex] ? `song-search-option-${suggestions[activeIndex].id}` : undefined}
@@ -980,6 +984,7 @@ function SongSearchBox({
             <X />
           </button>
         ) : null}
+        {shortcut && !draft ? <kbd className="search-shortcut" aria-hidden="true">{shortcut}</kbd> : null}
       </label>
       {open && trimmedDraft ? (
         <div
@@ -5196,6 +5201,15 @@ export default function App() {
     }
     void togglePlaybackOutput();
   };
+  useDesktopShortcuts({
+    enabled: !mobileViewport && !lyricsFullScreen && Boolean(auth?.user) && interfaceMode === "standard",
+    onSearch: () => {
+      const input = mainRef.current?.querySelector<HTMLInputElement>(".topbar .search input");
+      input?.focus();
+      input?.select();
+    },
+    onTogglePlayback: toggleMobilePlayback,
+  });
   const currentOfflineEntry = current ? findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps) : undefined;
   const shouldUseOfflineAudio = Boolean(currentOfflineEntry && shouldPreferOfflinePlayback(offlineMode, networkReachable));
   const currentStreamUrl =
@@ -5590,16 +5604,17 @@ export default function App() {
                 <button type="button" aria-label={t("searchAction")} onClick={openMobileSearch}><MagnifyingGlass /></button>
                 <button type="button" aria-label={t("my")} onClick={() => openNavigationView("my")}><UserAvatar user={auth.user} /></button>
               </div> : null}
-              {showTopbarScreenTitle ? (
+              {!mobileViewport ? <div className="desktop-location"><span>{screenTitle}</span></div> : showTopbarScreenTitle ? (
                 <div className="top-title">
                   <span>{t("brand")}</span>
                   <h1>{screenTitle}</h1>
                 </div>
               ) : null}
-              {view !== "radio" && view !== "library" && view !== "history" && view !== "my" && !(mobileViewport && (view === "settings" || view === "home")) ? (
+              {!mobileViewport || (view !== "radio" && view !== "library" && view !== "history" && view !== "my" && view !== "settings" && view !== "home") ? (
                 <SongSearchBox
                   t={t}
                   value={query}
+                  shortcut={!mobileViewport ? (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘ K" : "Ctrl K") : undefined}
                   onSearch={(value) => {
                     setQuery(value);
                     setLibraryPage(1);
@@ -6613,7 +6628,7 @@ export default function App() {
               stations={radioPanelStations}
               currentRadio={currentRadio}
               playing={playing}
-              modal={mobileViewport}
+              modal
               t={t}
               onPlay={(station) => playRadio(station, radioPanelStations)}
               onClose={() => setQueueOpen(false)}
@@ -6622,7 +6637,7 @@ export default function App() {
             <QueuePanel
               queue={queue}
               current={current}
-              modal={mobileViewport}
+              modal
               t={t}
               onPlay={(song) => void playSong(song, queue, { keepPlaybackSource: true })}
               onClose={() => setQueueOpen(false)}
@@ -6994,7 +7009,7 @@ function HomeView({
             activeLyricText={activeLyricText}
             audioElement={audioElement}
             playlists={playlists}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7007,7 +7022,7 @@ function HomeView({
   }
 
   return (
-    <section className="home-view">
+    <section className="home-view desktop-home-view" data-home-player-style={homePlayerStyle}>
       <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : homePlayerStyle === "walkman" ? "hero walkman-hero" : homePlayerStyle === "singularity" ? "hero singularity-hero" : homePlayerStyle === "audio-scope" ? "hero neural-cathedral-hero" : "hero"}>
         {currentRadio ? (
           <RadioReceiver
@@ -7015,7 +7030,7 @@ function HomeView({
             subtitle={[t("onlineRadio"), currentRadio.country, currentRadio.codec || currentRadio.tags].filter(Boolean).join(" · ")}
             playing={playing}
             t={t}
-            onPlay={() => undefined}
+            onPlay={onTogglePlayback}
           />
         ) : homePlayerStyle === "cassette" ? (
           <CassetteDeck
@@ -7028,7 +7043,7 @@ function HomeView({
             playMode={playMode}
             playModeLabel={playModeLabel}
             labels={playerThemeLabels}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7045,7 +7060,7 @@ function HomeView({
             playMode={playMode}
             playModeLabel={playModeLabel}
             labels={playerThemeLabels}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7063,7 +7078,7 @@ function HomeView({
             labels={playerThemeLabels}
             telemetryLabel={t("playerTelemetry")}
             manualOverrideLabel={t("manualOverride")}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7081,7 +7096,7 @@ function HomeView({
             playMode={playMode}
             playModeLabel={playModeLabel}
             labels={playerThemeLabels}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7098,7 +7113,7 @@ function HomeView({
             playMode={playMode}
             playModeLabel={playModeLabel}
             labels={playerThemeLabels}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7116,7 +7131,7 @@ function HomeView({
             playMode={playMode}
             playModeLabel={playModeLabel}
             labels={playerThemeLabels}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7133,7 +7148,7 @@ function HomeView({
             playMode={playMode}
             playModeLabel={playModeLabel}
             labels={playerThemeLabels}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7151,7 +7166,7 @@ function HomeView({
             playMode={playMode}
             playModeLabel={playModeLabel}
             labels={playerThemeLabels}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7169,7 +7184,7 @@ function HomeView({
             playModeLabel={playModeLabel}
             labels={playerThemeLabels}
             changeFieldLabel={t("changeVisualField")}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onCyclePlayMode={onCyclePlayMode}
@@ -7190,7 +7205,7 @@ function HomeView({
             playModeLabel={playModeLabel}
             labels={playerThemeLabels}
             resetToneLabel={t("resetEqualizer")}
-            onToggle={heroActive ? onTogglePlayback : heroCanResume && displaySong ? () => onResume(displaySong) : undefined}
+            onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
             onPrevious={heroActive ? onPrevious : undefined}
             onNext={heroActive ? onNext : undefined}
             onVolume={onVolume}
@@ -7242,7 +7257,7 @@ function HomeView({
               onClick={() => displaySong && (heroActive ? onTogglePlayback() : onResume(displaySong))}
             >
               {currentRadio ? <Record weight="fill" /> : heroPlaying ? <Pause weight="fill" /> : <Play weight="fill" />}
-              {currentRadio ? t("liveRadio") : heroPlaying ? t("nowPlaying") : heroCanResume ? t("jumpBackIn") : t("play")}
+              {currentRadio ? t("liveRadio") : heroPlaying ? t("pause") : heroCanResume ? t("jumpBackIn") : t("play")}
             </button>
           </div>
         </div>
@@ -7274,11 +7289,11 @@ function HomeView({
               <h2>{t("latestSongs")}</h2>
               <p className="section-subtitle">{t("latestSongsHint")}</p>
             </div>
-            <div className="recent-tabs" role="tablist" aria-label={t("latestSongs")}>
-              <button className={recentTab === "played" ? "active" : ""} onClick={() => setRecentTab("played")}>
+            <div className="recent-tabs" role="group" aria-label={t("latestSongs")}>
+              <button className={recentTab === "played" ? "active" : ""} aria-pressed={recentTab === "played"} onClick={() => setRecentTab("played")}>
                 {t("recentPlayed")}
               </button>
-              <button className={recentTab === "added" ? "active" : ""} onClick={() => setRecentTab("added")}>
+              <button className={recentTab === "added" ? "active" : ""} aria-pressed={recentTab === "added"} onClick={() => setRecentTab("added")}>
                 {t("recentAdded")}
               </button>
             </div>
@@ -7324,9 +7339,9 @@ function HomeView({
               <p className="section-subtitle">{t("dailyMixHint")}</p>
             </div>
             <div className="daily-view-toggle" role="group" aria-label={t("dailyMix")}>
-              <button className={dailyView === "songs" ? "active" : ""} onClick={() => setDailyView("songs")}>{t("songs")}</button>
-              <button className={dailyView === "albums" ? "active" : ""} onClick={() => setDailyView("albums")}>{t("albums")}</button>
-              <button className={dailyView === "artists" ? "active" : ""} onClick={() => setDailyView("artists")}>{t("artists")}</button>
+              <button className={dailyView === "songs" ? "active" : ""} aria-pressed={dailyView === "songs"} onClick={() => setDailyView("songs")}>{t("songs")}</button>
+              <button className={dailyView === "albums" ? "active" : ""} aria-pressed={dailyView === "albums"} onClick={() => setDailyView("albums")}>{t("albums")}</button>
+              <button className={dailyView === "artists" ? "active" : ""} aria-pressed={dailyView === "artists"} onClick={() => setDailyView("artists")}>{t("artists")}</button>
             </div>
           </div>
           <div className="daily-discovery-layout">
@@ -7426,6 +7441,7 @@ function HomeView({
                         } as React.CSSProperties
                       }
                       onClick={() => onOpenAlbum(album)}
+                      aria-label={album.title}
                     >
                       <LazyCoverImage src={albumCoverUrl(album)} />
                       <Record weight="fill" />
@@ -7443,6 +7459,7 @@ function HomeView({
                     <button
                       className="mini-play"
                       onClick={() => onPlayAlbum(album)}
+                      aria-label={`${t("play")}: ${album.title}`}
                     >
                       <Play weight="fill" />
                     </button>
@@ -7467,6 +7484,7 @@ function HomeView({
                         } as React.CSSProperties
                       }
                       onClick={() => onOpenArtist(artist.id, artist.name)}
+                      aria-label={artist.name}
                     >
                       <LazyCoverImage src={artistCoverUrl(artist)} />
                       <Record weight="fill" />
@@ -7478,6 +7496,7 @@ function HomeView({
                     <button
                       className="mini-play"
                       onClick={() => onPlayArtist(artist)}
+                      aria-label={`${t("play")}: ${artist.name}`}
                     >
                       <Play weight="fill" />
                     </button>
@@ -7497,6 +7516,7 @@ function HomeView({
                     <button
                       className="mini-card-cover"
                       onClick={() => onOpenPlaylist(playlist)}
+                      aria-label={playlist.name}
                     >
                       <Record weight="fill" />
                     </button>
@@ -7507,6 +7527,7 @@ function HomeView({
                     <button
                       className="mini-play"
                       onClick={() => onPlayPlaylist(playlist)}
+                      aria-label={`${t("play")}: ${playlist.name}`}
                     >
                       <Play weight="fill" />
                     </button>
@@ -8724,7 +8745,7 @@ function LibraryView({
       <div className="section-head library-actions">
         <h2>{t("library")}</h2>
         <div>
-          {activeTab === "songs" ? (
+          {mobileBasic && activeTab === "songs" ? (
             <SongSearchBox t={t} value={searchQuery} onSearch={onSongSearch} />
           ) : null}
           {activeTab === "songs" ? (
@@ -9419,42 +9440,23 @@ function FolderBrowser({
             <div className="folder-tree-list">
               <h3>{t("subfolders")}</h3>
               {directory.folders.map((folder) => (
-                <button
-                  key={folder.path}
-                  className="folder-tree-row"
-                  onClick={() => setPath(folder.path)}
-                >
-                  <span className="folder-tree-icon">
-                    <FolderSimple weight="fill" />
-                  </span>
-                  <span>
-                    <strong>{folder.name}</strong>
-                    <small>
-                      {folder.song_count} {t("count")} · {formatDuration(folder.duration_seconds)}
-                    </small>
-                  </span>
-                  <span className="folder-tree-actions">
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      aria-label={t("playFolder")}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onPlayFolder(folder);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          onPlayFolder(folder);
-                        }
-                      }}
-                    >
-                      <Play weight="fill" />
+                <article key={folder.path} className="folder-tree-row">
+                  <button type="button" className="folder-tree-open" onClick={() => setPath(folder.path)}>
+                    <span className="folder-tree-icon">
+                      <FolderSimple weight="fill" />
                     </span>
-                    <CaretRight />
-                  </span>
-                </button>
+                    <span>
+                      <strong>{folder.name}</strong>
+                      <small>
+                        {folder.song_count} {t("count")} · {formatDuration(folder.duration_seconds)}
+                      </small>
+                    </span>
+                    <CaretRight aria-hidden="true" />
+                  </button>
+                  <button type="button" className="folder-tree-play" aria-label={`${t("playFolder")}: ${folder.name}`} onClick={() => onPlayFolder(folder)}>
+                    <Play weight="fill" />
+                  </button>
+                </article>
               ))}
             </div>
           ) : null}
@@ -9601,6 +9603,22 @@ function FullLyrics({
   onEditMetadata: (song: Song) => void;
 }) {
   const [seekTargetKey, setSeekTargetKey] = useState("");
+  const lyricsCloseRef = useRef<HTMLButtonElement | null>(null);
+  const closeLyrics = useEffectEvent(() => candidatesOpen ? onCloseCandidates() : onToggleView());
+  useEffect(() => {
+    const previous = document.activeElement;
+    lyricsCloseRef.current?.focus({ preventScroll: true });
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented || document.querySelector('[role="dialog"], [role="menu"]')) return;
+      event.preventDefault();
+      closeLyrics();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, []);
   const [lyricsToolsTab, setLyricsToolsTab] = useState<"candidates" | "offset">("candidates");
   const userScrollUntil = useRef(0);
   const seekTimer = useRef<number | null>(null);
@@ -9826,6 +9844,7 @@ function FullLyrics({
       <div className="full-lyrics-head">
         <button
           className="full-lyrics-cover-button"
+          ref={lyricsCloseRef}
           type="button"
           title={t("expandPlayer")}
           aria-label={t("expandPlayer")}
@@ -10025,6 +10044,8 @@ function FullLyrics({
                 data-lyric-at={lyricTime}
                 data-lyric-timed={line.at >= 0 ? "true" : "false"}
                 aria-current={isLive ? "true" : undefined}
+                role={lyricsDragSeekEnabled && line.at >= 0 ? "button" : undefined}
+                tabIndex={lyricsDragSeekEnabled && line.at >= 0 ? 0 : undefined}
                 style={lineStyle}
                 className={[
                   lyricLinePositionClass(index, activeLyricIndex, activeLyricLine?.groupKey, line.groupKey),
@@ -10034,6 +10055,12 @@ function FullLyrics({
                   .filter(Boolean)
                   .join(" ")}
                 onClick={lyricsDragSeekEnabled ? () => line.at >= 0 && onSeek(lyricTime) : undefined}
+                onKeyDown={lyricsDragSeekEnabled && line.at >= 0 ? (event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSeek(lyricTime);
+                  }
+                } : undefined}
               >
                 <span className="lyric-line-text" data-text={line.text}>
                   {renderLyricLineText(line.text, lyricsDisplayStyle, isLive)}
@@ -10530,10 +10557,11 @@ function MCPHelpDialog({
   tokenExample: string;
   onClose: () => void;
 }) {
+  const dialogRef = useDialogLifecycle<HTMLDivElement>(onClose);
   return (
     <div className="modal-layer mcp-help-layer" role="presentation">
       <button className="modal-scrim" type="button" aria-label={t("close")} onClick={onClose} />
-      <div className="modal-card mcp-help-dialog" role="dialog" aria-modal="true" aria-labelledby="mcp-help-title">
+      <div ref={dialogRef} className="modal-card mcp-help-dialog" role="dialog" aria-modal="true" aria-labelledby="mcp-help-title">
         <div className="modal-card-head">
           <div>
             <p>{t("mcpAccess")}</p>
@@ -12223,7 +12251,7 @@ const SongRow = memo(function SongRow({
         <Play weight="fill" />
       </button>
       <div className="song-row-copy">
-        <button type="button" className="song-title-play" onClick={() => onPlay(song)} aria-label={`${t("play")}: ${song.title}`}>
+        <button type="button" className="song-title-play" onClick={() => onPlay(song)} aria-label={`${t("play")}: ${song.title}`} title={song.title}>
           <strong>{song.title}</strong>
           <small className="song-mobile-meta">
           {[song.artist, song.album].filter(Boolean).join(" · ")}
@@ -12235,12 +12263,12 @@ const SongRow = memo(function SongRow({
           </button>
         ) : <small className="song-metadata-issues">{song.metadata_issues.map((issue) => t(issue === "missing_title" ? "missingTitle" : issue === "missing_artist" ? "missingArtist" : "missingAlbum")).join(" · ")}</small>) : null}
         {canOpenArtist && song.artist_id ? (
-          <button className="artist-link" onClick={() => onOpenArtist(song)}>{song.artist}</button>
+          <button className="artist-link" onClick={() => onOpenArtist(song)} title={song.artist}>{song.artist}</button>
         ) : (
           <small>{song.artist}</small>
         )}
       </div>
-      <div className="song-album">
+      <div className="song-album" title={song.album}>
         {canOpenAlbum && song.album_id ? (
           <button className="artist-link" onClick={() => onOpenAlbum(song)}>{song.album}</button>
         ) : (
@@ -12249,7 +12277,7 @@ const SongRow = memo(function SongRow({
       </div>
       <div className={QUALITY_CLASS} title={formatQuality(song)}>{formatQuality(song)}</div>
       <div className="song-duration">{formatDuration(song.duration_seconds)}</div>
-      <div className="song-row-actions" aria-label={t("selected")}>
+      <div className="song-row-actions" role="group" aria-label={t("selected")}>
         <button
           onClick={() => onFavorite(song)}
           title={t(song.favorite ? "removeFavorite" : "addFavorite")}
@@ -12474,8 +12502,8 @@ function SongTable({
       <span>{t("songs")}</span>
       <span>{t("album")}</span>
       <span>{t("quality")}</span>
-      <span />
-      <span />
+      <span>{t("songDuration")}</span>
+      <span>{t("songActions")}</span>
     </div>
   );
   const moreMenuSong = moreMenuSongId != null ? songs.find((s) => s.id === moreMenuSongId) : null;

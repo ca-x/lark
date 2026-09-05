@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { useMemo, useState } from "react";
 import { Power, X } from "@phosphor-icons/react";
 import type { createT } from "../i18n";
+import { useDialogLifecycle } from "../hooks/useDialogLifecycle";
 import { EQ_FREQUENCIES, EQ_PRESETS, type EqualizerPresetKey } from "./equalizer";
 
 const presetKeys = Object.keys(EQ_PRESETS) as EqualizerPresetKey[];
@@ -58,12 +59,13 @@ export function EqualizerPanel({
   onApplyPreset: (bands: number[]) => void;
   onClose: () => void;
 }) {
+  const dialogRef = useDialogLifecycle<HTMLDivElement>(onClose);
   const [focusIndex, setFocusIndex] = useState(4);
   const activePreset = matchingPreset(bands);
   const curve = useMemo(() => eqCurvePath(bands), [bands]);
   const focusGain = bands[focusIndex] ?? 0;
   return (
-    <div className="eq-popover eq-shell" data-enabled={enabled ? "true" : "false"} role="dialog" aria-label={t("equalizer")}>
+    <div ref={dialogRef} className="eq-popover eq-shell" data-enabled={enabled ? "true" : "false"} role="dialog" aria-modal="true" aria-label={t("equalizer")}>
       <div className="eq-card">
         <div className="eq-topbar">
           <span className="eq-title">{t("equalizer")}</span>
@@ -71,7 +73,7 @@ export function EqualizerPanel({
             <button type="button" className={enabled ? "eq-power on" : "eq-power"} aria-label={enabled ? t("off") : t("on")} onClick={onToggle}>
               <Power weight="bold" />
             </button>
-            <button type="button" className="eq-close" aria-label={t("close")} onClick={onClose}><X /></button>
+            <button type="button" className="eq-close" data-autofocus aria-label={t("close")} onClick={onClose}><X /></button>
           </div>
         </div>
 

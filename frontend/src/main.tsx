@@ -6,6 +6,7 @@ import './styles.css'
 import './mobile.css'
 import './polish.css'
 import './mobile-experience.css'
+import './desktop-experience.css'
 
 void registerServiceWorker().catch(() => undefined)
 

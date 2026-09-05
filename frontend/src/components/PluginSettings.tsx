@@ -184,6 +184,7 @@ export function PluginSettings({
           ref={uploadRef}
           className="sr-only"
           type="file"
+          aria-label={t("installPluginPackage")}
           accept=".zip,.jsplugin.zip,application/zip"
           onChange={(event) => {
             const file = event.currentTarget.files?.[0];

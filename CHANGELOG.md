@@ -5,6 +5,26 @@
 
 ---
 
+## 0.12.1：桌面工作区与全页交互精修
+
+发布日期 / Released: 2026-09-06
+
+- **重整桌面曲库与浏览界面。** 侧栏、搜索栏、专辑卡片和底部播放栏采用更稳定的工作区层级；歌曲表头、歌名、歌手、专辑、音质、时长和操作按钮现在按列居中，在 1280、1920 和 2560px 下保持一致。
+- **补齐桌面操作体验。** 支持 Ctrl/Cmd+K 聚焦搜索、空格切换播放；队列、投放、均衡器、MCP 帮助和分享弹窗支持焦点管理与 Escape；剪贴板不可用时会保留可手动复制的链接。
+- **修正播放器与窄屏细节。** 11 种桌面播放器都可从首页直接播放，短屏下的磁带、黑胶、Walkman、音频示波器和奇点播放器不再被底栏遮挡，唱片封套、锤子唱机、复古唱机和小猫主题的版面也保持居中。
+- **改善共享组件的可访问性。** 歌词行支持键盘跳播，目录浏览拆分为打开与播放两个独立按钮，歌手展廊的播放按钮不会再被容器快捷键拦截，公开分享和浅色主题中的对比度得到修正。
+
+## v0.12.1: Desktop workspace and full-page interaction refinement
+
+Released: 2026-09-06
+
+- **Reworked desktop library and browsing surfaces.** The sidebar, search bar, artwork cards, and playback dock now form a steadier workspace hierarchy, while song headers, titles, artists, albums, quality, duration, and actions stay column-centered at 1280, 1920, and 2560px.
+- **Completed desktop interaction details.** Ctrl/Cmd+K focuses search and Space toggles playback; queue, cast, equalizer, MCP help, and sharing dialogs manage focus and Escape; clipboard failures keep a selectable link for manual copying.
+- **Fixed player and compact-screen details.** All eleven desktop players can start from home, and cassette, vinyl, Walkman, audio-scope, and singularity controls stay clear of the playback dock on short screens. Album-slide, Smartisan, gramophone, and running-kitten layouts also remain centered.
+- **Improved shared accessibility.** Lyric lines are keyboard-seekable, folder browsing separates open and play actions, Cover Flow play buttons keep their own keyboard action, and contrast is corrected for public sharing and light themes.
+
+---
+
 ## 0.12.0：移动端收听体验改版
 
 发布日期 / Released: 2026-09-05
