@@ -5,6 +5,24 @@
 
 ---
 
+## 0.12.2：悬停可读性与桌面布局调整
+
+发布日期 / Released: 2026-09-07
+
+- 修正暗色主题下曲库标签悬停时文字难以辨认的问题，调整工具栏按钮的悬停反馈。
+- 缩小曲库操作按钮及专辑、歌手筛选控件的间距与尺寸。
+- 调整首页曲库概览与最近动态的宽度比例，减少最近动态的横向留白。
+
+## v0.12.2: Hover readability and desktop layout adjustments
+
+Released: 2026-09-07
+
+- Fix unreadable library tab labels on hover in dark themes and refine toolbar hover feedback.
+- Tighten library action buttons and album and artist filter controls.
+- Rebalance the home library summary and recent activity columns to reduce excess horizontal space.
+
+---
+
 ## 0.12.1：桌面工作区与全页交互精修
 
 发布日期 / Released: 2026-09-06
