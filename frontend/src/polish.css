@@ -115,6 +115,24 @@ body {
   color: var(--on-accent);
 }
 
+/* Keep hover readable in every palette. Filled accent is reserved for the
+   active tab; a tinted state gives dark themes a clear hover surface without
+   turning labels into near-black text on near-black chrome. */
+@media (hover: hover) and (pointer: fine) {
+  :root[data-theme]:not([data-theme='smartisan-classic'])
+    :is(.collection-tabs button:hover:not(.active), .library-tabs button:hover:not(.active)) {
+    color: var(--text) !important;
+    background: color-mix(in srgb, var(--accent) 16%, var(--panel2)) !important;
+  }
+
+  :root[data-theme]:not([data-theme='smartisan-classic'])
+    :is(.library-actions button:hover, .collection-browse-actions button:hover, .section-head button:hover) {
+    color: var(--text);
+    background: color-mix(in srgb, var(--accent) 12%, var(--panel2));
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  }
+}
+
 /* Floating chrome is translucent; reading surfaces remain opaque and calm. */
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .sidebar,
