@@ -10,6 +10,9 @@ The reference supplies the physical sleeve-to-platter interaction; Lark's existi
 
 ## Behavior and acceptance
 
+- Follow global track changes in the sleeve, active track and album label, including albums outside loaded shelf pages; manual browsing lasts until the next track change.
+- Rotate the full record texture and album label about the SVG spindle at (252, 250.5); keep the spindle hardware stationary.
+- Fit deck, sleeve and shelf together to available width and height through a shared CSS size variable; preserve minimum readable controls on compact windows.
 - Select and persist the theme through Settings, including backend user preferences.
 - Browse library albums with independent 60-album pagination, total counts and retry, via cover selection, previous/next record buttons, arrow keys, wheel and horizontal drag. Browsing does not interrupt playback.
 - Sleeve front shows real cover art; flip reveals actual album tracks. Click a track or click/drag the protruding record onto the deck to play through the existing queue.

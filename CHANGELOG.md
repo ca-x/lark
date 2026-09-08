@@ -5,6 +5,24 @@
 
 ---
 
+## 0.13.0：黑胶唱片室同步与自适应布局
+
+发布日期 / Released: 2026-09-08
+
+- 从曲库、队列或底部播放栏切歌时，黑胶唱片室同步显示正在播放的专辑、封面与曲目，尚未加载到唱片架的专辑也能正确显示。
+- 修正唱盘轴心偏移和外圈黑胶不旋转的问题，黑胶纹理与专辑封面一起转动，主轴和唱臂保持固定。
+- 唱机、封套和唱片架根据窗口宽高自适应缩放，放大底部专辑封面，并增强选中前移与相邻唱片侧转的动效。
+
+## v0.13.0: Vinyl room playback sync and adaptive layout
+
+Released: 2026-09-08
+
+- Keep the album, cover and active track in sync when playback changes from the library, queue or bottom player, including albums outside the loaded shelf pages.
+- Align the record with the spindle and rotate the vinyl texture together with the album artwork while the spindle and tonearm remain stationary.
+- Fit the deck, sleeve and album shelf to both window dimensions, with larger shelf covers and clearer forward and sideways album transitions.
+
+---
+
 ## 0.12.3：黑胶唱片室
 
 发布日期 / Released: 2026-09-08
