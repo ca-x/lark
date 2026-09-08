@@ -6,6 +6,8 @@ Lark incorporates and adapts visual-effect implementation ideas and code from:
 - cover-flow-showcase by opc8838-hub, licensed under MIT: https://github.com/opc8838-hub/cover-flow-showcase. The artist album Cover Flow adapts circular 3D positioning, depth, reflection, wheel navigation, and snap behavior from commit eda6308e7e936a0d51b3602640dd870ce76693bd.
 - Songloft by the Songloft Team, licensed under Apache-2.0: https://github.com/songloft-org/songloft. Lark's JS plugin compatibility layer derives QuickJS runtime, plugin package, lifecycle, permission, routing, and host-bridge behavior from commit 825f70f603a773fc8c0ded555a0cbe753d2a0d52, with Songloft's Chi/sqlc services replaced by Lark Echo/Ent adapters.
 
+- Vinyls by Sandheep (Sandy): https://vinyls.sandheep.xyz. The Vinyl room theme includes the reference deck, record, fixtures and tonearm SVG artwork retrieved on 2026-09-08. Source and extraction details are recorded in `frontend/src/components/player-themes/vinyl-collection/README.md`; these reference assets are not relicensed by this notice.
+
 ## Songloft Apache-2.0 Notice
 
 Songloft

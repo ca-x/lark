@@ -882,3 +882,24 @@ func TestPlaybackQueueUsesSharedAndDeviceScopedKV(t *testing.T) {
 		t.Fatalf("expected mobile queue to survive pc clear, got %+v", stillMobile)
 	}
 }
+
+func TestVinylCollectionPreferencesRoundTrip(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	t.Cleanup(func() { _ = client.Close() })
+	service := &Service{client: client}
+	preferences := defaultUserPreferences()
+	preferences.HomePlayerStyle = "vinyl-collection"
+	if _, err := service.SaveUserPreferences(t.Context(), 19, preferences); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := service.GetUserPreferences(t.Context(), 19)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.HomePlayerStyle != "vinyl-collection" {
+		t.Fatalf("vinyl collection theme lost after reload: %q", loaded.HomePlayerStyle)
+	}
+	if loaded.MobileHomePlayerStyle != preferences.MobileHomePlayerStyle {
+		t.Fatalf("desktop theme changed the mobile preference: %q", loaded.MobileHomePlayerStyle)
+	}
+}

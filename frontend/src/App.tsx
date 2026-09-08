@@ -158,7 +158,7 @@ import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
 import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
-import { AlbumSlidePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, NeuralCathedralPlayer, PaperShaderLayer, RunningKittenTurntable, SingularityPlayer, SmartisanTurntable, VinylTurntable, WalkmanPlayer } from "./components/player-themes";
+import { AlbumSlidePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, NeuralCathedralPlayer, PaperShaderLayer, RunningKittenTurntable, SingularityPlayer, SmartisanTurntable, VinylCollectionPlayer, VinylTurntable, WalkmanPlayer } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -377,7 +377,8 @@ function offlineUser(): User {
 
 function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
   if (value === "smartisan-turntable" || value === "smartisan" || value === "smartisan-classic") return "smartisan-turntable";
-  return value === "cassette" ||
+  return value === "vinyl-collection" ||
+    value === "cassette" ||
     value === "ipod" ||
     value === "audio-scope" ||
     value === "album-slide" ||
@@ -6990,6 +6991,34 @@ function HomeView({
     );
   }
 
+  if (homePlayerStyle === "vinyl-collection" && !currentRadio && !currentNetworkTrack) {
+    return (
+      <section className="home-view desktop-home-view" data-home-player-style={homePlayerStyle}>
+        <section className="vinyl-collection-hero">
+          <VinylCollectionPlayer
+            albums={albums}
+            current={current}
+            displaySong={displaySong}
+            playing={heroPlaying}
+            progress={heroActive ? progress : 0}
+            duration={heroActive ? duration : 0}
+            volume={volume}
+            playMode={playMode}
+            playModeLabel={playModeLabel}
+            t={t}
+            onPlay={onPlay}
+            onToggle={onTogglePlayback}
+            onPrevious={onPrevious}
+            onNext={onNext}
+            onSeek={onSeek}
+            onVolume={onVolume}
+            onCyclePlayMode={onCyclePlayMode}
+          />
+        </section>
+      </section>
+    );
+  }
+
   if (homePlayerStyle === "mineradio-stage" && !currentRadio && !currentNetworkTrack) {
     return (
       <section className="home-view home-view-mineradio" data-mineradio-home="true">
@@ -11066,6 +11095,15 @@ function SettingsPanel({
                 onClick={() => onHomePlayerStyleChange("vinyl")}
               >
                 {t("homePlayerVinyl")}
+              </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "vinyl-collection" ? "active" : ""}
+                data-player-style="vinyl-collection"
+                aria-pressed={homePlayerStyle === "vinyl-collection"}
+                onClick={() => onHomePlayerStyleChange("vinyl-collection")}
+              >
+                {t("homePlayerVinylCollection")}
               </button>
               <button
                 type="button"

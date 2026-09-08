@@ -10,6 +10,7 @@ type DiscScratchSeekOptions = {
   onSeek?: (seconds: number) => void;
   disabled?: boolean;
   scratchCycleSeconds?: number;
+  trackKey?: string | number;
 };
 
 type ScratchState = {
@@ -27,6 +28,7 @@ export function useDiscScratchSeek({
   onSeek,
   disabled = false,
   scratchCycleSeconds = SCRATCH_CYCLE_SECONDS,
+  trackKey,
 }: DiscScratchSeekOptions) {
   const [previewProgress, setPreviewProgress] = useState<number | null>(null);
   const [scratching, setScratching] = useState(false);
@@ -56,9 +58,15 @@ export function useDiscScratchSeek({
     setPreviewProgress(null);
   }, [onSeek]);
 
+  useEffect(() => {
+    finishScratch(false);
+    // A drag belongs to the song on which it began, never to its successor.
+  }, [trackKey, canScratch]);
+
   const handlePointerDown: PointerEventHandler<HTMLElement> = useCallback((event) => {
-    if (!canScratch) return;
+    if (!canScratch || stateRef.current) return;
     if (event.button !== 0) return;
+    suppressClickRef.current = false;
 
     const angle = angleFromPointer(event.currentTarget, event.clientX, event.clientY);
     stateRef.current = {
@@ -107,7 +115,7 @@ export function useDiscScratchSeek({
   }, [finishScratch]);
 
   const handleClickCapture: MouseEventHandler<HTMLElement> = useCallback((event) => {
-    if (!suppressClickRef.current) return;
+    if (event.detail === 0 || !suppressClickRef.current) return;
     suppressClickRef.current = false;
     event.preventDefault();
     event.stopPropagation();

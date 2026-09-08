@@ -26,6 +26,9 @@ Walkman 桌面播放主题参考并适配了 GordenSun 的 [Walkman](https://git
 
 全屏歌词方向也参考了 chthollyphile 的 [folia-major](https://github.com/chthollyphile/folia-major)，用于歌词时序、歌词轨道和溢光交互设计。
 
+桌面「黑胶唱片室」主题参考了 Sandheep 的 [Vinyls](https://vinyls.sandheep.xyz)，保留原站唱机和唱针图形，接入 Lark 的专辑浏览与播放控制。可在「设置 → 播放与外观 → 首页播放样式」中切换。
+
+
 ---
 
 ## 适合这些场景

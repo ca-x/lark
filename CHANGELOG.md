@@ -5,6 +5,24 @@
 
 ---
 
+## 0.12.3：黑胶唱片室
+
+发布日期 / Released: 2026-09-08
+
+- 新增桌面「黑胶唱片室」主题，可从立体唱片架挑选专辑、翻看曲目，并点击或拖动唱片上机播放。
+- 采用 Vinyls 原站的唱机与唱针材质，加入唱片入场、落针、抬针和旋转动效，支持拖盘调进度、切歌、音量和播放模式控制。
+- 主题配色跟随全局深浅主题，支持键盘浏览与减弱动态效果，并修正取消拖盘或拖动中切歌后的交互。
+
+## v0.12.3: Vinyl room
+
+Released: 2026-09-08
+
+- Add a desktop Vinyl room theme with a perspective album shelf, flippable track listings, and click or drag to place a record on the turntable.
+- Use the original Vinyls deck and tonearm materials with record-loading, tonearm and spin animations, plus scratch seeking, track navigation, volume and playback-mode controls.
+- Follow global light and dark palettes, support keyboard browsing and reduced motion, and handle cancelled scratches and track changes during dragging.
+
+---
+
 ## 0.12.2：悬停可读性与桌面布局调整
 
 发布日期 / Released: 2026-09-07

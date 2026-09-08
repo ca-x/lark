@@ -26,6 +26,9 @@ The artist album Cover Flow adapts the circular 3D positioning, depth, reflectio
 
 The fullscreen lyrics direction also references [folia-major](https://github.com/chthollyphile/folia-major) by chthollyphile for lyric timing, rail, and glow interaction ideas.
 
+The Vinyl room desktop theme references [Vinyls](https://vinyls.sandheep.xyz) by Sandheep, retaining its original deck and tonearm artwork with Lark album browsing and playback controls. Select it in Settings → Playback & appearance → Home player style.
+
+
 ---
 
 ## Use Lark When

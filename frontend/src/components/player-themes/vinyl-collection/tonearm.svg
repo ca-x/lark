@@ -1,0 +1,625 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="56 58 504 410"><defs>
+    <!-- studio background -->
+    <radialGradient id="bg" cx="50%" cy="45%" r="75%">
+      <stop offset="0" stop-color="#ecebe8"></stop>
+      <stop offset="0.6" stop-color="#dcdad6"></stop>
+      <stop offset="1" stop-color="#c4c1bc"></stop>
+    </radialGradient>
+
+    <!-- walnut -->
+    <linearGradient id="woodBase" gradientUnits="userSpaceOnUse" x1="78" y1="76" x2="523" y2="425">
+      <stop offset="0" stop-color="#9a6f4a"></stop>
+      <stop offset="0.45" stop-color="#8a6243"></stop>
+      <stop offset="1" stop-color="#6f4c33"></stop>
+    </linearGradient>
+
+  <filter id="woodH1" color-interpolation-filters="sRGB" x="-60%" y="-60%" width="220%" height="220%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.0028 0.8" numOctaves="2" seed="3" result="lines"></feTurbulence>
+    <feTurbulence type="fractalNoise" baseFrequency="0.006 0.016" numOctaves="1" seed="10" result="warp"></feTurbulence>
+    <feDisplacementMap in="lines" in2="warp" scale="6" xChannelSelector="R" yChannelSelector="G" result="g1"></feDisplacementMap>
+    <feColorMatrix in="g1" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g1g"></feColorMatrix>
+    <feComponentTransfer in="g1g" result="g1c">
+      <feFuncR type="linear" slope="0.9" intercept="0.495"></feFuncR>
+      <feFuncG type="linear" slope="1.05" intercept="0.38"></feFuncG>
+      <feFuncB type="linear" slope="1.15" intercept="0.28"></feFuncB>
+    </feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="0.02 1.6" numOctaves="1" seed="21" result="g2"></feTurbulence>
+    <feColorMatrix in="g2" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g2g"></feColorMatrix>
+    <feComponentTransfer in="g2g" result="g2c">
+      <feFuncR type="linear" slope="0.35" intercept="0.83"></feFuncR>
+      <feFuncG type="linear" slope="0.35" intercept="0.83"></feFuncG>
+      <feFuncB type="linear" slope="0.35" intercept="0.83"></feFuncB>
+    </feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="0.0025 0.05" numOctaves="3" seed="103" result="g3"></feTurbulence>
+    <feColorMatrix in="g3" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g3g"></feColorMatrix>
+    <feComponentTransfer in="g3g" result="g3c">
+      <feFuncR type="linear" slope="0.7" intercept="0.65"></feFuncR>
+      <feFuncG type="linear" slope="0.7" intercept="0.62"></feFuncG>
+      <feFuncB type="linear" slope="0.7" intercept="0.60"></feFuncB>
+    </feComponentTransfer>
+    <feBlend in="g1c" in2="g2c" mode="multiply" result="grain0"></feBlend>
+    <feBlend in="grain0" in2="g3c" mode="multiply" result="grain"></feBlend>
+    <feBlend in="SourceGraphic" in2="grain" mode="multiply" result="wood"></feBlend>
+    <feComposite in="wood" in2="SourceGraphic" operator="in"></feComposite>
+  </filter>
+
+  <filter id="woodH2" color-interpolation-filters="sRGB" x="-60%" y="-60%" width="220%" height="220%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.0028 0.8" numOctaves="2" seed="8" result="lines"></feTurbulence>
+    <feTurbulence type="fractalNoise" baseFrequency="0.006 0.016" numOctaves="1" seed="15" result="warp"></feTurbulence>
+    <feDisplacementMap in="lines" in2="warp" scale="6" xChannelSelector="R" yChannelSelector="G" result="g1"></feDisplacementMap>
+    <feColorMatrix in="g1" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g1g"></feColorMatrix>
+    <feComponentTransfer in="g1g" result="g1c">
+      <feFuncR type="linear" slope="0.9" intercept="0.495"></feFuncR>
+      <feFuncG type="linear" slope="1.05" intercept="0.38"></feFuncG>
+      <feFuncB type="linear" slope="1.15" intercept="0.28"></feFuncB>
+    </feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="0.02 1.6" numOctaves="1" seed="33" result="g2"></feTurbulence>
+    <feColorMatrix in="g2" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g2g"></feColorMatrix>
+    <feComponentTransfer in="g2g" result="g2c">
+      <feFuncR type="linear" slope="0.35" intercept="0.83"></feFuncR>
+      <feFuncG type="linear" slope="0.35" intercept="0.83"></feFuncG>
+      <feFuncB type="linear" slope="0.35" intercept="0.83"></feFuncB>
+    </feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="0.0025 0.05" numOctaves="3" seed="108" result="g3"></feTurbulence>
+    <feColorMatrix in="g3" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g3g"></feColorMatrix>
+    <feComponentTransfer in="g3g" result="g3c">
+      <feFuncR type="linear" slope="0.7" intercept="0.65"></feFuncR>
+      <feFuncG type="linear" slope="0.7" intercept="0.62"></feFuncG>
+      <feFuncB type="linear" slope="0.7" intercept="0.60"></feFuncB>
+    </feComponentTransfer>
+    <feBlend in="g1c" in2="g2c" mode="multiply" result="grain0"></feBlend>
+    <feBlend in="grain0" in2="g3c" mode="multiply" result="grain"></feBlend>
+    <feBlend in="SourceGraphic" in2="grain" mode="multiply" result="wood"></feBlend>
+    <feComposite in="wood" in2="SourceGraphic" operator="in"></feComposite>
+  </filter>
+
+  <filter id="woodV1" color-interpolation-filters="sRGB" x="-60%" y="-60%" width="220%" height="220%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.8 0.0028" numOctaves="2" seed="5" result="lines"></feTurbulence>
+    <feTurbulence type="fractalNoise" baseFrequency="0.016 0.006" numOctaves="1" seed="12" result="warp"></feTurbulence>
+    <feDisplacementMap in="lines" in2="warp" scale="6" xChannelSelector="R" yChannelSelector="G" result="g1"></feDisplacementMap>
+    <feColorMatrix in="g1" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g1g"></feColorMatrix>
+    <feComponentTransfer in="g1g" result="g1c">
+      <feFuncR type="linear" slope="0.9" intercept="0.495"></feFuncR>
+      <feFuncG type="linear" slope="1.05" intercept="0.38"></feFuncG>
+      <feFuncB type="linear" slope="1.15" intercept="0.28"></feFuncB>
+    </feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="1.6 0.02" numOctaves="1" seed="44" result="g2"></feTurbulence>
+    <feColorMatrix in="g2" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g2g"></feColorMatrix>
+    <feComponentTransfer in="g2g" result="g2c">
+      <feFuncR type="linear" slope="0.35" intercept="0.83"></feFuncR>
+      <feFuncG type="linear" slope="0.35" intercept="0.83"></feFuncG>
+      <feFuncB type="linear" slope="0.35" intercept="0.83"></feFuncB>
+    </feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="0.05 0.0025" numOctaves="3" seed="105" result="g3"></feTurbulence>
+    <feColorMatrix in="g3" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g3g"></feColorMatrix>
+    <feComponentTransfer in="g3g" result="g3c">
+      <feFuncR type="linear" slope="0.7" intercept="0.65"></feFuncR>
+      <feFuncG type="linear" slope="0.7" intercept="0.62"></feFuncG>
+      <feFuncB type="linear" slope="0.7" intercept="0.60"></feFuncB>
+    </feComponentTransfer>
+    <feBlend in="g1c" in2="g2c" mode="multiply" result="grain0"></feBlend>
+    <feBlend in="grain0" in2="g3c" mode="multiply" result="grain"></feBlend>
+    <feBlend in="SourceGraphic" in2="grain" mode="multiply" result="wood"></feBlend>
+    <feComposite in="wood" in2="SourceGraphic" operator="in"></feComposite>
+  </filter>
+
+  <filter id="woodV2" color-interpolation-filters="sRGB" x="-60%" y="-60%" width="220%" height="220%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.8 0.0028" numOctaves="2" seed="12" result="lines"></feTurbulence>
+    <feTurbulence type="fractalNoise" baseFrequency="0.016 0.006" numOctaves="1" seed="19" result="warp"></feTurbulence>
+    <feDisplacementMap in="lines" in2="warp" scale="6" xChannelSelector="R" yChannelSelector="G" result="g1"></feDisplacementMap>
+    <feColorMatrix in="g1" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g1g"></feColorMatrix>
+    <feComponentTransfer in="g1g" result="g1c">
+      <feFuncR type="linear" slope="0.9" intercept="0.495"></feFuncR>
+      <feFuncG type="linear" slope="1.05" intercept="0.38"></feFuncG>
+      <feFuncB type="linear" slope="1.15" intercept="0.28"></feFuncB>
+    </feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="1.6 0.02" numOctaves="1" seed="51" result="g2"></feTurbulence>
+    <feColorMatrix in="g2" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g2g"></feColorMatrix>
+    <feComponentTransfer in="g2g" result="g2c">
+      <feFuncR type="linear" slope="0.35" intercept="0.83"></feFuncR>
+      <feFuncG type="linear" slope="0.35" intercept="0.83"></feFuncG>
+      <feFuncB type="linear" slope="0.35" intercept="0.83"></feFuncB>
+    </feComponentTransfer>
+    <feTurbulence type="fractalNoise" baseFrequency="0.05 0.0025" numOctaves="3" seed="112" result="g3"></feTurbulence>
+    <feColorMatrix in="g3" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="g3g"></feColorMatrix>
+    <feComponentTransfer in="g3g" result="g3c">
+      <feFuncR type="linear" slope="0.7" intercept="0.65"></feFuncR>
+      <feFuncG type="linear" slope="0.7" intercept="0.62"></feFuncG>
+      <feFuncB type="linear" slope="0.7" intercept="0.60"></feFuncB>
+    </feComponentTransfer>
+    <feBlend in="g1c" in2="g2c" mode="multiply" result="grain0"></feBlend>
+    <feBlend in="grain0" in2="g3c" mode="multiply" result="grain"></feBlend>
+    <feBlend in="SourceGraphic" in2="grain" mode="multiply" result="wood"></feBlend>
+    <feComposite in="wood" in2="SourceGraphic" operator="in"></feComposite>
+  </filter>
+    <linearGradient id="edgeHi" gradientUnits="userSpaceOnUse" x1="78" y1="76" x2="523" y2="425">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"></stop>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.12"></stop>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.45"></stop>
+    </linearGradient>
+    <clipPath id="plinthClip"><rect x="78" y="76" width="445" height="349" rx="3.5"></rect></clipPath>
+    <clipPath id="cavityClip"><rect x="100" y="98" width="401" height="305"></rect></clipPath>
+
+    <!-- brushed stainless -->
+    <linearGradient id="steelBase" x1="0" y1="0" x2="0.15" y2="1">
+      <stop offset="0" stop-color="#d6d9dc"></stop>
+      <stop offset="0.35" stop-color="#eceef0"></stop>
+      <stop offset="1" stop-color="#b4b8bc"></stop>
+    </linearGradient>
+    <filter id="brushed" color-interpolation-filters="sRGB" x="-1%" y="-1%" width="102%" height="102%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0012 0.95" numOctaves="3" seed="5" result="n"></feTurbulence>
+      <feColorMatrix in="n" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="ng"></feColorMatrix>
+      <feComponentTransfer in="ng" result="nc">
+        <feFuncR type="linear" slope="0.32" intercept="0.84"></feFuncR>
+        <feFuncG type="linear" slope="0.32" intercept="0.84"></feFuncG>
+        <feFuncB type="linear" slope="0.32" intercept="0.84"></feFuncB>
+      </feComponentTransfer>
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 2.2" numOctaves="1" seed="17" result="n2"></feTurbulence>
+      <feColorMatrix in="n2" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="n2g"></feColorMatrix>
+      <feComponentTransfer in="n2g" result="n2c">
+        <feFuncR type="linear" slope="0.16" intercept="0.92"></feFuncR>
+        <feFuncG type="linear" slope="0.16" intercept="0.92"></feFuncG>
+        <feFuncB type="linear" slope="0.16" intercept="0.92"></feFuncB>
+      </feComponentTransfer>
+      <feBlend in="nc" in2="n2c" mode="multiply" result="streaks"></feBlend>
+      <feBlend in="SourceGraphic" in2="streaks" mode="multiply" result="m"></feBlend>
+      <feComposite in="m" in2="SourceGraphic" operator="in"></feComposite>
+    </filter>
+
+    <!-- black anodised aluminium (Keel) -->
+    <linearGradient id="anoBase" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#3b3d42"></stop>
+      <stop offset="0.5" stop-color="#2a2c30"></stop>
+      <stop offset="1" stop-color="#1d1e21"></stop>
+    </linearGradient>
+    <filter id="anodised" color-interpolation-filters="sRGB" x="-1%" y="-1%" width="102%" height="102%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.55 0.55" numOctaves="2" seed="23" result="n"></feTurbulence>
+      <feColorMatrix in="n" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="ng"></feColorMatrix>
+      <feComponentTransfer in="ng" result="nc">
+        <feFuncR type="linear" slope="0.35" intercept="0.82"></feFuncR>
+        <feFuncG type="linear" slope="0.35" intercept="0.82"></feFuncG>
+        <feFuncB type="linear" slope="0.35" intercept="0.82"></feFuncB>
+      </feComponentTransfer>
+      <feBlend in="SourceGraphic" in2="nc" mode="multiply" result="m"></feBlend>
+      <feComposite in="m" in2="SourceGraphic" operator="in"></feComposite>
+    </filter>
+
+    <!-- felt -->
+    <radialGradient id="feltBase" cx="0.36" cy="0.34" r="0.8">
+      <stop offset="0" stop-color="#2b2b2d"></stop>
+      <stop offset="0.6" stop-color="#1d1d1f"></stop>
+      <stop offset="1" stop-color="#131314"></stop>
+    </radialGradient>
+    <filter id="felt" color-interpolation-filters="sRGB" x="-1%" y="-1%" width="102%" height="102%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.1 1.1" numOctaves="3" seed="31" result="n"></feTurbulence>
+      <feColorMatrix in="n" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="ng"></feColorMatrix>
+      <feComponentTransfer in="ng" result="nc">
+        <feFuncR type="linear" slope="0.7" intercept="0.62"></feFuncR>
+        <feFuncG type="linear" slope="0.7" intercept="0.62"></feFuncG>
+        <feFuncB type="linear" slope="0.7" intercept="0.62"></feFuncB>
+      </feComponentTransfer>
+      <feTurbulence type="turbulence" baseFrequency="0.25 0.25" numOctaves="2" seed="7" result="f"></feTurbulence>
+      <feColorMatrix in="f" type="matrix" values="0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0.33 0.33 0.33 0 0  0 0 0 0 1" result="fg"></feColorMatrix>
+      <feComponentTransfer in="fg" result="fc">
+        <feFuncR type="linear" slope="0.25" intercept="0.85"></feFuncR>
+        <feFuncG type="linear" slope="0.25" intercept="0.85"></feFuncG>
+        <feFuncB type="linear" slope="0.25" intercept="0.85"></feFuncB>
+      </feComponentTransfer>
+      <feBlend in="nc" in2="fc" mode="multiply" result="tex"></feBlend>
+      <feBlend in="SourceGraphic" in2="tex" mode="multiply" result="m"></feBlend>
+      <feComposite in="m" in2="SourceGraphic" operator="in"></feComposite>
+    </filter>
+
+    <!-- platter aluminium -->
+    <clipPath id="platterClip"><circle cx="252" cy="250.5" r="146"></circle></clipPath>
+    <filter id="sheenBlur" color-interpolation-filters="sRGB" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="9"></feGaussianBlur></filter>
+    <radialGradient id="platterTone" cx="0.38" cy="0.36" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"></stop>
+      <stop offset="0.7" stop-color="#ffffff" stop-opacity="0"></stop>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.12"></stop>
+    </radialGradient>
+    <linearGradient id="chamfer" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"></stop>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.15"></stop>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.55"></stop>
+    </linearGradient>
+    <radialGradient id="spindle" cx="0.35" cy="0.32" r="0.8">
+      <stop offset="0" stop-color="#f4f5f6"></stop>
+      <stop offset="0.5" stop-color="#b9bcc0"></stop>
+      <stop offset="1" stop-color="#5c5f63"></stop>
+    </radialGradient>
+
+    <!-- shadows -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4.5"></feGaussianBlur></filter>
+    <filter id="deckShadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="7.5"></feGaussianBlur></filter>
+    <filter id="contactShadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2"></feGaussianBlur></filter>
+    <filter id="armShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feFlood flood-color="#000"></feFlood>
+      <feComposite in2="SourceAlpha" operator="in"></feComposite>
+      <feGaussianBlur stdDeviation="3"></feGaussianBlur>
+    </filter>
+    <filter id="sheenBlurWide" color-interpolation-filters="sRGB" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="18"></feGaussianBlur></filter>
+    <radialGradient id="labelShade" cx="0.4" cy="0.38" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.14"></stop>
+      <stop offset="0.7" stop-color="#ffffff" stop-opacity="0"></stop>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.16"></stop>
+    </radialGradient>
+    <clipPath id="recordClip"><circle r="151"></circle></clipPath>
+    <clipPath id="deadWaxClip" clip-rule="evenodd"><path d="M-61.5,0 a61.5,61.5 0 1,0 123,0 a61.5,61.5 0 1,0 -123,0 Z M-50,0 a50,50 0 1,0 100,0 a50,50 0 1,0 -100,0 Z" clip-rule="evenodd"></path></clipPath>
+    <mask id="lobeMask" maskUnits="userSpaceOnUse" x="-152" y="-152" width="304" height="304">
+      <g filter="url(#sheenBlurWide)">
+        <path d="M0,0 L191.00,0.00 A191,191 0 0 1 190.59,12.49 Z" fill="rgb(2,2,3)"></path>
+        <path d="M0,0 L190.59,12.49 A191,191 0 0 1 189.37,24.93 Z" fill="rgb(9,9,10)"></path>
+        <path d="M0,0 L189.37,24.93 A191,191 0 0 1 187.33,37.26 Z" fill="rgb(21,21,22)"></path>
+        <path d="M0,0 L187.33,37.26 A191,191 0 0 1 184.49,49.43 Z" fill="rgb(35,35,36)"></path>
+        <path d="M0,0 L184.49,49.43 A191,191 0 0 1 180.86,61.39 Z" fill="rgb(50,50,51)"></path>
+        <path d="M0,0 L180.86,61.39 A191,191 0 0 1 176.46,73.09 Z" fill="rgb(65,65,66)"></path>
+        <path d="M0,0 L176.46,73.09 A191,191 0 0 1 171.30,84.48 Z" fill="rgb(81,81,82)"></path>
+        <path d="M0,0 L171.30,84.48 A191,191 0 0 1 165.41,95.50 Z" fill="rgb(95,95,96)"></path>
+        <path d="M0,0 L165.41,95.50 A191,191 0 0 1 158.81,106.11 Z" fill="rgb(107,107,108)"></path>
+        <path d="M0,0 L158.81,106.11 A191,191 0 0 1 151.53,116.27 Z" fill="rgb(117,117,118)"></path>
+        <path d="M0,0 L151.53,116.27 A191,191 0 0 1 143.60,125.94 Z" fill="rgb(124,124,125)"></path>
+        <path d="M0,0 L143.60,125.94 A191,191 0 0 1 135.06,135.06 Z" fill="rgb(127,127,128)"></path>
+        <path d="M0,0 L135.06,135.06 A191,191 0 0 1 125.94,143.60 Z" fill="rgb(127,127,128)"></path>
+        <path d="M0,0 L125.94,143.60 A191,191 0 0 1 116.27,151.53 Z" fill="rgb(124,124,125)"></path>
+        <path d="M0,0 L116.27,151.53 A191,191 0 0 1 106.11,158.81 Z" fill="rgb(117,117,118)"></path>
+        <path d="M0,0 L106.11,158.81 A191,191 0 0 1 95.50,165.41 Z" fill="rgb(107,107,108)"></path>
+        <path d="M0,0 L95.50,165.41 A191,191 0 0 1 84.48,171.30 Z" fill="rgb(95,95,96)"></path>
+        <path d="M0,0 L84.48,171.30 A191,191 0 0 1 73.09,176.46 Z" fill="rgb(81,81,82)"></path>
+        <path d="M0,0 L73.09,176.46 A191,191 0 0 1 61.39,180.86 Z" fill="rgb(65,65,66)"></path>
+        <path d="M0,0 L61.39,180.86 A191,191 0 0 1 49.43,184.49 Z" fill="rgb(50,50,51)"></path>
+        <path d="M0,0 L49.43,184.49 A191,191 0 0 1 37.26,187.33 Z" fill="rgb(35,35,36)"></path>
+        <path d="M0,0 L37.26,187.33 A191,191 0 0 1 24.93,189.37 Z" fill="rgb(21,21,22)"></path>
+        <path d="M0,0 L24.93,189.37 A191,191 0 0 1 12.49,190.59 Z" fill="rgb(9,9,10)"></path>
+        <path d="M0,0 L12.49,190.59 A191,191 0 0 1 0.00,191.00 Z" fill="rgb(2,2,3)"></path>
+        <path d="M0,0 L0.00,191.00 A191,191 0 0 1 -12.49,190.59 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-12.49,190.59 A191,191 0 0 1 -24.93,189.37 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-24.93,189.37 A191,191 0 0 1 -37.26,187.33 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-37.26,187.33 A191,191 0 0 1 -49.43,184.49 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-49.43,184.49 A191,191 0 0 1 -61.39,180.86 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-61.39,180.86 A191,191 0 0 1 -73.09,176.46 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-73.09,176.46 A191,191 0 0 1 -84.48,171.30 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-84.48,171.30 A191,191 0 0 1 -95.50,165.41 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-95.50,165.41 A191,191 0 0 1 -106.11,158.81 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-106.11,158.81 A191,191 0 0 1 -116.27,151.53 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-116.27,151.53 A191,191 0 0 1 -125.94,143.60 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-125.94,143.60 A191,191 0 0 1 -135.06,135.06 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-135.06,135.06 A191,191 0 0 1 -143.60,125.94 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-143.60,125.94 A191,191 0 0 1 -151.53,116.27 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-151.53,116.27 A191,191 0 0 1 -158.81,106.11 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-158.81,106.11 A191,191 0 0 1 -165.41,95.50 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-165.41,95.50 A191,191 0 0 1 -171.30,84.48 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-171.30,84.48 A191,191 0 0 1 -176.46,73.09 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-176.46,73.09 A191,191 0 0 1 -180.86,61.39 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-180.86,61.39 A191,191 0 0 1 -184.49,49.43 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-184.49,49.43 A191,191 0 0 1 -187.33,37.26 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-187.33,37.26 A191,191 0 0 1 -189.37,24.93 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-189.37,24.93 A191,191 0 0 1 -190.59,12.49 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-190.59,12.49 A191,191 0 0 1 -191.00,0.00 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L-191.00,0.00 A191,191 0 0 1 -190.59,-12.49 Z" fill="rgb(3,3,4)"></path>
+        <path d="M0,0 L-190.59,-12.49 A191,191 0 0 1 -189.37,-24.93 Z" fill="rgb(17,17,18)"></path>
+        <path d="M0,0 L-189.37,-24.93 A191,191 0 0 1 -187.33,-37.26 Z" fill="rgb(38,38,39)"></path>
+        <path d="M0,0 L-187.33,-37.26 A191,191 0 0 1 -184.49,-49.43 Z" fill="rgb(64,64,65)"></path>
+        <path d="M0,0 L-184.49,-49.43 A191,191 0 0 1 -180.86,-61.39 Z" fill="rgb(94,94,95)"></path>
+        <path d="M0,0 L-180.86,-61.39 A191,191 0 0 1 -176.46,-73.09 Z" fill="rgb(125,125,126)"></path>
+        <path d="M0,0 L-176.46,-73.09 A191,191 0 0 1 -171.30,-84.48 Z" fill="rgb(156,156,157)"></path>
+        <path d="M0,0 L-171.30,-84.48 A191,191 0 0 1 -165.41,-95.50 Z" fill="rgb(186,186,187)"></path>
+        <path d="M0,0 L-165.41,-95.50 A191,191 0 0 1 -158.81,-106.11 Z" fill="rgb(211,211,212)"></path>
+        <path d="M0,0 L-158.81,-106.11 A191,191 0 0 1 -151.53,-116.27 Z" fill="rgb(232,232,233)"></path>
+        <path d="M0,0 L-151.53,-116.27 A191,191 0 0 1 -143.60,-125.94 Z" fill="rgb(247,247,248)"></path>
+        <path d="M0,0 L-143.60,-125.94 A191,191 0 0 1 -135.06,-135.06 Z" fill="rgb(254,254,255)"></path>
+        <path d="M0,0 L-135.06,-135.06 A191,191 0 0 1 -125.94,-143.60 Z" fill="rgb(254,254,255)"></path>
+        <path d="M0,0 L-125.94,-143.60 A191,191 0 0 1 -116.27,-151.53 Z" fill="rgb(247,247,248)"></path>
+        <path d="M0,0 L-116.27,-151.53 A191,191 0 0 1 -106.11,-158.81 Z" fill="rgb(232,232,233)"></path>
+        <path d="M0,0 L-106.11,-158.81 A191,191 0 0 1 -95.50,-165.41 Z" fill="rgb(211,211,212)"></path>
+        <path d="M0,0 L-95.50,-165.41 A191,191 0 0 1 -84.48,-171.30 Z" fill="rgb(186,186,187)"></path>
+        <path d="M0,0 L-84.48,-171.30 A191,191 0 0 1 -73.09,-176.46 Z" fill="rgb(156,156,157)"></path>
+        <path d="M0,0 L-73.09,-176.46 A191,191 0 0 1 -61.39,-180.86 Z" fill="rgb(125,125,126)"></path>
+        <path d="M0,0 L-61.39,-180.86 A191,191 0 0 1 -49.43,-184.49 Z" fill="rgb(94,94,95)"></path>
+        <path d="M0,0 L-49.43,-184.49 A191,191 0 0 1 -37.26,-187.33 Z" fill="rgb(64,64,65)"></path>
+        <path d="M0,0 L-37.26,-187.33 A191,191 0 0 1 -24.93,-189.37 Z" fill="rgb(38,38,39)"></path>
+        <path d="M0,0 L-24.93,-189.37 A191,191 0 0 1 -12.49,-190.59 Z" fill="rgb(17,17,18)"></path>
+        <path d="M0,0 L-12.49,-190.59 A191,191 0 0 1 -0.00,-191.00 Z" fill="rgb(3,3,4)"></path>
+        <path d="M0,0 L-0.00,-191.00 A191,191 0 0 1 12.49,-190.59 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L12.49,-190.59 A191,191 0 0 1 24.93,-189.37 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L24.93,-189.37 A191,191 0 0 1 37.26,-187.33 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L37.26,-187.33 A191,191 0 0 1 49.43,-184.49 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L49.43,-184.49 A191,191 0 0 1 61.39,-180.86 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L61.39,-180.86 A191,191 0 0 1 73.09,-176.46 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L73.09,-176.46 A191,191 0 0 1 84.48,-171.30 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L84.48,-171.30 A191,191 0 0 1 95.50,-165.41 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L95.50,-165.41 A191,191 0 0 1 106.11,-158.81 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L106.11,-158.81 A191,191 0 0 1 116.27,-151.53 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L116.27,-151.53 A191,191 0 0 1 125.94,-143.60 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L125.94,-143.60 A191,191 0 0 1 135.06,-135.06 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L135.06,-135.06 A191,191 0 0 1 143.60,-125.94 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L143.60,-125.94 A191,191 0 0 1 151.53,-116.27 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L151.53,-116.27 A191,191 0 0 1 158.81,-106.11 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L158.81,-106.11 A191,191 0 0 1 165.41,-95.50 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L165.41,-95.50 A191,191 0 0 1 171.30,-84.48 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L171.30,-84.48 A191,191 0 0 1 176.46,-73.09 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L176.46,-73.09 A191,191 0 0 1 180.86,-61.39 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L180.86,-61.39 A191,191 0 0 1 184.49,-49.43 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L184.49,-49.43 A191,191 0 0 1 187.33,-37.26 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L187.33,-37.26 A191,191 0 0 1 189.37,-24.93 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L189.37,-24.93 A191,191 0 0 1 190.59,-12.49 Z" fill="rgb(0,0,1)"></path>
+        <path d="M0,0 L190.59,-12.49 A191,191 0 0 1 191.00,-0.00 Z" fill="rgb(0,0,1)"></path>
+      </g>
+    </mask>
+    <filter id="dither" color-interpolation-filters="sRGB" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed="9" result="n"></feTurbulence>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.55  0 0 0 0 0.55  0 0 0 0 0.55  0.2 0 0 0 0" result="g"></feColorMatrix>
+      <feComposite in="g" in2="SourceGraphic" operator="in"></feComposite>
+    </filter>
+    <radialGradient id="ledRedOff" cx="0.4" cy="0.38" r="0.7">
+      <stop offset="0" stop-color="#7a3a34"></stop>
+      <stop offset="0.5" stop-color="#3a1a17"></stop>
+      <stop offset="1" stop-color="#1a0d0c"></stop>
+    </radialGradient>
+    <radialGradient id="ledGreenOn" cx="0.4" cy="0.38" r="0.7">
+      <stop offset="0" stop-color="#dcffdc"></stop>
+      <stop offset="0.35" stop-color="#4be06a"></stop>
+      <stop offset="1" stop-color="#127a2c"></stop>
+    </radialGradient>
+    <clipPath id="labelClip"><circle r="50"></circle></clipPath>
+    <filter id="tinyBlur"><feGaussianBlur stdDeviation="0.9"></feGaussianBlur></filter>
+    <filter id="ledGlow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
+
+    <!-- tonearm materials -->
+    <linearGradient id="titanium" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2c2e31"></stop>
+      <stop offset="0.3" stop-color="#9da0a4"></stop>
+      <stop offset="0.55" stop-color="#5f6267"></stop>
+      <stop offset="0.85" stop-color="#3f4246"></stop>
+      <stop offset="1" stop-color="#1c1d1f"></stop>
+    </linearGradient>
+    <linearGradient id="alu" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6c6f73"></stop>
+      <stop offset="0.3" stop-color="#d6d9dc"></stop>
+      <stop offset="0.6" stop-color="#a5a8ac"></stop>
+      <stop offset="1" stop-color="#5a5d61"></stop>
+    </linearGradient>
+    <linearGradient id="blackCyl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0a0a0b"></stop>
+      <stop offset="0.3" stop-color="#3c3d40"></stop>
+      <stop offset="0.6" stop-color="#1a1a1c"></stop>
+      <stop offset="1" stop-color="#050506"></stop>
+    </linearGradient>
+    <linearGradient id="blackCylV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a0a0b"></stop>
+      <stop offset="0.3" stop-color="#3c3d40"></stop>
+      <stop offset="0.6" stop-color="#1a1a1c"></stop>
+      <stop offset="1" stop-color="#050506"></stop>
+    </linearGradient>
+    <linearGradient id="steelRod" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5d6064"></stop>
+      <stop offset="0.35" stop-color="#cfd2d5"></stop>
+      <stop offset="1" stop-color="#6a6d71"></stop>
+    </linearGradient>
+    <radialGradient id="blackDome" cx="0.35" cy="0.32" r="0.8">
+      <stop offset="0" stop-color="#3a3b3e"></stop>
+      <stop offset="0.55" stop-color="#17171a"></stop>
+      <stop offset="1" stop-color="#050506"></stop>
+    </radialGradient>
+    <radialGradient id="silverDome" cx="0.35" cy="0.32" r="0.8">
+      <stop offset="0" stop-color="#ffffff"></stop>
+      <stop offset="0.5" stop-color="#b8bbbf"></stop>
+      <stop offset="1" stop-color="#4f5256"></stop>
+    </radialGradient>
+    <linearGradient id="rimLight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.85"></stop>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.18"></stop>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.04"></stop>
+    </linearGradient>
+    <linearGradient id="lacquer" gradientUnits="userSpaceOnUse" x1="78" y1="76" x2="523" y2="425">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.14"></stop>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.04"></stop>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.10"></stop>
+    </linearGradient>
+    <linearGradient id="bevelPlate" gradientUnits="userSpaceOnUse" x1="100" y1="98" x2="390" y2="403">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.6"></stop>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.1"></stop>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.3"></stop>
+    </linearGradient>
+    <linearGradient id="edgeIn" gradientUnits="userSpaceOnUse" x1="100" y1="98" x2="501" y2="403">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.45"></stop>
+      <stop offset="0.5" stop-color="#000000" stop-opacity="0.05"></stop>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.35"></stop>
+    </linearGradient>
+    <linearGradient id="bevelAB" gradientUnits="userSpaceOnUse" x1="395" y1="100.5" x2="497" y2="400.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"></stop>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.06"></stop>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.5"></stop>
+    </linearGradient>
+    <linearGradient id="housing" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b2b2e"></stop>
+      <stop offset="1" stop-color="#151517"></stop>
+    </linearGradient>
+    <linearGradient id="buttonTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a3e"></stop>
+      <stop offset="0.5" stop-color="#1e1e21"></stop>
+      <stop offset="1" stop-color="#101012"></stop>
+    </linearGradient>
+    <radialGradient id="ledRed" cx="0.4" cy="0.38" r="0.7">
+      <stop offset="0" stop-color="#ffd6cf"></stop>
+      <stop offset="0.35" stop-color="#ff4a3a"></stop>
+      <stop offset="1" stop-color="#a8140b"></stop>
+    </radialGradient>
+    <radialGradient id="ledGreenOff" cx="0.4" cy="0.38" r="0.7">
+      <stop offset="0" stop-color="#4d7a55"></stop>
+      <stop offset="0.5" stop-color="#22392a"></stop>
+      <stop offset="1" stop-color="#0f1a13"></stop>
+    </radialGradient>
+    <linearGradient id="wedgeFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#151518"></stop>
+      <stop offset="1" stop-color="#232327"></stop>
+    </linearGradient>
+    <linearGradient id="switchTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a3d"></stop>
+      <stop offset="0.5" stop-color="#1c1c1e"></stop>
+      <stop offset="1" stop-color="#0a0a0b"></stop>
+    </linearGradient>
+  </defs><g id="tonearm" data-rest="3" data-lead-in="24.1" data-run-out="48.5" transform="translate(446,167.5)">
+    <!-- Ekos SE base sitting in the Keel collar -->
+    <circle cx="1" cy="1.8" r="27" fill="#000" opacity="0.45" filter="url(#tinyBlur)"></circle>
+    <circle r="26.4" fill="url(#blackDome)"></circle>
+    <circle r="26" fill="none" stroke="url(#rimLight)" stroke-width="0.8"></circle>
+    <!-- arm rest: rigid bar from the base out to the clip -->
+    <path d="M -18.5 11 L -8.5 57.5" stroke="#08080a" stroke-width="6.4" stroke-linecap="round"></path>
+    <path d="M -19.6 11 L -9.6 57.5" stroke="#4a4b4f" stroke-width="1.3" stroke-linecap="round" opacity="0.75"></path>
+    <circle cx="-18.5" cy="11" r="4.6" fill="url(#blackDome)"></circle>
+    <circle cx="-18.5" cy="11" r="4.2" fill="none" stroke="url(#rimLight)" stroke-width="0.5"></circle>
+    <rect x="-9.5" y="55" width="19" height="11" rx="2.2" fill="#0b0b0c"></rect>
+    <rect x="-9.1" y="55.4" width="18.2" height="10.2" rx="2" fill="none" stroke="url(#rimLight)" stroke-width="0.5"></rect>
+    <!-- cueing: housing at the right-front of the pillar, platform bar under the tube -->
+    <rect x="13.5" y="24" width="9.5" height="21" rx="2.6" fill="#0d0d0f"></rect>
+    <rect x="13.9" y="24.4" width="8.7" height="20.2" rx="2.3" fill="none" stroke="url(#rimLight)" stroke-width="0.5"></rect>
+    <rect x="-8" y="37.6" width="25" height="4.6" rx="2.3" fill="#161618"></rect>
+    <rect x="-7" y="38.3" width="23" height="1.1" rx="0.5" fill="#fff" opacity="0.16"></rect>
+    <!-- cue lever, hinged on the housing, pointing rearward -->
+    <path d="M 18.5 25 L 31 4" stroke="#0a0a0b" stroke-width="3.2" stroke-linecap="round"></path>
+    <path d="M 17.6 25 L 30.1 4" stroke="#606165" stroke-width="0.8" stroke-linecap="round"></path>
+    <circle cx="18.5" cy="25" r="2.4" fill="url(#silverDome)"></circle>
+    <g transform="translate(31,4) rotate(210.8)">
+      <rect x="-3.4" y="-1" width="6.8" height="11" rx="1.6" fill="url(#blackCyl)"></rect>
+      <rect x="-3.1" y="-0.7" width="6.2" height="10.4" rx="1.4" fill="none" stroke="url(#rimLight)" stroke-width="0.4"></rect>
+    </g>
+    <!-- bias dial (outer side) -->
+    <circle cx="24" cy="-14.2" r="4.8" fill="#000" opacity="0.5" filter="url(#tinyBlur)"></circle>
+    <circle cx="23.5" cy="-15" r="4.6" fill="url(#blackDome)"></circle>
+    <g transform="translate(23.5,-15)" stroke="#000" stroke-opacity="0.7" stroke-width="0.5">
+      <line x1="3.00" y1="0.00" x2="4.60" y2="0.00"></line>
+      <line x1="2.82" y1="1.03" x2="4.32" y2="1.57"></line>
+      <line x1="2.30" y1="1.93" x2="3.52" y2="2.96"></line>
+      <line x1="1.50" y1="2.60" x2="2.30" y2="3.98"></line>
+      <line x1="0.52" y1="2.95" x2="0.80" y2="4.53"></line>
+      <line x1="-0.52" y1="2.95" x2="-0.80" y2="4.53"></line>
+      <line x1="-1.50" y1="2.60" x2="-2.30" y2="3.98"></line>
+      <line x1="-2.30" y1="1.93" x2="-3.52" y2="2.96"></line>
+      <line x1="-2.82" y1="1.03" x2="-4.32" y2="1.57"></line>
+      <line x1="-3.00" y1="0.00" x2="-4.60" y2="0.00"></line>
+      <line x1="-2.82" y1="-1.03" x2="-4.32" y2="-1.57"></line>
+      <line x1="-2.30" y1="-1.93" x2="-3.52" y2="-2.96"></line>
+      <line x1="-1.50" y1="-2.60" x2="-2.30" y2="-3.98"></line>
+      <line x1="-0.52" y1="-2.95" x2="-0.80" y2="-4.53"></line>
+      <line x1="0.52" y1="-2.95" x2="0.80" y2="-4.53"></line>
+      <line x1="1.50" y1="-2.60" x2="2.30" y2="-3.98"></line>
+      <line x1="2.30" y1="-1.93" x2="3.52" y2="-2.96"></line>
+      <line x1="2.82" y1="-1.03" x2="4.32" y2="-1.57"></line>
+    </g>
+    <circle cx="23.5" cy="-15" r="4.3" fill="none" stroke="url(#rimLight)" stroke-width="0.5"></circle>
+    <line x1="23.5" y1="-15" x2="23.5" y2="-18.8" stroke="#e8e9eb" stroke-width="0.7"></line>
+    <!-- downforce collar (inner side): cylinder with its axis across the arm -->
+    <rect x="-31" y="-5" width="10" height="10" rx="1.4" fill="url(#blackCylV)"></rect>
+    <line x1="-31" y1="-4.45" x2="-21" y2="-4.45" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    <line x1="-31" y1="-3.35" x2="-21" y2="-3.35" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    <line x1="-31" y1="-2.25" x2="-21" y2="-2.25" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    <line x1="-31" y1="-1.15" x2="-21" y2="-1.15" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    <line x1="-31" y1="-0.05" x2="-21" y2="-0.05" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    <line x1="-31" y1="1.05" x2="-21" y2="1.05" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    <line x1="-31" y1="2.15" x2="-21" y2="2.15" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    <line x1="-31" y1="3.25" x2="-21" y2="3.25" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    <line x1="-31" y1="4.35" x2="-21" y2="4.35" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    <rect x="-30.7" y="-4.7" width="9.4" height="9.4" rx="1.2" fill="none" stroke="url(#rimLight)" stroke-width="0.4"></rect>
+    <!-- pillar / bearing housing -->
+    <circle cx="0.8" cy="1.4" r="18" fill="#000" opacity="0.5" filter="url(#tinyBlur)"></circle>
+    <circle r="17.6" fill="url(#blackDome)"></circle>
+    <circle r="17.2" fill="none" stroke="url(#rimLight)" stroke-width="0.8"></circle>
+    <!-- counterweight stub -->
+    <rect x="-3.8" y="-72" width="7.6" height="66" rx="1" fill="url(#steelRod)"></rect>
+    <!-- counterweight -->
+    <rect x="-19" y="-69" width="38" height="29" rx="2.2" fill="url(#blackCyl)"></rect>
+    <rect x="-18.6" y="-68.6" width="37.2" height="28.2" rx="2" fill="none" stroke="url(#rimLight)" stroke-width="0.6"></rect>
+    <g>
+      <line x1="-18.43" y1="-54" x2="-18.43" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-17.28" y1="-54" x2="-17.28" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-16.13" y1="-54" x2="-16.13" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-14.98" y1="-54" x2="-14.98" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-13.83" y1="-54" x2="-13.83" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-12.68" y1="-54" x2="-12.68" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-11.53" y1="-54" x2="-11.53" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-10.38" y1="-54" x2="-10.38" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-9.23" y1="-54" x2="-9.23" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-8.08" y1="-54" x2="-8.08" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-6.93" y1="-54" x2="-6.93" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-5.78" y1="-54" x2="-5.78" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-4.62" y1="-54" x2="-4.62" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-3.48" y1="-54" x2="-3.48" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-2.33" y1="-54" x2="-2.33" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-1.18" y1="-54" x2="-1.18" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="-0.03" y1="-54" x2="-0.03" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="1.12" y1="-54" x2="1.12" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="2.27" y1="-54" x2="2.27" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="3.42" y1="-54" x2="3.42" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="4.57" y1="-54" x2="4.57" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="5.72" y1="-54" x2="5.72" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="6.88" y1="-54" x2="6.88" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="8.03" y1="-54" x2="8.03" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="9.18" y1="-54" x2="9.18" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="10.33" y1="-54" x2="10.33" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="11.48" y1="-54" x2="11.48" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="12.63" y1="-54" x2="12.63" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="13.78" y1="-54" x2="13.78" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="14.93" y1="-54" x2="14.93" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="16.08" y1="-54" x2="16.08" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="17.23" y1="-54" x2="17.23" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+        <line x1="18.38" y1="-54" x2="18.38" y2="-47" stroke="#000" stroke-opacity="0.55" stroke-width="0.45"></line>
+    </g>
+    <rect x="-19" y="-54" width="38" height="0.6" fill="#fff" opacity="0.18"></rect>
+    <rect x="-19" y="-47" width="38" height="0.6" fill="#fff" opacity="0.18"></rect>
+    <rect x="-16" y="-72.5" width="32" height="3.6" rx="1.2" fill="url(#alu)"></rect>
+    <!-- arm tube (titanium, tapered) -->
+    <polygon points="-6.1,6 6.1,6 4.6,187 -4.6,187" fill="url(#titanium)"></polygon>
+    <line x1="-3.0" y1="8" x2="-2.2" y2="186" stroke="#ffffff" stroke-opacity="0.32" stroke-width="0.6"></line>
+    <line x1="5.2" y1="8" x2="3.9" y2="186" stroke="#1f2124" stroke-opacity="0.35" stroke-width="0.6"></line>
+    <!-- bearing cradle over the tube -->
+    <rect x="-21.5" y="-10" width="43" height="20" rx="3.2" fill="#0e0e10"></rect>
+    <rect x="-20.5" y="-9" width="41" height="6" rx="2" fill="#ffffff" opacity="0.07"></rect>
+    <rect x="-21.1" y="-9.6" width="42.2" height="19.2" rx="3" fill="none" stroke="url(#rimLight)" stroke-width="0.7"></rect>
+    <circle cx="-21.5" cy="0" r="3.4" fill="url(#silverDome)"></circle>
+    <circle cx="21.5" cy="0" r="3.4" fill="url(#silverDome)"></circle>
+    <circle r="5.2" fill="#202124"></circle>
+    <circle r="5.2" fill="none" stroke="#000" stroke-width="0.5"></circle>
+    <circle r="2.1" fill="url(#silverDome)"></circle>
+    <!-- rest clip jaws over the tube -->
+    <rect x="-9.5" y="55" width="4.2" height="11" rx="1.6" fill="#0b0b0c"></rect>
+    <rect x="5.3" y="55" width="4.2" height="11" rx="1.6" fill="#0b0b0c"></rect>
+    <rect x="-9.2" y="55.3" width="3.6" height="10.4" rx="1.4" fill="none" stroke="url(#rimLight)" stroke-width="0.4"></rect>
+    <rect x="5.6" y="55.3" width="3.6" height="10.4" rx="1.4" fill="none" stroke="url(#rimLight)" stroke-width="0.4"></rect>
+    <circle cx="-7.4" cy="60.5" r="1.1" fill="url(#silverDome)"></circle>
+    <!-- headshell, angled 23 deg toward the spindle -->
+    <g transform="translate(0,186) rotate(23)">
+      <!-- Ekstatik body beneath: slivers either side, DLC black with honeycomb relief -->
+      <rect x="-9.7" y="21" width="19.4" height="29.6" rx="1.6" fill="#15161a"></rect>
+      <g fill="#34373e">
+        <circle cx="-9.05" cy="27" r="0.32"></circle><circle cx="-9.05" cy="31" r="0.32"></circle><circle cx="-9.05" cy="35" r="0.32"></circle><circle cx="-9.05" cy="39" r="0.32"></circle><circle cx="-9.05" cy="43" r="0.32"></circle>
+        <circle cx="9.05" cy="27" r="0.32"></circle><circle cx="9.05" cy="31" r="0.32"></circle><circle cx="9.05" cy="35" r="0.32"></circle><circle cx="9.05" cy="39" r="0.32"></circle><circle cx="9.05" cy="43" r="0.32"></circle>
+      </g>
+      <!-- tube socket collar -->
+      <rect x="-7.4" y="-4" width="14.8" height="7.6" rx="1.8" fill="#3a3c40"></rect>
+      <rect x="-6.8" y="-3.4" width="13.6" height="1" rx="0.5" fill="#fff" opacity="0.18"></rect>
+      <!-- machined aluminium headshell -->
+      <path d="M-9.2,1.8 Q-9.2,0 -7.4,0 H7.4 Q9.2,0 9.2,1.8 L8.4,43.2 Q8.4,45 6.6,45 H-6.6 Q-8.4,45 -8.4,43.2 Z" fill="url(#alu)"></path>
+      <path d="M -8.6 1.8 L -7.9 43" stroke="#ffffff" stroke-opacity="0.5" stroke-width="0.6"></path>
+      <path d="M 8.6 1.8 L 7.9 43" stroke="#3a3c40" stroke-opacity="0.35" stroke-width="0.6"></path>
+      <rect x="-8.2" y="44" width="16.4" height="1.1" fill="#000" opacity="0.22"></rect>
+      <!-- shallow machined relief on top -->
+      <path d="M-6.4,7.5 H6.4 L5.9,39.5 H-5.9 Z" fill="#000" opacity="0.08"></path>
+      <path d="M-6.4,7.5 H6.4" stroke="#000" stroke-opacity="0.22" stroke-width="0.4"></path>
+      <path d="M-5.9,39.5 H5.9" stroke="#fff" stroke-opacity="0.35" stroke-width="0.4"></path>
+      <!-- cartridge bolts: three-point mount -->
+      <circle cx="-4.6" cy="33.5" r="1.7" fill="url(#silverDome)"></circle><circle cx="-4.6" cy="33.5" r="1.7" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="0.3"></circle><polygon points="-3.86,33.92 -4.60,34.35 -5.34,33.92 -5.34,33.08 -4.60,32.65 -3.86,33.08" fill="#2b2c30"></polygon>
+      <circle cx="4.6" cy="33.5" r="1.7" fill="url(#silverDome)"></circle><circle cx="4.6" cy="33.5" r="1.7" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="0.3"></circle><polygon points="5.34,33.92 4.60,34.35 3.86,33.92 3.86,33.08 4.60,32.65 5.34,33.08" fill="#2b2c30"></polygon>
+      <circle cx="0" cy="13.5" r="1.5" fill="url(#silverDome)"></circle><circle cx="0" cy="13.5" r="1.5" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="0.3"></circle><polygon points="0.74,13.93 0.00,14.35 -0.74,13.93 -0.74,13.07 -0.00,12.65 0.74,13.07" fill="#2b2c30"></polygon>
+      <!-- finger lift boss and shaded rod -->
+      <rect x="6.4" y="17.4" width="3.4" height="5.2" rx="1" fill="#6e7176"></rect>
+      <path d="M 8 20 L 20 12.5 L 24 9.5" fill="none" stroke="#7a7d82" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+      <path d="M 7.7 19.4 L 19.7 11.9 L 23.7 8.9" fill="none" stroke="#dcdee1" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"></path>
+      <!-- Ekstatik nose with aluminium-bronze insert -->
+      <path d="M-8,45 H8 L7.3,50.2 Q0,51.6 -7.3,50.2 Z" fill="#1b1c1f"></path>
+      <rect x="-5.6" y="47.2" width="11.2" height="1.4" rx="0.5" fill="#b8865a" opacity="0.95"></rect>
+      <rect x="-8" y="45" width="16" height="0.8" fill="#fff" opacity="0.14"></rect>
+      <!-- cantilever tip just visible past the nose -->
+      <rect x="-0.35" y="50.6" width="0.7" height="1.6" fill="#d9dbde"></rect>
+    </g>
+  </g></svg>

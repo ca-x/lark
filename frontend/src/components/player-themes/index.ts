@@ -16,3 +16,4 @@ export { VinylTurntable } from "./VinylTurntable";
 export { WalkmanPlayer } from "./WalkmanPlayer";
 export type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemeLabels, PlayerThemePlayMode } from "./types";
 export type { PaperShaderVariant } from "./PaperShaderLayer";
+export { VinylCollectionPlayer } from "./VinylCollectionPlayer";
