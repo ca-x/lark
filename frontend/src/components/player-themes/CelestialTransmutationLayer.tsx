@@ -1,6 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+
+import { createAnimationActivity } from "./animationActivity";
 
 const PRESETS = [
   { name: "Aethera", a: 0x54e2ff, b: 0xa058ff, body: 0x0b59a8, ring: false },
@@ -9,9 +11,12 @@ const PRESETS = [
   { name: "Vesper", a: 0xb174ff, b: 0x4ce6ff, body: 0x31127b, ring: false },
 ] as const;
 
-export function CelestialTransmutationLayer({ playing }: { playing: boolean }) {
+export function CelestialTransmutationLayer({ playing, trackKey = "", audioMetrics }: { playing: boolean; trackKey?: string; audioMetrics?: RefObject<{ levels: { energy: number; bass: number; treble: number } }> }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const playingRef = useRef(playing);
+  const trackRef = useRef(trackKey);
+  const metricsRef = useRef(audioMetrics);
+  useEffect(() => { trackRef.current = trackKey; metricsRef.current = audioMetrics; }, [trackKey, audioMetrics]);
   useEffect(() => { playingRef.current = playing; }, [playing]);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -21,7 +26,13 @@ export function CelestialTransmutationLayer({ playing }: { playing: boolean }) {
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const onMotionChange = (event: MediaQueryListEvent) => { reduceMotion = event.matches; };
     motionQuery.addEventListener("change", onMotionChange);
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "low-power" });
+    } catch {
+      motionQuery.removeEventListener("change", onMotionChange);
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.45));
     renderer.setClearColor(0x02030a, 0);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -84,7 +95,7 @@ export function CelestialTransmutationLayer({ playing }: { playing: boolean }) {
     let target = 0;
     let transition = 1;
     let transitionStarted = 0;
-    let lastAutoCycle = 0;
+    let lastTrack = trackRef.current;
     const chooseNext = (time: number) => {
       if (transition < 1) return;
       target = (current + 1) % PRESETS.length;
@@ -103,14 +114,17 @@ export function CelestialTransmutationLayer({ playing }: { playing: boolean }) {
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(host);
-    const clock = new THREE.Clock();
-    let frame = 0;
-    const render = () => {
-      const time = clock.getElapsedTime();
+    let previousAt = performance.now();
+    let time = 0;
+    const render = (now: number) => {
+      const delta = Math.min(0.05, (now - previousAt) / 1000);
+      previousAt = now;
+      time += delta;
+      const levels = metricsRef.current?.current.levels;
       const active = playingRef.current;
-      if (active && !reduceMotion && time - lastAutoCycle > 11) { lastAutoCycle = time; chooseNext(time); }
+      if (trackRef.current !== lastTrack && transition >= 1) { lastTrack = trackRef.current; chooseNext(time); }
       if (!reduceMotion) {
-        world.rotation.y += (active ? 0.035 : 0.007);
+        world.rotation.y += delta * (active ? 0.04 + (levels?.bass || 0) * 0.12 : 0.006);
         world.rotation.x = Math.sin(time * 0.12) * 0.025;
         stars.rotation.y = time * 0.0016;
         planetGroups.forEach((planet, index) => { planet.ringMesh.rotation.z = time * 0.12 + index * 0.3; });
@@ -132,14 +146,19 @@ export function CelestialTransmutationLayer({ playing }: { playing: boolean }) {
         to.ring.opacity = PRESETS[target].ring ? 0.72 * eased : 0;
         if (transition >= 1) { planetGroups[current].group.visible = false; current = target; }
       }
-      controls.autoRotate = !reduceMotion;
-      controls.update();
+      if (!reduceMotion && transition >= 1) {
+        const planet = planetGroups[current];
+        planet.group.scale.setScalar(1 + (levels?.bass || 0) * 0.045);
+        planet.material.emissiveIntensity = 0.12 + (levels?.energy || 0) * 0.18;
+        planet.atmosphere.opacity = 0.12 + (levels?.treble || 0) * 0.15;
+      }
+      controls.autoRotate = active && !reduceMotion;
+      controls.update(delta);
       renderer.render(scene, camera);
-      frame = requestAnimationFrame(render);
     };
-    render();
+    const activity = createAnimationActivity(canvas, render);
     return () => {
-      cancelAnimationFrame(frame);
+      activity.dispose();
       observer.disconnect();
       motionQuery.removeEventListener("change", onMotionChange);
       controls.dispose();

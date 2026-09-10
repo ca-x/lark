@@ -1,0 +1,99 @@
+/* Machined metal: narrow specular highlights and separate mechanical parts. */
+.metal-tonearm { display:block; --metal-edge:#464d55; --metal-mid:#a2a9b0; --metal-shine:#f3f5f5; }
+.metal-tonearm::before,.metal-tonearm::after { display:none; }
+.metal-tonearm > span { position:absolute; display:block; box-sizing:border-box; }
+.metal-bearing { left:10%; top:4%; width:80%; aspect-ratio:1; border-radius:50%; border:1px solid #464b50; background:repeating-conic-gradient(#61666b 0deg,#83888d 4deg,#555b61 8deg); box-shadow:0 2px 3px #0005,inset 0 0 0 2px #a8aeb344,inset 0 0 0 5px #34393c; }
+.metal-bearing > span { position:absolute; inset:24%; border-radius:50%; background:radial-gradient(circle at 42% 30%,#c8cfd3,#555d64 67%); border:1px solid #cdd2d5; }
+.metal-tube { left:45%; top:1%; width:10%; height:86%; border-radius:2px; background:linear-gradient(90deg,#434b55 0%,#a6adb7 20%,#f0f3f4 33%,#fff 39%,#b6bdc5 50%,#707883 78%,#343d49 100%); box-shadow:1px 1px 1px #0005; }
+.metal-counterweight { width:58%; height:8%; top:0; left:21%; border:1px solid #747b82; border-radius:2px; background:repeating-linear-gradient(0deg,#b9bfc544 0 1px,transparent 1px 2px),linear-gradient(90deg,#535a62,#adb3ba 26%,#e2e7e9 43%,#838b94 71%,#4c545d); box-shadow:0 1px 1px #0004; }
+.metal-yoke { width:54%; height:7%; left:23%; top:15%; border:1px solid #5a6067; border-radius:2px; background:linear-gradient(90deg,#565d66,#b9bfc4 42%,#8a9199 49%,#3e4650); }
+.metal-yoke > span { position:absolute; width:14%; aspect-ratio:1; left:43%; top:30%; border:1px solid #323740; background:#cbd0d4; border-radius:50%; }
+.metal-headshell { width:32%; height:16%; left:34%; top:82%; border:1px solid #363d46; border-radius:2px 2px 4px 4px; background:linear-gradient(90deg,#252b33,#424b57 44%,#2b323c 84%,#151b23); box-shadow:1px 2px 2px #0004; }
+.metal-headshell > span:not(.metal-cartridge) { position:absolute; width:20%; aspect-ratio:1; left:17%; top:21%; border-radius:50%; background:linear-gradient(0deg,#d0d5d9 40%,#404852 44% 55%,#bac0c5 58%); border:1px solid #6e7580; }
+.metal-headshell > span:not(.metal-cartridge):nth-child(2) { left:auto; right:17%; }
+.metal-headshell > .metal-cartridge { position:absolute; width:68%; height:24%; left:16%; bottom:-13%; border-radius:0 0 2px 2px; background:#a86e4e; border-top:2px solid #b78c66; }
+.metal-headshell > .metal-cartridge::after { content:''; position:absolute; width:12%; height:60%; left:44%; top:85%; background:#c8cdd1; }
+.metal-fingerlift { width:39%; height:2%; right:-8%; top:86%; border-radius:2px; background:linear-gradient(0deg,#3b434c,#b9c1ca,#697482); transform:rotate(-25deg); transform-origin:left; }
+.gramophone-player .gramophone-arm.metal-tonearm { width:54px; height:240px; top:-2%; right:8%; transform-origin:50% 12%; filter:drop-shadow(3px 5px 2px #0005); transition:transform 240ms cubic-bezier(.23,1,.32,1); }
+.material-soft-vinyl .metal-bearing { background:repeating-conic-gradient(#b5bbc0 0deg,#e4e8eb 4deg,#c0c5ca 8deg); box-shadow:0 2px 3px #0002,inset 0 0 0 2px #fff7,inset 0 0 0 5px #cad0d5; border-color:#b6bec5; }
+.material-soft-vinyl .metal-headshell { background:linear-gradient(90deg,#b8bfc7,#edf0f1 44%,#cbd1d7 84%,#9099a4); border-color:#aeb5bd; }
+
+/* Kitten stands on the upper rim. The disc supplies movement beneath its feet. */
+.running-kitten-player { --running-kitten-step:600ms; }
+.running-kitten-player .running-kitten-scene { background:linear-gradient(180deg,#fff5df14,#61482516),url('/player-themes/running-kitten-watercolor.webp') center/cover; }
+.running-kitten-player .running-kitten-platter { left:50%; bottom:6%; width:min(310px,76%); transform:translateX(-50%); box-shadow:0 16px 26px #241c1540; }
+.running-kitten-player .running-kitten-sun,.running-kitten-player .running-kitten-horizon,.running-kitten-player .running-kitten-trail { display:none; }
+.running-kitten-player .running-kitten-record { animation-duration:12s; background:repeating-radial-gradient(circle,#171918 0 2px,#2b2c2a 2.5px,#171918 3px); }
+.running-kitten-player .running-kitten-label img { filter:none; }
+.running-kitten-player .running-kitten-cat-orbit { inset:5%; transform:none; animation:none; }
+.running-kitten-player .running-kitten-cat-orbit::before { display:none; }
+.running-kitten-player .running-kitten-cat-runner { left:50%; top:4%; transform:none; animation:none; }
+.running-kitten-player .running-kitten-cat-facing { position:relative; transform:none; animation:none; }
+.running-kitten-player .running-kitten-cat,
+.running-kitten-player .kitten-sleeping { position:absolute; left:0; top:0; width:116px; height:auto; overflow:visible; transform:translate(-50%,-92%); filter:drop-shadow(0 1px 0 #3f302040) drop-shadow(0 2px 2px #20190f35); animation:none; transition:opacity 160ms ease; }
+.running-kitten-player .running-kitten-cat { opacity:1; }
+.running-kitten-player .kitten-sleeping { opacity:0; pointer-events:none; }
+.running-kitten-player:not([data-playing='true']) .running-kitten-cat { transform:translate(-50%,-92%); opacity:0; }
+.running-kitten-player:not([data-playing='true']) .kitten-sleeping { opacity:1; }
+.running-kitten-player .running-kitten-cat path { fill:#e6c695; stroke:#926d4733; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+.running-kitten-player .running-kitten-cat .running-kitten-tail-outline { fill:none; stroke:#86603e55; stroke-width:17; }
+.running-kitten-player .running-kitten-cat .running-kitten-tail-fill { fill:none; stroke:#c6955f; stroke-width:14; }
+.running-kitten-player .running-kitten-cat .running-kitten-head { fill:#efd5aa; }
+.running-kitten-player .running-kitten-cat .kitten-belly,
+.running-kitten-player .running-kitten-cat .kitten-muzzle { fill:#fae9c8; stroke:none; }
+.running-kitten-player .running-kitten-cat .running-kitten-coat-mark { fill:none; stroke:#b78650; stroke-width:5; }
+.running-kitten-player .running-kitten-cat .running-kitten-ear-detail { fill:none; stroke:#ca9682; stroke-width:5; }
+.running-kitten-player .running-kitten-cat .running-kitten-nose { fill:#a8796b; stroke:none; }
+.running-kitten-player .running-kitten-cat .running-kitten-mouth,
+.running-kitten-player .running-kitten-cat .running-kitten-whiskers { fill:none; stroke:#8d7560; stroke-width:1.7; }
+.running-kitten-player .running-kitten-eye { fill:#3a3a30; }
+.running-kitten-player .kitten-eye-light { fill:#fff9e4; }
+.running-kitten-player .running-kitten-cat .running-kitten-backleg-two,
+.running-kitten-player .running-kitten-cat .running-kitten-frontleg-two { fill:#bb9467; }
+.running-kitten-player .running-kitten-body { transform-origin:50% 70%; animation:kitten-body-step 600ms cubic-bezier(.45,0,.55,1) infinite paused; }
+.running-kitten-player .running-kitten-head-group { transform-origin:20% 70%; animation:kitten-head-step 600ms cubic-bezier(.45,0,.55,1) infinite paused; }
+.running-kitten-player .running-kitten-tail { transform-origin:90% 85%; animation:kitten-tail-step 1200ms cubic-bezier(.45,0,.55,1) infinite paused; }
+.running-kitten-player .running-kitten-leg { transform-box:fill-box; transform-origin:50% 8%; animation:kitten-paw-step 600ms cubic-bezier(.45,0,.55,1) infinite paused; }
+.running-kitten-player .running-kitten-frontleg-two,.running-kitten-player .running-kitten-backleg-one { animation-delay:-300ms; }
+.running-kitten-player[data-playing='true'] :is(.running-kitten-body,.running-kitten-head-group,.running-kitten-tail,.running-kitten-leg,.running-kitten-eye) { animation-play-state:running; }
+.running-kitten-player .running-kitten-cat-facing::before { left:-44px; top:-4px; width:88px; height:8px; background:#251c1940; filter:blur(2px); animation:none; transform:none; }
+.running-kitten-player .running-kitten-cat-facing::after { display:none; }
+.running-kitten-player .running-kitten-sleep-symbol { left:36px; top:-58px; color:#5e584b; }
+.running-kitten-player .running-kitten-sleep-symbol i { animation:none; opacity:0; }
+.running-kitten-player .running-kitten-sleep-symbol i:first-child { opacity:.7; font-size:12px; }
+.kitten-sleeping path { stroke-linejoin:round; stroke-linecap:round; }
+.kitten-sleep-body { fill:#e6c695; stroke:#b493662e; stroke-width:2; }
+.kitten-sleep-stripes { fill:none; stroke:#b78650; stroke-width:5; }
+.kitten-sleep-head { fill:#efd5aa; stroke:#b4936638; stroke-width:2; }
+.kitten-sleep-ear { fill:none; stroke:#ca9682; stroke-width:5; }
+.kitten-sleep-face { fill:none; stroke:#76634c; stroke-width:2.3; }
+.kitten-sleep-tail { fill:none; stroke:#c99a68; stroke-width:15; }
+@keyframes kitten-body-step { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-3px); } }
+@keyframes kitten-head-step { 0%,100% { transform:rotate(-2deg); } 50% { transform:translateY(-2px) rotate(1deg); } }
+@keyframes kitten-tail-step { 0%,100% { transform:rotate(-5deg); } 50% { transform:rotate(7deg); } }
+@keyframes kitten-paw-step { 0%,100% { transform:rotate(-15deg); } 50% { transform:rotate(17deg) translateY(-3px); } }
+.running-kitten-player[data-motion='paused'] *,
+.running-kitten-player[data-motion='paused'] *::before,
+.gramophone-player[data-motion='paused'] * { animation-play-state:paused !important; }
+@media (min-width:721px) and (max-width:1020px) {
+  .running-kitten-player .running-kitten-cat,.running-kitten-player .kitten-sleeping { width:100px; }
+  .gramophone-player .gramophone-arm.metal-tonearm { height:208px; width:48px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .running-kitten-player *, .running-kitten-player *::before,
+  .gramophone-player .metal-tonearm { animation:none !important; transition:none !important; }
+}
+/* Frequency bars use measured logarithmic bands. No clock-driven fake beats. */
+.mineradio-stage-player .mineradio-stage-spectrum i,
+.mineradio-stage-player[data-playing='true'] .mineradio-stage-spectrum i { animation:none; transform-origin:50% 100%; transition:transform 65ms linear; }
+.mineradio-stage-player[data-audio-reactive='unavailable'] .mineradio-stage-spectrum i { transform:scaleY(.06); opacity:.4; }
+.mineradio-stage-player[data-entered='true'] .mineradio-stage-scanline { opacity:.035; }
+@media (prefers-reduced-motion:reduce) {
+  .mineradio-stage-player .mineradio-stage-spectrum { display:none; }
+}
+.app-shell .running-kitten-player[data-motion='paused'] .running-kitten-record,
+.app-shell .gramophone-player[data-motion='paused'] .gramophone-record { animation-play-state:paused !important; }
+@media (prefers-reduced-motion:reduce) {
+  .app-shell .running-kitten-player[data-playing] .running-kitten-record,
+  .app-shell .gramophone-player[data-playing] .gramophone-record { animation:none !important; }
+}

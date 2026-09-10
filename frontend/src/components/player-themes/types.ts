@@ -28,7 +28,7 @@ const DEFAULT_PLAYER_THEME_LABELS = {
 export function resolvePlayerThemeLabels(labels?: PlayerThemeLabels) {
   return { ...DEFAULT_PLAYER_THEME_LABELS, ...labels };
 }
-export type MobileArtPlayerVariant = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic";
+export type MobileArtPlayerVariant = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic" | "moss-wave" | "deep-sea" | "amber-tape" | "clear-tape";
 
 export type MobileArtPlayerLabels = Partial<{
   nowPlaying: string;
@@ -51,3 +51,10 @@ export type MobileArtPlayerLabels = Partial<{
   sleepTimer: string;
   lyrics: string;
 }>;
+
+export const MATERIAL_THEMES = ["soft-vinyl", "gramophone", "stage-glass", "blue-halo", "moss-wave", "deep-sea", "amber-tape", "clear-tape"] as const;
+export type MaterialTheme = (typeof MATERIAL_THEMES)[number];
+
+export function isMaterialTheme(variant: MobileArtPlayerVariant): variant is MaterialTheme {
+  return MATERIAL_THEMES.some((theme) => theme === variant);
+}

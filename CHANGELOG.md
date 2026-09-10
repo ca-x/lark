@@ -5,6 +5,26 @@
 
 ---
 
+## 0.14.0：播放器主题与音乐动效
+
+发布日期 / Released: 2026-09-10
+
+- 重绘柔光唱片、复古唱机、舞台玻璃和蓝色光环，加入白色唱盘、木质音箱、琉璃唱片与环形光谱。
+- 新增苔绿声波、深海回响、鎏金磁带和晴橘磁带，主题选择器支持画面预览，选择会随账号保存。
+- 重绘桌面小猫的虎斑造型、跑步与蜷卧姿态，细化复古唱机的金属唱臂，并完善小屏、横屏、暂停和减弱动态效果。
+- 暗场电台改为跟随当前歌曲的真实频谱与音量变化，修正音频重载后失去响应、强弱变化不明显和动效生硬的问题。
+
+## v0.14.0: Player themes and music response
+
+Released: 2026-09-10
+
+- Redraw Soft vinyl, Gramophone, Stage glass and Blue halo with a white turntable, walnut speakers, a glass record and a circular spectrum.
+- Add Moss waves, Deep sea, Amber tape and Clear tape, with visual theme previews and preferences saved to your account.
+- Redraw the desktop tabby with running and sleeping poses, refine the metal tonearm, and improve small-screen, landscape, pause and reduced-motion behavior.
+- Drive Mineradio from the current song’s spectrum and loudness, fixing lost response after audio reloads, flattened dynamics and abrupt motion.
+
+---
+
 ## 0.13.0：黑胶唱片室同步与自适应布局
 
 发布日期 / Released: 2026-09-08

@@ -8,6 +8,8 @@ import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayM
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { CelestialTransmutationLayer } from "./CelestialTransmutationLayer";
 import { useCoverFallback } from "./useCoverFallback";
+import { useMineradioAudio } from "./useMineradioAudio";
+import { createAnimationActivity } from "./animationActivity";
 
 type MineradioStagePlayerProps = {
   cover?: string;
@@ -120,7 +122,9 @@ export function MineradioStagePlayer({
     [shelfItems],
   );
 
+  const audioMetrics = useMineradioAudio(rootRef, audioElement, playing);
   useMineradioStageScene(rootRef, canvasRef, {
+    audioMetrics,
     playing,
     immersiveStage,
     coverUrl: coverState.displayUrl,
@@ -201,7 +205,7 @@ export function MineradioStagePlayer({
       style={stageStyle}
     >
       <span className="mineradio-stage-backdrop" aria-hidden="true" />
-      {immersiveStage ? <CelestialTransmutationLayer playing={playing} /> : null}
+      {immersiveStage ? <CelestialTransmutationLayer playing={playing} trackKey={`${displayArtist}:${displayTitle}:${coverState.displayUrl}`} audioMetrics={audioMetrics} /> : null}
       <PaperShaderLayer variant="mineradio" playing={playing} cover={coverState.displayUrl} />
       <canvas ref={canvasRef} className="mineradio-stage-canvas" aria-hidden="true" />
       <span className="mineradio-stage-depth-grid" aria-hidden="true" />
@@ -557,13 +561,14 @@ function useMineradioStageScene(
     immersiveStage: boolean;
     coverUrl: string;
     audioElement: HTMLAudioElement | null;
+    audioMetrics: ReturnType<typeof useMineradioAudio>;
     playlistSignature: string;
     playlists: Playlist[];
     selectedShelfIndex: number;
     coverDragMovedRef: { current: boolean };
   },
 ) {
-  const { playing, immersiveStage, coverUrl, audioElement, playlistSignature, playlists, selectedShelfIndex, coverDragMovedRef } = options;
+  const { playing, immersiveStage, coverUrl, audioElement, audioMetrics, playlistSignature, playlists, selectedShelfIndex, coverDragMovedRef } = options;
   const playingRef = useRef(playing);
   const selectedShelfIndexRef = useRef(selectedShelfIndex);
   const previousCoverCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -928,133 +933,39 @@ function useMineradioStageScene(
 
     let previousFrameAt = performance.now();
     let elapsed = 0;
-    let visualEnergy = playingRef.current ? 0.72 : 0.28;
+    let visualEnergy = 0;
     let beatPulse = 0;
     let bass = 0;
     let vocal = 0;
     let mid = 0;
     let treble = 0;
-    let bassPeak = 0.032;
-    let vocalPeak = 0.026;
-    let midPeak = 0.024;
-    let treblePeak = 0.018;
-    let energyPeak = 0.032;
-    let previousEnergy = 0;
-    let lyricSun = 0;
     let cameraPunch = 0;
     let burstPulse = 0;
     let scatterPulse = 0;
     let rippleCursor = 0;
-    let lastBeatAt = -10;
+    let previousBeatId = audioMetrics.current.levels.beatId;
     const coverRipples: CoverRipple[] = Array.from({ length: COVER_RIPPLE_COUNT }, () => ({ x: 0, y: 0, age: -10, strength: 0 }));
-    let spectrumPaintAt = 0;
-    let analyserState = makeAudioAnalyser(audioElement);
-    const spectrumBars = () => rootRef.current?.querySelectorAll<HTMLElement>(".mineradio-stage-spectrum i") || [];
-    const syncAudioReactiveMarker = () => {
-      const marker = analyserState.analyser ? "true" : "fallback";
-      canvas.setAttribute("data-audio-reactive", marker);
-      if (rootRef.current) rootRef.current.dataset.audioReactive = marker;
-    };
-    syncAudioReactiveMarker();
-    let analyserRetryAt = 0;
-    let raf = 0;
-    const sampleAudioMetrics = (elapsed: number, delta: number) => {
-      const isPlaying = playingRef.current;
-      if (!analyserState.analyser && audioElement && isPlaying && !audioElement.paused && elapsed - analyserRetryAt > 0.45) {
-        analyserRetryAt = elapsed;
-        analyserState.dispose();
-        analyserState = makeAudioAnalyser(audioElement);
-        syncAudioReactiveMarker();
+    const sampleAudioMetrics = (elapsed: number) => {
+      const levels = audioMetrics.current.levels;
+      bass = levels.bass;
+      vocal = levels.vocal;
+      mid = levels.mid;
+      treble = levels.treble;
+      visualEnergy = levels.energy;
+      beatPulse = levels.beat;
+      if (levels.beatId > 0 && levels.beatId !== previousBeatId) {
+        cameraPunch = Math.max(cameraPunch, levels.impact * 0.18);
+        burstPulse = Math.max(burstPulse, levels.impact * 0.3);
+        scatterPulse = Math.max(scatterPulse, levels.impact * 0.035);
+        rippleCursor = triggerCoverRegionRipples(coverRipples, rippleCursor, elapsed, levels.impact, 1);
       }
-      if (analyserState.context?.state === "suspended" && isPlaying) void analyserState.context.resume().catch(() => undefined);
-      if (analyserState.analyser && analyserState.frequencyData && analyserState.timeDomainData && audioElement && isPlaying && !audioElement.paused) {
-        analyserState.analyser.getByteFrequencyData(analyserState.frequencyData);
-        analyserState.analyser.getByteTimeDomainData(analyserState.timeDomainData);
-        const freq = analyserState.frequencyData;
-        const sampleRate = analyserState.context?.sampleRate || 44100;
-        const fftSize = analyserState.analyser.fftSize;
-        const rawBass = averageFrequencyBand(freq, sampleRate, fftSize, 60, 150);
-        const rawVocal = averageFrequencyBand(freq, sampleRate, fftSize, 200, 3000);
-        const rawMid = averageFrequencyBand(freq, sampleRate, fftSize, 3000, 6000);
-        const rawTreble = averageFrequencyBand(freq, sampleRate, fftSize, 6000, sampleRate / 2);
-        let rms = 0;
-        for (let index = 0; index < analyserState.timeDomainData.length; index += 1) {
-          const value = (analyserState.timeDomainData[index] - 128) / 128;
-          rms += value * value;
-        }
-        rms = Math.sqrt(rms / analyserState.timeDomainData.length);
-        bassPeak = Math.max(bassPeak * 0.994, rawBass, 0.032);
-        vocalPeak = Math.max(vocalPeak * 0.993, rawVocal, 0.026);
-        midPeak = Math.max(midPeak * 0.993, rawMid, 0.024);
-        treblePeak = Math.max(treblePeak * 0.992, rawTreble, 0.018);
-        energyPeak = Math.max(energyPeak * 0.995, rms, 0.032);
-        const nextBass = Math.min(1, Math.pow(rawBass / Math.max(0.04, bassPeak * 0.66), 0.76));
-        const nextVocal = Math.min(1, Math.pow(rawVocal / Math.max(0.03, vocalPeak * 0.7), 0.84));
-        const nextMid = Math.min(1, Math.pow(rawMid / Math.max(0.03, midPeak * 0.7), 0.86));
-        const nextTreble = Math.min(1, Math.pow(rawTreble / Math.max(0.022, treblePeak * 0.74), 0.9));
-        const nextEnergy = Math.min(1, Math.pow(rms / Math.max(0.034, energyPeak * 0.68), 0.82));
-        const bassOnset = Math.max(0, nextBass - bass);
-        const energyOnset = Math.max(0, nextEnergy - previousEnergy);
-        const onset = Math.max(bassOnset, energyOnset);
-        previousEnergy += (nextEnergy - previousEnergy) * 0.14;
-        const beatHit = elapsed - lastBeatAt > 0.16 && nextBass > 0.34 && bassOnset > 0.065 && energyOnset > 0.012;
-        if (beatHit) {
-          lastBeatAt = elapsed;
-          const impact = Math.min(1, bassOnset * 2.9 + energyOnset * 1.15 + nextBass * 0.22);
-          beatPulse = Math.max(beatPulse, Math.min(0.92, 0.22 + impact * 0.72));
-          cameraPunch = Math.max(cameraPunch, 0.16 + impact * 0.48);
-          burstPulse = Math.max(burstPulse, 0.34 + impact * 0.42);
-          scatterPulse = Math.max(scatterPulse, 0.025 + impact * 0.06);
-          rippleCursor = triggerCoverRegionRipples(coverRipples, rippleCursor, elapsed, impact, 2 + (impact > 0.56 ? 1 : 0));
-        } else {
-          beatPulse = Math.max(beatPulse * Math.pow(0.34, delta), Math.min(0.42, onset * 1.08));
-        }
-        bass += (nextBass - bass) * (nextBass > bass ? 0.28 : 0.07);
-        vocal += (nextVocal - vocal) * (nextVocal > vocal ? 0.16 : 0.052);
-        mid += (nextMid - mid) * (nextMid > mid ? 0.2 : 0.06);
-        treble += (nextTreble - treble) * (nextTreble > treble ? 0.18 : 0.055);
-        visualEnergy += (Math.min(1, nextEnergy * 0.74 + bass * 0.14 + vocal * 0.06 + mid * 0.08) - visualEnergy) * 0.13;
-      } else {
-        const fallbackEnergy = isPlaying ? 0.58 + Math.sin(elapsed * 1.18) * 0.08 + Math.sin(elapsed * 2.74) * 0.035 : 0.22;
-        const fallbackBeat = isPlaying ? Math.pow(Math.max(0, Math.sin(elapsed * 2.45) * 0.72 + Math.sin(elapsed * 5.1) * 0.28), 4) : 0;
-        if (fallbackBeat > 0.62 && elapsed - lastBeatAt > 0.42) {
-          lastBeatAt = elapsed;
-          cameraPunch = Math.max(cameraPunch, 0.24);
-          burstPulse = Math.max(burstPulse, 0.36);
-          scatterPulse = Math.max(scatterPulse, 0.045);
-          rippleCursor = triggerCoverRegionRipples(coverRipples, rippleCursor, elapsed, fallbackBeat, 2);
-        }
-        beatPulse += (fallbackBeat - beatPulse) * (fallbackBeat > beatPulse ? 0.34 : 0.08);
-        bass += ((isPlaying ? fallbackBeat * 0.52 + 0.16 : 0) - bass) * 0.08;
-        vocal += ((isPlaying ? 0.18 + Math.max(0, Math.sin(elapsed * 1.34 + 0.2)) * 0.16 : 0) - vocal) * 0.06;
-        mid += ((isPlaying ? 0.22 + Math.max(0, Math.sin(elapsed * 1.7 + 0.5)) * 0.18 : 0) - mid) * 0.07;
-        treble += ((isPlaying ? 0.16 + Math.max(0, Math.sin(elapsed * 2.6 + 1.8)) * 0.16 : 0) - treble) * 0.065;
-        visualEnergy += (fallbackEnergy - visualEnergy) * (fallbackEnergy > visualEnergy ? 0.09 : 0.045);
-      }
-      if (elapsed - spectrumPaintAt > 0.055) {
-        spectrumPaintAt = elapsed;
-        spectrumBars().forEach((bar, index, bars) => {
-          const ratio = bars.length <= 1 ? 0 : index / (bars.length - 1);
-          const wave = 0.26 + Math.sin(elapsed * (1.4 + ratio * 1.8) + index * 0.72) * 0.12;
-          const level = Math.max(0.08, Math.min(1.24, wave + bass * (1 - ratio) * 0.62 + mid * (1 - Math.abs(ratio - 0.48) * 1.7) * 0.48 + treble * ratio * 0.44 + beatPulse * 0.52));
-          bar.style.setProperty("--spectrum-level", level.toFixed(3));
-        });
-      }
-      rootRef.current?.style.setProperty("--mineradio-audio-energy", visualEnergy.toFixed(3));
-      rootRef.current?.style.setProperty("--mineradio-audio-bass", bass.toFixed(3));
-      rootRef.current?.style.setProperty("--mineradio-audio-mid", mid.toFixed(3));
-      rootRef.current?.style.setProperty("--mineradio-audio-treble", treble.toFixed(3));
-      rootRef.current?.style.setProperty("--mineradio-audio-beat", beatPulse.toFixed(3));
-      const lyricSunRaw = Math.max(0, Math.min(1, visualEnergy * 0.22 + vocal * 0.2 + mid * 0.3 + treble * 0.22 + beatPulse * 0.14 - 0.08));
-      lyricSun += (lyricSunRaw - lyricSun) * (lyricSunRaw > lyricSun ? 0.075 : 0.03);
-      rootRef.current?.style.setProperty("--mineradio-lyric-solar", lyricSun.toFixed(3));
-      rootRef.current?.style.setProperty("--mineradio-lyric-glow", Math.min(1, lyricSun * 0.72 + beatPulse * 0.28).toFixed(3));
+      previousBeatId = levels.beatId;
     };
     const tick = (frameAt = performance.now()) => {
       const delta = Math.min(Math.max((frameAt - previousFrameAt) / 1000, 0), 0.05);
       previousFrameAt = frameAt;
       elapsed += delta;
-      sampleAudioMetrics(elapsed, delta);
+      sampleAudioMetrics(elapsed);
       const isPlaying = playingRef.current;
 
       for (let index = 0; index < particlePositions.length / 3; index += 1) {
@@ -1190,14 +1101,13 @@ function useMineradioStageScene(
         mesh.material.opacity = Math.min(1, (0.62 + depthFade * 0.34 + selectedLift * 0.16 + beatPulse * 0.035) * (immersiveStage ? 1 : 0));
       });
       renderer.render(scene, camera);
-      raf = requestAnimationFrame(tick);
     };
+    const sceneActivity = reduceMotion ? null : createAnimationActivity(canvas, tick);
     if (reduceMotion) renderer.render(scene, camera);
-    else tick();
 
     return () => {
       coverLoadCancelled = true;
-      cancelAnimationFrame(raf);
+      sceneActivity?.dispose();
       cancelAnimationFrame(coverColorMixRaf);
       observer.disconnect();
       rootElement?.removeEventListener("pointerdown", onPointerDown);
@@ -1205,12 +1115,10 @@ function useMineradioStageScene(
       rootElement?.removeEventListener("pointerleave", onPointerLeave);
       rootElement?.removeEventListener("pointerup", endPointerDrag);
       rootElement?.removeEventListener("pointercancel", endPointerDrag);
-      analyserState.dispose();
       coverTexture.dispose();
       prevCoverTexture.dispose();
       edgeTexture.dispose();
       dotTexture.dispose();
-      if (rootRef.current) delete rootRef.current.dataset.audioReactive;
       scene.traverse((object) => {
         const mesh = object as THREE.Mesh;
         if (mesh.geometry) mesh.geometry.dispose();
@@ -1220,71 +1128,9 @@ function useMineradioStageScene(
       });
       renderer.dispose();
     };
-  }, [rootRef, canvasRef, immersiveStage, coverUrl, audioElement, playlistSignature, playlists, coverDragMovedRef]);
+  }, [rootRef, canvasRef, immersiveStage, coverUrl, audioElement, audioMetrics, playlistSignature, playlists, coverDragMovedRef]);
 }
 
-type MineradioAnalyserState = {
-  context: AudioContext | null;
-  analyser: AnalyserNode | null;
-  frequencyData: Uint8Array<ArrayBuffer> | null;
-  timeDomainData: Uint8Array<ArrayBuffer> | null;
-  dispose: () => void;
-};
-
-function makeAudioAnalyser(audioElement: HTMLAudioElement | null): MineradioAnalyserState {
-  if (!audioElement) return emptyAudioAnalyser();
-  const capturable = audioElement as HTMLAudioElement & {
-    captureStream?: () => MediaStream;
-    mozCaptureStream?: () => MediaStream;
-  };
-  const stream = capturable.captureStream?.() || capturable.mozCaptureStream?.();
-  if (!stream || stream.getAudioTracks().length === 0) return emptyAudioAnalyser();
-  const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextCtor) return emptyAudioAnalyser();
-  try {
-    const context = new AudioContextCtor();
-    const source = context.createMediaStreamSource(stream);
-    const analyser = context.createAnalyser();
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.74;
-    source.connect(analyser);
-    return {
-      context,
-      analyser,
-      frequencyData: new Uint8Array(analyser.frequencyBinCount),
-      timeDomainData: new Uint8Array(analyser.fftSize),
-      dispose: () => {
-        try {
-          source.disconnect();
-        } catch {
-          // The node may already be disconnected during rapid theme switches.
-        }
-        void context.close().catch(() => undefined);
-      },
-    };
-  } catch {
-    return emptyAudioAnalyser();
-  }
-}
-
-function emptyAudioAnalyser(): MineradioAnalyserState {
-  return {
-    context: null,
-    analyser: null,
-    frequencyData: null,
-    timeDomainData: null,
-    dispose: () => undefined,
-  };
-}
-
-function averageFrequencyBand(data: Uint8Array<ArrayBuffer>, sampleRate: number, fftSize: number, startHz: number, endHz: number) {
-  const binHz = sampleRate / fftSize;
-  const start = Math.max(1, Math.floor(startHz / binHz));
-  const end = Math.min(data.length, Math.max(start + 1, Math.ceil(endHz / binHz)));
-  let sum = 0;
-  for (let index = start; index < end; index += 1) sum += data[index] / 255;
-  return sum / Math.max(1, end - start);
-}
 
 function makeFallbackCoverParticleGeometry(count: number) {
   const grid = coverParticleGridForCount(count);

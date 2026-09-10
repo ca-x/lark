@@ -2,7 +2,8 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
-import { PaperShaderLayer } from "./PaperShaderLayer";
+import { MetalTonearm } from "./MetalTonearm";
+import { useArtworkActivity } from "./useArtworkActivity";
 import { useCoverFallback } from "./useCoverFallback";
 
 export function GramophonePlayer({
@@ -39,6 +40,7 @@ export function GramophonePlayer({
   onSeek?: (seconds: number) => void;
 }) {
   const text = resolvePlayerThemeLabels(labels);
+  const { ref: activityRef, visible } = useArtworkActivity();
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const canSeek = Boolean(duration && onSeek);
   const coverState = useCoverFallback(cover);
@@ -53,8 +55,7 @@ export function GramophonePlayer({
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
 
   return (
-    <div className="gramophone-player" data-playing={playing ? "true" : "false"} style={playerStyle}>
-      <PaperShaderLayer variant="gramophone" playing={playing} cover={coverState.displayUrl} />
+    <div ref={activityRef} className="gramophone-player" data-motion={visible ? "running" : "paused"} data-playing={playing ? "true" : "false"} style={playerStyle}>
       <div className="gramophone-stage">
         <div className="gramophone-plinth">
           <div className="gramophone-platter">
@@ -78,10 +79,7 @@ export function GramophonePlayer({
               </span>
             </button>
             <span className="gramophone-spindle" aria-hidden="true" />
-            <span className="gramophone-arm" aria-hidden="true">
-              <i />
-              <b />
-            </span>
+            <MetalTonearm className="gramophone-arm" />
             <span className="gramophone-strobe" aria-hidden="true" />
           </div>
 

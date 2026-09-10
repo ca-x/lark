@@ -30,6 +30,10 @@ const themes = [
   "editorial-pulse",
   "stage-glass",
   "blue-halo",
+  "moss-wave",
+  "deep-sea",
+  "amber-tape",
+  "clear-tape",
 ];
 const expandedSurfaces = {
   "gramophone": ["--mobile-art-phone-bg", "--mobile-art-phone-bg-2", "--mobile-art-panel"],

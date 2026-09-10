@@ -1,3 +1,5 @@
+import { registerAudioAnalysis } from "./services/audioAnalysis";
+import { MobileThemePicker } from "./components/mobile/MobileThemePicker";
 import type { ChangeEvent, ReactNode, UIEvent } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { Fragment, memo, useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -430,7 +432,11 @@ function normalizeMobileHomePlayerStyle(value?: string | null): MobileHomePlayer
     value === "gramophone" ||
     value === "stage-glass" ||
     value === "blue-halo" ||
-    value === "smartisan-classic"
+    value === "smartisan-classic" ||
+    value === "moss-wave" ||
+    value === "deep-sea" ||
+    value === "amber-tape" ||
+    value === "clear-tape"
     ? value
     : "neon-console";
 }
@@ -1378,6 +1384,7 @@ export default function App() {
       filter.connect(next);
     });
     treble.connect(ctx.destination);
+    registerAudioAnalysis(audio, ctx, treble);
     audioContextRef.current = ctx;
     audioSourceRef.current = source;
     bassFilterRef.current = bass;
@@ -1506,7 +1513,8 @@ export default function App() {
 
   useEffect(() => {
     const toneActive = Math.abs(bassGain) >= 0.1 || Math.abs(trebleGain) >= 0.1;
-    if (!eqEnabled && !toneActive) {
+    const needsSpectrum = homePlayerStyle === "mineradio-stage" && !mobileViewport && !currentRadio && !currentNetworkTrack;
+    if (!eqEnabled && !toneActive && !needsSpectrum) {
       eqFiltersRef.current.forEach((filter) => {
         filter.gain.value = 0;
       });
@@ -1521,7 +1529,7 @@ export default function App() {
     if (bassFilterRef.current) bassFilterRef.current.gain.value = clampEqGain(bassGain);
     if (trebleFilterRef.current) trebleFilterRef.current.gain.value = clampEqGain(trebleGain);
     if (playingRef.current && ctx?.state === "suspended") void ctx.resume().catch(() => undefined);
-  }, [audioEl, eqEnabled, eqBands, bassGain, trebleGain, ensureEqualizerGraph]);
+  }, [audioEl, eqEnabled, eqBands, bassGain, trebleGain, ensureEqualizerGraph, homePlayerStyle, mobileViewport, currentRadio, currentNetworkTrack]);
 
   useEffect(() => {
     return () => {
@@ -1747,7 +1755,7 @@ export default function App() {
         ? `radio:${radio.id || radio.url}`
         : `network:${networkTrack?.source_id}:${networkTrack?.id}`;
     pendingAutoplayRef.current = true;
-    if (eqEnabled) resumeEqualizer();
+    resumeEqualizer();
     void audio.play().then(() => {
       const activeKey = currentRef.current
         ? `song:${currentRef.current.id}`
@@ -1788,7 +1796,7 @@ export default function App() {
       setPlaying(false);
       showMessage(t("playbackFailed"));
     });
-  }, [eqEnabled, resumeEqualizer, t]);
+  }, [resumeEqualizer, t]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -11224,72 +11232,7 @@ function SettingsPanel({
             title={t("mobileHomePlayerStyle")}
             description={t("mobileHomePlayerStyleHint")}
           >
-            <div className="segmented-control segmented-control-fluid mobile-theme-picker" role="group" aria-label={t("mobileHomePlayerStyle")}>
-              <button
-                type="button"
-                className={mobileHomePlayerStyle === "neon-console" ? "active" : ""}
-                aria-pressed={mobileHomePlayerStyle === "neon-console"}
-                onClick={() => onMobileHomePlayerStyleChange("neon-console")}
-              >
-                {t("mobileHomePlayerNeonConsole")}
-              </button>
-              <button
-                type="button"
-                className={mobileHomePlayerStyle === "soft-vinyl" ? "active" : ""}
-                aria-pressed={mobileHomePlayerStyle === "soft-vinyl"}
-                onClick={() => onMobileHomePlayerStyleChange("soft-vinyl")}
-              >
-                {t("mobileHomePlayerSoftVinyl")}
-              </button>
-              <button
-                type="button"
-                className={mobileHomePlayerStyle === "gramophone" ? "active" : ""}
-                aria-pressed={mobileHomePlayerStyle === "gramophone"}
-                onClick={() => onMobileHomePlayerStyleChange("gramophone")}
-              >
-                {t("mobileHomePlayerGramophone")}
-              </button>
-              <button
-                type="button"
-                className={mobileHomePlayerStyle === "indiewave" ? "active" : ""}
-                aria-pressed={mobileHomePlayerStyle === "indiewave"}
-                onClick={() => onMobileHomePlayerStyleChange("indiewave")}
-              >
-                {t("mobileHomePlayerIndiewave")}
-              </button>
-              <button
-                type="button"
-                className={mobileHomePlayerStyle === "editorial-pulse" ? "active" : ""}
-                aria-pressed={mobileHomePlayerStyle === "editorial-pulse"}
-                onClick={() => onMobileHomePlayerStyleChange("editorial-pulse")}
-              >
-                {t("mobileHomePlayerEditorialPulse")}
-              </button>
-              <button
-                type="button"
-                className={mobileHomePlayerStyle === "stage-glass" ? "active" : ""}
-                aria-pressed={mobileHomePlayerStyle === "stage-glass"}
-                onClick={() => onMobileHomePlayerStyleChange("stage-glass")}
-              >
-                {t("mobileHomePlayerStageGlass")}
-              </button>
-              <button
-                type="button"
-                className={mobileHomePlayerStyle === "blue-halo" ? "active" : ""}
-                aria-pressed={mobileHomePlayerStyle === "blue-halo"}
-                onClick={() => onMobileHomePlayerStyleChange("blue-halo")}
-              >
-                {t("mobileHomePlayerBlueHalo")}
-              </button>
-              <button
-                type="button"
-                className={mobileHomePlayerStyle === "smartisan-classic" ? "active" : ""}
-                aria-pressed={mobileHomePlayerStyle === "smartisan-classic"}
-                onClick={() => onMobileHomePlayerStyleChange("smartisan-classic")}
-              >
-                {t("mobileHomePlayerSmartisanClassic")}
-              </button>
-            </div>
+            <MobileThemePicker value={mobileHomePlayerStyle} onChange={onMobileHomePlayerStyleChange} t={t} />
           </SettingsSection>
           ) : null}
           <SettingsSection

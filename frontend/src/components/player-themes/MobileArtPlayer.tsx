@@ -1,3 +1,4 @@
+import { isMaterialTheme } from "./types";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import {
   CaretDown,
@@ -19,6 +20,7 @@ import {
 } from "@phosphor-icons/react";
 
 import type { MobileArtPlayerLabels, MobileArtPlayerVariant, PlayerThemePlayMode } from "./types";
+import { MobilePlayerArtwork } from "./MobilePlayerArtwork";
 import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 import { useDiscScratchSeek } from "./useDiscScratchSeek";
@@ -257,10 +259,10 @@ export function MobileArtPlayer({
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
 
   return (
-    <div className={`mobile-art-player mobile-art-${variant}`} data-playing={playing ? "true" : "false"} style={style}>
+    <div className={`mobile-art-player mobile-art-${variant}${isMaterialTheme(variant) ? " mobile-material-player" : ""}`} data-playing={playing ? "true" : "false"} style={style}>
       <div className="mobile-art-phone" data-swiping={swipeY !== 0 || swipeX !== 0 ? "true" : "false"} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchCancel} style={{ transform: swipeY > 0 ? `translateY(${swipeY * 0.72}px) scale(${Math.max(.97, 1 - swipeY / 5000)})` : swipeX !== 0 ? `translateX(${swipeX * 0.42}px)` : undefined, transition: swipeY === 0 && swipeX === 0 ? "transform .38s cubic-bezier(.32,.72,0,1), opacity .3s ease" : "none", opacity: swipeY > 0 ? Math.max(0, 1 - swipeY / 520) : undefined }}>
         <div className="mobile-art-bg" aria-hidden="true" />
-        <PaperShaderLayer variant={`mobile-${variant}`} playing={playing} cover={coverState.displayUrl} compact />
+        {!isMaterialTheme(variant) ? <PaperShaderLayer variant={`mobile-${variant}`} playing={playing} cover={coverState.displayUrl} compact /> : null}
         {onBack ? (
           <div className="mobile-art-topbar">
             <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>
@@ -271,7 +273,9 @@ export function MobileArtPlayer({
           </div>
         ) : null}
 
-        {variant === "neon-console" ? (
+        {isMaterialTheme(variant) ? (
+          <MobilePlayerArtwork variant={variant} cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} progress={pct} onCoverError={coverState.onCoverError} />
+        ) : variant === "neon-console" ? (
           <PrecisionAudioVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
         ) : variant === "indiewave" ? (
           <IndiewaveVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
@@ -291,12 +295,7 @@ export function MobileArtPlayer({
             onNext={onNext}
             onCyclePlayMode={onCyclePlayMode}
           />
-        ) : variant === "soft-vinyl" ? (
-          <SoftVinylVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} onCoverError={coverState.onCoverError} />
-        ) : variant === "gramophone" ? (
-          <GramophoneVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
-        ) : variant === "stage-glass" ? (
-          <StageGlassVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />
+
         ) : variant === "smartisan-classic" ? (
           <SmartisanClassicVisual
             cover={coverState.displayUrl}
@@ -305,9 +304,7 @@ export function MobileArtPlayer({
             scratchProps={smartisanScratch.scratchProps}
             onCoverError={coverState.onCoverError}
           />
-        ) : (
-          <BlueHaloVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} title={title} artist={artist} onCoverError={coverState.onCoverError} />
-        )}
+        ) : null}
 
         <div className="mobile-art-meta">
           <strong>{title}</strong>
@@ -468,50 +465,6 @@ function PrecisionAudioVisual({ cover, fallbackLabel, playing, onCoverError }: C
   );
 }
 
-function SoftVinylVisual({ cover, fallbackLabel, onCoverError }: CoverVisualProps) {
-  return (
-    <div className="mobile-soft-stage">
-      <div className="mobile-soft-deck">
-        <div className="mobile-soft-record" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
-          {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
-          <span>{cover ? null : fallbackLabel}</span>
-        </div>
-        <div className="mobile-soft-arm" aria-hidden="true"><i /></div>
-        <span aria-hidden="true" className="mobile-soft-cube"><span /></span>
-        <span aria-hidden="true" className="mobile-soft-knob" />
-      </div>
-    </div>
-  );
-}
-
-function GramophoneVisual({ cover, fallbackLabel, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
-  return (
-    <div className="mobile-gramophone-stage" data-playing={playing ? "true" : "false"}>
-      <div className="mobile-gramophone-platter">
-        <div className="mobile-gramophone-record" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
-          <span className="mobile-gramophone-groove" aria-hidden="true" />
-          <div className="mobile-gramophone-label" data-has-cover={cover ? "true" : "false"}>
-            {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : <span>{fallbackLabel}</span>}
-            <i aria-hidden="true" />
-          </div>
-        </div>
-        <div className="mobile-gramophone-arm" aria-hidden="true">
-          <span />
-          <i />
-        </div>
-      </div>
-      <div className="mobile-gramophone-base" aria-hidden="true">
-        <span className="mobile-gramophone-grille" />
-        <strong>LARK</strong>
-        <i className="mobile-gramophone-knob" />
-        <em className="mobile-gramophone-led" />
-        <b className="mobile-gramophone-foot left" />
-        <b className="mobile-gramophone-foot right" />
-      </div>
-    </div>
-  );
-}
-
 function IndiewaveVisual({ cover, fallbackLabel, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
   return (
     <div className="mobile-indie-visual">
@@ -604,56 +557,6 @@ function EditorialPulseVisual({
           <button type="button" className="mobile-editorial-center-button" aria-label={playing ? labels.pause : labels.play} disabled={!onToggle} onClick={onToggle}>
             <span />
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StageGlassVisual({ cover, fallbackLabel, playing, onCoverError }: CoverVisualProps & { playing: boolean }) {
-  return (
-    <div className="mobile-stage-visual" data-playing={playing ? "true" : "false"}>
-      <div className="mobile-stage-disc" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
-        {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
-        <i />
-      </div>
-      <div className="mobile-stage-arm" aria-hidden="true"><span /><i /></div>
-    </div>
-  );
-}
-
-function BlueHaloVisual({
-  cover,
-  fallbackLabel,
-  playing,
-  title,
-  artist,
-  onCoverError,
-}: CoverVisualProps & { playing: boolean; title: string; artist: string }) {
-  return (
-    <div className="mobile-blue-visual" data-playing={playing ? "true" : "false"}>
-      <div className="mobile-blue-cassette" aria-hidden="true">
-        <div className="mobile-blue-cassette-head">
-          <strong>SONIX</strong>
-          <span className={playing ? "on" : ""}>TYPE II</span>
-        </div>
-        <div className="mobile-blue-cassette-shell">
-          <div className="mobile-blue-cassette-cover" data-has-cover={cover ? "true" : "false"} data-fallback-label={fallbackLabel}>
-            {cover ? <img src={cover} alt="" loading="eager" decoding="async" onError={onCoverError} /> : null}
-            <span />
-          </div>
-          <div className="mobile-blue-cassette-label">
-            <strong>{title}</strong>
-            <em>{artist}</em>
-          </div>
-          <div className="mobile-blue-cassette-window">
-            <span className="reel left"><i /></span>
-            <span className="tape" />
-            <span className="reel right"><i /></span>
-          </div>
-        </div>
-        <div className="mobile-blue-cassette-vu">
-          {Array.from({ length: 12 }, (_, index) => <i key={index} />)}
         </div>
       </div>
     </div>

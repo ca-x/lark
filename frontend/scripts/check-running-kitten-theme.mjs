@@ -18,7 +18,7 @@ for (const needle of [
   "running-kitten-head-group",
   "running-kitten-tail-outline",
   "running-kitten-sleep-symbol",
-  'data-motion-model="upper-groove-lap"',
+  'data-motion-model="rim-treadmill"',
 ]) {
   requireInSource(component, needle, "RunningKittenTurntable.tsx");
 }

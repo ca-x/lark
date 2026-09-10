@@ -4,6 +4,8 @@ import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const component = readFileSync(join(root, "src/components/player-themes/MineradioStagePlayer.tsx"), "utf8");
+const audioAnalysis = readFileSync(join(root, "src/services/audioAnalysis.ts"), "utf8");
+const audioHook = readFileSync(join(root, "src/components/player-themes/useMineradioAudio.ts"), "utf8");
 const app = readFileSync(join(root, "src/App.tsx"), "utf8");
 const css = readFileSync(join(root, "src/styles.css"), "utf8");
 const mobileCss = readFileSync(join(root, "src/mobile.css"), "utf8");
@@ -52,10 +54,6 @@ for (const needle of [
   "data-shelf-extras",
   "data-shelf-hit-layer",
   "audioElement",
-  "makeAudioAnalyser",
-  "analyserRetryAt",
-  "captureStream",
-  "data-audio-reactive",
   "data-cover-particles",
   "data-cover-dom-particles",
   "data-cover-shader",
@@ -71,8 +69,6 @@ for (const needle of [
   "coverParticleFragmentShader",
   "makeCoverParticleUniforms",
   "syncCoverParticleUniforms",
-  "--mineradio-lyric-solar",
-  "averageFrequencyBand",
   "COVER_RIPPLE_COUNT = 12",
   "COVER_RIPPLE_REGIONS",
   "triggerCoverRegionRipples",
@@ -207,6 +203,14 @@ for (const [source, label] of [
 }
 
 forbidInSource(component, "new THREE.Clock()", "MineradioStagePlayer.tsx");
+
+forbidInSource(app, "if (eqEnabled) resumeEqualizer()", "App.tsx must resume the shared audio graph with EQ disabled");
+requireInSource(app, "registerAudioAnalysis(audio, ctx, treble)", "App.tsx shared audio graph");
+requireInSource(audioAnalysis, "graph.output.disconnect(analyser)", "audioAnalysis.ts isolated analyser cleanup");
+requireInSource(audioHook, "--mineradio-lyric-solar", "useMineradioAudio.ts lyric response");
+requireInSource(audioHook, "getByteFrequencyData", "useMineradioAudio.ts actual frequency data");
+forbidInSource(component, "fallbackBeat", "MineradioStagePlayer.tsx must not synthesize song beats");
+forbidInSource(audioAnalysis, "captureStream", "audioAnalysis.ts must survive media reloads");
 
 const mineradioComponentUsages = app.match(/<MineradioStagePlayer\b/g) || [];
 if (mineradioComponentUsages.length !== 1) {

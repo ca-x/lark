@@ -1418,7 +1418,7 @@ func normalizeUserHomePlayerStyle(value string) string {
 
 func normalizeUserMobileHomePlayerStyle(value string) string {
 	switch strings.TrimSpace(value) {
-	case "neon-console", "indiewave", "editorial-pulse", "soft-vinyl", "gramophone", "stage-glass", "blue-halo", "smartisan-classic":
+	case "neon-console", "indiewave", "editorial-pulse", "soft-vinyl", "gramophone", "stage-glass", "blue-halo", "smartisan-classic", "moss-wave", "deep-sea", "amber-tape", "clear-tape":
 		return strings.TrimSpace(value)
 	default:
 		return "neon-console"

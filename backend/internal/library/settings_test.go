@@ -903,3 +903,24 @@ func TestVinylCollectionPreferencesRoundTrip(t *testing.T) {
 		t.Fatalf("desktop theme changed the mobile preference: %q", loaded.MobileHomePlayerStyle)
 	}
 }
+
+func TestMobileMaterialThemesPersist(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	defer client.Close()
+	service := &Service{client: client, cache: kv.NoopStore{}}
+	for _, theme := range []string{"moss-wave", "deep-sea", "amber-tape", "clear-tape"} {
+		t.Run(theme, func(t *testing.T) {
+			preferences := models.UserPreferences{HomePlayerStyle: "vinyl", MobileHomePlayerStyle: theme}
+			if _, err := service.SaveUserPreferences(t.Context(), 7, preferences); err != nil {
+				t.Fatal(err)
+			}
+			loaded, err := service.GetUserPreferences(t.Context(), 7)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if loaded.MobileHomePlayerStyle != theme || loaded.HomePlayerStyle != "vinyl" {
+				t.Fatalf("theme preference did not round-trip independently: %#v", loaded)
+			}
+		})
+	}
+}

@@ -1,11 +1,8 @@
 import { Pause, Play, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward } from "@phosphor-icons/react";
 
 import { resolvePlayerThemeLabels, type PlayerThemeLabels, type PlayerThemePlayMode } from "./types";
-import { PaperShaderLayer } from "./PaperShaderLayer";
+import { useArtworkActivity } from "./useArtworkActivity";
 import { useCoverFallback } from "./useCoverFallback";
-
-const RUNNING_KITTEN_PATH =
-  "M773.467429 358.454857c86.272-15.469714 142.189714-76.745143 139.958857-123.172571-3.584-74.953143-57.691429-112.621714-174.336-113.097143h-1.499429a25.417143 25.417143 0 0 1-25.307428-22.637714 21.833143 21.833143 0 0 1 20.461714-24.210286l4.242286-0.256c34.706286-2.194286 73.069714-3.474286 93.769142 1.426286 86.308571 20.461714 134.217143 72.502857 138.24 156.105142 3.2 66.486857-46.262857 131.474286-115.876571 182.857143a100.845714 100.845714 0 0 1-2.029714 1.462857c13.476571 23.588571 22.089143 49.92 25.874285 79.030858 13.129143 84.260571 0.914286 136.667429 10.276572 171.373714 9.380571 34.724571 52.041143 53.76 68.882286 92.544 16.822857 38.765714 13.714286 55.771429 8.777142 86.308571-2.907429 18.102857-9.490286 44.580571-19.712 79.396572a18.541714 18.541714 0 0 1-17.792 13.312h-61.641142c-10.24 0-18.541714-8.301714-18.541715-18.541715v-9.325714a18.541714 18.541714 0 0 1 18.742857-18.541714c8.32 0.109714 15.414857-2.084571 21.284572-6.582857 14.829714-11.337143 16.054857-17.664 16.054857-39.716572 0-14.701714-5.339429-29.494857-16.054857-44.379428-42.971429-27.940571-78.902857-49.773714-110.610286-65.828572-3.254857 32.219429-9.691429 61.513143-19.254857 87.881143-10.057143 27.721143-27.538286 62.994286-52.425143 105.801143a18.541714 18.541714 0 0 1-16.036571 9.234286h-48.786286c-10.057143 0-18.285714-8.009143-18.523429-18.066286l-0.219428-8.411429a18.541714 18.541714 0 0 1 17.664-19.017142l25.508571-1.206858c7.533714-0.365714 14.098286-5.248 16.603429-12.361142 8.448-23.990857 11.922286-47.561143 10.422857-70.729143-1.718857-26.130286-10.404571-61.750857-26.075429-106.898286-65.097143-0.585143-197.156571 27.666286-227.565714 30.189714-7.168 0.603429-14.537143 0.548571-22.089143-0.109714a257.883429 257.883429 0 0 0-11.392 59.209143c-1.883429 24.338286-2.048 67.145143-0.512 128.402286a18.541714 18.541714 0 0 1-18.541714 18.998857h-50.669714c-10.24 0-18.541714-8.301714-18.541715-18.541715v-12.726857c0-10.24 8.301714-18.541714 18.541715-18.541714h7.808a17.993143 17.993143 0 0 0 16.896-24.173714 508.617143 508.617143 0 0 1-22.326857-79.890286l-60.928 142.628571c-2.925714 6.820571-9.636571 11.245714-17.060572 11.245715h-67.291428c-10.24 0-18.56-8.301714-18.56-18.541715v-9.472c0-8.996571 6.454857-16.694857 15.305142-18.249142l32.036572-5.686858c4.022857-0.731429 7.716571-2.742857 10.477714-5.778285 13.019429-14.317714 21.394286-32.164571 25.161143-53.522286 9.289143-52.681143 15.177143-58.386286 0-109.037714-4.937143-16.548571-41.179429-32.676571-64.365714-105.984-14.866286-46.921143-28.032-126.628571-39.533715-239.122286a18.541714 18.541714 0 0 0-15.469714-16.420571l-35.620571-5.76c-5.485714-0.896-10.294857-4.205714-13.092572-9.014858L59.977143 293.595429a18.541714 18.541714 0 0 0-0.768-1.225143A22.674286 22.674286 0 0 1 54.857143 279.350857c0-3.584 0.932571-7.277714 2.797714-11.099428 0.987429-2.011429 2.322286-3.84 3.968-5.376l36.845714-34.614858c2.56-2.432 4.406857-5.540571 5.284572-8.96l2.084571-8.283428c1.865143-7.369143 5.961143-14.006857 11.702857-18.980572 11.081143-9.545143 19.254857-15.945143 24.539429-19.2 6.582857-4.041143 20.260571-8.905143 40.996571-14.555428-10.532571-14.738286-16.310857-27.629714-17.334857-38.692572-1.554286-16.585143-2.870857-33.005714 3.84-33.645714 4.498286-0.420571 15.872 11.940571 34.139429 37.083429-1.426286-31.762286 1.773714-45.805714 9.636571-42.093715 7.862857 3.693714 25.088 25.106286 51.748572 64.237715l26.002285 29.622857a129.792 129.792 0 0 1 27.209143 49.792c13.129143 45.714286 25.636571 78.610286 37.485715 98.724571 21.193143 35.876571 47.177143 80.054857 131.620571 73.508572 84.425143-6.528 112.822857-23.625143 169.069714-32.475429a799.451429 799.451429 0 0 1 86.893715-8.429714 115.931429 115.931429 0 0 1 30.08 2.541714z";
 
 export function RunningKittenTurntable({
   cover,
@@ -39,6 +36,7 @@ export function RunningKittenTurntable({
   onSeek?: (seconds: number) => void;
 }) {
   const text = resolvePlayerThemeLabels(labels);
+  const { ref: activityRef, visible } = useArtworkActivity();
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
   const isAtEnd = duration > 0 && progress >= duration - 0.2;
   const active = playing && !isAtEnd;
@@ -48,8 +46,7 @@ export function RunningKittenTurntable({
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
 
   return (
-    <div className="running-kitten-player" data-playing={active ? "true" : "false"}>
-      <PaperShaderLayer variant="running-kitten" playing={active} cover={coverState.displayUrl} />
+    <div ref={activityRef} className="running-kitten-player" data-motion={visible ? "running" : "paused"} data-playing={active ? "true" : "false"}>
       <div className="running-kitten-scene" aria-hidden="true">
         <div className="running-kitten-watercolor" />
         <div className="running-kitten-sun" />
@@ -64,13 +61,14 @@ export function RunningKittenTurntable({
               <span>{title}</span>
             </div>
           </div>
-          <div className="running-kitten-cat-orbit" data-motion-model="upper-groove-lap">
+          <div className="running-kitten-cat-orbit" data-motion-model="rim-treadmill">
             <div className="running-kitten-cat-runner">
               <span className="running-kitten-sleep-symbol" aria-hidden="true">
                 <i>Z</i><i>z</i><i>z</i>
               </span>
               <div className="running-kitten-cat-facing">
                 <KittenSilhouette />
+                <SleepingKitten />
               </div>
             </div>
           </div>
@@ -122,45 +120,44 @@ export function RunningKittenTurntable({
 
 function KittenSilhouette() {
   return (
-    <svg className="running-kitten-cat" viewBox="0 0 220 154" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <g className="running-kitten-body">
-        <path className="running-kitten-body-shape" d="M47 91C51 60 75 46 108 48c27 1 47 13 53 34 6 22-7 37-33 40H73c-23 0-31-12-26-31Z" />
-        <path className="running-kitten-coat-mark" d="M71 61c11-7 25-9 39-7M65 72c15-8 33-10 49-5" />
-      </g>
-      <g className="running-kitten-head-group">
-        <path className="running-kitten-head" d="M134 58c1-23 16-37 39-37 23 0 39 15 40 37 1 23-15 39-39 40-23 0-41-16-40-40Z" />
-        <g className="running-kitten-ears">
-          <path className="running-kitten-ear running-kitten-ear-left" d="M143 36 141 8l23 18Z" />
-          <path className="running-kitten-ear running-kitten-ear-right" d="m184 24 22-14-4 31Z" />
-          <path className="running-kitten-ear-detail" d="m148 27-1-9 8 7m36 1 9-7-2 11" />
-        </g>
-        <g className="running-kitten-eyes">
-          <g className="running-kitten-eye running-kitten-eye-left">
-            <ellipse className="running-kitten-eye-white" cx="160" cy="56" rx="6.4" ry="7.2" />
-            <ellipse className="running-kitten-pupil" cx="161" cy="57" rx="2.2" ry="3.9" />
-          </g>
-          <g className="running-kitten-eye running-kitten-eye-right">
-            <ellipse className="running-kitten-eye-white" cx="188" cy="54" rx="6.4" ry="7.2" />
-            <ellipse className="running-kitten-pupil" cx="189" cy="55" rx="2.2" ry="3.9" />
-          </g>
-        </g>
-        <path className="running-kitten-nose" d="m176 67 4 2-4 4-4-3Z" />
-        <path className="running-kitten-mouth" d="M176 72c-1 5-5 7-9 6m9-6c1 5 5 6 9 4" />
-        <path className="running-kitten-whiskers" d="m164 70-22-4m22 10-23 3m46-11 20-7m-19 13 21 1" />
-      </g>
+    <svg className="running-kitten-cat" viewBox="0 0 220 154" aria-hidden="true">
       <g className="running-kitten-tail">
-        <path className="running-kitten-tail-outline" d="M55 98C29 99 16 86 19 67c2-17 15-26 28-20 9 4 11 14 5 21" />
-        <path className="running-kitten-tail-fill" d="M55 98C29 99 16 86 19 67c2-17 15-26 28-20 9 4 11 14 5 21" />
+        <path className="running-kitten-tail-outline" d="M61 93C33 97 18 80 23 60c4-17 17-26 27-20" />
+        <path className="running-kitten-tail-fill" d="M61 93C33 97 18 80 23 60c4-17 17-26 27-20" />
       </g>
-      <g className="running-kitten-backlegs">
-        <path className="running-kitten-leg running-kitten-backleg-one" d="M62 106c-2 11-4 23-3 34 1 8 14 9 16 1 1-11 3-22 7-33Z" />
-        <path className="running-kitten-leg running-kitten-backleg-two" d="M83 108c0 10 1 22 4 32 2 8 15 7 16-1-2-12-2-22 0-32Z" />
+      <path className="running-kitten-leg running-kitten-backleg-two" d="M77 94q-7 20-3 43 2 10 17 6l4-5q-6-19 5-37Z" />
+      <path className="running-kitten-leg running-kitten-frontleg-two" d="M151 92q9 18 16 41 4 9 17 3l2-5q-9-22-10-42Z" />
+      <g className="running-kitten-body">
+        <path className="running-kitten-body-shape" d="M50 87C48 63 71 51 103 52c31 0 59 13 64 34 5 23-17 32-45 31l-46-3c-18-1-26-12-26-27Z" />
+        <path className="kitten-belly" d="M65 97q39 20 83-2-8 22-30 20l-40-3Z" />
+        <path className="running-kitten-coat-mark" d="m77 57 6 15m9-18 6 14m10-13 3 12" />
       </g>
-      <g className="running-kitten-frontlegs">
-        <path className="running-kitten-leg running-kitten-frontleg-one" d="M145 105c2 11 6 22 11 33 3 7 16 4 15-4-4-12-6-22-6-33Z" />
-        <path className="running-kitten-leg running-kitten-frontleg-two" d="M164 101c3 11 8 22 14 31 4 7 16 2 14-6-6-11-9-21-9-31Z" />
+      <path className="running-kitten-leg running-kitten-backleg-one" d="M56 94q-2 20 0 43 1 9 17 7l4-5q-3-20 8-34Z" />
+      <path className="running-kitten-leg running-kitten-frontleg-one" d="M133 96q9 19 12 42 2 10 18 5l2-5q-4-22-10-43Z" />
+      <g className="running-kitten-head-group">
+        <path className="running-kitten-ear" d="m137 43 1-28 24 19m17-4 25-13-5 33" />
+        <path className="running-kitten-ear-detail" d="m145 34-1-11 10 10m32 0 11-8-1 14" />
+        <path className="running-kitten-head" d="M133 54c2-20 19-29 38-26 21 1 31 15 29 33l10 9q3 8-10 10c-9 15-26 22-43 14-20-6-28-22-24-40Z" />
+        <path className="kitten-muzzle" d="M176 62q15-6 26 7 6 15-14 20-18-2-17-15Z" />
+        <path className="running-kitten-coat-mark" d="m147 37 6 9m9-13 2 10m-27 14 10 3m-11 9 11 1" />
+        <g className="running-kitten-eye"><ellipse cx="182" cy="56" rx="3.4" ry="4.2" /><circle className="kitten-eye-light" cx="183" cy="55" r="1" /></g>
+        <path className="running-kitten-nose" d="m204 66 7 2-5 5Z" />
+        <path className="running-kitten-mouth" d="M204 75q-3 5-9 3" />
+        <path className="running-kitten-whiskers" d="m194 76-14-2m13 7-14 3" />
       </g>
-      <path className="running-kitten-legacy-silhouette" d={RUNNING_KITTEN_PATH} />
+    </svg>
+  );
+}
+
+function SleepingKitten() {
+  return (
+    <svg className="kitten-sleeping" viewBox="0 0 220 154" aria-hidden="true">
+      <path className="kitten-sleep-body" d="M39 117c-6-35 20-67 61-66 34-1 55 19 58 43 20-9 39-1 43 14 8 27-27 36-77 35-50 0-80-2-85-26Z" />
+      <path className="kitten-sleep-stripes" d="m75 61 8 14m8-18 7 15m10-16 5 13" />
+      <path className="kitten-sleep-head" d="m134 92 1-21 20 11q18-7 29 1l17-10-2 24q11 26-17 36-33 10-45-11-7-11-3-30Z" />
+      <path className="kitten-sleep-ear" d="m141 86-1-8 10 7m38 5 9-10-1 15" />
+      <path className="kitten-sleep-face" d="M147 107q6 6 12 0m18 0q6 6 12-1m-23 12 4 2 4-3" />
+      <path className="kitten-sleep-tail" d="M54 102c-11 12-4 28 20 32 20 5 39 3 52-4" />
     </svg>
   );
 }
