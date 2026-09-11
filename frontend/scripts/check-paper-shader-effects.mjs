@@ -15,12 +15,10 @@ const files = new Map([
   ["AlbumSlidePlayer.tsx", source("src/components/player-themes/AlbumSlidePlayer.tsx")],
   ["AudioScopePlayer.tsx", source("src/components/player-themes/AudioScopePlayer.tsx")],
   ["CassetteDeck.tsx", source("src/components/player-themes/CassetteDeck.tsx")],
-  ["GramophonePlayer.tsx", source("src/components/player-themes/GramophonePlayer.tsx")],
   ["IpodPlayer.tsx", source("src/components/player-themes/IpodPlayer.tsx")],
   ["MineradioStagePlayer.tsx", source("src/components/player-themes/MineradioStagePlayer.tsx")],
   ["MobileArtPlayer.tsx", source("src/components/player-themes/MobileArtPlayer.tsx")],
   ["MiniCoverArt.tsx", source("src/components/player-themes/MiniCoverArt.tsx")],
-  ["RunningKittenTurntable.tsx", source("src/components/player-themes/RunningKittenTurntable.tsx")],
   ["SmartisanTurntable.tsx", source("src/components/player-themes/SmartisanTurntable.tsx")],
   ["VinylTurntable.tsx", source("src/components/player-themes/VinylTurntable.tsx")],
 ]);
@@ -98,11 +96,9 @@ for (const [fileName, variant] of [
   ["AlbumSlidePlayer.tsx", 'variant="album-slide"'],
   ["AudioScopePlayer.tsx", 'variant="audio-scope"'],
   ["CassetteDeck.tsx", 'variant="cassette"'],
-  ["GramophonePlayer.tsx", 'variant="gramophone"'],
   ["IpodPlayer.tsx", 'variant="ipod"'],
   ["MineradioStagePlayer.tsx", 'variant="mineradio"'],
   ["MiniCoverArt.tsx", 'variant="mini"'],
-  ["RunningKittenTurntable.tsx", 'variant="running-kitten"'],
   ["SmartisanTurntable.tsx", 'variant="smartisan"'],
   ["VinylTurntable.tsx", 'variant="vinyl"'],
 ]) {
@@ -112,7 +108,7 @@ for (const [fileName, variant] of [
 requireInSource(files.get("MobileArtPlayer.tsx"), "variant={`mobile-${variant}`}", "MobileArtPlayer.tsx");
 requireInSource(files.get("AlbumSlidePlayer.tsx"), "album-slide-panel-shader", "AlbumSlidePlayer.tsx");
 requireInSource(app, 'variant="lyrics"', "App.tsx");
-requireInSource(app, 'variant="player-mood"', "App.tsx");
+requireInSource(app, "<LiveSpectrum", "App.tsx actual playback spectrum");
 requireInSource(app, 'variant="mini"', "App.tsx");
 requireInSource(app, "lyrics-depth-stage", "App.tsx");
 requireInSource(styles, ".paper-shader-layer", "styles.css");

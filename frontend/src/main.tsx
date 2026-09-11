@@ -10,6 +10,7 @@ import './desktop-experience.css'
 import './components/player-themes/mobile-player-artwork.css'
 import './components/player-themes/player-craft.css'
 import './components/player-themes/vinyl-collection.css'
+import './desktop-player-polish.css'
 
 void registerServiceWorker().catch(() => undefined)
 

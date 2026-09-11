@@ -1,9 +1,11 @@
 type AudioGraph = { context: AudioContext; output: AudioNode };
 const graphs = new WeakMap<HTMLAudioElement, AudioGraph>();
+export const AUDIO_ANALYSIS_READY = "lark:audio-analysis-ready";
 
 // Visualisers tap the existing EQ graph, never create a second media source.
 export function registerAudioAnalysis(audio: HTMLAudioElement, context: AudioContext, output: AudioNode) {
   graphs.set(audio, { context, output });
+  audio.dispatchEvent?.(new Event(AUDIO_ANALYSIS_READY));
 }
 
 export function makeAudioAnalyser(audio: HTMLAudioElement | null) {
@@ -72,4 +74,50 @@ export function createAudioEnvelope() {
       return levels;
     },
   };
+}
+
+/** Capture is read-only: it never redirects the media element through WebAudio. */
+export function capturePlaybackAnalyser(audio: HTMLAudioElement | null) {
+  if (!audio || audio.paused || audio.readyState < 2) return null;
+  const capturable = audio as HTMLAudioElement & {
+    captureStream?: () => MediaStream;
+    mozCaptureStream?: () => MediaStream;
+  };
+  const capture = capturable.captureStream || capturable.mozCaptureStream;
+  const Context = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!capture || !Context) return null;
+  let stream: MediaStream | undefined;
+  let context: AudioContext | undefined;
+  try {
+    stream = capture.call(audio);
+    if (!stream.getAudioTracks().length) {
+      stream.getTracks().forEach(track => track.stop());
+      return null;
+    }
+    context = new Context();
+    const source = context.createMediaStreamSource(stream);
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.35;
+    source.connect(analyser);
+    const ownedContext = context;
+    const ownedStream = stream;
+    return {
+      context,
+      analyser,
+      isAlive: () => ownedStream.getAudioTracks().some(track => track.readyState === "live"),
+      frequencyData: new Uint8Array(analyser.frequencyBinCount),
+      timeDomainData: new Uint8Array(analyser.fftSize),
+      dispose() {
+        source.disconnect();
+        analyser.disconnect();
+        ownedStream.getTracks().forEach(track => track.stop());
+        void ownedContext.close().catch(() => undefined);
+      },
+    };
+  } catch {
+    stream?.getTracks().forEach(track => track.stop());
+    void context?.close().catch(() => undefined);
+    return null;
+  }
 }

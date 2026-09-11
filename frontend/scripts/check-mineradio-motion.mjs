@@ -210,7 +210,10 @@ requireInSource(audioAnalysis, "graph.output.disconnect(analyser)", "audioAnalys
 requireInSource(audioHook, "--mineradio-lyric-solar", "useMineradioAudio.ts lyric response");
 requireInSource(audioHook, "getByteFrequencyData", "useMineradioAudio.ts actual frequency data");
 forbidInSource(component, "fallbackBeat", "MineradioStagePlayer.tsx must not synthesize song beats");
-forbidInSource(audioAnalysis, "captureStream", "audioAnalysis.ts must survive media reloads");
+const sharedAnalyserSource = audioAnalysis.slice(audioAnalysis.indexOf("export function makeAudioAnalyser"), audioAnalysis.indexOf("export function averageFrequencyBand"));
+requireInSource(audioHook, "makeAudioAnalyser(audio)", "Mineradio must use the persistent shared graph");
+forbidInSource(sharedAnalyserSource, "captureStream", "Mineradio shared analyser must survive media reloads");
+forbidInSource(audioHook, "capturePlaybackAnalyser", "Mineradio must not use the optional LIVE capture fallback");
 
 const mineradioComponentUsages = app.match(/<MineradioStagePlayer\b/g) || [];
 if (mineradioComponentUsages.length !== 1) {

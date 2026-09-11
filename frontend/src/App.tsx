@@ -1,3 +1,4 @@
+import { DesktopPlayerBackdrop } from "./components/player-themes/DesktopPlayerBackdrop";
 import { registerAudioAnalysis } from "./services/audioAnalysis";
 import { MobileThemePicker } from "./components/mobile/MobileThemePicker";
 import type { ChangeEvent, ReactNode, UIEvent } from "react";
@@ -52,7 +53,7 @@ import {
   WarningCircle,
   X,
 } from "@phosphor-icons/react";
-import WavesurferPlayer from "@wavesurfer/react";
+import { LiveSpectrum } from "./components/LiveSpectrum";
 import { api, SESSION_CHANGED_EVENT, setExpectedSessionUserId } from "./services/api";
 import {
   getCandidateCache,
@@ -644,11 +645,6 @@ function storedResumeMode(user?: User | null): ResumeMode {
   return window.localStorage.getItem(resumePreferenceKey(user)) === "restart"
     ? "restart"
     : "resume";
-}
-
-function prefersLowMemoryVisuals() {
-  const nav = navigator as Navigator & { deviceMemory?: number };
-  return Boolean(nav.deviceMemory && nav.deviceMemory <= 4);
 }
 
 const QUALITY_CLASS = "song-quality";
@@ -6271,13 +6267,11 @@ export default function App() {
           sleepTimerActive={sleepTimerMode !== "off"}
           lyricsActive={lyricsFullScreen || inlineLyrics}
         /> : null}
-        <PlayerMood
+        <LiveSpectrum
           theme={settings.theme}
           playing={playerPlaying}
-          song={current}
-          radio={currentRadio}
-          audioEl={audioEl}
-          streamSrc={currentStreamUrl}
+          audio={audioEl}
+          label={t("liveSpectrum")}
           lowBandwidth={buffering}
           eqActive={eqEnabled}
           onOpenEqualizer={toggleEqualizerPanel}
@@ -7061,6 +7055,7 @@ function HomeView({
   return (
     <section className="home-view desktop-home-view" data-home-player-style={homePlayerStyle}>
       <section className={currentRadio ? "hero radio-hero" : homePlayerStyle === "album-slide" ? "hero album-slide-hero" : homePlayerStyle === "smartisan-turntable" ? "hero smartisan-turntable-hero" : homePlayerStyle === "gramophone" ? "hero gramophone-hero" : homePlayerStyle === "running-kitten" ? "hero running-kitten-hero" : homePlayerStyle === "walkman" ? "hero walkman-hero" : homePlayerStyle === "singularity" ? "hero singularity-hero" : homePlayerStyle === "audio-scope" ? "hero neural-cathedral-hero" : "hero"}>
+        <DesktopPlayerBackdrop playing={heroPlaying} />
         {currentRadio ? (
           <RadioReceiver
             title={currentRadio.name || t("onlineRadio")}
@@ -7933,201 +7928,6 @@ function FavoritesView({
   );
 }
 
-
-function VUMeter({ playing }: { playing: boolean }) {
-  return (
-    <div className="vu-meter" data-playing={playing ? "true" : "false"} aria-hidden="true">
-      {Array.from({ length: 10 }, (_, index) => (
-        <span key={index} className="vu-bar" style={{ "--i": index, "--peak": `${Math.min(96, 32 + index * 7)}%` } as React.CSSProperties}>
-          <i />
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function PlayerMood({
-  theme,
-  playing,
-  song,
-  radio,
-  audioEl,
-  streamSrc,
-  lowBandwidth,
-  eqActive,
-  onOpenEqualizer,
-  equalizerLabel,
-}: {
-  theme: Theme;
-  playing: boolean;
-  song: Song | null;
-  radio?: RadioStation | null;
-  audioEl: HTMLAudioElement | null;
-  streamSrc?: string;
-  lowBandwidth: boolean;
-  eqActive: boolean;
-  onOpenEqualizer: () => void;
-  equalizerLabel: string;
-}) {
-  const labels: Record<Theme, string> = {
-    "deep-space": "HI-FI ORBIT",
-    "amber-film": "VU TAPE",
-    "neon-coral": "SPECTRUM",
-    "arctic-aurora": "AURORA",
-    "carbon-volt": "BPM 128",
-    "apple-dark": "LOSSLESS",
-    "spotify-dark": "LIVE",
-    "netease-dark": "CLOUD",
-    "winamp-dark": "CLASSIC",
-    "foobar-dark": "BITRATE",
-    "smartisan-classic": "SMARTISAN",
-    "milk-porcelain": "MINIMAL",
-    "oat-latte": "WAVEFORM",
-    "mint-soda": "FRESH",
-    "sakura-washi": "WASHI",
-    "dusk-amber": "19:42",
-    "apple-light": "LOSSLESS",
-    "spotify-light": "LIVE",
-    "netease-light": "CLOUD",
-    "winamp-light": "CLASSIC",
-    "foobar-light": "BITRATE",
-  };
-  const colors = waveThemeColors(theme);
-  const waveformPeaks = useMemo(
-    () => syntheticWaveformPeaks(song?.id ?? 0),
-    [song?.id],
-  );
-  const [waveReady, setWaveReady] = useState(false);
-  const [waveFailed, setWaveFailed] = useState(false);
-  useEffect(() => {
-    setWaveReady(false);
-    setWaveFailed(false);
-  }, [song?.id, radio?.id, radio?.url]);
-  const canRenderWave = Boolean(song && audioEl && streamSrc && !waveFailed && !lowBandwidth && !prefersLowMemoryVisuals());
-  if (radio) {
-    return (
-      <div className="player-mood player-waveform radio-waveform-mood loading" data-theme-key={theme} data-playing={playing ? "true" : "false"}>
-        <PaperShaderLayer variant="player-mood" playing={playing && !lowBandwidth} compact />
-        <span>LIVE</span>
-        <button className={eqActive ? "wave-eq-button active" : "wave-eq-button"} type="button" title={equalizerLabel} aria-label={equalizerLabel} onClick={onOpenEqualizer}>
-          <SlidersHorizontal />
-        </button>
-        <div className="wave-lane">
-          <div className="wave-fallback">
-            {Array.from({ length: 16 }, (_, index) => (
-              <i key={index} style={{ "--i": index } as React.CSSProperties} />
-            ))}
-          </div>
-          <div className="vu-meter compact-radio-vu" data-playing={playing ? "true" : "false"}>
-            {Array.from({ length: 8 }, (_, index) => (
-              <span key={index} className="vu-bar" style={{ "--i": index, "--peak": `${Math.min(90, 30 + index * 8)}%` } as React.CSSProperties}>
-                <i />
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div
-      className={
-        canRenderWave && waveReady
-          ? "player-mood player-waveform"
-          : "player-mood player-waveform loading"
-      }
-      data-theme-key={theme}
-      data-playing={playing ? "true" : "false"}
-    >
-      <PaperShaderLayer variant="player-mood" playing={playing && !lowBandwidth && !waveFailed} compact />
-      <span>{labels[theme]}</span>
-      <button className={eqActive ? "wave-eq-button active" : "wave-eq-button"} type="button" title={equalizerLabel} aria-label={equalizerLabel} onClick={onOpenEqualizer}>
-        <SlidersHorizontal />
-      </button>
-      <div className="wave-lane">
-        {(!canRenderWave || !waveReady) && (
-          <div className="wave-fallback">
-            {Array.from({ length: 16 }, (_, index) => (
-              <i key={index} style={{ "--i": index } as React.CSSProperties} />
-            ))}
-          </div>
-        )}
-        {canRenderWave && audioEl ? (
-          <WavesurferPlayer
-            key={song?.id ?? "empty"}
-            media={audioEl}
-            peaks={waveformPeaks}
-            duration={Math.max(1, song?.duration_seconds || audioEl.duration || 1)}
-            height={42}
-            fillParent
-            hideScrollbar
-            waveColor={colors.wave}
-            progressColor={colors.progress}
-            cursorColor={colors.cursor}
-            cursorWidth={2}
-            barWidth={2}
-            barGap={2}
-            barRadius={999}
-            normalize
-            interact
-            dragToSeek
-            onReady={() => setWaveReady(true)}
-            onError={() => {
-              setWaveReady(false);
-              setWaveFailed(true);
-            }}
-          />
-        ) : null}
-        <VUMeter playing={playing && !lowBandwidth} />
-      </div>
-      <em>{lowBandwidth || waveFailed ? "METER" : theme === "carbon-volt" ? "74%" : playing ? "LIVE" : "IDLE"}</em>
-    </div>
-  );
-}
-
-function waveThemeColors(theme: Theme) {
-  const map: Record<Theme, { wave: string; progress: string; cursor: string }> = {
-    "deep-space": { wave: "rgba(139,143,216,.38)", progress: "#7c7ed4", cursor: "#bbbfe8" },
-    "amber-film": { wave: "rgba(168,124,48,.38)", progress: "#c09030", cursor: "#eddcaa" },
-    "neon-coral": { wave: "rgba(192,80,112,.35)", progress: "#d45080", cursor: "#f5d0e0" },
-    "arctic-aurora": { wave: "rgba(58,144,184,.35)", progress: "#3a9ac8", cursor: "#c8e8f5" },
-    "carbon-volt": { wave: "rgba(53,160,80,.32)", progress: "#35a850", cursor: "#b8f0c8" },
-    "apple-dark": { wave: "rgba(252,60,68,.34)", progress: "#FC3C44", cursor: "#FFFFFF" },
-    "spotify-dark": { wave: "rgba(29,185,84,.34)", progress: "#1DB954", cursor: "#FFFFFF" },
-    "netease-dark": { wave: "rgba(194,12,12,.34)", progress: "#C20C0C", cursor: "#FFFFFF" },
-    "winamp-dark": { wave: "rgba(0,255,0,.32)", progress: "#00FF00", cursor: "#FFFF00" },
-    "foobar-dark": { wave: "rgba(0,122,204,.34)", progress: "#007ACC", cursor: "#D4D4D4" },
-    "smartisan-classic": { wave: "rgba(154,0,0,.22)", progress: "#d94a43", cursor: "#5e88e8" },
-    "milk-porcelain": { wave: "rgba(154,149,142,.35)", progress: "#2c2a27", cursor: "#7a7670" },
-    "oat-latte": { wave: "rgba(158,125,94,.35)", progress: "#3d2b1f", cursor: "#c4894a" },
-    "mint-soda": { wave: "rgba(106,158,131,.35)", progress: "#1f8c5e", cursor: "#5aad84" },
-    "sakura-washi": { wave: "rgba(158,104,120,.34)", progress: "#b04060", cursor: "#e8b0c0" },
-    "dusk-amber": { wave: "rgba(158,112,64,.34)", progress: "#c46020", cursor: "#f0b050" },
-    "apple-light": { wave: "rgba(252,60,68,.30)", progress: "#FC3C44", cursor: "#E0343B" },
-    "spotify-light": { wave: "rgba(29,185,84,.30)", progress: "#1DB954", cursor: "#169C45" },
-    "netease-light": { wave: "rgba(194,12,12,.30)", progress: "#C20C0C", cursor: "#A00A0A" },
-    "winamp-light": { wave: "rgba(32,144,192,.30)", progress: "#2090C0", cursor: "#005080" },
-    "foobar-light": { wave: "rgba(0,122,204,.30)", progress: "#007ACC", cursor: "#005FA3" },
-  };
-  return map[theme];
-}
-
-function syntheticWaveformPeaks(seed: number) {
-  let value = Math.max(1, seed || 1);
-  const next = () => {
-    value = (value * 1664525 + 1013904223) % 4294967296;
-    return value / 4294967296;
-  };
-  const peaks = Array.from({ length: 192 }, (_, index) => {
-    const phase = index / 192;
-    const envelope =
-      0.2 +
-      0.58 * Math.sin(Math.PI * phase) +
-      0.18 * Math.sin(Math.PI * phase * 7 + seed * 0.03);
-    return Math.max(0.08, Math.min(1, envelope * (0.72 + next() * 0.5)));
-  });
-  return [peaks];
-}
 
 function collectionLabel(
   type: Collection["type"],

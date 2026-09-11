@@ -80,3 +80,43 @@ test('one onset emits one beat event, with consistent impact across display refr
   assert.ok(Math.min(...peaks) > 0.08);
   assert.ok(Math.max(...peaks) / Math.min(...peaks) < 1.15);
 });
+
+test('passive capture does not create a media element source or connect to speakers', async () => {
+  const {capturePlaybackAnalyser}=await import('./audioAnalysis.ts');
+  const priorWindow=globalThis.window;
+  const calls={capture:0,closed:0,stopped:0,disconnect:0};
+  const track={readyState:'live',stop(){calls.stopped++;this.readyState='ended'}};
+  const stream={getTracks:()=>[track],getAudioTracks:()=>[track]};
+  const analyser={frequencyBinCount:1024,disconnect(){calls.disconnect++}};
+  class Context {
+    createMediaElementSource(){assert.fail('must preserve native audio routing')}
+    createMediaStreamSource(value){assert.equal(value,stream);return{connect(node){assert.equal(node,analyser)},disconnect(){calls.disconnect++}}}
+    createAnalyser(){return analyser}
+    close(){calls.closed++;return Promise.resolve()}
+  }
+  globalThis.window={AudioContext:Context};
+  try {
+    const audio={paused:true,readyState:4,captureStream(){calls.capture++;return stream}};
+    assert.equal(capturePlaybackAnalyser(audio),null);
+    assert.equal(calls.capture,0);
+    audio.paused=false;
+    const tap=capturePlaybackAnalyser(audio);
+    assert.ok(tap.isAlive());
+    tap.dispose();
+    assert.equal(audio.paused,false);
+    assert.equal(calls.closed,1);
+    assert.equal(calls.stopped,1);
+    assert.equal(calls.disconnect,2);
+  } finally {globalThis.window=priorWindow}
+});
+
+test('capture errors fall back without throwing or touching playback', async () => {
+  const {capturePlaybackAnalyser}=await import('./audioAnalysis.ts');
+  const priorWindow=globalThis.window;
+  globalThis.window={AudioContext:class{}};
+  try {
+    const audio={paused:false,readyState:4,captureStream(){throw Error('capture denied')}};
+    assert.equal(capturePlaybackAnalyser(audio),null);
+    assert.equal(audio.paused,false);
+  } finally {globalThis.window=priorWindow}
+});

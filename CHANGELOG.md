@@ -5,6 +5,24 @@
 
 ---
 
+## 0.14.1：桌面背景与实时频谱
+
+发布日期 / Released: 2026-09-12
+
+- 柔化桌面播放器背景，消除局部光斑和着色层露出的矩形色块，保留唱机、封套等部件的材质。
+- 更新均衡器推子、零位刻度和深浅色外观，修正增益曲线被放大的问题，并改善短窗口操作。
+- 底部 LIVE 区域改为真实音乐频谱，加入平滑衰减和峰值提示，支持音频重载、播放恢复及音效切换。
+
+## v0.14.1: Desktop backgrounds and live spectrum
+
+Released: 2026-09-12
+
+- Soften desktop player backgrounds and remove rectangular glow and shader edges while preserving deck and sleeve materials.
+- Refine equalizer faders, zero references and light/dark surfaces, correct exaggerated gain curves and improve short-window controls.
+- Replace the generated LIVE waveform with a real music spectrum, smooth decay and peak indicators, including audio reload, playback recovery and EQ switching.
+
+---
+
 ## 0.14.0：播放器主题与音乐动效
 
 发布日期 / Released: 2026-09-10
