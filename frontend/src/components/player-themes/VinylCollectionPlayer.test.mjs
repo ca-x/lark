@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
+import { vinylShelfLayout, vinylShelfPose } from "./vinylShelfLayout.ts";
 
 const album = (id) => ({ id, title: `Album ${id}`, artist: `Artist ${id}`, artist_id: id, album_artist: `Artist ${id}`, year: 2026, favorite: false, song_count: 2 });
 const song = (id, albumId) => ({ id, album_id: albumId, album: `Album ${albumId}`, artist: `Artist ${albumId}`, artist_id: albumId, year: 2026, title: `Song ${id}`, duration_seconds: 180 });
@@ -31,6 +32,7 @@ function host(current = song(1, 1)) {
     "../../utils/app": { albumCoverUrl: (value) => value ? `/api/albums/${value.id}/cover` : undefined, coverUrl: (value) => value ? `/api/songs/${value.id}/cover` : undefined },
     "../../constants": { COLLECTION_LOAD_TIMEOUT_MS: 1000, MAX_PLAYBACK_QUEUE_SIZE: 500 },
     "../../hooks/useMediaQuery": { useMediaQuery: () => false },
+    "./vinylShelfLayout": { vinylShelfLayout, vinylShelfPose },
     "./animationActivity": { createAnimationActivity: () => ({ dispose() {} }) },
     "./useDiscScratchSeek": { useDiscScratchSeek: ({ progress }) => ({ progress, pct: 0, scratching: false, scratchProps: {} }) },
     "./useCoverFallback": { useCoverFallback: (url) => ({ displayUrl: url }) },
@@ -112,4 +114,33 @@ test("resize observation schedules size writes outside the observer callback", (
   assert.equal(fixture.writes.length, initialWrites, "must not resize the observed element inside its observer");
   fixture.flush();
   assert.ok(fixture.writes.length > initialWrites, "the next frame must apply the new available height");
+});
+
+test("shelf endpoints balance the whole visible group instead of leaving one side empty", () => {
+  const first = vinylShelfLayout(60, 0, 150, 1000);
+  const last = vinylShelfLayout(60, 59, 150, 1000);
+  assert.equal(first.start, 0);
+  assert.equal(last.end, 60);
+  assert.equal(first.end - first.start, last.end - last.start);
+  assert.ok(first.shift < 0);
+  assert.ok(last.shift > 0);
+  assert.ok(Math.abs(first.shift + last.shift) < 0.001);
+  assert.ok(Math.abs(vinylShelfLayout(60, 30, 150, 1000).shift) < 0.001);
+});
+
+test("compact shelves preserve selection without duplicating or dropping endpoint albums", () => {
+  for (const total of [1, 2, 5, 13, 60]) {
+    for (const selected of [0, Math.floor(total / 2), total - 1]) {
+      for (const width of [180, 320, 600, 1200]) {
+        const layout = vinylShelfLayout(total, selected, 150, width);
+        assert.ok(layout.start >= 0 && layout.end <= total);
+        assert.ok(layout.start <= selected && selected < layout.end);
+        assert.ok(layout.end - layout.start <= 13);
+        assert.ok(Number.isFinite(layout.shift));
+      }
+    }
+  }
+  assert.deepEqual(vinylShelfLayout(0, -1, 150, 1000), { start: 0, end: 0, shift: 0 });
+  assert.equal(Math.abs(vinylShelfLayout(1, 0, 150, 1000).shift), 0);
+  assert.ok(vinylShelfLayout(60, 30, 150, 320).end - vinylShelfLayout(60, 30, 150, 320).start < 13);
 });

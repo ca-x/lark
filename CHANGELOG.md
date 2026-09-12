@@ -5,6 +5,22 @@
 
 ---
 
+## 0.14.2：黑胶唱片室布局平衡
+
+发布日期 / Released: 2026-09-12
+
+- 统一黑胶唱片室标题、唱机、封套和唱片架的内容宽度与对齐，收紧左右场景间距。
+- 唱片架按可见专辑整组居中，修正首尾位置偏向一侧的问题，并随窗口宽度调整展示数量。
+
+## v0.14.2: Balanced vinyl room layout
+
+Released: 2026-09-12
+
+- Align the vinyl room heading, deck, sleeve and album shelf to a shared content width with tighter spacing between the two columns.
+- Center the visible album group at either end of the shelf and adapt the number of displayed records to the available width.
+
+---
+
 ## 0.14.1：桌面背景与实时频谱
 
 发布日期 / Released: 2026-09-12

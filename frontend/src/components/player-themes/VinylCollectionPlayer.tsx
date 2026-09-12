@@ -10,6 +10,7 @@ import { createAnimationActivity } from "./animationActivity";
 import { useDiscScratchSeek } from "./useDiscScratchSeek";
 import { useCoverFallback } from "./useCoverFallback";
 import type { PlayerThemePlayMode } from "./types";
+import { vinylShelfLayout, vinylShelfPose } from "./vinylShelfLayout";
 import deckImage from "./vinyl-collection/deck.svg";
 import fixturesImage from "./vinyl-collection/fixtures.svg";
 import tonearmImage from "./vinyl-collection/tonearm.svg";
@@ -64,6 +65,8 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
   const selectAlbum = (albumId: number) => setSelection({ trackId: current?.id, albumId });
   const selected = albums.find((album) => album.id === selectedId) ?? albums[0];
   const selectedIndex = selected ? albums.indexOf(selected) : -1;
+  const [shelfGeometry, setShelfGeometry] = useState({ size: 150, width: 1000 });
+  const shelfLayout = useMemo(() => vinylShelfLayout(albums.length, selectedIndex, shelfGeometry.size, shelfGeometry.width), [albums.length, selectedIndex, shelfGeometry]);
   const [flipped, setFlipped] = useState(false);
   const [result, setResult] = useState<TrackResult | null>(null);
   const [retry, setRetry] = useState(0);
@@ -101,8 +104,13 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
       const sleeve = player.querySelector<HTMLElement>(".vc-sleeve-stage");
       if (!room || !shelf || !deck || !sleeve) return;
       const width = player.clientWidth - parseFloat(getComputedStyle(player).paddingLeft) * 2;
+      const fitShelf = (unit: number) => {
+        const size = Math.max(104, Math.min(200, 150 * unit));
+        const shelfWidth = shelf.clientWidth || Math.max(0, width - 80);
+        setShelfGeometry(previous => previous.size === size && previous.width === shelfWidth ? previous : { size, width: shelfWidth });
+      };
       // Compact windows stack the scene, keeping their natural document scrolling.
-      if (width <= 540) { player.style.setProperty("--vc-unit", "0.65px"); return; }
+      if (width <= 540) { player.style.setProperty("--vc-unit", "0.65px"); fitShelf(0.65); return; }
       const main = player.closest("main");
       const top = player.getBoundingClientRect().top + (main?.scrollTop ?? 0);
       const dock = player.closest(".app-shell")?.querySelector("footer.player");
@@ -122,6 +130,7 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
       const value = `${low.toFixed(3)}px`;
       const previous = parseFloat(player.style.getPropertyValue("--vc-unit")) || 0;
       if (Math.abs(low - previous) > 0.002) player.style.setProperty("--vc-unit", value);
+      fitShelf(parseFloat(player.style.getPropertyValue("--vc-unit")) || 1);
     };
     fit();
     let frame = 0;
@@ -354,11 +363,13 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
           onPointerCancel={() => { shelfDrag.current = null; suppressShelfClick.current = true; }}
           onLostPointerCapture={() => { shelfDrag.current = null; }}
           onClickCapture={(event) => { if (suppressShelfClick.current && event.detail !== 0) { event.preventDefault(); event.stopPropagation(); suppressShelfClick.current = false; } }}>
-          {albums.slice(Math.max(0, selectedIndex - 12), selectedIndex + 13).map((album) => {
+          <div className="vc-shelf-track" style={{ transform: `translateX(${shelfLayout.shift.toFixed(2)}px)` }}>
+          {albums.slice(shelfLayout.start, shelfLayout.end).map((album) => {
             const offset = albums.indexOf(album) - selectedIndex;
-            const x = offset === 0 ? 0 : Math.sign(offset) * (65 + Math.abs(offset) * 25);
-            return <button key={album.id} type="button" className="vc-shelf-record" aria-label={`${album.title} · ${album.artist}`} aria-pressed={offset === 0} tabIndex={offset === 0 ? 0 : -1} onClick={() => { selectAlbum(album.id); setFlipped(false); }} style={{ transform: `translateX(${x}%) translateY(${offset === 0 ? -8 : 0}px) translateZ(${offset === 0 ? 32 : -Math.min(Math.abs(offset), 8) * 14}px) rotateY(${offset === 0 ? 0 : -Math.sign(offset) * 52}deg)`, zIndex: 20 - Math.abs(offset) }}><Cover src={albumCoverUrl(album)} /><span>{album.title}</span></button>;
+            const { x, z, angle } = vinylShelfPose(offset);
+            return <button key={album.id} type="button" className="vc-shelf-record" aria-label={`${album.title} · ${album.artist}`} aria-pressed={offset === 0} tabIndex={offset === 0 ? 0 : -1} onClick={() => { selectAlbum(album.id); setFlipped(false); }} style={{ transform: `translateX(${x}%) translateY(${offset === 0 ? -8 : 0}px) translateZ(${z}px) rotateY(${angle}deg)`, zIndex: 20 - Math.abs(offset) }}><Cover src={albumCoverUrl(album)} /><span>{album.title}</span></button>;
           })}
+          </div>
         </div>
         <button type="button" aria-label={t("vinylNextRecord")} disabled={selectedIndex < 0 || selectedIndex >= albums.length - 1} onClick={() => chooseAlbum(selectedIndex + 1)}><CaretRight /></button>
       </div>
