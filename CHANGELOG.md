@@ -5,6 +5,20 @@
 
 ---
 
+## 0.14.3：曲库排序菜单
+
+发布日期 / Released: 2026-09-17
+
+- 修复曲库排序菜单向左越界被裁切的问题，菜单现从按钮左侧对齐展开，排序选项可完整查看和点击。
+
+## v0.14.3: Library sort menu
+
+Released: 2026-09-17
+
+- Fix the library sort menu being clipped beside the sidebar by aligning it with the button's left edge, keeping every option visible and clickable.
+
+---
+
 ## 0.14.2：黑胶唱片室布局平衡
 
 发布日期 / Released: 2026-09-12

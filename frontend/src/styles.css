@@ -785,7 +785,8 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .library-sort-trigger svg, .library-review-filter svg { width:18px; height:18px; }
 .library-sort-trigger:active, .library-review-filter:active { transform:scale(.97); }
 .library-review-filter.active { color:var(--accent); border-color:color-mix(in srgb,var(--accent) 42%,var(--line)); background:color-mix(in srgb,var(--accent) 10%,var(--panel2)); }
-.library-sort-menu { position:absolute; z-index:120; top:calc(100% + 8px); right:0; width:min(260px,calc(100vw - 32px)); display:grid; gap:4px; padding:8px; border:1px solid var(--line); border-radius:18px; background:var(--panel); box-shadow:0 18px 48px color-mix(in srgb,var(--bg) 40%,transparent); transform-origin:top right; animation:library-sort-in 180ms cubic-bezier(.23,1,.32,1); }
+/* The sort trigger starts the toolbar; open into the scrollable content area. */
+.library-sort-menu { position:absolute; z-index:120; top:calc(100% + 8px); left:0; right:auto; width:min(260px,calc(100vw - 32px)); display:grid; gap:4px; padding:8px; border:1px solid var(--line); border-radius:18px; background:var(--panel); box-shadow:0 18px 48px color-mix(in srgb,var(--bg) 40%,transparent); transform-origin:top left; animation:library-sort-in 180ms cubic-bezier(.23,1,.32,1); }
 .library-sort-menu > strong { padding:8px 10px 6px; color:var(--muted); font-size:12px; }
 .library-sort-menu > button { min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 11px; border-radius:12px; color:var(--text); text-align:left; }
 .library-sort-menu > button[aria-checked='true'] { color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent); }
