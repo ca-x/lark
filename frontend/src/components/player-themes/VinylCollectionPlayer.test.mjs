@@ -9,7 +9,7 @@ import { vinylShelfLayout, vinylShelfPose } from "./vinylShelfLayout.ts";
 const album = (id) => ({ id, title: `Album ${id}`, artist: `Artist ${id}`, artist_id: id, album_artist: `Artist ${id}`, year: 2026, favorite: false, song_count: 2 });
 const song = (id, albumId) => ({ id, album_id: albumId, album: `Album ${albumId}`, artist: `Artist ${albumId}`, artist_id: albumId, year: 2026, title: `Song ${id}`, duration_seconds: 180 });
 
-function host(current = song(1, 1)) {
+function host(current = song(1, 1), { reducedMotion = false } = {}) {
   const slots = []; let cursor = 0, effects = [], layoutEffects = [];
   const observers = [], frames = [];
   const browserWindow = { innerHeight: 1000, setTimeout: () => 1, clearTimeout() {}, addEventListener() {}, removeEventListener() {} };
@@ -21,7 +21,7 @@ function host(current = song(1, 1)) {
     useLayoutEffect(fn) { layoutEffects.push(fn); },
     useEffect(fn, deps) { const i = cursor++; if (!slots[i] || deps.some((value, j) => !Object.is(value, slots[i][j]))) effects.push(fn); slots[i] = deps; },
   };
-  const requests = [];
+  const requests = [], animations = [];
   const modules = {
     react, "react/jsx-runtime": { jsx, jsxs: jsx },
     "@phosphor-icons/react": new Proxy({}, { get: (_, key) => key }),
@@ -31,9 +31,9 @@ function host(current = song(1, 1)) {
     } },
     "../../utils/app": { albumCoverUrl: (value) => value ? `/api/albums/${value.id}/cover` : undefined, coverUrl: (value) => value ? `/api/songs/${value.id}/cover` : undefined },
     "../../constants": { COLLECTION_LOAD_TIMEOUT_MS: 1000, MAX_PLAYBACK_QUEUE_SIZE: 500 },
-    "../../hooks/useMediaQuery": { useMediaQuery: () => false },
+    "../../hooks/useMediaQuery": { useMediaQuery: () => reducedMotion },
     "./vinylShelfLayout": { vinylShelfLayout, vinylShelfPose },
-    "./animationActivity": { createAnimationActivity: () => ({ dispose() {} }) },
+    "./animationActivity": { createAnimationActivity: (_element, render) => { animations.push(render); return { dispose() {} }; } },
     "./useDiscScratchSeek": { useDiscScratchSeek: ({ progress }) => ({ progress, pct: 0, scratching: false, scratchProps: {} }) },
     "./useCoverFallback": { useCoverFallback: (url) => ({ displayUrl: url }) },
   };
@@ -47,8 +47,8 @@ function host(current = song(1, 1)) {
     requestAnimationFrame: (callback) => { frames.push(callback); return frames.length; }, cancelAnimationFrame() {},
     getComputedStyle: () => ({ paddingLeft: "26" }) });
   let props = { albums: [album(1), album(2)], current, playing: true, progress: 30, duration: 180, volume: .5, playMode: "sequence", playModeLabel: "mode", t: (key) => key, onPlay() {}, onToggle() {}, onPrevious() {}, onNext() {}, onSeek() {}, onVolume() {}, onCyclePlayMode() {} };
-  const render = (next = {}) => { props = { ...props, ...next }; cursor = 0; effects = []; layoutEffects = []; const tree = exports.VinylCollectionPlayer(props); for (const effect of effects) effect(); return tree; };
-  return { requests, render,
+  const render = (next = {}, mount = () => {}) => { props = { ...props, ...next }; cursor = 0; effects = []; layoutEffects = []; const tree = exports.VinylCollectionPlayer(props); mount(tree); for (const effect of effects) effect(); return tree; };
+  return { requests, animations, render,
     sizingFixture(tree) {
       const values = new Map(), writes = [];
       const deck = { offsetHeight: 300, parentElement: { offsetHeight: 420 } };
@@ -103,6 +103,16 @@ test("record texture and album art share the rotor while hardware remains statio
   assert.ok(byClass(rotor, 'vc-disc-label'));
   assert.equal(byClass(rotor, 'vc-deck-layer vc-fixtures'), undefined);
   assert.ok(byClass(tree, 'vc-deck-layer vc-fixtures'));
+});
+
+test("the loaded record still turns during playback when Windows reduces motion", () => {
+  const reduced = host(song(1, 1), { reducedMotion: true });
+  const rotor = { style: { transform: "" } };
+  reduced.render({}, (tree) => { byClass(tree, "vc-rotor").props.ref.current = rotor; });
+  assert.equal(reduced.animations.length, 1, "playback must schedule record motion");
+  reduced.animations[0](1000);
+  reduced.animations[0](1016);
+  assert.match(rotor.style.transform, /^rotate\((?!0deg\))/);
 });
 
 

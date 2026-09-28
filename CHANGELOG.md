@@ -5,6 +5,20 @@
 
 ---
 
+## 0.14.4：Windows 播放动效修复
+
+发布日期 / Released: 2026-09-29
+
+- 修复 Windows 关闭系统动画效果后黑胶唱片室停转的问题；播放时唱片缓慢旋转，暂停后停止，同时恢复奔跑的小猫与复古唱机的唱片动效。
+
+## v0.14.4: Windows playback motion
+
+Released: 2026-09-29
+
+- Restore slow record rotation in Vinyl room, Running kitten, and Gramophone when Windows animation effects are off; the records stop when playback pauses.
+
+---
+
 ## 0.14.3：曲库排序菜单
 
 发布日期 / Released: 2026-09-17

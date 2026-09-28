@@ -200,10 +200,10 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
   // Keep physical inertia local to the artwork, without rerendering the player every frame.
   useEffect(() => {
     const rotor = rotorRef.current;
-    if (!rotor || reducedMotion) return;
+    if (!rotor) return;
     let last = 0;
     const spin = spinRef.current;
-    const target = active && !scratch.scratching ? 200 : 0; // 33 1/3 RPM
+    const target = active && !scratch.scratching ? (reducedMotion ? 30 : 200) : 0; // 33 1/3 RPM normally; 12s/rev with reduced motion.
     const activity = createAnimationActivity(rotor, (now) => {
       const dt = last ? Math.min((now - last) / 1000, 0.05) : 0;
       last = now;

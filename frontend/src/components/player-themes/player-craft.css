@@ -93,7 +93,3 @@
 }
 .app-shell .running-kitten-player[data-motion='paused'] .running-kitten-record,
 .app-shell .gramophone-player[data-motion='paused'] .gramophone-record { animation-play-state:paused !important; }
-@media (prefers-reduced-motion:reduce) {
-  .app-shell .running-kitten-player[data-playing] .running-kitten-record,
-  .app-shell .gramophone-player[data-playing] .gramophone-record { animation:none !important; }
-}
