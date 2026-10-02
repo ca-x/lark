@@ -87,10 +87,11 @@ export function IpodPlayer({
                 </span>
                 <input
                   aria-label={text.position}
+                  aria-valuetext={`${formatIpodTime(progress)} / ${formatIpodTime(duration)}`}
                   type="range"
                   min="0"
                   max={Math.max(0, duration || 0)}
-                  step="0.01"
+                  step="1"
                   value={Math.min(progress, duration || progress || 0)}
                   disabled={!canSeek}
                   onChange={(event) => onSeek?.(Number(event.target.value))}

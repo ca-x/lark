@@ -9,8 +9,8 @@ import { vinylShelfLayout, vinylShelfPose } from "./vinylShelfLayout.ts";
 const album = (id) => ({ id, title: `Album ${id}`, artist: `Artist ${id}`, artist_id: id, album_artist: `Artist ${id}`, year: 2026, favorite: false, song_count: 2 });
 const song = (id, albumId) => ({ id, album_id: albumId, album: `Album ${albumId}`, artist: `Artist ${albumId}`, artist_id: albumId, year: 2026, title: `Song ${id}`, duration_seconds: 180 });
 
-function host(current = song(1, 1), { reducedMotion = false } = {}) {
-  const slots = []; let cursor = 0, effects = [], layoutEffects = [];
+function host(current = song(1, 1), { reducedMotion = false, albumsPage } = {}) {
+  const slots = [], cleanups = new Map(); let cursor = 0, effects = [], layoutEffects = [];
   const observers = [], frames = [];
   const browserWindow = { innerHeight: 1000, setTimeout: () => 1, clearTimeout() {}, addEventListener() {}, removeEventListener() {} };
   const jsx = (type, props) => ({ type, props });
@@ -19,14 +19,17 @@ function host(current = song(1, 1), { reducedMotion = false } = {}) {
     useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; },
     useMemo: (fn) => fn(),
     useLayoutEffect(fn) { layoutEffects.push(fn); },
-    useEffect(fn, deps) { const i = cursor++; if (!slots[i] || deps.some((value, j) => !Object.is(value, slots[i][j]))) effects.push(fn); slots[i] = deps; },
+    useEffect(fn, deps) { const i = cursor++; if (!slots[i] || deps.some((value, j) => !Object.is(value, slots[i][j]))) effects.push(() => { cleanups.get(i)?.(); cleanups.set(i, fn()); }); slots[i] = deps; },
   };
-  const requests = [], animations = [];
+  const requests = [], catalogRequests = [], animations = [];
   const modules = {
     react, "react/jsx-runtime": { jsx, jsxs: jsx },
     "@phosphor-icons/react": new Proxy({}, { get: (_, key) => key }),
     "../../services/api": { api: {
-      albumsPage: async () => ({ items: [album(1), album(2)], total: 1000, offset: 0, page: 1 }),
+      albumsPage: async (page, limit, artistId, signal, favorites, favoriteArtists) => {
+        const request = { page, limit, artistId, signal, favorites, favoriteArtists }; catalogRequests.push(request);
+        return albumsPage ? albumsPage(request) : { items: [album(1), album(2)], total: 1000, offset: 0, page: 1 };
+      },
       albumSongs: async (id) => { requests.push(id); return [song(id * 10, id), song(id * 10 + 1, id)]; },
     } },
     "../../utils/app": { albumCoverUrl: (value) => value ? `/api/albums/${value.id}/cover` : undefined, coverUrl: (value) => value ? `/api/songs/${value.id}/cover` : undefined },
@@ -48,7 +51,7 @@ function host(current = song(1, 1), { reducedMotion = false } = {}) {
     getComputedStyle: () => ({ paddingLeft: "26" }) });
   let props = { albums: [album(1), album(2)], current, playing: true, progress: 30, duration: 180, volume: .5, playMode: "sequence", playModeLabel: "mode", t: (key) => key, onPlay() {}, onToggle() {}, onPrevious() {}, onNext() {}, onSeek() {}, onVolume() {}, onCyclePlayMode() {} };
   const render = (next = {}, mount = () => {}) => { props = { ...props, ...next }; cursor = 0; effects = []; layoutEffects = []; const tree = exports.VinylCollectionPlayer(props); mount(tree); for (const effect of effects) effect(); return tree; };
-  return { requests, animations, render,
+  return { requests, catalogRequests, animations, render,
     sizingFixture(tree) {
       const values = new Map(), writes = [];
       const deck = { offsetHeight: 300, parentElement: { offsetHeight: 420 } };
@@ -84,7 +87,7 @@ test("external track changes synchronize album, active row and cover", async () 
   const h = host(song(10, 1)); await h.settle();
   const tree = await h.settle({ current: song(20, 2) });
   assert.equal(selection(tree), "Album 2");
-  assert.equal(find(tree, (node) => node.props?.['aria-current'] === 'true').props['aria-label'], 'play Song 20');
+  assert.equal(find(tree, (node) => node.props?.['aria-current'] === 'true').props['aria-label'], 'pause Song 20');
   const label = byClass(byClass(tree, 'vc-rotor'), 'vc-disc-label');
   assert.equal(label.props.children[0].props.src, '/api/albums/2/cover');
 });
@@ -153,4 +156,121 @@ test("compact shelves preserve selection without duplicating or dropping endpoin
   assert.deepEqual(vinylShelfLayout(0, -1, 150, 1000), { start: 0, end: 0, shift: 0 });
   assert.equal(Math.abs(vinylShelfLayout(1, 0, 150, 1000).shift), 0);
   assert.ok(vinylShelfLayout(60, 30, 150, 320).end - vinylShelfLayout(60, 30, 150, 320).start < 13);
+});
+
+const filterButton = (tree, key) => find(tree, (node) => node.type === 'button' && node.props?.['aria-label'] === key);
+const shelfAlbums = (tree) => {
+  const names = [];
+  function collect(node) {
+    if (!node || typeof node !== 'object') return;
+    if (node.props?.className === 'vc-shelf-record') names.push(node.props['aria-label']);
+    for (const child of [node.props?.children].flat(Infinity)) collect(child);
+  }
+  collect(tree);
+  return names;
+};
+const pageResult = (items, page = 1, total = items.length) => ({ items, total, offset: (page - 1) * 60, page });
+
+test("favorite toggles request the full catalog union and keep an excluded record on the platter", async () => {
+  const plays = [], toggles = [];
+  const h = host(song(990, 99), { albumsPage: ({ favorites, favoriteArtists }) =>
+    pageResult(favorites && favoriteArtists ? [album(2), album(3)] : favorites ? [album(2)] : favoriteArtists ? [album(3)] : [album(1), album(2)]) });
+  let tree = await h.settle({ onPlay: (...args) => plays.push(args), onToggle: () => toggles.push(true) });
+  filterButton(tree, 'vinylFavoriteAlbums').props.onClick();
+  assert.deepEqual(shelfAlbums(h.render()), [], 'must not leak unfiltered cached records while loading');
+  tree = await h.settle();
+  assert.deepEqual(shelfAlbums(tree), ['Album 2 · Artist 2']);
+  assert.equal(selection(tree), 'Album 2');
+  assert.equal(byClass(tree, 'vc-count').props.children[0], 1);
+  const label = byClass(byClass(tree, 'vc-rotor'), 'vc-disc-label');
+  assert.equal(label.props.children[0].props.src, '/api/albums/99/cover');
+  assert.equal(plays.length + toggles.length, 0, 'filtering must not affect audio');
+  filterButton(tree, 'vinylFavoriteArtists').props.onClick();
+  tree = await h.settle();
+  assert.deepEqual(shelfAlbums(tree), ['Album 2 · Artist 2', 'Album 3 · Artist 3']);
+  assert.equal(h.catalogRequests.at(-1).favorites, true);
+  assert.equal(h.catalogRequests.at(-1).favoriteArtists, true);
+  assert.equal(filterButton(tree, 'vinylFavoriteArtists').props['aria-pressed'], true);
+  filterButton(tree, 'vinylFavoriteAlbums').props.onClick();
+  tree = await h.settle();
+  assert.deepEqual(shelfAlbums(tree), ['Album 3 · Artist 3']);
+  tree = await h.settle();
+  find(tree, node => node.type === 'button' && node.props?.children?.[1] === 'vinylPlayRecord').props.onClick();
+  assert.equal(plays[0][0].album_id, 3);
+  assert.deepEqual(plays[0][1].map(item => item.album_id), [3, 3]);
+});
+
+test("empty favorites stay empty and offer a return to all records", async () => {
+  const h = host(null, { albumsPage: ({ favorites }) => pageResult(favorites ? [] : [album(1), album(2)]) });
+  let tree = await h.settle();
+  filterButton(tree, 'vinylFavoriteAlbums').props.onClick();
+  tree = await h.settle();
+  assert.deepEqual(shelfAlbums(tree), []);
+  assert.equal(byClass(tree, 'vc-count').props.children[0], 0);
+  assert.equal(filterButton(tree, 'vinylNextRecord').props.disabled, true);
+  assert.equal(byClass(tree, 'vc-sleeve-actions').props.children[0].props.disabled, true);
+  find(tree, node => node.type === 'button' && node.props?.children === 'vinylShowAllRecords').props.onClick();
+  tree = await h.settle();
+  assert.deepEqual(shelfAlbums(tree), ['Album 1 · Artist 1', 'Album 2 · Artist 2']);
+  assert.equal(h.catalogRequests.at(-1).page, 1);
+  assert.equal(filterButton(tree, 'vinylFavoriteAlbums').props['aria-pressed'], false);
+});
+
+test("late catalog responses cannot overwrite a newer filter", async () => {
+  let resolveOld;
+  const h = host(null, { albumsPage: ({ favorites, favoriteArtists }) => favorites && !favoriteArtists
+    ? new Promise(resolve => { resolveOld = resolve; })
+    : pageResult(favoriteArtists ? [album(3)] : [album(1)]) });
+  let tree = await h.settle();
+  filterButton(tree, 'vinylFavoriteAlbums').props.onClick();
+  tree = h.render();
+  const oldRequest = h.catalogRequests.at(-1);
+  filterButton(tree, 'vinylFavoriteArtists').props.onClick();
+  tree = await h.settle();
+  assert.equal(oldRequest.signal.aborted, true);
+  resolveOld(pageResult([album(2)]));
+  tree = await h.settle();
+  assert.deepEqual(shelfAlbums(tree), ['Album 3 · Artist 3']);
+});
+
+test("filtered pagination retains records on failure and retries the same page", async () => {
+  let fail = true;
+  const items = Array.from({ length: 60 }, (_, i) => album(i + 1));
+  const h = host(null, { albumsPage: ({ page }) => {
+    if (page === 1) return pageResult(items, 1, 61);
+    if (fail) throw new Error('network');
+    return pageResult([album(60), album(61)], 2, 61);
+  } });
+  let tree = await h.settle();
+  filterButton(tree, 'vinylFavoriteAlbums').props.onClick();
+  tree = await h.settle();
+  byClass(tree, 'vc-shelf').props.onKeyDown({ key: 'End', preventDefault() {}, currentTarget: { focus() {} } });
+  tree = await h.settle();
+  tree = await h.settle();
+  assert.equal(selection(tree), 'Album 60');
+  assert.equal(h.catalogRequests.at(-1).page, 2);
+  assert.equal(h.catalogRequests.at(-1).favorites, true);
+  fail = false;
+  find(byClass(tree, 'vc-catalog-status'), node => node.type === 'button').props.onClick();
+  tree = await h.settle();
+  byClass(tree, 'vc-shelf').props.onKeyDown({ key: 'End', preventDefault() {}, currentTarget: { focus() {} } });
+  tree = h.render();
+  assert.equal(selection(tree), 'Album 61');
+  assert.equal(h.catalogRequests.at(-1).page, 2);
+  assert.equal(shelfAlbums(tree).filter(name => name === 'Album 60 · Artist 60').length, 1);
+});
+
+
+test("a failed first filtered page reports failure instead of an empty collection or a zero count", async () => {
+  const h = host(null, { albumsPage: ({ favorites }) => {
+    if (favorites) throw new Error('network');
+    return pageResult([album(1)]);
+  } });
+  let tree = await h.settle();
+  filterButton(tree, 'vinylFavoriteAlbums').props.onClick();
+  tree = await h.settle();
+  assert.equal(byClass(tree, 'vc-count').props.children[0], '—');
+  assert.equal(byClass(tree, 'vc-selection').props.children[0].props.children, 'vinylCatalogError');
+  assert.equal(byClass(tree, 'vc-sleeve-hint').props.children, 'vinylCatalogError');
+  assert.ok(find(byClass(tree, 'vc-catalog-status'), node => node.type === 'button'));
 });

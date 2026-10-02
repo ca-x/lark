@@ -5,6 +5,28 @@
 
 ---
 
+## 0.15.0：私人唱片收藏与播放细节
+
+发布日期 / Released: 2026-10-02
+
+- 黑胶唱片室新增收藏专辑、收藏歌手两个图标筛选，可独立选择或合并；按整个曲库分页筛选，专辑去重，总数准确。
+- 筛选保留唱机上的当前歌曲，支持快速切换、加载失败重试和空收藏返回全部唱片，并补充唱片位置提示与完整标题。
+- 封面滑动与 iPod 的进度条方向键步进调整为 1 秒，提升键盘调进度的效率。
+- 打磨封面滑动、iPod、黑胶、磁带和随身听主题的进度条焦点、操作命中范围及按压反馈，保留各主题材质和键盘即时响应。
+- 改善唱片室空状态、按钮尺寸与曲目播放/暂停标签，并补充收藏隔离、分页、旧请求取消和播放连续性的测试。
+
+## v0.15.0: Personal record collections and player details
+
+Released: 2026-10-02
+
+- Add favorite album and favorite artist icon filters to Vinyl room, with independent or combined selection, full-library pagination, deduplicated albums and accurate counts.
+- Keep the playing record on the turntable while filtering; handle rapid changes, retries and empty collections, with shelf position indicators and full album titles.
+- Use one-second keyboard seek steps in Album slide and iPod for useful position adjustments.
+- Refine seek focus, hit areas and press feedback in Album slide, iPod, Vinyl, Cassette and Walkman while preserving their materials and immediate keyboard responses.
+- Improve Vinyl room empty states, button sizes and track play/pause labels, backed by user isolation, pagination, stale-request and playback continuity tests.
+
+---
+
 ## 0.14.4：Windows 播放动效修复
 
 发布日期 / Released: 2026-09-29

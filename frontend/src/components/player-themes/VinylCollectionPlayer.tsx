@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowClockwise, ArrowsClockwise, CaretLeft, CaretRight, Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward, SpeakerHigh } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowsClockwise, CaretLeft, CaretRight, Heart, Pause, Play, Record, Repeat, RepeatOnce, Shuffle, SkipBack, SkipForward, SpeakerHigh, UserSound } from "@phosphor-icons/react";
 import type { Album, Song } from "../../types";
 import type { createT } from "../../i18n";
 import { api } from "../../services/api";
@@ -39,12 +39,17 @@ type Props = {
 type TrackResult = { albumId: number; status: "ready" | "error"; songs: Song[] };
 
 export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySong, playing, progress, duration, volume, playMode, playModeLabel, t, onPlay, onToggle, onPrevious, onNext, onSeek, onVolume, onCyclePlayMode }: Props) {
-  const [catalog, setCatalog] = useState<{ items: Album[]; total: number; page: number; hasMore: boolean } | null>(null);
-  const [catalogPage, setCatalogPage] = useState(1);
+  const [browse, setBrowse] = useState({ favorites: false, favoriteArtists: false, page: 1 });
+  const { favorites, favoriteArtists, page: catalogPage } = browse;
+  const filtered = favorites || favoriteArtists;
+  const filterKey = `${favorites}:${favoriteArtists}`;
+  const [catalogResult, setCatalog] = useState<{ filterKey: string; items: Album[]; total: number; page: number; hasMore: boolean } | null>(null);
+  const catalog = catalogResult?.filterKey === filterKey ? catalogResult : null;
   const [catalogBusy, setCatalogBusy] = useState(true);
   const [catalogFailed, setCatalogFailed] = useState(false);
   const [catalogRetry, setCatalogRetry] = useState(0);
-  const catalogAlbums = catalog?.items ?? cachedAlbums;
+  const catalogAlbums = catalog?.items ?? (filtered ? [] : cachedAlbums);
+  const shelfBusy = catalogBusy || (!catalog && !catalogFailed);
   // Playback can come from any queue, including albums outside the loaded shelf pages.
   const currentAlbum = useMemo<Album | undefined>(() => {
     if (!current?.album_id) return undefined;
@@ -54,8 +59,8 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
       favorite: false, song_count: 0,
     };
   }, [catalogAlbums, current]);
-  const albums = useMemo(() => currentAlbum && !catalogAlbums.some((album) => album.id === currentAlbum.id)
-    ? [currentAlbum, ...catalogAlbums] : catalogAlbums, [catalogAlbums, currentAlbum]);
+  const albums = useMemo(() => !filtered && currentAlbum && !catalogAlbums.some((album) => album.id === currentAlbum.id)
+    ? [currentAlbum, ...catalogAlbums] : catalogAlbums, [catalogAlbums, currentAlbum, filtered]);
   const [selection, setSelection] = useState({ trackId: current?.id, albumId: current?.album_id ?? displaySong?.album_id });
   // Manual browsing lasts until the next track change, not just the next progress update.
   const selectedId = selection.trackId === current?.id ? selection.albumId : current?.album_id;
@@ -153,24 +158,24 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
     let cancelled = false;
     setCatalogBusy(true);
     setCatalogFailed(false);
-    api.albumsPage(catalogPage, 60, 0, controller.signal).then((page) => {
+    api.albumsPage(catalogPage, 60, 0, controller.signal, favorites, favoriteArtists).then((page) => {
       if (cancelled) return;
       setCatalog((previous) => {
-        const items = catalogPage === 1 ? [] : previous?.items ?? [];
+        const items = catalogPage === 1 || previous?.filterKey !== filterKey ? [] : previous.items;
         const ids = new Set(items.map((album) => album.id));
         const additions = page.items.filter((album) => !ids.has(album.id));
-        return { items: [...items, ...additions], total: page.total, page: catalogPage, hasMore: additions.length > 0 && page.offset + page.items.length < page.total };
+        return { filterKey, items: [...items, ...additions], total: page.total, page: catalogPage, hasMore: additions.length > 0 && page.offset + page.items.length < page.total };
       });
     }).catch(() => { if (!cancelled) setCatalogFailed(true); }).finally(() => {
       window.clearTimeout(timer);
       if (!cancelled) setCatalogBusy(false);
     });
     return () => { cancelled = true; controller.abort(); window.clearTimeout(timer); };
-  }, [catalogPage, catalogRetry]);
+  }, [catalogPage, catalogRetry, favorites, favoriteArtists, filterKey]);
 
   useEffect(() => {
     if (catalog && !catalogBusy && !catalogFailed && catalog.page === catalogPage && catalog.hasMore && selectedIndex >= albums.length - 5) {
-      setCatalogPage((page) => page + 1);
+      setBrowse((value) => ({ ...value, page: value.page + 1 }));
     }
   }, [catalog, catalogBusy, catalogFailed, catalogPage, albums.length, selectedIndex]);
 
@@ -235,11 +240,19 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
 
   function loadMoreAlbums() {
     if (catalogFailed) setCatalogRetry((value) => value + 1);
-    else if (catalog?.hasMore) setCatalogPage((page) => page + 1);
+    else if (catalog?.hasMore) setBrowse((value) => ({ ...value, page: value.page + 1 }));
     else {
-      setCatalogPage(1);
+      setBrowse((value) => ({ ...value, page: 1 }));
       setCatalogRetry((value) => value + 1);
     }
+  }
+
+  function changeFilters(next: Pick<typeof browse, "favorites" | "favoriteArtists">) {
+    setBrowse({ ...next, page: 1 });
+    setCatalogBusy(true);
+    setCatalogFailed(false);
+    setSelection({ trackId: current?.id, albumId: undefined });
+    setFlipped(false);
   }
 
   function chooseAlbum(index: number) {
@@ -276,12 +289,22 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
 
   const PlayModeIcon = playMode === "shuffle" ? Shuffle : playMode === "repeat-one" ? RepeatOnce : Repeat;
   const canToggle = Boolean(current || tracks.length);
+  const emptyShelfLabel = shelfBusy ? t("loading") : catalogFailed ? t("vinylCatalogError") : filtered ? t("vinylEmptyFavorites") : t("vinylEmptyCollection");
 
   return (
     <div className="vinyl-collection-player" ref={playerRef} data-playing={active} data-dragging={dragging}
       onKeyDownCapture={(event) => { event.currentTarget.dataset.input = "keyboard"; }}
       onPointerDownCapture={(event) => { event.currentTarget.dataset.input = "pointer"; }}>
-      <header className="vc-heading"><span>{t("homePlayerVinylCollection")}</span><span>{catalog?.total ?? albums.length} {t("album")}</span></header>
+      <header className="vc-heading">
+        <span>{t("homePlayerVinylCollection")}</span>
+        <div className="vc-collection-tools">
+          <div className="vc-filters" role="group" aria-label={t("vinylFilterCollection")}>
+            <button type="button" aria-label={t("vinylFavoriteAlbums")} title={t("vinylFavoriteAlbums")} aria-pressed={favorites} onClick={() => changeFilters({ favorites: !favorites, favoriteArtists })}><Heart weight={favorites ? "fill" : "regular"} aria-hidden="true" /><span>{t("album")}</span></button>
+            <button type="button" aria-label={t("vinylFavoriteArtists")} title={t("vinylFavoriteArtists")} aria-pressed={favoriteArtists} onClick={() => changeFilters({ favorites, favoriteArtists: !favoriteArtists })}><UserSound weight={favoriteArtists ? "fill" : "regular"} aria-hidden="true" /><span>{t("artist")}</span></button>
+          </div>
+          <span className="vc-count" role="status">{catalog?.total ?? "—"} {t("album")}</span>
+        </div>
+      </header>
       <div className="vc-listening-room">
         <div className="vc-deck-column">
           <div className="vc-deck" ref={deckRef}>
@@ -301,13 +324,13 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
           </div>
           <div className="vc-now-playing" aria-live="polite"><strong>{current?.title || t("vinylReady")}</strong><span>{current?.artist || t("vinylLoadHint")}</span></div>
           <div className="vc-controls">
-            <div className="vc-progress"><span>{time(trackTime)}</span><input type="range" aria-label={t("position")} min="0" max={Math.max(0, duration)} step="0.1" value={trackTime} disabled={!current || !duration} onChange={(event) => onSeek(Number(event.target.value))} /><span>{time(duration)}</span></div>
+            <div className="vc-progress"><span>{time(trackTime)}</span><input type="range" aria-label={t("position")} aria-valuetext={`${time(trackTime)} / ${time(duration)}`} min="0" max={Math.max(0, duration)} step="0.1" value={trackTime} disabled={!current || !duration} onChange={(event) => onSeek(Number(event.target.value))} /><span>{time(duration)}</span></div>
             <div className="vc-transport">
               <button type="button" aria-label={playModeLabel} title={playModeLabel} onClick={onCyclePlayMode}><PlayModeIcon /></button>
               <button type="button" aria-label={t("previous")} disabled={!current} onClick={onPrevious}><SkipBack weight="fill" /></button>
               <button type="button" className="vc-play" aria-label={active ? t("pause") : t("play")} disabled={!canToggle} onClick={toggleDeck}>{active ? <Pause weight="fill" /> : <Play weight="fill" />}</button>
               <button type="button" aria-label={t("next")} disabled={!current} onClick={onNext}><SkipForward weight="fill" /></button>
-              <label className="vc-volume"><SpeakerHigh aria-hidden="true" /><input type="range" aria-label={t("volume")} min="0" max="1" step="0.01" value={volume} onChange={(event) => onVolume(Number(event.target.value))} /></label>
+              <label className="vc-volume"><SpeakerHigh aria-hidden="true" /><input type="range" aria-label={t("volume")} aria-valuetext={`${Math.round(volume * 100)}%`} min="0" max="1" step="0.01" value={volume} onChange={(event) => onVolume(Number(event.target.value))} /></label>
             </div>
           </div>
         </div>
@@ -338,7 +361,7 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
                 <header><strong>{selected?.title || t("album")}</strong><span>{selected?.artist}</span></header>
                 <div className="vc-track-list" ref={trackListRef} aria-busy={loading}>
                   {loading ? <p role="status">{t("loading")}</p> : failed ? <div role="alert"><p>{t("vinylLoadError")}</p><button type="button" onClick={() => { setResult(null); setRetry((value) => value + 1); }}><ArrowClockwise />{t("retry")}</button></div> : tracks.length ? tracks.map((song, index) => (
-                    <button key={song.id} type="button" className={current?.id === song.id ? "active" : ""} aria-label={`${t("play")} ${song.title}`} aria-current={current?.id === song.id ? "true" : undefined} onClick={() => playRecord(song)}>
+                    <button key={song.id} type="button" className={current?.id === song.id ? "active" : ""} aria-label={`${current?.id === song.id && active ? t("pause") : t("play")} ${song.title}`} aria-current={current?.id === song.id ? "true" : undefined} onClick={() => playRecord(song)}>
                       <span>{current?.id === song.id && active ? <Pause weight="fill" /> : String(index + 1).padStart(2, "0")}</span><span>{song.title}</span><time>{time(song.duration_seconds)}</time>
                     </button>
                   )) : <p>{t("noSongs")}</p>}
@@ -347,14 +370,14 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
               </div>
             </div>
           </div>
-          <div className="vc-sleeve-actions"><button type="button" onClick={() => setFlipped((value) => !value)} aria-pressed={flipped}><ArrowsClockwise />{flipped ? t("vinylShowCover") : t("vinylShowTracks")}</button><button type="button" disabled={!tracks.length} onClick={() => selectedLoaded ? onToggle() : playRecord()}>{selectedLoaded && active ? <Pause weight="fill" /> : <Play weight="fill" />}{selectedLoaded && active ? t("pause") : t("vinylPlayRecord")}</button></div>
-          <p className="vc-sleeve-hint" role="status">{loading ? t("loading") : failed ? t("vinylLoadError") : !tracks.length ? t("noSongs") : selectedLoaded ? t("vinylScratchHint") : t("vinylLoadHint")}</p>
+          <div className="vc-sleeve-actions"><button type="button" disabled={!selected} onClick={() => setFlipped((value) => !value)} aria-pressed={flipped}><ArrowsClockwise />{flipped ? t("vinylShowCover") : t("vinylShowTracks")}</button><button type="button" disabled={!tracks.length} onClick={() => selectedLoaded ? onToggle() : playRecord()}>{selectedLoaded && active ? <Pause weight="fill" /> : <Play weight="fill" />}{selectedLoaded && active ? t("pause") : t("vinylPlayRecord")}</button></div>
+          <p className="vc-sleeve-hint" role="status">{loading ? t("loading") : failed ? t("vinylLoadError") : !selected ? emptyShelfLabel : !tracks.length ? t("noSongs") : selectedLoaded ? t("vinylScratchHint") : t("vinylLoadHint")}</p>
           {failed && !flipped ? <button type="button" className="vc-retry" onClick={() => { setResult(null); setRetry((value) => value + 1); }}>{t("retry")}</button> : null}
         </div>
       </div>
       <div className="vc-shelf-navigation">
         <button type="button" aria-label={t("vinylPreviousRecord")} disabled={selectedIndex <= 0} onClick={() => chooseAlbum(selectedIndex - 1)}><CaretLeft /></button>
-        <div className="vc-shelf" role="group" aria-label={t("vinylBrowseRecords")} tabIndex={albums.length ? 0 : -1}
+        <div className="vc-shelf" role="group" aria-label={t("vinylBrowseRecords")} aria-busy={shelfBusy} tabIndex={albums.length ? 0 : -1}
           onKeyDown={(event) => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) { event.preventDefault(); event.currentTarget.focus({ preventScroll: true }); chooseAlbum(event.key === "Home" ? 0 : event.key === "End" ? albums.length - 1 : selectedIndex + (event.key === "ArrowRight" ? 1 : -1)); } }}
           onWheel={(event) => { if (Math.abs(event.deltaX) < Math.abs(event.deltaY) && !event.shiftKey) return; if (Date.now() - wheelTime.current < 140) return; wheelTime.current = Date.now(); chooseAlbum(selectedIndex + (event.deltaX + event.deltaY > 0 ? 1 : -1)); }}
           onPointerDown={(event) => { if (event.button === 0 && !shelfDrag.current) { suppressShelfClick.current = false; shelfDrag.current = { id: event.pointerId, x: event.clientX, index: selectedIndex, moved: false, step: (event.currentTarget.querySelector<HTMLElement>('.vc-shelf-record[aria-pressed="true"]')?.offsetWidth ?? 140) * 0.35 }; } }}
@@ -363,27 +386,28 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
           onPointerCancel={() => { shelfDrag.current = null; suppressShelfClick.current = true; }}
           onLostPointerCapture={() => { shelfDrag.current = null; }}
           onClickCapture={(event) => { if (suppressShelfClick.current && event.detail !== 0) { event.preventDefault(); event.stopPropagation(); suppressShelfClick.current = false; } }}>
+          {!albums.length ? <div className="vc-shelf-empty" role="status"><Record weight="thin" aria-hidden="true" /><span>{emptyShelfLabel}</span>{filtered && !shelfBusy && !catalogFailed ? <button type="button" onClick={() => changeFilters({ favorites: false, favoriteArtists: false })}>{t("vinylShowAllRecords")}</button> : null}</div> : null}
           <div className="vc-shelf-track" style={{ transform: `translateX(${shelfLayout.shift.toFixed(2)}px)` }}>
           {albums.slice(shelfLayout.start, shelfLayout.end).map((album) => {
             const offset = albums.indexOf(album) - selectedIndex;
             const { x, z, angle } = vinylShelfPose(offset);
-            return <button key={album.id} type="button" className="vc-shelf-record" aria-label={`${album.title} · ${album.artist}`} aria-pressed={offset === 0} tabIndex={offset === 0 ? 0 : -1} onClick={() => { selectAlbum(album.id); setFlipped(false); }} style={{ transform: `translateX(${x}%) translateY(${offset === 0 ? -8 : 0}px) translateZ(${z}px) rotateY(${angle}deg)`, zIndex: 20 - Math.abs(offset) }}><Cover src={albumCoverUrl(album)} /><span>{album.title}</span></button>;
+            return <button key={album.id} type="button" className="vc-shelf-record" aria-label={`${album.title} · ${album.artist}`} title={`${album.title} · ${album.artist}`} aria-pressed={offset === 0} tabIndex={offset === 0 ? 0 : -1} onClick={() => { selectAlbum(album.id); setFlipped(false); }} style={{ transform: `translateX(${x}%) translateY(${offset === 0 ? -8 : 0}px) translateZ(${z}px) rotateY(${angle}deg)`, zIndex: 20 - Math.abs(offset) }}><Cover src={albumCoverUrl(album)} /><span>{album.title}</span></button>;
           })}
           </div>
         </div>
         <button type="button" aria-label={t("vinylNextRecord")} disabled={selectedIndex < 0 || selectedIndex >= albums.length - 1} onClick={() => chooseAlbum(selectedIndex + 1)}><CaretRight /></button>
       </div>
-      {catalogBusy || catalogFailed || (catalog && !catalog.hasMore && albums.length < catalog.total) ? <div className="vc-catalog-status" role="status">
-        {catalogBusy ? t("loading") : <button type="button" onClick={loadMoreAlbums}>{catalogFailed ? t("retry") : catalog?.hasMore ? t("loadMore") : t("refresh")}</button>}
+      {shelfBusy || catalogFailed || (catalog && !catalog.hasMore && catalog.items.length < catalog.total) ? <div className="vc-catalog-status" role="status">
+        {shelfBusy ? t("loading") : <button type="button" onClick={loadMoreAlbums}>{catalogFailed ? t("retry") : catalog?.hasMore ? t("loadMore") : t("refresh")}</button>}
       </div> : null}
-      <div className="vc-selection" aria-live="polite"><strong>{selected?.title || t("noSongs")}</strong><span>{selected?.artist}</span></div>
+      <div className="vc-selection" aria-live="polite"><strong>{selected?.title || emptyShelfLabel}</strong><span>{selected?.artist}</span>{selected ? <span className="vc-shelf-position">{selectedIndex + 1} / {Math.max(albums.length, catalog?.total ?? 0)}</span> : null}</div>
     </div>
   );
 }
 
 function Cover({ src }: { src?: string }) {
   const cover = useCoverFallback(src);
-  return cover.displayUrl ? <img src={cover.displayUrl} alt="" draggable={false} onError={cover.onCoverError} /> : <span className="vc-cover-fallback" aria-hidden="true"><Record weight="thin" /><span>LARK</span></span>;
+  return cover.displayUrl ? <img src={cover.displayUrl} alt="" decoding="async" draggable={false} onError={cover.onCoverError} /> : <span className="vc-cover-fallback" aria-hidden="true"><Record weight="thin" /><span>LARK</span></span>;
 }
 
 function time(value: number) {

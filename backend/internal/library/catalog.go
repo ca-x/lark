@@ -269,16 +269,17 @@ func (s *Service) FavoriteAlbums(ctx context.Context, userID, limit int) ([]mode
 	return out, nil
 }
 func (s *Service) AlbumsPage(ctx context.Context, userID, limit, offset, artistID int) (models.AlbumPage, error) {
-	return s.albumsPage(ctx, userID, limit, offset, artistID, false)
+	return s.FilteredAlbumsPage(ctx, userID, limit, offset, artistID, false, false)
 }
 
 func (s *Service) FavoriteAlbumsPage(ctx context.Context, userID, limit, offset, artistID int) (models.AlbumPage, error) {
-	return s.albumsPage(ctx, userID, limit, offset, artistID, true)
+	return s.FilteredAlbumsPage(ctx, userID, limit, offset, artistID, true, false)
 }
 
-func (s *Service) albumsPage(ctx context.Context, userID, limit, offset, artistID int, favoritesOnly bool) (models.AlbumPage, error) {
+// FilteredAlbumsPage combines personal album and artist favorites as a union.
+func (s *Service) FilteredAlbumsPage(ctx context.Context, userID, limit, offset, artistID int, favoritesOnly, favoriteArtistsOnly bool) (models.AlbumPage, error) {
 	limit, offset = normalizePage(limit, offset)
-	key := cacheKey("albums-page", userID, s.userCacheVersion(ctx, userID), limit, offset, artistID, favoritesOnly)
+	key := cacheKey("albums-page", userID, s.userCacheVersion(ctx, userID), limit, offset, artistID, favoritesOnly, favoriteArtistsOnly)
 	var cached models.AlbumPage
 	if ok, err := s.cacheGetJSON(ctx, key, &cached); err != nil {
 		return models.AlbumPage{}, err
@@ -299,16 +300,25 @@ func (s *Service) albumsPage(ctx context.Context, userID, limit, offset, artistI
 		if artistID > 0 {
 			predicates = append(predicates, album.HasArtistWith(artist.ID(artistID)))
 		}
+		favorites := make([]predicate.Album, 0, 2)
 		if favoritesOnly {
-			predicates = append(predicates, album.HasUserFavoritesWith(
+			favorites = append(favorites, album.HasUserFavoritesWith(
 				useralbumfavorite.HasUserWith(user.ID(userID)),
 			))
+		}
+		if favoriteArtistsOnly {
+			favorites = append(favorites, album.HasArtistWith(artist.HasUserFavoritesWith(
+				userartistfavorite.HasUserWith(user.ID(userID)),
+			)))
+		}
+		if len(favorites) > 0 {
+			predicates = append(predicates, album.Or(favorites...))
 		}
 		total, e := s.client.Album.Query().Where(predicates...).Count(bgCtx)
 		if e != nil {
 			return models.AlbumPage{}, e
 		}
-		query := s.client.Album.Query().Where(predicates...).WithArtist().Order(ent.Desc(album.FieldUpdatedAt)).Limit(limit)
+		query := s.client.Album.Query().Where(predicates...).WithArtist().Order(ent.Desc(album.FieldUpdatedAt), ent.Desc(album.FieldID)).Limit(limit)
 		if offset > 0 {
 			query = query.Offset(offset)
 		}

@@ -112,3 +112,28 @@
   .eq-shell :is(.eq-power,.eq-close) { width:44px; min-width:44px; max-width:44px; height:44px; min-height:44px; max-height:44px; flex-basis:44px; }
   .eq-shell .eq-presets button,.eq-shell .reset-btn { min-height:44px; }
 }
+
+/* Focus belongs on the visible rail when a theme uses an invisible range input. */
+.album-slide-progress:has(input:focus-visible) .album-slide-progress-track { outline: 2px solid var(--accent); outline-offset: 4px; }
+.vinyl-position-row:has(input:focus-visible) .vinyl-position-track { outline: 2px solid var(--vinyl-led); outline-offset: 4px; }
+.cassette-progress-row:has(input:focus-visible) .cassette-progress-track { outline-color: var(--cassette-green); }
+.ipod-progress-area:has(input:focus-visible) .ipod-progress-track { outline-color: var(--ipod-screen-accent); }
+.walkman-progress-row:has(input:focus-visible) .walkman-progress-track { outline-color: var(--walkman-amber); }
+.cassette-progress-row input { height: 32px; }
+.ipod-progress-area input { top: -12px; height: 32px; }
+.album-slide-controls button, .ipod-wheel-button { transition: scale 140ms cubic-bezier(.23,1,.32,1); }
+.album-slide-controls button:active:not(:disabled), .ipod-wheel-button:active:not(:disabled) { scale: .97; }
+.album-slide-controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; transition: none; }
+.ipod-click-wheel button:focus-visible { outline: 2px solid var(--ipod-screen-accent); outline-offset: -3px; transition: none; }
+:is(.album-slide-controls button, .ipod-click-wheel button):focus-visible:active:not(:disabled) { scale: 1; }
+.ipod-center-button:focus-visible:active:not(:disabled) { transform: none; }
+@media (hover: none), (pointer: coarse) {
+  .album-slide-controls button:hover:not(:disabled) { filter: none; transform: none; }
+  .ipod-wheel-button:hover:not(:disabled) { color: var(--ipod-wheel-text); background: transparent; }
+  .cassette-progress-row input { height: 44px; }
+  .ipod-progress-area input { top: -18px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .album-slide-controls button, .ipod-wheel-button { transition: none; }
+  .album-slide-controls button:active:not(:disabled), .ipod-wheel-button:active:not(:disabled) { scale: 1; }
+}

@@ -173,3 +173,26 @@
 
 .vc-catalog-status { color: var(--vc-muted); font-size: 12px; text-align: center; }
 .vc-catalog-status button { min-height: 36px; border: 1px solid var(--vc-rule); border-radius: 4px; background: transparent; padding: 6px 12px; }
+
+/* Collection controls read like small marks on the sleeve, with generous hit areas. */
+.vc-heading { align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.vc-collection-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.vc-filters { display: flex; gap: 8px; }
+.vc-filters button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--vc-rule); border-radius: 4px; background: transparent; color: var(--vc-muted); transition: transform 140ms var(--vc-ease), background-color 160ms ease, color 160ms ease; }
+.vc-filters button svg { width: 17px; height: 17px; }
+.vc-filters button[aria-pressed='true'] { color: var(--vc-ink); background: var(--vc-selected); border-color: var(--vc-accent); box-shadow: inset 0 -2px var(--vc-accent); }
+.vc-count { min-width: 5ch; font-variant-numeric: tabular-nums; }
+.vc-shelf-empty { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--vc-muted); font-size: 12px; text-align: center; }
+.vc-shelf-empty > svg { width: 36px; height: 36px; }
+.vc-shelf-empty button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--vc-rule); border-radius: 4px; background: transparent; }
+.vc-shelf-position { font-variant-numeric: tabular-nums; letter-spacing: .08em; }
+.vc-shelf-record > span:last-child:not(.vc-cover-fallback) { text-overflow: ellipsis; }
+.vc-sleeve-actions button, .vc-retry, .vc-catalog-status button { min-height: 44px; }
+.vc-transport button, .vc-shelf-navigation > button { width: 44px; }
+.vc-shelf-navigation { grid-template-columns: 44px minmax(0,1fr) 44px; }
+@media (hover: hover) and (pointer: fine) {
+  .vc-filters button:hover { background: var(--vc-selected); color: var(--vc-ink); }
+}
+@container (max-width: 540px) {
+  .vc-collection-tools { width: 100%; justify-content: space-between; }
+}

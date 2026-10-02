@@ -2017,16 +2017,9 @@ func (s *Server) handleAlbums(c *echo.Context) error {
 }
 
 func (s *Server) handleAlbumsPage(c *echo.Context) error {
-	limit := pageLimit(c)
-	var (
-		items models.AlbumPage
-		err   error
-	)
-	if queryBool(c, "favorites") {
-		items, err = s.lib.FavoriteAlbumsPage(c.Request().Context(), currentUserID(c), limit, pageOffset(c), queryInt(c, "artist_id", 0))
-	} else {
-		items, err = s.lib.AlbumsPage(c.Request().Context(), currentUserID(c), limit, pageOffset(c), queryInt(c, "artist_id", 0))
-	}
+	items, err := s.lib.FilteredAlbumsPage(c.Request().Context(), currentUserID(c),
+		pageLimit(c), pageOffset(c), queryInt(c, "artist_id", 0),
+		queryBool(c, "favorites"), queryBool(c, "favorite_artists"))
 	if err != nil {
 		return mapError(err)
 	}

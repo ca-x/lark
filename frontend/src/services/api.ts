@@ -167,10 +167,11 @@ export const api = {
   },
   albums: (limit = 0) => request<Album[]>(`/api/albums${limit > 0 ? `?limit=${limit}` : ''}`),
   favoriteAlbums: (limit = 500) => request<Album[]>(`/api/albums/favorites?limit=${limit}`),
-  albumsPage: (page = 1, limit = 100, artistId = 0, signal?: AbortSignal, favorites = false) => {
+  albumsPage: (page = 1, limit = 100, artistId = 0, signal?: AbortSignal, favorites = false, favoriteArtists = false) => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) })
     if (artistId > 0) params.set('artist_id', String(artistId))
     if (favorites) params.set('favorites', 'true')
+    if (favoriteArtists) params.set('favorite_artists', 'true')
     return request<AlbumPage>(`/api/albums/page?${params.toString()}`, { signal })
   },
   album: (id: number, signal?: AbortSignal) => request<Album>(`/api/albums/${id}`, { signal }),
