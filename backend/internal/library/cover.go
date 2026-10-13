@@ -13,11 +13,19 @@ import (
 	"time"
 
 	"github.com/dhowden/tag"
+	taglib "go.senan.xyz/taglib"
 
 	"lark/backend/ent"
 	"lark/backend/ent/album"
 	"lark/backend/ent/artist"
 	"lark/backend/ent/song"
+)
+
+const localCoverMaxBytes = 8 << 20
+
+var (
+	localCoverStems = []string{"cover", "folder", "front", "album", "albumart"}
+	localCoverExts  = []string{".jpg", ".jpeg", ".png", ".webp"}
 )
 
 func (s *Service) SongCover(ctx context.Context, id int) ([]byte, string, error) {
@@ -264,6 +272,26 @@ func coverMimeByExt(ext string) string {
 	}
 }
 func coverFromFile(path string) ([]byte, string, error) {
+	data, mimeType, err := coverFromDhowdenTag(path)
+	if err == nil && len(data) > 0 {
+		return data, mimeType, nil
+	}
+	tagErr := err
+	data, mimeType, err = coverFromTaglib(path)
+	if err == nil && len(data) > 0 {
+		return data, mimeType, nil
+	}
+	data, mimeType, err = sidecarCoverFromAudioPath(path)
+	if err != nil || len(data) > 0 {
+		return data, mimeType, err
+	}
+	if tagErr != nil {
+		return nil, "", tagErr
+	}
+	return nil, "", nil
+}
+
+func coverFromDhowdenTag(path string) ([]byte, string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, "", err
@@ -291,4 +319,78 @@ func coverFromFile(path string) ([]byte, string, error) {
 		}
 	}
 	return pic.Data, mimeType, nil
+}
+
+func coverFromTaglib(path string) ([]byte, string, error) {
+	data, err := taglib.ReadImage(path)
+	if err != nil || len(data) == 0 {
+		return data, "", err
+	}
+	return data, coverMimeFromBytes(data, ""), nil
+}
+
+func sidecarCoverFromAudioPath(path string) ([]byte, string, error) {
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		return nil, "", nil
+	}
+	files := map[string]string{}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		ext := strings.ToLower(filepath.Ext(name))
+		for _, allowedExt := range localCoverExts {
+			if ext == allowedExt {
+				files[strings.ToLower(name)] = name
+				break
+			}
+		}
+	}
+	for _, stem := range localCoverStems {
+		for _, ext := range localCoverExts {
+			if name, ok := files[stem+ext]; ok {
+				return readSidecarCover(filepath.Join(filepath.Dir(path), name), ext)
+			}
+		}
+	}
+	return nil, "", nil
+}
+
+func readSidecarCover(path, hintedExt string) ([]byte, string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, "", err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, localCoverMaxBytes+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if len(data) == 0 || len(data) > localCoverMaxBytes {
+		return nil, "", nil
+	}
+	mimeType := coverMimeFromBytes(data, hintedExt)
+	if !strings.HasPrefix(mimeType, "image/") {
+		return nil, "", nil
+	}
+	return data, mimeType, nil
+}
+
+func coverMimeFromBytes(data []byte, hintedExt string) string {
+	if mimeType := detectWritebackCoverMimeByMagic(data); mimeType != "" {
+		return mimeType
+	}
+	if mimeType := coverMimeByExt(hintedExt); strings.HasPrefix(mimeType, "image/") {
+		return mimeType
+	}
+	mimeType := strings.ToLower(strings.TrimSpace(strings.Split(http.DetectContentType(data), ";")[0]))
+	if mimeType == "image/jpg" {
+		return "image/jpeg"
+	}
+	if strings.HasPrefix(mimeType, "image/") {
+		return mimeType
+	}
+	return "application/octet-stream"
 }

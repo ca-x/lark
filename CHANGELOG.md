@@ -5,19 +5,23 @@
 
 ---
 
-## 0.15.1：最近播放唱片与歌曲列表操作
+## 0.15.1：最近播放唱片、界面大小与 WAV 封面
 
 发布日期 / Released: 2026-10-13
 
 - 重新打开网页后，唱片室会显示最近播放的专辑，包括已播完的曲目和书架尚未加载的专辑；手动挑选唱片后，后台更新不会打断浏览。
 - 将歌曲列表的播放按钮移到最右侧操作列，曲库、专辑、歌单、文件夹和网络搜索采用一致的位置；手机端保留封面，并修正桌面 Smartisan 搭配深色手机主题时的列表文字对比度。
+- 设置的播放与外观中新增“界面显示大小”，支持文字大小、按钮大小分别调整，打开等比例调整后会同步两项，并可一键恢复默认；该偏好仅保存在当前设备。
+- WAV 整轨和 CUE 虚拟轨的封面读取会先尝试内嵌图，再使用 taglib 读取，最后回退到同目录的 `cover`、`folder`、`front` 或 `album` 图片。
 
-## v0.15.1: Recent records and song list controls
+## v0.15.1: Recent records, interface size and WAV covers
 
 Released: 2026-10-13
 
 - Reopening Vinyl room now shows the most recently played album, including completed tracks and albums outside the loaded shelf, without interrupting manual browsing.
 - Move play buttons to the final actions column in library, album, playlist, folder and network search song lists, while keeping mobile cover art visible and fixing list contrast when desktop Smartisan is paired with a dark mobile theme.
+- Add Interface size controls under Playback & Appearance, with separate text and button sizes, optional linked scaling, restore defaults, and device-local persistence.
+- WAV whole-file and CUE virtual-track covers now try embedded artwork, then taglib image reading, then same-folder `cover`, `folder`, `front` or `album` images.
 
 ---
 

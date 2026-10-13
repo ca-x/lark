@@ -2612,9 +2612,31 @@ body, button, input, select { font-family: var(--app-font); }
 .user-menu-popover > button { justify-content:flex-start; gap:10px; width:100%; min-height:44px; padding:10px 12px; border-radius:14px; color:var(--text); }
 .user-menu-popover > button:hover { background:color-mix(in srgb, var(--accent) 12%, transparent); }
 .user-menu-popover > button.danger { color:color-mix(in srgb, #ff7a7a 82%, var(--text)); }
+:root {
+  --interface-text-scale:1;
+  --interface-button-scale:1;
+  --interface-button-relative-scale:1;
+  --interface-text-in-button-scale:1;
+}
 .font-settings-card { display:grid; gap:12px; padding:16px; border-radius:20px; background:var(--panel2); border:1px solid var(--line); }
 .font-settings-card > div:first-child strong, .font-settings-card > div:first-child span { display:block; }
 .font-settings-card > div:first-child span { margin-top:4px; color:var(--muted); line-height:1.45; }
+.interface-scale-card { gap:14px; }
+.interface-scale-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.interface-scale-field { display:grid !important; gap:9px; padding:12px; border-radius:16px; background:color-mix(in srgb, var(--panel) 62%, transparent); border:1px solid var(--line); }
+.interface-scale-label { display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--muted); font-size:13px; font-weight:800; }
+.interface-scale-label strong { color:var(--text); font-size:14px; font-variant-numeric:tabular-nums; }
+.interface-scale-field input[type='range'] { appearance:none; width:100%; min-height:28px; background:transparent; accent-color:var(--accent); }
+.interface-scale-field input[type='range']::-webkit-slider-runnable-track { height:6px; border-radius:999px; background:linear-gradient(90deg, color-mix(in srgb, var(--accent) 72%, var(--highlight)) 0 var(--interface-scale-progress, 50%), var(--track) var(--interface-scale-progress, 50%) 100%); }
+.interface-scale-field input[type='range']::-webkit-slider-thumb { appearance:none; width:18px; height:18px; margin-top:-6px; border-radius:50%; background:var(--panel); border:2px solid var(--accent); box-shadow:0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent); }
+.interface-scale-field input[type='range']::-moz-range-track { height:6px; border-radius:999px; background:var(--track); }
+.interface-scale-field input[type='range']::-moz-range-progress { height:6px; border-radius:999px; background:color-mix(in srgb, var(--accent) 72%, var(--highlight)); }
+.interface-scale-field input[type='range']::-moz-range-thumb { width:16px; height:16px; border:2px solid var(--accent); border-radius:50%; background:var(--panel); }
+.interface-scale-actions { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; }
+.interface-scale-actions .interface-scale-link { min-height:58px; padding:10px 12px; background:color-mix(in srgb, var(--panel) 62%, transparent); }
+.interface-scale-actions > button { min-height:42px; padding:9px 14px; border-radius:999px; background:var(--panel); border:1px solid var(--line); color:var(--text); font-weight:850; }
+.interface-scale-actions > button:disabled { opacity:.5; }
+.interface-scale-actions > button:not(:disabled):hover { border-color:color-mix(in srgb, var(--accent) 46%, var(--line)); background:color-mix(in srgb, var(--accent) 10%, var(--panel)); }
 .settings-grid .font-upload-control,
 .font-upload-control {
   width:max-content;
@@ -2634,6 +2656,17 @@ body, button, input, select { font-family: var(--app-font); }
 .font-actions { display:flex; gap:10px; flex-wrap:wrap; }
 .font-actions button { min-height:40px; padding:9px 13px; border-radius:999px; background:var(--panel); border:1px solid var(--line); color:var(--text); }
 .font-actions button:first-child { background:var(--accent); color:var(--bg); border-color:transparent; }
+@supports (zoom: 1.01) {
+  .app-shell :where(.sidebar, .topbar, .main, .player, .pagination-controls, .modal-layer, .mcp-help-layer, .toast-stack) {
+    zoom:var(--interface-text-scale);
+  }
+  .app-shell :where(button, .upload, input, select, textarea, .filter-pill, .bitrate-preset-option, .share-duration-options label) {
+    zoom:var(--interface-button-relative-scale);
+  }
+  .app-shell :where(button, .upload) {
+    font-size:calc(1em * var(--interface-text-in-button-scale));
+  }
+}
 @media (max-width:1180px) {
   .topbar { grid-template-columns:minmax(0,1fr) auto; }
   .topbar .song-search-combobox { grid-column:1 / -1; order:3; }
@@ -6123,7 +6156,11 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .bitrate-preset-option span { min-width:0; display:grid; gap:4px; }
 .bitrate-preset-option b { color:var(--text); font-size:12px; line-height:1.2; }
 .bitrate-preset-option small { color:var(--muted); font-size:11px; line-height:1.35; }
-@media (max-width:820px) { .library-dir-form, .scrobbling-form, .settings-mini-grid, .radio-group-grid .radio-source-card > div { grid-template-columns:1fr; } }
+@media (max-width:820px) {
+  .library-dir-form, .scrobbling-form, .settings-mini-grid, .interface-scale-controls,
+  .interface-scale-actions, .radio-group-grid .radio-source-card > div { grid-template-columns:1fr; }
+  .interface-scale-actions > button { width:100%; }
+}
 @media (max-width:1100px) { .bitrate-preset-list { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:560px) { .bitrate-preset-list { grid-template-columns:1fr; } }
 

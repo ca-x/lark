@@ -1,7 +1,7 @@
 import { DesktopPlayerBackdrop } from "./components/player-themes/DesktopPlayerBackdrop";
 import { registerAudioAnalysis } from "./services/audioAnalysis";
 import { MobileThemePicker } from "./components/mobile/MobileThemePicker";
-import type { ChangeEvent, ReactNode, UIEvent } from "react";
+import type { CSSProperties, ChangeEvent, ReactNode, UIEvent } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { Fragment, memo, useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Calendar from "react-calendar";
@@ -180,6 +180,7 @@ import {
   type SongloftPlayMode,
 } from "./features/plugins/songloftPlayerMode";
 import { queueBoundaryAction } from "./features/playback/playMode";
+import { DEFAULT_INTERFACE_SCALE, INTERFACE_SCALE_MAX, INTERFACE_SCALE_MIN, INTERFACE_SCALE_STEP, changeInterfaceScale, isDefaultInterfaceScale, linkInterfaceScale, readInterfaceScale, saveInterfaceScale, type InterfaceScale } from "./features/interfaceScale";
 import type { SongloftHostCall, SongloftPlayerState } from "./components/PluginHost";
 import { LibrarySortControl } from "./components/LibrarySortControl";
 import { CardGrid } from "./components/CardGrid";
@@ -1025,6 +1026,7 @@ function SongSearchBox({
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [interfaceScale, setInterfaceScale] = useState(readInterfaceScale);
   const [auth, setAuth] = useState<AuthStatus | null>(null);
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -1491,6 +1493,15 @@ export default function App() {
       setRoute(currentBrowserRoute());
     }
   }, [authLoading, auth?.initialized, auth?.user?.id, route]);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--interface-text-scale", String(interfaceScale.text / 100));
+    root.style.setProperty("--interface-button-scale", String(interfaceScale.buttons / 100));
+    root.style.setProperty("--interface-button-relative-scale", String(interfaceScale.buttons / interfaceScale.text));
+    root.style.setProperty("--interface-text-in-button-scale", String(interfaceScale.text / interfaceScale.buttons));
+    saveInterfaceScale(interfaceScale);
+  }, [interfaceScale]);
 
   useEffect(() => {
     window.localStorage.setItem(EQ_STORAGE_KEY, JSON.stringify({ enabled: eqEnabled, bands: eqBands }));
@@ -6079,6 +6090,8 @@ export default function App() {
               <SettingsPanel
                 settings={settings}
                 setSettings={(s) => void saveSettings(s)}
+                interfaceScale={interfaceScale}
+                onInterfaceScaleChange={setInterfaceScale}
                 libraryDirectories={libraryDirectories}
                 onLibraryDirectoriesChange={setLibraryDirectories}
                 user={auth.user}
@@ -10441,6 +10454,8 @@ function MCPHelpDialog({
 function SettingsPanel({
   settings,
   setSettings,
+  interfaceScale,
+  onInterfaceScaleChange,
   libraryDirectories,
   onLibraryDirectoriesChange,
   user,
@@ -10484,6 +10499,8 @@ function SettingsPanel({
 }: {
   settings: Settings;
   setSettings: (settings: Settings) => void;
+  interfaceScale: InterfaceScale;
+  onInterfaceScaleChange: (next: InterfaceScale) => void;
   libraryDirectories: LibraryDirectory[];
   onLibraryDirectoriesChange: (directories: LibraryDirectory[]) => void;
   user: User;
@@ -10555,6 +10572,15 @@ function SettingsPanel({
   const publicShareEntry = `${window.location.origin}/share/<token>`;
   const subsonicEndpoint = `${window.location.origin}/rest`;
   const mcpTokenExample = mcpToken?.token || mcpToken?.hint || "lark_mcp_...";
+  const interfaceTextScaleID = "interface-text-scale";
+  const interfaceButtonScaleID = "interface-button-scale";
+  const interfaceScaleDefault = isDefaultInterfaceScale(interfaceScale);
+  const interfaceTextScaleStyle = {
+    "--interface-scale-progress": `${((interfaceScale.text - INTERFACE_SCALE_MIN) / (INTERFACE_SCALE_MAX - INTERFACE_SCALE_MIN)) * 100}%`,
+  } as CSSProperties;
+  const interfaceButtonScaleStyle = {
+    "--interface-scale-progress": `${((interfaceScale.buttons - INTERFACE_SCALE_MIN) / (INTERFACE_SCALE_MAX - INTERFACE_SCALE_MIN)) * 100}%`,
+  } as CSSProperties;
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "account", label: t("accountSettings") },
     { id: "playback", label: t("playbackAppearanceSettings") },
@@ -10764,6 +10790,10 @@ function SettingsPanel({
     onPlaybackHistorySettingsChange(next);
     const saved = await api.savePlaybackHistorySettings(next).catch(() => next);
     onPlaybackHistorySettingsChange(saved);
+  }
+
+  function setInterfaceScaleField(field: "text" | "buttons", percent: number) {
+    onInterfaceScaleChange(changeInterfaceScale(interfaceScale, field, percent));
   }
 
   async function addLibraryDirectory() {
@@ -11627,6 +11657,66 @@ function SettingsPanel({
               </div>
             </div>
           ) : null}
+          <div className="font-settings-card interface-scale-card settings-wide-row" data-settings-owner="playback">
+            <div>
+              <strong>{t("interfaceScale")}</strong>
+              <span>{t("interfaceScaleHint")}</span>
+            </div>
+            <div className="interface-scale-controls">
+              <label className="interface-scale-field" htmlFor={interfaceTextScaleID}>
+                <span className="interface-scale-label">
+                  <span>{t("interfaceTextSize")}</span>
+                  <strong>{interfaceScale.text}%</strong>
+                </span>
+                <input
+                  id={interfaceTextScaleID}
+                  type="range"
+                  min={INTERFACE_SCALE_MIN}
+                  max={INTERFACE_SCALE_MAX}
+                  step={INTERFACE_SCALE_STEP}
+                  value={interfaceScale.text}
+                  style={interfaceTextScaleStyle}
+                  onChange={(event) => setInterfaceScaleField("text", Number(event.target.value))}
+                />
+              </label>
+              <label className="interface-scale-field" htmlFor={interfaceButtonScaleID}>
+                <span className="interface-scale-label">
+                  <span>{t("interfaceButtonSize")}</span>
+                  <strong>{interfaceScale.buttons}%</strong>
+                </span>
+                <input
+                  id={interfaceButtonScaleID}
+                  type="range"
+                  min={INTERFACE_SCALE_MIN}
+                  max={INTERFACE_SCALE_MAX}
+                  step={INTERFACE_SCALE_STEP}
+                  value={interfaceScale.buttons}
+                  style={interfaceButtonScaleStyle}
+                  onChange={(event) => setInterfaceScaleField("buttons", Number(event.target.value))}
+                />
+              </label>
+            </div>
+            <div className="interface-scale-actions">
+              <label className="switch-row interface-scale-link">
+                <span>
+                  <span>{t("interfaceScaleLinked")}</span>
+                  <small>{t("interfaceScaleLinkedHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={interfaceScale.linked}
+                  onChange={(event) => onInterfaceScaleChange(linkInterfaceScale(interfaceScale, event.target.checked))}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={interfaceScaleDefault}
+                onClick={() => onInterfaceScaleChange(DEFAULT_INTERFACE_SCALE)}
+              >
+                {t("interfaceScaleReset")}
+              </button>
+            </div>
+          </div>
           {user.role === "admin" ? (
             <div className="feature-settings-card settings-wide-row" data-settings-owner="services">
               <label className="switch-row">
