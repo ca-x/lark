@@ -5,6 +5,20 @@
 
 ---
 
+## 0.15.2：歌曲列表自适应布局
+
+发布日期 / Released: 2026-10-13
+
+- 桌面歌曲列表收紧各列间距；空间充足时直接显示全部操作，空间不足时收起到“更多”，并随按钮大小设置调整操作列。
+
+## v0.15.2: Responsive song lists
+
+Released: 2026-10-13
+
+- Tighten desktop song list spacing. Show all actions when they fit, otherwise use More, and size the actions column with the button size setting.
+
+---
+
 ## 0.15.1：最近播放唱片、界面大小与 WAV 封面
 
 发布日期 / Released: 2026-10-13

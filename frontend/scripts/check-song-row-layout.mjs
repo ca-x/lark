@@ -88,13 +88,15 @@ try {
         const cell = row.querySelector('.song-row-copy');
         const play = row.querySelector('.song-row-actions .song-row-play');
         const actionsElement = row.querySelector('.song-row-actions');
+        const primary = row.querySelector('.song-row-actions-primary');
+        const more = row.querySelector('.song-row-actions-more');
         const actions = actionsElement.getBoundingClientRect();
         const album = row.querySelector('.song-album');
         const quality = row.querySelector('.song-quality');
         const durationElement = row.querySelector('.song-duration');
         const duration = durationElement.getBoundingClientRect();
         const playBounds = play.getBoundingClientRect();
-        return { title: title.textContent, titleX: textCenter(title), titleTruncated:title.scrollWidth > title.clientWidth, artistX: textCenter(artist), headerX: textCenter(header), cellX:center(cell).x, actionHeaderX:center(actionHeader).x, actionsX:center(actionsElement).x, albumVisible:getComputedStyle(album).display !== 'none', qualityVisible:getComputedStyle(quality).display !== 'none', durationVisible:getComputedStyle(durationElement).display !== 'none', playY:center(play).y, rowY:center(row).y, playInActions:playBounds.left >= actions.left && playBounds.right <= actions.right, playAfterDuration:playBounds.left > duration.right };
+        return { title: title.textContent, titleX: textCenter(title), titleTruncated:title.scrollWidth > title.clientWidth, artistX: textCenter(artist), headerX: textCenter(header), cellX:center(cell).x, actionHeaderX:center(actionHeader).x, actionsX:center(actionsElement).x, albumVisible:getComputedStyle(album).display !== 'none', qualityVisible:getComputedStyle(quality).display !== 'none', durationVisible:getComputedStyle(durationElement).display !== 'none', playY:center(play).y, rowY:center(row).y, playInActions:playBounds.left >= actions.left && playBounds.right <= actions.right, playAfterDuration:playBounds.left > duration.right, primaryVisible:getComputedStyle(primary).display !== 'none', moreVisible:getComputedStyle(more).display !== 'none', actionsFit:actionsElement.scrollWidth <= actionsElement.clientWidth + 1, rowFits:row.scrollWidth <= row.clientWidth + 1, tableWidth:row.closest('.song-table').clientWidth };
       })`);
       assert.equal(rows.length, songs.length, `${theme}: real song rows must render`);
       for (const row of rows) {
@@ -106,9 +108,24 @@ try {
         if (width > 900) assert.ok(row.qualityVisible, `${theme} ${width}px: quality column must remain visible`);
         assert.ok(Math.abs(row.playY - row.rowY) <= 1, `${theme} ${width}px: play button is not vertically centered`);
         assert.ok(row.playInActions && row.playAfterDuration, `${theme} ${width}px: play button must be in the final actions column`);
+        assert.ok(row.actionsFit && row.rowFits, `${theme} ${width}px: row actions or columns overflow`);
+        if (row.tableWidth >= 1100) assert.ok(row.primaryVisible && !row.moreVisible, `${theme} ${width}px: all actions fit, so the more button must be hidden`);
+        else assert.ok(!row.primaryVisible && row.moreVisible, `${theme} ${width}px: compact rows need the more button`);
       }
-      if (theme === checkedThemes[0] && width === 1920 && process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT)
-        await browser("screenshot", process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT);
+      if (theme === checkedThemes[0] && width === 1920) {
+        if (process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT)
+          await browser("screenshot", process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT);
+        const { result: scaledActionsFit } = await browser("eval", `(() => {
+          document.documentElement.style.setProperty('--interface-button-relative-scale', '1.6');
+          const row = document.querySelector('.song-row');
+          const actions = row.querySelector('.song-row-actions');
+          const buttons = Array.from(actions.querySelectorAll('button')).filter(button => getComputedStyle(button.parentElement).display !== 'none');
+          const actionBounds = actions.getBoundingClientRect();
+          return buttons.every(button => { const bounds = button.getBoundingClientRect(); return bounds.left >= actionBounds.left - 1 && bounds.right <= actionBounds.right + 1; });
+        })()`);
+        assert.ok(scaledActionsFit, "1920px: enlarged action buttons must remain inside their column");
+        await browser("eval", `document.documentElement.style.removeProperty('--interface-button-relative-scale')`);
+      }
     }
     console.log(`PASS ${theme}: titles, artists, headers and final-column playback controls align at ${checkedWidths.join("/")}px`);
   }
