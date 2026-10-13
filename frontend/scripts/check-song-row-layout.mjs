@@ -78,6 +78,12 @@ try {
     await browser("wait", "--fn", "document.querySelectorAll('.song-row').length === 3");
     for (const width of checkedWidths) {
       await browser("set", "viewport", String(width), "900");
+      const { result: tableAlignment } = await browser("eval", `(() => {
+        const table = document.querySelector('.song-table').getBoundingClientRect();
+        const view = document.querySelector('.library-view').getBoundingClientRect();
+        return { tableLeft:table.left, viewLeft:view.left };
+      })()`);
+      assert.ok(Math.abs(tableAlignment.tableLeft - tableAlignment.viewLeft) <= 2, `${theme} ${width}px: the song list must start at the content's left edge`);
       const { result: rows } = await browser("eval", `Array.from(document.querySelectorAll('.song-row')).map(row => {
         const title = row.querySelector('.song-title-play strong');
         const artist = row.querySelector('.song-row-copy > .artist-link');
@@ -115,16 +121,40 @@ try {
       if (theme === checkedThemes[0] && width === 1920) {
         if (process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT)
           await browser("screenshot", process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT);
-        const { result: scaledActionsFit } = await browser("eval", `(() => {
-          document.documentElement.style.setProperty('--interface-button-relative-scale', '1.6');
+        const { result: textScaleRatios } = await browser("eval", `(() => {
+          const selectors = ['.desktop-sidebar nav button > span', '.library-tabs button', '.song-title-play strong', '.song-row .song-quality'];
+          const width = element => { const range = document.createRange(); range.selectNodeContents(element); return range.getBoundingClientRect().width; };
+          const before = selectors.map(selector => width(document.querySelector(selector)));
+          const root = document.documentElement.style;
+          root.setProperty('--interface-text-scale', '1.6');
+          root.setProperty('--interface-button-relative-scale', '0.625');
+          root.setProperty('--interface-text-in-button-scale', '1.6');
+          const after = selectors.map(selector => width(document.querySelector(selector)));
+          root.removeProperty('--interface-text-scale');
+          root.removeProperty('--interface-button-relative-scale');
+          root.removeProperty('--interface-text-in-button-scale');
+          return after.map((value, index) => value / before[index]);
+        })()`);
+        for (const [index, ratio] of textScaleRatios.entries())
+          assert.ok(ratio >= 1.45, `1920px: text sample ${index + 1} only scaled ${ratio.toFixed(2)}x with text at 160% and buttons at 100%`);
+        const { result: buttonOnlyScale } = await browser("eval", `(() => {
           const row = document.querySelector('.song-row');
           const actions = row.querySelector('.song-row-actions');
+          const play = actions.querySelector('.song-row-play');
+          const labels = ['.desktop-sidebar nav button > span', '.library-tabs button', '.song-title-play strong'].map(selector => document.querySelector(selector));
+          const textWidth = element => { const range = document.createRange(); range.selectNodeContents(element); return range.getBoundingClientRect().width; };
+          const beforeText = labels.map(textWidth);
+          const beforeButton = play.getBoundingClientRect().width;
+          document.documentElement.style.setProperty('--interface-button-relative-scale', '1.6');
+          document.documentElement.style.setProperty('--interface-text-in-button-scale', '0.625');
           const buttons = Array.from(actions.querySelectorAll('button')).filter(button => getComputedStyle(button.parentElement).display !== 'none');
           const actionBounds = actions.getBoundingClientRect();
-          return buttons.every(button => { const bounds = button.getBoundingClientRect(); return bounds.left >= actionBounds.left - 1 && bounds.right <= actionBounds.right + 1; });
+          return { fits:buttons.every(button => { const bounds = button.getBoundingClientRect(); return bounds.left >= actionBounds.left - 1 && bounds.right <= actionBounds.right + 1; }), textRatios:labels.map((element, index) => textWidth(element) / beforeText[index]), buttonRatio:play.getBoundingClientRect().width / beforeButton };
         })()`);
-        assert.ok(scaledActionsFit, "1920px: enlarged action buttons must remain inside their column");
-        await browser("eval", `document.documentElement.style.removeProperty('--interface-button-relative-scale')`);
+        assert.ok(buttonOnlyScale.fits && buttonOnlyScale.buttonRatio >= 1.45, "1920px: enlarged action buttons must remain inside their column");
+        for (const [index, ratio] of buttonOnlyScale.textRatios.entries())
+          assert.ok(Math.abs(ratio - 1) <= 0.08, `1920px: button-only scaling changed text sample ${index + 1} by ${ratio.toFixed(2)}x`);
+        await browser("eval", `document.documentElement.style.removeProperty('--interface-button-relative-scale'); document.documentElement.style.removeProperty('--interface-text-in-button-scale')`);
       }
     }
     console.log(`PASS ${theme}: titles, artists, headers and final-column playback controls align at ${checkedWidths.join("/")}px`);
@@ -146,6 +176,24 @@ try {
   if (process.env.LARK_SONG_LAYOUT_SCREENSHOT) await browser("screenshot", process.env.LARK_SONG_LAYOUT_SCREENSHOT);
   await browser("click", ".song-row .song-row-actions-more button");
   await browser("wait", "--fn", "!!document.querySelector('.song-row-more-menu > button[role=menuitem]')");
+  const { result: menuScale } = await browser("eval", `(() => {
+    const menu = document.querySelector('.song-row-more-menu');
+    const text = menu.querySelector('button span');
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    const before = range.getBoundingClientRect().width;
+    const root = document.documentElement.style;
+    root.setProperty('--interface-text-scale', '1.6');
+    root.setProperty('--interface-button-relative-scale', '0.625');
+    root.setProperty('--interface-text-in-button-scale', '1.6');
+    const after = range.getBoundingClientRect().width;
+    const bounds = menu.getBoundingClientRect();
+    root.removeProperty('--interface-text-scale');
+    root.removeProperty('--interface-button-relative-scale');
+    root.removeProperty('--interface-text-in-button-scale');
+    return { ratio:after / before, fits:bounds.left >= -1 && bounds.right <= innerWidth + 1 };
+  })()`);
+  assert.ok(menuScale.ratio >= 1.45 && menuScale.fits, "mobile: more-menu text must scale and the menu must stay in the viewport");
   const { result: favoriteMenuVisible } = await browser("eval", `document.querySelector('.song-row-more-menu > button[role=menuitem]')?.textContent.includes('添加收藏')`);
   assert.ok(favoriteMenuVisible, "mobile: favorite must be available in the more menu");
   await browser("click", ".song-row-more-menu > button[role=menuitem]");

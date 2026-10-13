@@ -29,7 +29,7 @@
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand { gap:10px; font-size:22px; font-weight:700; padding:0 8px; }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand img { width:42px; height:42px; }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav { gap:3px; }
-  .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav button { min-height:42px; padding:9px 12px; gap:12px; border:0; border-radius:9px; background:transparent; box-shadow:none; font-size:14px; font-weight:550; }
+  .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav button { min-height:42px; padding:9px 12px; gap:12px; border:0; border-radius:9px; background:transparent; box-shadow:none; font-size:calc(14px * var(--interface-text-in-button-scale)); font-weight:550; }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav button.active { background:color-mix(in srgb,var(--accent) 13%,var(--bg)); color:var(--text); font-weight:700; }
   .app-shell .desktop-sidebar nav button.active::before, .app-shell .desktop-sidebar nav button.active::after { content:none !important; }
   .desktop-sidebar nav button svg { width:20px; height:20px; }
@@ -81,14 +81,15 @@
   }
   .app-shell .song-table-header { min-height:40px; font-size:12px; font-weight:550; letter-spacing:0; text-transform:none; background:var(--panel); }
   .app-shell .song-table-header > span { min-width:0; text-align:center; }
-  .app-shell .song-table { gap:0; width:min(100%,1260px); margin:14px auto 0; container: song-table / inline-size; }
+  .app-shell .song-table { gap:0; width:min(100%,1260px); margin:14px 0 0; container: song-table / inline-size; }
   :root[data-theme] .app-shell .song-row { min-height:64px; padding-block:8px; border-radius:8px; border:0; background:transparent; box-shadow:none; }
   .app-shell .song-table.virtual .song-row { height:64px; }
   .app-shell .song-row.active { background:color-mix(in srgb,var(--accent) 11%,var(--panel)); }
   .app-shell .song-row > .song-row-copy { display:grid; justify-items:center; align-content:center; gap:2px; min-width:0; }
   .app-shell .song-row .song-title-play { display:grid; justify-items:center; align-content:center; width:100%; padding:0; text-align:center; }
-  .app-shell .song-title-play strong { width:100%; text-align:center; font-size:14px; line-height:20px; }
+  .app-shell .song-title-play strong { width:100%; text-align:center; font-size:calc(14px * var(--interface-text-in-button-scale)); line-height:20px; }
   .app-shell .song-row-copy > :is(.artist-link,small) { max-width:100%; justify-self:center; text-align:center !important; font-size:12px; line-height:18px; }
+  .app-shell .song-row-copy > .artist-link { font-size:calc(12px * var(--interface-text-in-button-scale)); }
   .app-shell .song-row :is(.song-album,.song-quality,.song-duration) { text-align:center; justify-self:stretch; }
   .app-shell .song-row .song-album > .artist-link { display:block; width:100%; text-align:center !important; }
   .app-shell .song-row .song-quality { font-size:11px; line-height:1.5; }
@@ -117,9 +118,9 @@
   .app-shell .library-actions { align-items:center; gap:18px; flex-wrap:wrap; margin-bottom:16px; }
   .app-shell .library-actions h2, .app-shell .section-head h2 { font-size:26px; line-height:1.3; letter-spacing:0; }
   .app-shell .library-actions > div { gap:8px; }
-  .app-shell .library-actions > div > :is(button,label), .app-shell .library-sort-trigger { min-height:38px; padding:8px 10px; border-radius:9px; font-size:12px; white-space:nowrap; }
+  .app-shell .library-actions > div > :is(button,label), .app-shell .library-sort-trigger { min-height:38px; padding:8px 10px; border-radius:9px; font-size:calc(12px * var(--interface-text-in-button-scale)); white-space:nowrap; }
   .app-shell .library-tabs, .app-shell .collection-tabs { width:max-content; max-width:100%; border:0; border-radius:0; padding:0; gap:20px; background:transparent; }
-  .app-shell .library-tabs button, .app-shell .collection-tabs button { min-height:42px; padding:8px 1px; border:0; border-radius:0; background:transparent; color:var(--muted); font-size:13px; box-shadow:none; }
+  .app-shell .library-tabs button, .app-shell .collection-tabs button { min-height:42px; padding:8px 1px; border:0; border-radius:0; background:transparent; color:var(--muted); font-size:calc(13px * var(--interface-text-in-button-scale)); box-shadow:none; }
   .app-shell .library-tabs button.active, .app-shell .collection-tabs button.active { color:var(--text) !important; box-shadow:inset 0 -2px 0 var(--accent); }
   .app-shell .pagination-controls { left:calc(var(--desktop-sidebar-width) + var(--desktop-gutter)); right:var(--desktop-gutter); bottom:calc(var(--player-h) + 12px); border-radius:12px; background:var(--panel); box-shadow:0 4px 20px #0002; backdrop-filter:none; }
 
@@ -168,7 +169,7 @@
   .app-shell .quick-song-list > button { min-height:58px; grid-template-columns:44px minmax(0,1fr) 36px; padding:6px 8px; border-radius:8px; background:transparent; }
   .app-shell .quick-song-list .mini-art { width:44px; height:44px; min-width:44px; min-height:44px; border-radius:7px; }
   .app-shell .recent-tabs { border:0; background:var(--panel2); border-radius:9px; padding:3px; }
-  .app-shell .recent-tabs button { min-height:30px; padding:6px 10px; border-radius:7px; font-size:12px; }
+  .app-shell .recent-tabs button { min-height:30px; padding:6px 10px; border-radius:7px; font-size:calc(12px * var(--interface-text-in-button-scale)); }
   .app-shell .daily-discovery { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
   .app-shell .daily-discovery-layout { gap:24px; }
   .app-shell .daily-song-list > button { border-radius:8px; }

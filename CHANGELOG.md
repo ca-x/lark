@@ -5,6 +5,22 @@
 
 ---
 
+## 0.15.3：列表对齐与字体缩放修正
+
+发布日期 / Released: 2026-10-13
+
+- 歌曲列表恢复从内容区左侧开始，保留紧凑列宽以及空间充足时直接显示全部操作的规则。
+- 修正界面文字与按钮分别缩放时部分按钮文字未跟随文字设置的问题，并让“更多”菜单文字同步缩放。
+
+## v0.15.3: Song alignment and text scaling
+
+Released: 2026-10-13
+
+- Align song lists with the left edge of the content while retaining compact columns and responsive action buttons.
+- Make button labels and More menu text follow the text size setting when button size is adjusted separately.
+
+---
+
 ## 0.15.2：歌曲列表自适应布局
 
 发布日期 / Released: 2026-10-13

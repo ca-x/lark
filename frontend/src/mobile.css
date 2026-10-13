@@ -17,7 +17,7 @@
   .sidebar { grid-column:1; grid-row:3; padding:6px 8px calc(6px + var(--safe-bottom)); border-radius:20px 20px 0 0; flex-direction:row; align-items:center; justify-content:center; box-shadow:0 -12px 40px rgba(0,0,0,.28); }
   .brand { display:none; }
   .sidebar nav { width:100%; display:grid; grid-template-columns:repeat(8, minmax(0,1fr)); gap:2px; }
-  .sidebar nav button { min-height:56px; padding:6px 1px; border-radius:15px; display:grid; justify-items:center; gap:2px; text-align:center; font-size:9px; }
+  .sidebar nav button { min-height:56px; padding:6px 1px; border-radius:15px; display:grid; justify-items:center; gap:2px; text-align:center; font-size:calc(9px * var(--interface-text-in-button-scale)); }
   .sidebar nav button svg { width:21px; height:21px; }
   .topbar { position:relative; top:auto; grid-template-columns:1fr; gap:12px; padding-bottom:12px; background:transparent; }
   .top-title h1 { font-size:30px; }
@@ -337,7 +337,7 @@
   .sidebar { position:relative; z-index:50; overflow:hidden; padding:6px 6px calc(6px + var(--safe-bottom)); background:color-mix(in srgb, var(--panel) 98%, var(--bg)); border-color:color-mix(in srgb, var(--accent) 18%, var(--line)); box-shadow:0 -10px 34px rgba(0,0,0,.34); }
   .sidebar nav { display:flex; width:100%; gap:4px; overflow-x:auto; overflow-y:hidden; padding:0 2px; scroll-snap-type:x proximity; scroll-snap-stop:always; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
   .sidebar nav::-webkit-scrollbar { display:none; }
-  .sidebar nav button { flex:0 0 66px; scroll-snap-align:center; min-height:60px; padding:7px 4px; border-radius:17px; font-size:10px; line-height:1.05; pointer-events:auto; }
+  .sidebar nav button { flex:0 0 66px; scroll-snap-align:center; min-height:60px; padding:7px 4px; border-radius:17px; font-size:calc(10px * var(--interface-text-in-button-scale)); line-height:1.05; pointer-events:auto; }
   .sidebar nav button svg { width:22px; height:22px; }
   .sidebar nav button span { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .topbar { grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px; }
@@ -3190,7 +3190,7 @@
     padding-bottom:8px;
   }
   .topbar .song-search-options > button { min-height:44px; padding:7px 10px; }
-  .topbar .song-search-options > button > span { font-size:11px; }
+  .topbar .song-search-options > button > span { font-size:calc(11px * var(--interface-text-in-button-scale)); }
   .topbar .user-menu-trigger {
     width:44px !important;
     min-width:44px;
@@ -3238,7 +3238,7 @@
     color:inherit;
     background:transparent;
     border:1px solid transparent;
-    font-size:9.5px;
+    font-size:calc(9.5px * var(--interface-text-in-button-scale));
     line-height:1.05;
     touch-action:manipulation;
     transition:background .18s var(--ease), color .18s var(--ease), transform .12s var(--ease), border-color .18s var(--ease);
@@ -3619,7 +3619,7 @@
     border-radius:999px;
     color:var(--bg);
     background:var(--accent);
-    font-size:12px;
+    font-size:calc(12px * var(--interface-text-in-button-scale));
     font-weight:850;
   }
   .mobile-home-surface[data-mobile-theme='editorial-pulse'] .mobile-home-section-head button {
@@ -4227,7 +4227,7 @@
     gap:6px;
   }
   .mobile-bottom-nav button span {
-    font-size:9px;
+    font-size:calc(9px * var(--interface-text-in-button-scale));
   }
 }
 
@@ -4655,7 +4655,7 @@
     min-height:44px;
     padding:0 4px;
     border-radius:14px;
-    font-size:11px;
+    font-size:calc(11px * var(--interface-text-in-button-scale));
   }
 
   .app-shell.lyrics-mode .lyrics-offset-actions button:not(.lyrics-offset-reset) svg,
@@ -6088,7 +6088,7 @@
     min-height: 44px;
     padding: 10px 14px;
     border-radius: 12px;
-    font-size: 13px;
+    font-size: calc(13px * var(--interface-text-in-button-scale));
     font-weight: 800;
     scroll-snap-align: start;
   }
@@ -6112,7 +6112,7 @@
   /* Bottom-nav labels were 9px and tight — barely legible at arm's length. Bump to a true 10.5px
      with looser tracking and a mid weight. Touch target stays 56px high. */
   .sidebar nav button {
-    font-size: 10.5px;
+    font-size: calc(10.5px * var(--interface-text-in-button-scale));
     line-height: 1.1;
     letter-spacing: 0.01em;
     font-weight: 800;
@@ -6181,7 +6181,7 @@
   /* On the smallest phones, the 8-column nav crushes label width. Drop labels to icons-only
      when font would have to shrink under 10px to fit. Buttons stay 56px tall, so touch is fine. */
   .sidebar nav button {
-    font-size: 10px;
+    font-size: calc(10px * var(--interface-text-in-button-scale));
     letter-spacing: 0.015em;
   }
   /* Hero on very narrow screens: keep clamp font but drop tracking entirely so 4-character
@@ -6455,7 +6455,7 @@
     background:transparent;
     box-shadow:none;
     text-shadow:none;
-    font-size:10px;
+    font-size:calc(10px * var(--interface-text-in-button-scale));
     font-weight:650;
     transition:color .18s var(--ease), opacity .18s var(--ease), transform .12s var(--ease);
   }
@@ -6502,7 +6502,7 @@
   }
 
   .mobile-bottom-nav button span {
-    font-size:10px;
+    font-size:calc(10px * var(--interface-text-in-button-scale));
     line-height:1;
   }
 
@@ -6671,7 +6671,7 @@
     color:var(--mobile-ui-muted) !important;
     background:transparent !important;
     box-shadow:none;
-    font-size:13px;
+    font-size:calc(13px * var(--interface-text-in-button-scale));
     font-weight:650;
   }
 
@@ -8894,7 +8894,7 @@
     background:transparent;
     border:0;
     box-shadow:none;
-    font-size:12px;
+    font-size:calc(12px * var(--interface-text-in-button-scale));
     white-space:nowrap;
   }
 
@@ -8905,7 +8905,7 @@
 
   .app-shell.lyrics-mode .lyrics-tools-tabs button strong {
     color:inherit;
-    font-size:11px;
+    font-size:calc(11px * var(--interface-text-in-button-scale));
     font-variant-numeric:tabular-nums;
   }
 
@@ -8998,7 +8998,7 @@
     background:var(--mobile-lyrics-chip-bg);
     border-color:var(--mobile-lyrics-border);
     box-shadow:none;
-    font-size:11px;
+    font-size:calc(11px * var(--interface-text-in-button-scale));
   }
 
   .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-actions button:not(.lyrics-offset-reset) svg,
@@ -10028,7 +10028,7 @@
   .segmented-control.lyrics-style-control button {
     min-width:0;
     padding:8px 9px;
-    font-size:12px;
+    font-size:calc(12px * var(--interface-text-in-button-scale));
     line-height:1.18;
   }
 
@@ -11157,7 +11157,7 @@
   }
 
   .mobile-bottom-nav button span {
-    font-size:10.5px;
+    font-size:calc(10.5px * var(--interface-text-in-button-scale));
     font-weight:700;
   }
 
@@ -11337,7 +11337,7 @@
     max-width:100%;
     overflow:hidden;
     color:inherit;
-    font-size:10.5px;
+    font-size:calc(10.5px * var(--interface-text-in-button-scale));
     font-weight:650;
     line-height:1.1;
     text-overflow:ellipsis;
@@ -11613,7 +11613,7 @@
     border-radius:999px;
     color:var(--mobile-active-text, var(--mobile-ui-bg));
     background:var(--mobile-ui-accent);
-    font-size:12px;
+    font-size:calc(12px * var(--interface-text-in-button-scale));
     font-weight:760;
     transition:transform 140ms var(--mobile-ease-out), filter 180ms ease;
   }
@@ -11706,7 +11706,7 @@
   }
 
   .mobile-bottom-nav button span:last-child {
-    font-size:10.5px;
+    font-size:calc(10.5px * var(--interface-text-in-button-scale));
     font-weight:680;
     line-height:1.15;
   }

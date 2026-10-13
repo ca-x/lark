@@ -100,9 +100,9 @@
 .vc-sleeve-back > header strong { font-size: 18px; line-height: 1.2; overflow-wrap: anywhere; }
 .vc-sleeve-back > header span { font-size: 12px; color: var(--vc-muted); }
 .vc-track-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--vc-rule) transparent; }
-.vc-track-list > button { display: grid; grid-template-columns: 18px minmax(0,1fr) auto; align-items: baseline; gap: 8px; width: 100%; min-height: 36px; padding: 7px 3px; border: 0; border-radius: 3px; background: transparent; text-align: left; font-size: 12px; line-height: 1.4; }
+.vc-track-list > button { display: grid; grid-template-columns: 18px minmax(0,1fr) auto; align-items: baseline; gap: 8px; width: 100%; min-height: 36px; padding: 7px 3px; border: 0; border-radius: 3px; background: transparent; text-align: left; font-size: calc(12px * var(--interface-text-in-button-scale)); line-height: 1.4; }
 .vc-track-list > button > span:nth-child(2) { overflow-wrap: anywhere; }
-.vc-track-list > button > span:first-child, .vc-track-list time { font-size: 10px; color: var(--vc-muted); font-variant-numeric: tabular-nums; }
+.vc-track-list > button > span:first-child, .vc-track-list time { font-size: calc(10px * var(--interface-text-in-button-scale)); color: var(--vc-muted); font-variant-numeric: tabular-nums; }
 .vc-track-list > button svg { width: 12px; height: 12px; }
 .vc-track-list > button.active { background: var(--vc-selected); font-weight: 650; }
 .vc-track-list p { font-size: 12px; color: var(--vc-muted); line-height: 1.6; }
@@ -110,7 +110,7 @@
 .vc-sleeve-back > footer { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--vc-rule); margin-top: 8px; padding-top: 10px; color: var(--vc-muted); font-size: 10px; }
 .vc-sleeve-back > footer svg { width: 20px; height: 20px; }
 .vc-sleeve-actions { display: flex; justify-content: center; gap: 12px; margin: 18px 0 0; }
-.vc-sleeve-actions button, .vc-retry { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; border: 1px solid var(--vc-rule); border-radius: 4px; padding: 8px 12px; color: var(--vc-ink); background: transparent; font-size: 12px; transition: transform 140ms var(--vc-ease); }
+.vc-sleeve-actions button, .vc-retry { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; border: 1px solid var(--vc-rule); border-radius: 4px; padding: 8px 12px; color: var(--vc-ink); background: transparent; font-size: calc(12px * var(--interface-text-in-button-scale)); transition: transform 140ms var(--vc-ease); }
 .vc-sleeve-actions svg { width: 15px; height: 15px; }
 .vc-sleeve-hint { margin: 10px 0 0; color: var(--vc-muted); font-size: 11px; line-height: 1.6; text-align: center; overflow-wrap: anywhere; }
 .vc-retry { display: flex; margin: 8px auto; }

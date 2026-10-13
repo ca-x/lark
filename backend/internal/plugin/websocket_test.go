@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"lark/backend/ent/enttest"
 
@@ -34,13 +35,11 @@ globalThis.onWebSocket = async function(req, socket) {
 		t.Fatal(err)
 	}
 
+	handlerDone := make(chan error, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		err := manager.ServeWebSocket(request.Context(), writer, request, manifest.EntryPath, HTTPRequest{
+		handlerDone <- manager.ServeWebSocket(request.Context(), writer, request, manifest.EntryPath, HTTPRequest{
 			Method: request.Method, Path: "/echo", Headers: map[string]string{}, RemoteAddr: request.RemoteAddr,
 		})
-		if err != nil {
-			t.Errorf("ServeWebSocket: %v", err)
-		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -62,5 +61,16 @@ globalThis.onWebSocket = async function(req, socket) {
 	}
 	if messageType != websocket.TextMessage || string(payload) != "songloft-compatible" {
 		t.Fatalf("echo type=%d payload=%q", messageType, payload)
+	}
+	if err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-handlerDone:
+		if err != nil {
+			t.Fatalf("ServeWebSocket: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ServeWebSocket did not finish after the close frame")
 	}
 }
