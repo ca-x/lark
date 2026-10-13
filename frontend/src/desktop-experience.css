@@ -8,7 +8,7 @@
   .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) {
     --desktop-sidebar-width:208px;
     --desktop-gutter:28px;
-    --desktop-song-columns:36px 36px minmax(140px,1.8fr) minmax(110px,1.15fr) minmax(130px,.8fr) 64px 96px;
+    --desktop-song-columns:36px minmax(140px,1.8fr) minmax(110px,1.15fr) minmax(130px,.8fr) 64px 108px;
     --player-h:100px;
     grid-template-columns:var(--desktop-sidebar-width) minmax(0,1fr);
     grid-template-rows:minmax(0,1fr) var(--player-h);
@@ -94,8 +94,7 @@
   .app-shell .song-row .song-quality { font-size:11px; line-height:1.5; }
   .app-shell .song-row .song-duration { font-size:12px; font-variant-numeric:tabular-nums; }
   .app-shell .song-row > .row-check { width:36px; justify-self:center; }
-  .app-shell .song-row > .song-row-cover-play { display:grid; place-items:center; width:36px; min-width:36px; min-height:36px; height:36px; padding:0; justify-self:center; }
-  .app-shell .song-row-cover-play > svg { width:17px; height:17px; transform:translateX(1px); }
+  .app-shell .song-row-actions .song-row-play > svg { width:17px; height:17px; transform:translateX(1px); }
   .app-shell .song-row-actions { justify-content:center; gap:2px; }
   .app-shell .song-row-actions button { width:32px; min-width:32px; height:36px; min-height:36px; flex:0 0 32px; padding:0; }
   .app-shell .song-row-actions-primary { gap:2px; }
@@ -240,13 +239,8 @@
   .app-shell .desktop-home-view .cassette-controls { gap:4px; }
 }
 
-@media (min-width:721px) and (max-width:900px) and (min-height:501px) {
-  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-song-columns:28px 32px minmax(110px,1.5fr) minmax(90px,1fr) 50px 76px; }
-  .app-shell .song-row .song-quality, .app-shell .song-table-header > span:nth-child(5) { display:none; }
-}
-
 @media (min-width:721px) and (min-height:501px) and (max-width:1400px), (min-width:961px) and (max-width:1400px) {
-  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-sidebar-width:188px; --desktop-gutter:22px; --desktop-song-columns:30px 34px minmax(120px,1.6fr) minmax(96px,1fr) 116px 54px 96px; }
+  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-sidebar-width:188px; --desktop-gutter:22px; --desktop-song-columns:30px minmax(120px,1.6fr) minmax(96px,1fr) 116px 54px 108px; }
   .app-shell:not([data-mineradio-stage-active='true']) > .player { grid-template-columns:minmax(180px,1fr) minmax(230px,1.15fr) minmax(330px,auto); gap:16px; padding-inline:20px; }
   .app-shell > .player > .player-mood { display:none; }
   .app-shell > .player > .now { grid-column:1; }
@@ -262,7 +256,7 @@
 }
 
 @media (min-width:721px) and (min-height:501px) and (max-width:1100px), (min-width:961px) and (max-width:1100px) {
-  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-sidebar-width:72px; --desktop-gutter:20px; --desktop-song-columns:28px 32px minmax(110px,1.5fr) minmax(90px,1fr) 100px 50px 76px; }
+  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-sidebar-width:72px; --desktop-gutter:20px; --desktop-song-columns:28px minmax(110px,1.5fr) minmax(90px,1fr) 100px 50px 108px; }
   .app-shell:not([data-mineradio-stage-active='true']) > .sidebar { padding:18px 10px; }
   .app-shell .desktop-sidebar :is(.brand > span,nav button > span,.nav-section-label) { display:none; }
   .app-shell .desktop-sidebar .brand { padding:0; justify-content:center; }
@@ -277,6 +271,11 @@
   .app-shell .summary-panel { border-right:0; padding-right:0; }
   .app-shell .library-summary-stats { grid-template-columns:repeat(4,minmax(0,1fr)); }
   .app-shell:not(.lyrics-mode):not([data-mineradio-stage-active='true']) .topbar { grid-template-columns:minmax(0,1fr) minmax(240px,380px) auto; gap:12px; }
+}
+
+@media (min-width:721px) and (max-width:900px) and (min-height:501px) {
+  .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-song-columns:28px minmax(110px,1.5fr) minmax(90px,1fr) 50px 108px; }
+  .app-shell .song-row .song-quality, .app-shell .song-table-header > span:nth-child(4) { display:none; }
 }
 
 @media (hover:hover) and (pointer:fine) {

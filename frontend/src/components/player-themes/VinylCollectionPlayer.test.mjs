@@ -83,6 +83,39 @@ test("playing an album outside loaded pages keeps its sleeve and tracks after pa
   assert.ok(h.requests.includes(99));
 });
 
+test("a recently played album arriving after mount replaces the initial shelf selection", async () => {
+  const h = host(null);
+  assert.equal(selection(await h.settle()), "Album 1");
+  assert.equal(selection(await h.settle({ displaySong: song(20, 2) })), "Album 2");
+  assert.ok(h.requests.includes(2));
+});
+
+test("a recently played album outside loaded pages appears after reopening", async () => {
+  const h = host(null);
+  await h.settle();
+  const tree = await h.settle({ displaySong: song(990, 99) });
+  assert.equal(selection(tree), "Album 99");
+  assert.ok(shelfAlbums(tree).includes("Album 99 · Artist 99"));
+  assert.ok(h.requests.includes(99));
+});
+
+test("manual browsing remains selected when the suggested album changes without playback", async () => {
+  const h = host(null);
+  let tree = await h.settle({ displaySong: song(10, 1) });
+  find(tree, (node) => node.props?.['aria-label'] === 'Album 2 · Artist 2').props.onClick();
+  tree = await h.settle({ displaySong: song(990, 99) });
+  assert.equal(selection(tree), "Album 2");
+});
+
+test("manual selection outside loaded pages survives a newer recent album", async () => {
+  const h = host(null);
+  let tree = await h.settle({ displaySong: song(990, 99) });
+  find(tree, (node) => node.props?.['aria-label'] === 'Album 99 · Artist 99').props.onClick();
+  tree = await h.settle({ displaySong: song(1000, 100) });
+  assert.equal(selection(tree), "Album 99");
+  assert.ok(shelfAlbums(tree).includes("Album 99 · Artist 99"));
+});
+
 test("external track changes synchronize album, active row and cover", async () => {
   const h = host(song(10, 1)); await h.settle();
   const tree = await h.settle({ current: song(20, 2) });

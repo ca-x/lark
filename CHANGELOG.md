@@ -5,6 +5,22 @@
 
 ---
 
+## 0.15.1：最近播放唱片与歌曲列表操作
+
+发布日期 / Released: 2026-10-13
+
+- 重新打开网页后，唱片室会显示最近播放的专辑，包括已播完的曲目和书架尚未加载的专辑；手动挑选唱片后，后台更新不会打断浏览。
+- 将歌曲列表的播放按钮移到最右侧操作列，曲库、专辑、歌单、文件夹和网络搜索采用一致的位置；手机端保留封面，并修正桌面 Smartisan 搭配深色手机主题时的列表文字对比度。
+
+## v0.15.1: Recent records and song list controls
+
+Released: 2026-10-13
+
+- Reopening Vinyl room now shows the most recently played album, including completed tracks and albums outside the loaded shelf, without interrupting manual browsing.
+- Move play buttons to the final actions column in library, album, playlist, folder and network search song lists, while keeping mobile cover art visible and fixing list contrast when desktop Smartisan is paired with a dark mobile theme.
+
+---
+
 ## 0.15.0：私人唱片收藏与播放细节
 
 发布日期 / Released: 2026-10-02

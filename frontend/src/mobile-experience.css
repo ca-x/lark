@@ -133,22 +133,24 @@
   .mobile-experience .song-title-play { display:grid; align-content:center; min-height:48px; width:100%; gap:5px; }
   .mobile-experience .song-title-play strong { font-size:15px; font-weight:600; }
   .mobile-experience .song-title-play .song-mobile-meta { margin:0; font-size:12px; color:var(--mobile-ui-muted); }
-  .mobile-experience .song-row { grid-template-columns:48px minmax(0,1fr) 88px !important; padding:6px 0; min-height:64px; border-radius:0; border:0; background:transparent !important; gap:12px; box-shadow:none; }
-  .mobile-experience .song-row:has(.row-check) { grid-template-columns:32px 40px minmax(0,1fr) 44px !important; gap:8px; }
+  .mobile-experience .song-row { grid-template-columns:48px minmax(0,1fr) 92px !important; padding:6px 0; min-height:64px; border-radius:0; border:0; background:transparent !important; gap:12px; box-shadow:none; }
+  .mobile-experience .song-row:has(.row-check) { grid-template-columns:32px 40px minmax(0,1fr) 92px !important; gap:8px; }
   .mobile-experience .song-row > span:first-child { display:none; }
   .mobile-experience .song-row-copy { min-width:0; overflow:hidden; }
   .mobile-experience .song-row-copy > :is(.artist-link,small:not(.song-mobile-meta)) { display:none; }
   .mobile-experience .song-row .song-title-play { width:100%; height:auto; min-height:48px; display:grid; align-content:center; justify-items:start; padding:0; gap:5px; text-align:left; background:transparent !important; }
   .mobile-experience .song-row .song-title-play :is(strong,small) { width:100%; min-width:0; text-align:left; }
   .mobile-experience .song-row .song-mobile-meta { display:block !important; line-height:1.45; }
-  .mobile-experience .song-row > .song-row-cover-play { position:relative; width:48px; height:48px; padding:0; overflow:hidden; border:0; border-radius:7px; background:var(--mobile-ui-surface-2); color:var(--mobile-ui-muted); }
-  .mobile-experience .song-row:has(.row-check) > .song-row-cover-play { width:40px; height:44px; }
-  .mobile-experience .song-row-mobile-cover { display:block; position:absolute; inset:0; }
-  .mobile-experience .song-row-mobile-cover img { width:100%; height:100%; object-fit:cover; }
-  .mobile-experience .song-row-cover-play:has(img[data-loaded]) > svg { visibility:hidden; }
+  .mobile-experience .song-row-mobile-cover { display:grid; place-items:center; position:relative; width:48px; height:48px; overflow:hidden; border-radius:7px; background:var(--mobile-ui-surface-2); color:var(--mobile-ui-muted); }
+  .mobile-experience .song-row:has(.row-check) > .song-row-mobile-cover { width:40px; height:44px; }
+  .mobile-experience .song-row-mobile-cover > svg { width:22px; height:22px; }
+  .mobile-experience .song-row-mobile-cover img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   .mobile-experience .song-row.active .song-title-play strong { color:var(--mobile-ui-accent); }
-  .mobile-experience .song-row:has(.row-check) .song-row-actions > button { display:none; }
+  .mobile-experience .song-row-actions > .song-row-favorite { display:none; }
+  .mobile-experience .song-row:has(.row-check) .song-row-actions > button:not(.song-row-play) { display:none; }
   .mobile-experience .song-table { gap:0; }
+  :root[data-theme='smartisan-classic'] .mobile-experience .song-table { background:transparent; }
+  :root[data-theme='smartisan-classic'] .mobile-experience .song-row .song-mobile-meta { color:var(--mobile-ui-muted); }
   .mobile-experience .song-row-more-scrim { display:block; position:fixed; inset:0; z-index:1399; width:100%; height:100%; padding:0; border:0; border-radius:0; background:#0007; }
   .mobile-experience .song-row-more-menu { z-index:1400; position:fixed; inset:auto 0 0 !important; width:100%; max-height:80dvh; overflow-y:auto; overscroll-behavior:contain; padding:12px 20px calc(16px + var(--safe-bottom)); border:0; border-radius:24px 24px 0 0; background:var(--mobile-ui-surface); color:var(--mobile-ui-text); box-shadow:0 -8px 32px #0002; }
   .mobile-experience .song-row-more-heading { display:grid; gap:6px; padding:12px 0 16px; border-bottom:1px solid var(--mobile-ui-border); margin-bottom:8px; }

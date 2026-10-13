@@ -50,24 +50,35 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
   const [catalogRetry, setCatalogRetry] = useState(0);
   const catalogAlbums = catalog?.items ?? (filtered ? [] : cachedAlbums);
   const shelfBusy = catalogBusy || (!catalog && !catalogFailed);
-  // Playback can come from any queue, including albums outside the loaded shelf pages.
-  const currentAlbum = useMemo<Album | undefined>(() => {
-    if (!current?.album_id) return undefined;
-    return catalogAlbums.find((album) => album.id === current.album_id) ?? {
-      id: current.album_id, title: current.album, artist: current.artist,
-      artist_id: current.artist_id, album_artist: current.artist, year: current.year,
+  // The active or most recently played album may be outside the loaded shelf pages.
+  const highlightedSong = current ?? displaySong;
+  const highlightedAlbum = useMemo<Album | undefined>(() => {
+    if (!highlightedSong?.album_id) return undefined;
+    return catalogAlbums.find((album) => album.id === highlightedSong.album_id) ?? {
+      id: highlightedSong.album_id, title: highlightedSong.album, artist: highlightedSong.artist,
+      artist_id: highlightedSong.artist_id, album_artist: highlightedSong.artist, year: highlightedSong.year,
       favorite: false, song_count: 0,
     };
-  }, [catalogAlbums, current]);
-  const albums = useMemo(() => !filtered && currentAlbum && !catalogAlbums.some((album) => album.id === currentAlbum.id)
-    ? [currentAlbum, ...catalogAlbums] : catalogAlbums, [catalogAlbums, currentAlbum, filtered]);
-  const [selection, setSelection] = useState({ trackId: current?.id, albumId: current?.album_id ?? displaySong?.album_id });
+  }, [catalogAlbums, highlightedSong]);
+  const [selection, setSelection] = useState<{ trackId?: number; albumId?: number; album?: Album }>(
+    { trackId: current?.id, albumId: current?.album_id },
+  );
+  const manualAlbum = selection.trackId === current?.id ? selection.album : undefined;
+  const albums = useMemo(() => {
+    if (filtered) return catalogAlbums;
+    const additions: Album[] = [];
+    for (const album of [manualAlbum, highlightedAlbum]) {
+      if (album && !catalogAlbums.some((item) => item.id === album.id) && !additions.some((item) => item.id === album.id)) additions.push(album);
+    }
+    return [...additions, ...catalogAlbums];
+  }, [catalogAlbums, highlightedAlbum, manualAlbum, filtered]);
   // Manual browsing lasts until the next track change, not just the next progress update.
-  const selectedId = selection.trackId === current?.id ? selection.albumId : current?.album_id;
+  const suggestedId = !filtered && !current ? displaySong?.album_id : undefined;
+  const selectedId = selection.trackId === current?.id ? selection.albumId ?? suggestedId : current?.album_id ?? suggestedId;
   if (selection.trackId !== current?.id) {
     setSelection({ trackId: current?.id, albumId: current?.album_id });
   }
-  const selectAlbum = (albumId: number) => setSelection({ trackId: current?.id, albumId });
+  const selectAlbum = (albumId: number) => setSelection({ trackId: current?.id, albumId, album: albums.find((item) => item.id === albumId) });
   const selected = albums.find((album) => album.id === selectedId) ?? albums[0];
   const selectedIndex = selected ? albums.indexOf(selected) : -1;
   const [shelfGeometry, setShelfGeometry] = useState({ size: 150, width: 1000 });
@@ -313,7 +324,7 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
               aria-label={`${active ? t("pause") : t("play")} · ${t("vinylScratchHint")}`} disabled={!canToggle} onLostPointerCapture={scratch.scratchProps.onPointerCancel} onClick={toggleDeck}>
               <span className="vc-rotor" ref={rotorRef}>
                 <img src={recordImage} alt="" draggable={false} />
-                <span className="vc-disc-label"><Cover src={albumCoverUrl(currentAlbum) ?? coverUrl(current)} /><span className="vc-label-hole" /></span>
+                <span className="vc-disc-label"><Cover src={current ? albumCoverUrl(highlightedAlbum) ?? coverUrl(current) : undefined} /><span className="vc-label-hole" /></span>
               </span>
             </button>
             <img className="vc-deck-layer vc-fixtures" src={fixturesImage} alt="" draggable={false} />

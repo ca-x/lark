@@ -7000,7 +7000,7 @@ function HomeView({
           <VinylCollectionPlayer
             albums={albums}
             current={current}
-            displaySong={displaySong}
+            displaySong={recentPlayedSongs[0] ?? displaySong}
             playing={heroPlaying}
             progress={heroActive ? progress : 0}
             duration={heroActive ? duration : 0}
@@ -8346,9 +8346,9 @@ function HistoryView({
                         <time dateTime={entry.updated_at || entry.played_at}>
                           {formatHistoryTime(entry.updated_at || entry.played_at)}
                         </time>
-                        <button className="history-entry-cover" onClick={() => onResume(song)} aria-label={t("resumeFromHistory")}>
+                        <span className="history-entry-cover" aria-hidden="true">
                           <MiniCover song={song} playing={playing && active} />
-                        </button>
+                        </span>
                         <div className="history-entry-copy">
                           <button className="history-title-button" onClick={() => onResume(song)}>
                             {song.title}
@@ -9123,9 +9123,6 @@ function NetworkLibrarySources({
           <div className="network-track-list" aria-busy={loading}>
             {results.map((track) => (
               <article key={`${track.source_id}-${track.id}`} className="network-track-row">
-                <button className="station-play" onClick={() => onPlayTrack(track)}>
-                  <Play weight="fill" />
-                </button>
                 <div className="network-track-cover" style={track.cover_url ? ({ "--cover-url": `url(${track.cover_url})` } as React.CSSProperties) : undefined}>
                   {!track.cover_url ? <Record weight="fill" /> : null}
                 </div>
@@ -9133,6 +9130,9 @@ function NetworkLibrarySources({
                   <strong>{track.title}</strong>
                   <small>{[track.artist, track.album, track.year ? String(track.year) : "", formatDuration(track.duration_seconds)].filter(Boolean).join(" · ")}</small>
                 </div>
+                <button className="station-play" onClick={() => onPlayTrack(track)} aria-label={`${t("play")}: ${track.title}`}>
+                  <Play weight="fill" />
+                </button>
               </article>
             ))}
             {!results.length && !loading ? <div className="empty">{t("networkSearchEmpty")}</div> : null}
@@ -12027,10 +12027,7 @@ const SongRow = memo(function SongRow({
       ) : (
         <span>{index + 1}</span>
       )}
-      <button className="song-row-cover-play" onClick={() => onPlay(song)} aria-label={`${t("play")}: ${song.title}`}>
-        <span className="song-row-mobile-cover"><LazyCoverImage src={coverUrl(song)} /></span>
-        <Play weight="fill" />
-      </button>
+      <span className="song-row-mobile-cover" aria-hidden="true"><MusicNotes /><LazyCoverImage src={coverUrl(song)} /></span>
       <div className="song-row-copy">
         <button type="button" className="song-title-play" onClick={() => onPlay(song)} aria-label={`${t("play")}: ${song.title}`} title={song.title}>
           <strong>{song.title}</strong>
@@ -12058,8 +12055,12 @@ const SongRow = memo(function SongRow({
       </div>
       <div className={QUALITY_CLASS} title={formatQuality(song)}>{formatQuality(song)}</div>
       <div className="song-duration">{formatDuration(song.duration_seconds)}</div>
-      <div className="song-row-actions" role="group" aria-label={t("selected")}>
+      <div className="song-row-actions" role="group" aria-label={t("songActions")}>
+        <button className="song-row-play" onClick={() => onPlay(song)} aria-label={`${t("play")}: ${song.title}`}>
+          <Play weight="fill" />
+        </button>
         <button
+          className="song-row-favorite"
           onClick={() => onFavorite(song)}
           title={t(song.favorite ? "removeFavorite" : "addFavorite")}
           aria-label={t(song.favorite ? "removeFavorite" : "addFavorite")}
@@ -12279,7 +12280,6 @@ function SongTable({
   const columnHeader = (
     <div className="song-table-header" aria-hidden="true">
       <span>#</span>
-      <span />
       <span>{t("songs")}</span>
       <span>{t("album")}</span>
       <span>{t("quality")}</span>
@@ -12300,6 +12300,10 @@ function SongTable({
       onClick={(event) => event.stopPropagation()}
     >
       <div className="song-row-more-heading"><strong>{moreMenuSong.title}</strong><small>{moreMenuSong.artist}</small></div>
+      <button role="menuitem" onClick={() => { onFavorite(moreMenuSong); setMoreMenuSongId(null); }}>
+        <Heart weight={moreMenuSong.favorite ? "fill" : "regular"} />
+        <span>{t(moreMenuSong.favorite ? "removeFavorite" : "addFavorite")}</span>
+      </button>
       {onOpenAlbum && moreMenuSong.album_id ? <button role="menuitem" onClick={() => { onOpenAlbum(moreMenuSong); setMoreMenuSongId(null); }}><Disc /><span>{t("mobileGoToAlbum")}</span></button> : null}
       {onOpenArtist && moreMenuSong.artist_id ? <button role="menuitem" onClick={() => { onOpenArtist(moreMenuSong); setMoreMenuSongId(null); }}><UserCircle /><span>{t("mobileGoToArtist")}</span></button> : null}
       {onInsertNext ? (
