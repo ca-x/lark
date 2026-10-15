@@ -68,6 +68,8 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.28.5'
+      - name: Install shared player dependencies
+        run: pnpm --dir frontend install --frozen-lockfile
       - name: Install UI dependencies
         run: pnpm --dir desktop/ui install --frozen-lockfile
       - name: Install Windows installer tool

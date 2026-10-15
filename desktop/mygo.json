@@ -1,7 +1,7 @@
 {
   "name": "Lark Music",
   "identifier": "dev.cax.lark.music",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "frontendDist": "ui/dist",
   "buildCommand": "pnpm --dir ui build",
   "bindings": "ui/src/mygo.ts",

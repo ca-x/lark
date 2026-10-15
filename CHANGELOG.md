@@ -5,6 +5,20 @@
 
 ---
 
+## Desktop 0.1.2：安装包构建修正
+
+发布日期 / Released: 2026-10-15
+
+- 桌面安装包工作流补齐复用网页播放器主题时所需的前端依赖，重新构建各平台安装包。
+
+## Desktop v0.1.2: Package build fix
+
+Released: 2026-10-15
+
+- Install shared web player dependencies in the desktop packaging workflow before building platform packages.
+
+---
+
 ## 0.16.1：桌面连接管理与反代说明
 
 发布日期 / Released: 2026-10-15
