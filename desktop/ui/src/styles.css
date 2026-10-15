@@ -189,3 +189,13 @@ button:focus-visible,input:focus-visible,select:focus-visible { outline:2px soli
 @media (max-width:900px) { .desktop-search { width:210px; } .library-main { padding:24px 22px 65px; } .song-list-head,.song-line { grid-template-columns:30px minmax(150px,1.7fr) minmax(100px,1fr) 54px 76px; gap:8px; } .song-actions { gap:0; } .song-actions button { width:32px; } .player-extras > svg,.player-extras > input { display:none; } }
 @media (max-width:780px) { .connect-page { grid-template-columns:1fr; } .connect-art { display:none; } .connect-form { width:min(440px,88%); } .connect-logo { margin-bottom:15px; } }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+
+.desktop-connection-setting {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.desktop-connection-setting small { overflow-wrap: anywhere; }
+.desktop-connection-setting button { justify-self: start; }

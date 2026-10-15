@@ -87,5 +87,10 @@
   "notConnected": "Connect to a server first",
   "linkServerMismatch": "This music link belongs to another server. Check its address before signing in.",
   "switchServer": "Switch server and sign in",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "grpcConnection": "gRPC connection",
+  "connectionOnline": "Connected",
+  "connectionOffline": "Disconnected",
+  "checkConnection": "Reconnect / check connection",
+  "checkingConnection": "Checking connection…"
 }

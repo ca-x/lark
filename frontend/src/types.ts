@@ -543,6 +543,7 @@ export interface Settings {
   smart_playlists_enabled: boolean;
   sharing_enabled: boolean;
   subsonic_server_enabled: boolean;
+  desktop_grpc_enabled: boolean;
   transcode_policy: "auto" | "raw" | "transcode" | string;
   transcode_quality_kbps: number;
 }

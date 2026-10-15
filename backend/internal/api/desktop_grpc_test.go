@@ -2,6 +2,7 @@ package api
 
 import (
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -90,5 +91,39 @@ func TestDesktopGRPCLoginBrowseFavoriteAndRangeStream(t *testing.T) {
 	}
 	if string(body) != "2345" {
 		t.Fatalf("media body = %q", body)
+	}
+}
+
+func TestDesktopGRPCSwitch(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:desktop-grpc-switch?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	t.Cleanup(func() { _ = client.Close() })
+	lib := library.New(client, t.TempDir(), t.TempDir(), "", "", nil, nil)
+	s := New(client, lib, "*")
+	server := httptest.NewServer(s.desktopHandler())
+	t.Cleanup(server.Close)
+	conn, err := grpc.NewClient(strings.TrimPrefix(server.URL, "http://"), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	rpc := desktopv1.NewDesktopServiceClient(conn)
+	if _, err := rpc.GetServerInfo(t.Context(), &desktopv1.GetServerInfoRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	s.desktopGRPCEnabled.Store(false)
+	if _, err := rpc.GetServerInfo(t.Context(), &desktopv1.GetServerInfoRequest{}); status.Code(err) != codes.Unavailable {
+		t.Fatalf("disabled gRPC error = %v", err)
+	}
+	response, err := http.Get(server.URL + "/api/health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("web health = %d", response.StatusCode)
+	}
+	s.desktopGRPCEnabled.Store(true)
+	if _, err := rpc.GetServerInfo(t.Context(), &desktopv1.GetServerInfoRequest{}); err != nil {
+		t.Fatal(err)
 	}
 }

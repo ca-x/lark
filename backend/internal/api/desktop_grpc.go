@@ -36,6 +36,10 @@ func (s *Server) desktopHandler() http.Handler {
 	desktopv1.RegisterDesktopServiceServer(rpcServer, &desktopRPC{lib: s.lib, handler: s.echo})
 	return h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
+			if !s.desktopGRPCEnabled.Load() {
+				http.Error(w, "desktop gRPC is disabled", http.StatusServiceUnavailable)
+				return
+			}
 			rpcServer.ServeHTTP(w, r)
 			return
 		}

@@ -384,6 +384,7 @@ type Settings struct {
 	SmartPlaylistsEnabled        bool   `json:"smart_playlists_enabled"`
 	SharingEnabled               bool   `json:"sharing_enabled"`
 	SubsonicServerEnabled        bool   `json:"subsonic_server_enabled"`
+	DesktopGRPCEnabled           bool   `json:"desktop_grpc_enabled"`
 	TranscodePolicy              string `json:"transcode_policy"`
 	TranscodeQualityKbps         int    `json:"transcode_quality_kbps"`
 }

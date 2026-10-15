@@ -347,6 +347,26 @@ export interface Messages {
    * `Cancel`
    */
   cancel(): string;
+  /**
+   * `gRPC connection`
+   */
+  grpcConnection(): string;
+  /**
+   * `Connected`
+   */
+  connectionOnline(): string;
+  /**
+   * `Disconnected`
+   */
+  connectionOffline(): string;
+  /**
+   * `Reconnect / check connection`
+   */
+  checkConnection(): string;
+  /**
+   * `Checking connection…`
+   */
+  checkingConnection(): string;
 }
 
 const catalog = createCatalog<Messages>({
@@ -443,6 +463,11 @@ const catalog = createCatalog<Messages>({
     "linkServerMismatch": [],
     "switchServer": [],
     "cancel": [],
+    "grpcConnection": [],
+    "connectionOnline": [],
+    "connectionOffline": [],
+    "checkConnection": [],
+    "checkingConnection": [],
   },
   messages: {
     "en": {
@@ -532,6 +557,11 @@ const catalog = createCatalog<Messages>({
       "linkServerMismatch": "This music link belongs to another server. Check its address before signing in.",
       "switchServer": "Switch server and sign in",
       "cancel": "Cancel",
+      "grpcConnection": "gRPC connection",
+      "connectionOnline": "Connected",
+      "connectionOffline": "Disconnected",
+      "checkConnection": "Reconnect / check connection",
+      "checkingConnection": "Checking connection…",
     },
     "zh-Hans": {
       "appName": "百灵音乐",
@@ -620,6 +650,11 @@ const catalog = createCatalog<Messages>({
       "linkServerMismatch": "这个音乐链接来自另一台服务器。登录前请核对服务器地址。",
       "switchServer": "切换服务器并登录",
       "cancel": "取消",
+      "grpcConnection": "gRPC 连接",
+      "connectionOnline": "已连接",
+      "connectionOffline": "未连接",
+      "checkConnection": "重新连接 / 检查状态",
+      "checkingConnection": "正在检查连接…",
     },
   },
 });

@@ -252,6 +252,8 @@ export function App() {
   const [showLyrics, setShowLyrics] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [checkingConnection, setCheckingConnection] = useState(false);
+  const [settingsConnection, setSettingsConnection] = useState<ConnectionStatus | null>(null);
   const [closeBehavior, setCloseBehavior] = useState<"tray" | "quit">("tray");
   const [pendingLink, setPendingLink] = useState<DeepLink | null>(null);
   const [serverSwitch, setServerSwitch] = useState<string | null>(null);
@@ -806,7 +808,11 @@ export function App() {
           <button
             title={t("settings")}
             aria-label={t("settings")}
-            onClick={() => setShowSettings(true)}
+            onClick={() => {
+              setShowSettings(true);
+              setCheckingConnection(true);
+              void Desktop.status().then(setSettingsConnection).catch((cause) => setSettingsConnection({ ...connection, connected: false, error: errorText(cause) })).finally(() => setCheckingConnection(false));
+            }}
           >
             <GearSix />
           </button>
@@ -1283,6 +1289,20 @@ export function App() {
           <div>
             <strong>{t("desktopSettings")}</strong>
             <button onClick={() => setShowSettings(false)}>{t("close")}</button>
+          </div>
+          <div className="desktop-connection-setting">
+            <strong>{t("grpcConnection")}</strong>
+            <span role="status">{(settingsConnection ?? connection)?.connected ? t("connectionOnline") : t("connectionOffline")}</span>
+            <small>{(settingsConnection ?? connection)?.server_url || ""}</small>
+            {(settingsConnection ?? connection)?.error ? <small role="alert">{(settingsConnection ?? connection)?.error}</small> : null}
+            <button type="button" disabled={checkingConnection} onClick={() => {
+              setCheckingConnection(true);
+              void Desktop.status().then((value) => {
+                setSettingsConnection(value);
+                if (value.connected) setConnection(value);
+                if (!value.has_session) setConnection(value);
+              }).catch((cause) => setSettingsConnection({ ...connection, connected: false, error: errorText(cause) })).finally(() => setCheckingConnection(false));
+            }}>{checkingConnection ? t("checkingConnection") : t("checkConnection")}</button>
           </div>
           <label>
             {t("closeBehavior")}

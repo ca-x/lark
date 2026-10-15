@@ -49,6 +49,10 @@ music.example.com {
 }
 ```
 
+Cloudflare Tunnel public hostnames currently do not support gRPC. For a
+Cloudflare connection, use private network routing with Cloudflare One/WARP;
+see [the connection guide](../docs/desktop-cloudflare-tunnel.md).
+
 The desktop saves `config.json` and `auth.json` under MyGo's per-user
 `PathUserData` directory. On Unix they have mode `0600`, and the directory
 has mode `0700`. The password is never written there. Signing out revokes

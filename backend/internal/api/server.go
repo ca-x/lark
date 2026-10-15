@@ -53,6 +53,7 @@ type Server struct {
 	noDLNAOption           bool
 	offlineTranscodeErrors sync.Map
 	diagnosticsEnabled     atomic.Bool
+	desktopGRPCEnabled     atomic.Bool
 }
 
 type transcodeCacheLock struct {
@@ -232,6 +233,7 @@ type settingsRequest struct {
 	SmartPlaylistsEnabled        bool   `json:"smart_playlists_enabled"`
 	SharingEnabled               bool   `json:"sharing_enabled"`
 	SubsonicServerEnabled        bool   `json:"subsonic_server_enabled"`
+	DesktopGRPCEnabled           *bool  `json:"desktop_grpc_enabled"`
 	TranscodePolicy              string `json:"transcode_policy"`
 	TranscodeQualityKbps         int    `json:"transcode_quality_kbps"`
 }
@@ -322,6 +324,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	}
 	if settings, err := lib.GetSettings(context.Background()); err == nil {
 		s.diagnosticsEnabled.Store(settings.DiagnosticsEnabled)
+		s.desktopGRPCEnabled.Store(settings.DesktopGRPCEnabled)
 	}
 	s.mcp = s.newMCPHandler()
 
@@ -2362,6 +2365,13 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
+	desktopGRPCEnabled := true
+	if current, err := s.lib.GetSettings(c.Request().Context()); err == nil {
+		desktopGRPCEnabled = current.DesktopGRPCEnabled
+	}
+	if req.DesktopGRPCEnabled != nil {
+		desktopGRPCEnabled = *req.DesktopGRPCEnabled
+	}
 	nextSettings := models.Settings{
 		Language:                     req.Language,
 		Theme:                        req.Theme,
@@ -2390,6 +2400,7 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 		SmartPlaylistsEnabled:        req.SmartPlaylistsEnabled,
 		SharingEnabled:               req.SharingEnabled,
 		SubsonicServerEnabled:        req.SubsonicServerEnabled,
+		DesktopGRPCEnabled:           desktopGRPCEnabled,
 		TranscodePolicy:              req.TranscodePolicy,
 		TranscodeQualityKbps:         req.TranscodeQualityKbps,
 	}
@@ -2400,6 +2411,7 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 	}
 	settings = s.applyDLNAOptionPolicy(settings)
 	s.diagnosticsEnabled.Store(settings.DiagnosticsEnabled)
+	s.desktopGRPCEnabled.Store(settings.DesktopGRPCEnabled)
 	if s.dlna != nil {
 		s.dlna.UpdateOptions(dlnapkg.OptionsFromSettings(settings))
 	}

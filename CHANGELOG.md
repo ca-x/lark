@@ -5,6 +5,24 @@
 
 ---
 
+## 0.16.1：桌面连接管理与反代说明
+
+发布日期 / Released: 2026-10-15
+
+- 服务与连接设置新增桌面 gRPC 启停开关，默认开启，关闭后拒绝新的桌面 gRPC 请求；网页接口继续可用。
+- 桌面设置新增连接状态和手动重连入口，Cloudflared 帮助说明公开主机名不支持 gRPC 及私有网络 + WARP 的连接方式。
+- 修复 Docker 构建时缺少本地 Protobuf 模块的问题。
+
+## v0.16.1: Desktop connection controls and proxy guidance
+
+Released: 2026-10-15
+
+- Add an enabled-by-default desktop gRPC switch and a connection status and reconnect action in desktop settings.
+- Explain Cloudflare Tunnel's public hostname gRPC limitation and its private network + WARP route in the settings help.
+- Fix the Docker build's local Protobuf module copy.
+
+---
+
 ## 0.16.0：桌面客户端协议与连接入口
 
 发布日期 / Released: 2026-10-15

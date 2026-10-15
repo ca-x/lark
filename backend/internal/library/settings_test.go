@@ -924,3 +924,22 @@ func TestMobileMaterialThemesPersist(t *testing.T) {
 		})
 	}
 }
+
+func TestDesktopGRPCSettingDefaultsAndPersists(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:desktop-grpc-settings?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	defer client.Close()
+	service := &Service{client: client}
+	defaults, err := service.GetSettings(t.Context())
+	if err != nil || !defaults.DesktopGRPCEnabled {
+		t.Fatalf("default = %+v, %v", defaults, err)
+	}
+	defaults.DesktopGRPCEnabled = false
+	saved, err := service.SaveSettings(t.Context(), defaults)
+	if err != nil || saved.DesktopGRPCEnabled {
+		t.Fatalf("saved = %+v, %v", saved, err)
+	}
+	loaded, err := service.GetSettings(t.Context())
+	if err != nil || loaded.DesktopGRPCEnabled {
+		t.Fatalf("loaded = %+v, %v", loaded, err)
+	}
+}

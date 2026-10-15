@@ -893,3 +893,53 @@ func Cancel() string { return In(i18n.Locale()).Cancel() }
 func (msgs Messages) Cancel() string {
 	return Catalog.Format(msgs.locale, "cancel", nil)
 }
+
+// GrpcConnection says "gRPC connection"
+// in the language the app shows.
+func GrpcConnection() string { return In(i18n.Locale()).GrpcConnection() }
+
+// GrpcConnection says "gRPC connection"
+// in the language of msgs.
+func (msgs Messages) GrpcConnection() string {
+	return Catalog.Format(msgs.locale, "grpcConnection", nil)
+}
+
+// ConnectionOnline says "Connected"
+// in the language the app shows.
+func ConnectionOnline() string { return In(i18n.Locale()).ConnectionOnline() }
+
+// ConnectionOnline says "Connected"
+// in the language of msgs.
+func (msgs Messages) ConnectionOnline() string {
+	return Catalog.Format(msgs.locale, "connectionOnline", nil)
+}
+
+// ConnectionOffline says "Disconnected"
+// in the language the app shows.
+func ConnectionOffline() string { return In(i18n.Locale()).ConnectionOffline() }
+
+// ConnectionOffline says "Disconnected"
+// in the language of msgs.
+func (msgs Messages) ConnectionOffline() string {
+	return Catalog.Format(msgs.locale, "connectionOffline", nil)
+}
+
+// CheckConnection says "Reconnect / check connection"
+// in the language the app shows.
+func CheckConnection() string { return In(i18n.Locale()).CheckConnection() }
+
+// CheckConnection says "Reconnect / check connection"
+// in the language of msgs.
+func (msgs Messages) CheckConnection() string {
+	return Catalog.Format(msgs.locale, "checkConnection", nil)
+}
+
+// CheckingConnection says "Checking connection…"
+// in the language the app shows.
+func CheckingConnection() string { return In(i18n.Locale()).CheckingConnection() }
+
+// CheckingConnection says "Checking connection…"
+// in the language of msgs.
+func (msgs Messages) CheckingConnection() string {
+	return Catalog.Format(msgs.locale, "checkingConnection", nil)
+}

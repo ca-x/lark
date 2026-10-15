@@ -197,6 +197,7 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 		SmartPlaylistsEnabled:        false,
 		SharingEnabled:               false,
 		SubsonicServerEnabled:        false,
+		DesktopGRPCEnabled:           true,
 		TranscodePolicy:              "auto",
 		TranscodeQualityKbps:         192,
 	}
@@ -258,6 +259,8 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.SharingEnabled = item.Value == "true"
 		case "subsonic_server_enabled":
 			settings.SubsonicServerEnabled = item.Value == "true"
+		case "desktop_grpc_enabled":
+			settings.DesktopGRPCEnabled = item.Value != "false"
 		case "transcode_policy":
 			settings.TranscodePolicy = item.Value
 		case "transcode_quality_kbps":
@@ -330,6 +333,7 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 		"smart_playlists_enabled":         strconv.FormatBool(settings.SmartPlaylistsEnabled),
 		"sharing_enabled":                 strconv.FormatBool(settings.SharingEnabled),
 		"subsonic_server_enabled":         strconv.FormatBool(settings.SubsonicServerEnabled),
+		"desktop_grpc_enabled":            strconv.FormatBool(settings.DesktopGRPCEnabled),
 		"transcode_policy":                settings.TranscodePolicy,
 		"transcode_quality_kbps":          strconv.Itoa(settings.TranscodeQualityKbps),
 	}

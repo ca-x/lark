@@ -16,8 +16,10 @@ ARG VERSION=dev
 ARG GIT_COMMIT=unknown
 ARG BUILD_TIME=unknown
 COPY backend/go.mod backend/go.sum ./
+COPY protocol/go.mod protocol/go.sum /build/protocol/
 RUN go mod download
 COPY backend/ ./
+COPY protocol/ /build/protocol/
 COPY --from=frontend /build/backend/web/dist ./web/dist
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -trimpath \
     -ldflags="-s -w \

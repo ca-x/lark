@@ -333,6 +333,7 @@ const defaultSettings: Settings = {
   smart_playlists_enabled: false,
   sharing_enabled: false,
   subsonic_server_enabled: false,
+  desktop_grpc_enabled: true,
   dlna_cast_enabled: false,
   dlna_library_enabled: false,
   dlna_server_name: "Lark",
@@ -10451,6 +10452,27 @@ function MCPHelpDialog({
   );
 }
 
+function DesktopGRPCHelpDialog({ t, onClose }: { t: ReturnType<typeof createT>; onClose: () => void }) {
+  const dialogRef = useDialogLifecycle<HTMLDivElement>(onClose);
+  return (
+    <div className="modal-layer mcp-help-layer" role="presentation">
+      <button className="modal-scrim" type="button" aria-label={t("close")} onClick={onClose} />
+      <div ref={dialogRef} className="modal-card mcp-help-dialog desktop-grpc-help" role="dialog" aria-modal="true" aria-labelledby="desktop-grpc-help-title">
+        <div className="modal-card-head">
+          <h2 id="desktop-grpc-help-title">{t("desktopGrpcHelp")}</h2>
+          <button className="icon-button" type="button" aria-label={t("close")} onClick={onClose}><X aria-hidden="true" /></button>
+        </div>
+        <div className="mcp-help-content">
+          <p>{t("desktopGrpcHelpIntro")}</p>
+          <p>{t("desktopGrpcHelpPrivate")}</p>
+          <p>{t("desktopGrpcHelpAlternative")}</p>
+          <a href="https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/use-cases/grpc/" target="_blank" rel="noopener noreferrer">{t("desktopGrpcHelpSource")}</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsPanel({
   settings,
   setSettings,
@@ -10559,6 +10581,7 @@ function SettingsPanel({
   const [mcpToken, setMcpToken] = useState<MCPTokenStatus | null>(null);
   const [mcpLoading, setMcpLoading] = useState(false);
   const [mcpHelpOpen, setMcpHelpOpen] = useState(false);
+  const [desktopGrpcHelpOpen, setDesktopGrpcHelpOpen] = useState(false);
   const [mcpCopied, setMcpCopied] = useState(false);
   const [subsonicCredential, setSubsonicCredential] = useState<SubsonicCredentialStatus | null>(null);
   const [subsonicUsername, setSubsonicUsername] = useState("");
@@ -11363,6 +11386,7 @@ function SettingsPanel({
               </button>
             </div>
           </div>
+          {desktopGrpcHelpOpen ? <DesktopGRPCHelpDialog t={t} onClose={() => setDesktopGrpcHelpOpen(false)} /> : null}
           {mcpHelpOpen ? (
             <MCPHelpDialog
               t={t}
@@ -11730,6 +11754,18 @@ function SettingsPanel({
                   onChange={(e) => setSettings({ ...settings, sharing_enabled: e.target.checked })}
                 />
               </label>
+              <div className="switch-row desktop-grpc-setting">
+                <span>
+                  <span className="settings-label-with-info">
+                    <span>{t("desktopGrpcServer")}</span>
+                    <button className="desktop-grpc-info" type="button" aria-label={t("desktopGrpcHelp")} title={t("desktopGrpcHelp")} onClick={() => setDesktopGrpcHelpOpen(true)}>
+                      <Info aria-hidden="true" />
+                    </button>
+                  </span>
+                  <small>{t("desktopGrpcServerHint")}</small>
+                </span>
+                <input type="checkbox" aria-label={t("desktopGrpcServer")} checked={settings.desktop_grpc_enabled} onChange={(e) => setSettings({ ...settings, desktop_grpc_enabled: e.target.checked })} />
+              </div>
               <label className="switch-row">
                 <span>
                   <span>{t("subsonicServer")}</span>

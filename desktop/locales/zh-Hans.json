@@ -87,5 +87,10 @@
   "notConnected": "请先连接服务器",
   "linkServerMismatch": "这个音乐链接来自另一台服务器。登录前请核对服务器地址。",
   "switchServer": "切换服务器并登录",
-  "cancel": "取消"
+  "cancel": "取消",
+  "grpcConnection": "gRPC 连接",
+  "connectionOnline": "已连接",
+  "connectionOffline": "未连接",
+  "checkConnection": "重新连接 / 检查状态",
+  "checkingConnection": "正在检查连接…"
 }
