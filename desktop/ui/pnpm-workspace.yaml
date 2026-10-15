@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - mygo-runtime@0.5.1

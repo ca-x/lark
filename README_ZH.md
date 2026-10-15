@@ -8,6 +8,8 @@
 
 后端使用 Go + Echo v5 + Ent ORM，默认 SQLite。前端使用 React + TypeScript + Vite。生产构建会嵌入 Go 服务中，因此可以作为一个服务直接运行。
 
+另有独立的 [百灵音乐桌面客户端](desktop/README.md)，通过 Protobuf/gRPC 连接服务端，支持托盘控制、安装包和 `lark://` 链接。
+
 更新日志见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可证

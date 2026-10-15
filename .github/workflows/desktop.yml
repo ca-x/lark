@@ -1,0 +1,96 @@
+name: Desktop Build
+
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-setup-action@v1
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: desktop/go.mod
+      - name: Check Protobuf contracts and generated Go
+        working-directory: protocol
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+          buf lint
+          buf generate
+          git diff --exit-code -- gen/go
+      - name: Test desktop client
+        run: go test ./...
+        working-directory: desktop
+      - name: Test server gRPC implementation
+        run: go test ./internal/api ./internal/library
+        working-directory: backend
+
+  draft:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: protocol
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+          fi
+
+  build:
+    needs: [protocol, draft]
+    if: always() && needs.protocol.result == 'success' && (needs.draft.result == 'success' || needs.draft.result == 'skipped')
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS Universal, os: macos-latest, platform: 'darwin/universal' }
+          - { name: Windows x64, os: ubuntu-latest, platform: 'windows/amd64' }
+          - { name: Linux x64 and ARM64, os: ubuntu-latest, platform: 'linux/amd64,linux/arm64' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: desktop/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.28.5'
+      - name: Install UI dependencies
+        run: pnpm --dir desktop/ui install --frozen-lockfile
+      - name: Install Windows installer tool
+        if: matrix.name == 'Windows x64'
+        run: sudo apt-get update && sudo apt-get install -y nsis
+      - name: Build desktop packages
+        working-directory: desktop
+        run: go tool mygo build -platform '${{ matrix.platform }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lark-music-${{ matrix.name }}
+          path: |
+            desktop/build/**/*.dmg
+            desktop/build/**/*.deb
+            desktop/build/**/*.tar.gz
+            desktop/build/**/*.exe
+          if-no-files-found: error
+      - name: Upload release packages
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          find desktop/build -type f \( -name '*.dmg' -o -name '*.deb' -o -name '*.tar.gz' -o -name '*.exe' \) -print0 |
+            while IFS= read -r -d '' package; do
+              gh release upload "$GITHUB_REF_NAME" "$package" --repo "$GITHUB_REPOSITORY" --clobber
+            done

@@ -483,7 +483,7 @@ func (s *Server) Start(addr string) error {
 			return err
 		}
 	}
-	return echo.StartConfig{Address: addr, HideBanner: true, GracefulTimeout: 10}.Start(ctx, s.echo)
+	return echo.StartConfig{Address: addr, HideBanner: true, GracefulTimeout: 10}.Start(ctx, s.desktopHandler())
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {

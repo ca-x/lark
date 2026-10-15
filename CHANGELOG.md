@@ -5,6 +5,26 @@
 
 ---
 
+## 0.16.0：桌面客户端协议与连接入口
+
+发布日期 / Released: 2026-10-15
+
+- 新增由 Buf 管理的 Protobuf/gRPC 桌面协议，覆盖登录、曲库、歌手、专辑、收藏、歌词、进度和支持拖动定位的音频流。
+- 独立的 MyGo 桌面客户端提供首次连接、用户数据目录中的配置与会话文件、托盘、关闭行为设置和 `lark://` 音乐链接；中文显示“百灵音乐”，英文显示“Lark Music”。网页分享弹窗新增桌面端打开入口。
+- 支持 MyGo 原生播放可按需读取的 MP3、WAV、Ogg；FLAC 和其他不兼容格式保留网页音频播放路径。接入已有黑胶、磁带主题及适度播放动画。
+- 桌面构建工作流生成 macOS、Windows、Linux 和 Debian 安装产物。
+
+## v0.16.0: Desktop protocol and client entry
+
+Released: 2026-10-15
+
+- Add a Buf-managed Protobuf/gRPC desktop protocol for login, library browsing, favorites, lyrics, progress, and seekable media streaming.
+- Add a separate MyGo desktop client with first-run connection, per-user config and session files, tray controls, close behavior, localized Lark Music / 百灵音乐 naming, and `lark://` music links. Web sharing can open songs and albums in the app.
+- Play seekable MP3, WAV and Ogg with MyGo native audio, keeping WebView playback for FLAC and other unsupported formats. Reuse the vinyl and cassette themes with restrained motion.
+- Add desktop builds for macOS, Windows, Linux, and Debian packages.
+
+---
+
 ## 0.15.3：列表对齐与字体缩放修正
 
 发布日期 / Released: 2026-10-13

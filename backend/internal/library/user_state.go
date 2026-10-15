@@ -41,6 +41,34 @@ func (s *Service) ToggleSongFavorite(ctx context.Context, userID, id int) (model
 	s.invalidateUserLibraryCache(ctx, userID)
 	return s.Song(ctx, userID, id)
 }
+
+func (s *Service) SetSongFavorite(ctx context.Context, userID, id int, favorite bool) (models.Song, error) {
+	if _, err := s.client.Song.Get(ctx, id); err != nil {
+		return models.Song{}, err
+	}
+	existing, err := s.client.UserSongFavorite.Query().
+		Where(usersongfavorite.HasUserWith(user.ID(userID)), usersongfavorite.HasSongWith(song.ID(id))).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return models.Song{}, err
+	}
+	changed := false
+	if favorite && ent.IsNotFound(err) {
+		if _, err := s.client.UserSongFavorite.Create().SetUserID(userID).SetSongID(id).Save(ctx); err != nil && !ent.IsConstraintError(err) {
+			return models.Song{}, err
+		}
+		changed = true
+	} else if !favorite && err == nil {
+		if err := s.client.UserSongFavorite.DeleteOneID(existing.ID).Exec(ctx); err != nil && !ent.IsNotFound(err) {
+			return models.Song{}, err
+		}
+		changed = true
+	}
+	if changed {
+		s.invalidateUserLibraryCache(ctx, userID)
+	}
+	return s.Song(ctx, userID, id)
+}
 func (s *Service) MarkPlayed(ctx context.Context, userID, id int) error {
 	item, err := s.client.Song.Get(ctx, id)
 	if err != nil {

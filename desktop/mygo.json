@@ -1,0 +1,16 @@
+{
+  "name": "Lark Music",
+  "identifier": "dev.cax.lark.music",
+  "version": "0.1.0",
+  "frontendDist": "ui/dist",
+  "buildCommand": "pnpm --dir ui build",
+  "bindings": "ui/src/mygo.ts",
+  "out": "build",
+  "urlSchemes": ["lark"],
+  "i18n": { "dir": "locales", "source": "en" },
+  "linux": {
+    "maintainer": "Lark Project <maintainers@lark.local>",
+    "comment": "Your private music collection on the desktop",
+    "categories": ["AudioVideo", "Audio", "Player"]
+  }
+}

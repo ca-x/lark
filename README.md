@@ -8,6 +8,8 @@ It is designed for large local libraries first: FLAC/WAV/Hi-Res albums, CUE shee
 
 The backend is Go + Echo v5 + Ent ORM, with SQLite by default. The frontend is React + TypeScript + Vite. The production web build is embedded into the Go server, so Lark can run as one service.
 
+A separate [Lark Music desktop client](desktop/README.md) connects through a versioned Protobuf/gRPC protocol and provides native packaging, tray controls, and `lark://` links.
+
 For release notes, see [CHANGELOG.md](CHANGELOG.md).
 
 ## License

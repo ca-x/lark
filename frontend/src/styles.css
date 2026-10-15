@@ -2197,6 +2197,9 @@ body, button, input, select { font-family: var(--app-font); }
 .share-target-card { display:grid; gap:5px; padding:14px; border:1px solid var(--line); border-radius:18px; background:var(--panel2); }
 .share-target-card span { width:max-content; padding:4px 9px; border-radius:999px; color:var(--bg); background:var(--accent); font-size:11px; font-weight:900; text-transform:uppercase; }
 .share-target-card strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:18px; }
+.share-desktop-link { width:max-content; max-width:100%; display:inline-flex; align-items:center; gap:8px; padding:7px 0; color:var(--accent); font-size:13px; font-weight:700; text-decoration:none; }
+.share-desktop-link:hover { text-decoration:underline; }
+.share-desktop-link svg { width:17px; height:17px; }
 .share-duration-field { min-width:0; max-width:100%; margin:0; padding:0; border:0; display:grid; gap:10px; overflow:hidden; }
 .share-duration-field legend { padding:0; color:var(--muted); font-weight:800; }
 .share-duration-options { min-width:0; max-width:100%; display:grid; grid-template-columns:repeat(auto-fit,minmax(92px,1fr)); gap:8px; }

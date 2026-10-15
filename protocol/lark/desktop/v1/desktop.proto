@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package lark.desktop.v1;
+
+option go_package = "github.com/ca-x/lark/protocol/gen/go/lark/desktop/v1;desktopv1";
+
+service DesktopService {
+  rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc ListSongs(ListSongsRequest) returns (ListSongsResponse);
+  rpc GetSong(GetSongRequest) returns (GetSongResponse);
+  rpc ListArtists(ListArtistsRequest) returns (ListArtistsResponse);
+  rpc GetArtist(GetArtistRequest) returns (GetArtistResponse);
+  rpc ListArtistSongs(ListArtistSongsRequest) returns (ListArtistSongsResponse);
+  rpc ListAlbums(ListAlbumsRequest) returns (ListAlbumsResponse);
+  rpc GetAlbum(GetAlbumRequest) returns (GetAlbumResponse);
+  rpc ListAlbumSongs(ListAlbumSongsRequest) returns (ListAlbumSongsResponse);
+  rpc SetFavorite(SetFavoriteRequest) returns (SetFavoriteResponse);
+  rpc GetLyrics(GetLyricsRequest) returns (GetLyricsResponse);
+  rpc MarkPlayed(MarkPlayedRequest) returns (MarkPlayedResponse);
+  rpc SaveProgress(SaveProgressRequest) returns (SaveProgressResponse);
+  rpc StreamMedia(StreamMediaRequest) returns (stream StreamMediaResponse);
+}
+
+message GetServerInfoRequest {}
+message GetServerInfoResponse {
+  uint32 protocol_version = 1;
+  string server_version = 2;
+  bool initialized = 3;
+}
+message LoginRequest { string username = 1; string password = 2; }
+message LoginResponse { string session_token = 1; User user = 2; }
+message GetSessionRequest {}
+message GetSessionResponse { User user = 1; }
+message LogoutRequest {}
+message LogoutResponse {}
+message User { int64 id = 1; string username = 2; string nickname = 3; string role = 4; }
+
+message Song {
+  int64 id = 1;
+  string title = 2;
+  string artist = 3;
+  int64 artist_id = 4;
+  string album = 5;
+  int64 album_id = 6;
+  string format = 7;
+  double duration_seconds = 8;
+  int32 year = 9;
+  bool favorite = 10;
+  bool has_lyrics = 11;
+  int64 cover_version = 12;
+  double resume_position_seconds = 13;
+  string mime = 14;
+  int32 sample_rate = 15;
+  int32 bit_depth = 16;
+  int64 size_bytes = 17;
+  string type = 18;
+}
+message Artist { int64 id = 1; string name = 2; int32 song_count = 3; int32 album_count = 4; bool favorite = 5; }
+message Album { int64 id = 1; string title = 2; string artist = 3; int64 artist_id = 4; int32 year = 5; int32 song_count = 6; bool favorite = 7; int64 cover_version = 8; }
+message ListSongsRequest { string query = 1; bool favorites_only = 2; int32 limit = 3; int32 offset = 4; }
+message SongPage { repeated Song items = 1; int32 total = 2; int32 limit = 3; int32 offset = 4; }
+message ListSongsResponse { SongPage page = 1; }
+message GetSongRequest { int64 id = 1; }
+message GetSongResponse { Song song = 1; }
+message ListArtistsRequest { bool favorites_only = 1; int32 limit = 2; int32 offset = 3; string initial = 4; }
+message ArtistPage { repeated Artist items = 1; int32 total = 2; int32 limit = 3; int32 offset = 4; }
+message ListArtistsResponse { ArtistPage page = 1; }
+message GetArtistRequest { int64 id = 1; }
+message GetArtistResponse { Artist artist = 1; }
+message ListArtistSongsRequest { int64 artist_id = 1; int32 limit = 2; }
+message ListArtistSongsResponse { SongPage page = 1; }
+message ListAlbumsRequest { bool favorites_only = 1; int64 artist_id = 2; int32 limit = 3; int32 offset = 4; }
+message AlbumPage { repeated Album items = 1; int32 total = 2; int32 limit = 3; int32 offset = 4; }
+message ListAlbumsResponse { AlbumPage page = 1; }
+message GetAlbumRequest { int64 id = 1; }
+message GetAlbumResponse { Album album = 1; }
+message ListAlbumSongsRequest { int64 album_id = 1; int32 limit = 2; }
+message ListAlbumSongsResponse { SongPage page = 1; }
+enum FavoriteKind { FAVORITE_KIND_UNSPECIFIED = 0; FAVORITE_KIND_SONG = 1; FAVORITE_KIND_ALBUM = 2; FAVORITE_KIND_ARTIST = 3; }
+message SetFavoriteRequest { FavoriteKind kind = 1; int64 id = 2; bool favorite = 3; }
+message SetFavoriteResponse { bool favorite = 1; }
+message GetLyricsRequest { int64 song_id = 1; }
+message Lyrics { string text = 1; string source = 2; }
+message GetLyricsResponse { Lyrics lyrics = 1; }
+message MarkPlayedRequest { int64 song_id = 1; }
+message MarkPlayedResponse {}
+message SaveProgressRequest { int64 song_id = 1; double position_seconds = 2; double duration_seconds = 3; bool completed = 4; }
+message SaveProgressResponse {}
+enum MediaKind { MEDIA_KIND_UNSPECIFIED = 0; MEDIA_KIND_SONG_AUDIO = 1; MEDIA_KIND_SONG_COVER = 2; MEDIA_KIND_ALBUM_COVER = 3; MEDIA_KIND_ARTIST_COVER = 4; }
+message StreamMediaRequest { MediaKind kind = 1; int64 id = 2; string range = 3; string mode = 4; }
+message MediaHeader { int32 status = 1; string content_type = 2; string content_range = 3; string accept_ranges = 4; int64 content_length = 5; }
+message StreamMediaResponse { oneof payload { MediaHeader header = 1; bytes data = 2; } }

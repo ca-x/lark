@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ShareNetwork, X } from "@phosphor-icons/react";
+import { DesktopTower, ShareNetwork, X } from "@phosphor-icons/react";
 
 import { api } from "../services/api";
 import type { Share } from "../types";
@@ -72,6 +72,11 @@ export function ShareDialog({
           <span>{target.type}</span>
           <strong>{target.title}</strong>
         </div>
+        {target.type === "song" || target.type === "album" ? (
+          <a className="share-desktop-link" href={`lark://${target.type}/${target.id}?server=${encodeURIComponent(window.location.origin)}`}>
+            <DesktopTower /> {t("openInDesktop")}
+          </a>
+        ) : null}
         <fieldset className="share-duration-field" disabled={submitting || Boolean(createdShare)}>
           <legend>{t("shareDuration")}</legend>
           <div className="share-duration-options">
