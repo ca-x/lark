@@ -5,6 +5,20 @@
 
 ---
 
+## Desktop 0.1.3：修复 Buf 构建限流
+
+发布日期 / Released: 2026-10-15
+
+- 桌面构建工作流使用 GitHub token 下载 Buf，避免匿名 API 限流阻断安装包发布。
+
+## Desktop v0.1.3: Buf CI rate limit fix
+
+Released: 2026-10-15
+
+- Authenticate Buf setup in CI so anonymous GitHub API rate limits cannot block package builds.
+
+---
+
 ## Desktop 0.1.2：安装包构建修正
 
 发布日期 / Released: 2026-10-15
