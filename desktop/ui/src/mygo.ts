@@ -45,6 +45,7 @@ export interface ConnectionStatus {
   close_behavior: string;
   user?: User;
   error?: string;
+  transport?: string;
 }
 
 export interface DeepLink {

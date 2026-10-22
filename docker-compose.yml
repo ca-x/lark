@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     pull_policy: always
     environment:
-      LARK_PORT: ${LARK_PORT:-8080}
+      LARK_PORT: '8080'
       LARK_DATA_DIR: /app/data
       LARK_LIBRARY_DIR: ${LARK_LIBRARY_DIR:-/app/data/music}
       LARK_DB_TYPE: ${LARK_DB_TYPE:-sqlite}
@@ -28,7 +28,7 @@ services:
       LARK_ADMIN_NICKNAME: ${LARK_ADMIN_NICKNAME:-}
       NO_DLNA_OPTION: ${NO_DLNA_OPTION:-false}
     ports:
-      - '${LARK_PORT:-8080}:8080'
+      - '${LARK_BIND_IP:-0.0.0.0}:${LARK_PORT:-8080}:8080'
     volumes:
       - lark_data:/app/data
 

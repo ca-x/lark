@@ -1,5 +1,4 @@
 import type { MobileHomePlayerStyle } from "../../types";
-import { useEffect, useEffectEvent } from "react";
 import { MobileArtPlayer, type MobileArtPlayerLabels, type PlayerThemePlayMode } from "../player-themes";
 
 export function MobilePlayerDock({
@@ -71,23 +70,6 @@ export function MobilePlayerDock({
   sleepTimerActive?: boolean;
   lyricsActive?: boolean;
 }) {
-  const close = useEffectEvent(() => onBack?.());
-  useEffect(() => {
-    const previous = document.activeElement;
-    document.querySelector<HTMLButtonElement>(".mobile-art-topbar-icon")?.focus({ preventScroll: true });
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !event.defaultPrevented && !document.querySelector('[role="dialog"]')) {
-        event.preventDefault();
-        close();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true });
-    };
-    // The dock mounts only while expanded; keep focus stable during playback.
-  }, []);
   return (
     <MobileArtPlayer
       mediaKey={mediaKey}

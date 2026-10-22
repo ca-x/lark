@@ -19,3 +19,9 @@ test("long drags remain usable without a fast flick", () => {
   assert.equal(resolvePlayerSwipe(-100, 0, 1800), "next");
   assert.equal(resolvePlayerSwipe(0, 120, 1800), "collapse");
 });
+test("reversing or resting before release cancels the gesture", () => {
+  assert.equal(resolvePlayerSwipe(-100, 0, 250, { dx: 12, dy: 0, idleMs: 0 }), null);
+  assert.equal(resolvePlayerSwipe(0, 120, 300, { dx: 0, dy: -16, idleMs: 0 }), null);
+  assert.equal(resolvePlayerSwipe(-100, 0, 800, { dx: -80, dy: 0, idleMs: 250 }), null);
+  assert.equal(resolvePlayerSwipe(-90, 0, 200, { dx: -20, dy: 0, idleMs: 10 }), "next");
+});

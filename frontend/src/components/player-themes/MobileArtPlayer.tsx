@@ -25,6 +25,7 @@ import { PaperShaderLayer } from "./PaperShaderLayer";
 import { useCoverFallback } from "./useCoverFallback";
 import { useDiscScratchSeek } from "./useDiscScratchSeek";
 import { resolvePlayerSwipe } from "../mobile/playerSwipe";
+import { useDialogLifecycle } from "../../hooks/useDialogLifecycle";
 
 const DEFAULT_LABELS = {
   nowPlaying: "Now playing",
@@ -133,6 +134,7 @@ export function MobileArtPlayer({
   lyricsActive?: boolean;
 }) {
   const text = { ...DEFAULT_LABELS, ...labels };
+  const dialogRef = useDialogLifecycle<HTMLDivElement>(() => onBack?.(), Boolean(onBack));
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
   const seeking = useRef<number | null>(null);
   const pct = duration > 0 ? Math.min(1, Math.max(0, progress / duration)) : 0;
@@ -158,8 +160,6 @@ export function MobileArtPlayer({
     "--mobile-gramophone-arm-angle": `${gramophoneTonearmAngle.toFixed(2)}deg`,
     ...(coverState.coverImage ? { "--mobile-art-cover-image": coverState.coverImage } : {}),
   } as CSSProperties;
-  const [swipeY, setSwipeY] = useState(0);
-  const [swipeX, setSwipeX] = useState(0);
   const swipeStart = useRef({
     x: 0,
     y: 0,
@@ -167,84 +167,83 @@ export function MobileArtPlayer({
     lastY: 0,
     startedAt: 0,
     lastAt: 0,
+    sampleX: 0,
+    sampleY: 0,
+    sampleAt: 0,
+    pointerId: -1,
+    fromHeader: false,
     axis: "" as "" | "x" | "y",
     tracking: false,
   });
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length !== 1 || isSwipeIgnoredTarget(e.target) || e.currentTarget.scrollTop > 0) {
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || event.button !== 0 || isSwipeIgnoredTarget(event.target)) {
       swipeStart.current.tracking = false;
-      setSwipeY(0);
-      setSwipeX(0);
       return;
     }
-    const touch = e.touches[0];
-    if (touch.clientX < 24 || touch.clientX > window.innerWidth - 24) {
+    if (event.clientX < 24 || event.clientX > window.innerWidth - 24) {
       swipeStart.current.tracking = false;
-      setSwipeY(0);
-      setSwipeX(0);
       return;
     }
     const now = performance.now();
     swipeStart.current = {
-      x: touch.clientX,
-      y: touch.clientY,
-      lastX: touch.clientX,
-      lastY: touch.clientY,
+      x: event.clientX,
+      y: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
       startedAt: now,
       lastAt: now,
+      sampleX: event.clientX,
+      sampleY: event.clientY,
+      sampleAt: now,
+      pointerId: event.pointerId,
+      fromHeader: event.target instanceof Element && Boolean(event.target.closest(".mobile-art-topbar")),
       axis: "",
       tracking: true,
     };
+    event.currentTarget.setPointerCapture(event.pointerId);
   }, []);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!swipeStart.current.tracking) return;
-    if (e.touches.length !== 1) {
-      swipeStart.current.tracking = false;
-      setSwipeY(0);
-      setSwipeX(0);
-      return;
-    }
-    const touch = e.touches[0];
-    const deltaY = touch.clientY - swipeStart.current.y;
-    const deltaX = touch.clientX - swipeStart.current.x;
+  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const gesture = swipeStart.current;
+    if (!gesture.tracking || gesture.pointerId !== event.pointerId) return;
+    const deltaY = event.clientY - gesture.y;
+    const deltaX = event.clientX - gesture.x;
     const absDeltaY = Math.abs(deltaY);
     const absDeltaX = Math.abs(deltaX);
-    if (!swipeStart.current.axis && Math.max(absDeltaX, absDeltaY) > 10) {
-      swipeStart.current.axis = absDeltaY > absDeltaX * 1.2 ? "y" : absDeltaX > absDeltaY * 1.2 ? "x" : "";
+    if (!gesture.axis && Math.max(absDeltaX, absDeltaY) > 10) {
+      gesture.axis = absDeltaY > absDeltaX * 1.4 ? "y" : absDeltaX > absDeltaY * 1.4 ? "x" : "";
     }
-    swipeStart.current.lastX = touch.clientX;
-    swipeStart.current.lastY = touch.clientY;
-    swipeStart.current.lastAt = performance.now();
-    if (swipeStart.current.axis === "y" && deltaY > 0) {
-      setSwipeY(deltaY);
-      setSwipeX(0);
-    } else if (swipeStart.current.axis === "x") {
-      setSwipeX(deltaX);
-      setSwipeY(0);
+    const now = performance.now();
+    if (now - gesture.sampleAt > 80) {
+      gesture.sampleX = gesture.lastX;
+      gesture.sampleY = gesture.lastY;
+      gesture.sampleAt = gesture.lastAt;
     }
+    gesture.lastX = event.clientX;
+    gesture.lastY = event.clientY;
+    gesture.lastAt = now;
   }, []);
 
-  const handleTouchEnd = useCallback(() => {
+  const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const gesture = swipeStart.current;
-    if (!gesture.tracking) return;
-    const elapsed = Math.max(16, performance.now() - gesture.startedAt);
-    const deltaX = gesture.lastX - gesture.x;
-    const deltaY = gesture.lastY - gesture.y;
-    const action = resolvePlayerSwipe(deltaX, deltaY, elapsed);
-    if (action === "collapse") onBack?.();
+    if (!gesture.tracking || gesture.pointerId !== event.pointerId) return;
+    const now = performance.now();
+    const deltaX = event.clientX - gesture.x;
+    const deltaY = event.clientY - gesture.y;
+    const action = resolvePlayerSwipe(deltaX, deltaY, now - gesture.startedAt, {
+      dx: event.clientX - gesture.sampleX,
+      dy: event.clientY - gesture.sampleY,
+      idleMs: now - gesture.lastAt,
+    });
+    if (action === "collapse" && gesture.fromHeader) onBack?.();
     else if (action === "previous") onPrevious?.();
     else if (action === "next") onNext?.();
     swipeStart.current.tracking = false;
-    setSwipeY(0);
-    setSwipeX(0);
   }, [onBack, onPrevious, onNext]);
 
-  const handleTouchCancel = useCallback(() => {
+  const handlePointerCancel = useCallback(() => {
     swipeStart.current.tracking = false;
-    setSwipeY(0);
-    setSwipeX(0);
   }, []);
   useEffect(() => {
     // A seek or swipe belongs to the track on which it started. Natural track
@@ -252,20 +251,18 @@ export function MobileArtPlayer({
     seeking.current = null;
     setSeekPreview(null);
     swipeStart.current.tracking = false;
-    setSwipeY(0);
-    setSwipeX(0);
   }, [mediaKey]);
   const modeIcon =
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
 
   return (
     <div className={`mobile-art-player mobile-art-${variant}${isMaterialTheme(variant) ? " mobile-material-player" : ""}`} data-playing={playing ? "true" : "false"} style={style}>
-      <div className="mobile-art-phone" data-swiping={swipeY !== 0 || swipeX !== 0 ? "true" : "false"} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchCancel} style={{ transform: swipeY > 0 ? `translateY(${swipeY * 0.72}px) scale(${Math.max(.97, 1 - swipeY / 5000)})` : swipeX !== 0 ? `translateX(${swipeX * 0.42}px)` : undefined, transition: swipeY === 0 && swipeX === 0 ? "transform .38s cubic-bezier(.32,.72,0,1), opacity .3s ease" : "none", opacity: swipeY > 0 ? Math.max(0, 1 - swipeY / 520) : undefined }}>
+      <div ref={dialogRef} role={onBack ? "dialog" : undefined} aria-modal={onBack ? true : undefined} aria-label={onBack ? text.nowPlaying : undefined} tabIndex={onBack ? -1 : undefined} className="mobile-art-phone" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onLostPointerCapture={handlePointerCancel}>
         <div className="mobile-art-bg" aria-hidden="true" />
         {!isMaterialTheme(variant) ? <PaperShaderLayer variant={`mobile-${variant}`} playing={playing} cover={coverState.displayUrl} compact /> : null}
         {onBack ? (
           <div className="mobile-art-topbar">
-            <button type="button" className="mobile-art-topbar-icon" aria-label={text.back} onClick={onBack}>
+            <button type="button" className="mobile-art-topbar-icon" data-autofocus aria-label={text.back} onClick={onBack}>
               <CaretDown weight="bold" />
             </button>
             <span>{text.nowPlaying}</span>

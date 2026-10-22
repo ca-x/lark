@@ -5533,7 +5533,7 @@ export default function App() {
       <a className="skip-link" href="#main-content">
         {t("skipToContent")}
       </a>
-      <aside className={mineradioDesktopHome ? "sidebar desktop-sidebar mineradio-stage-edge-nav" : "sidebar desktop-sidebar"}>
+      <aside className={mineradioDesktopHome ? "sidebar desktop-sidebar mineradio-stage-edge-nav" : "sidebar desktop-sidebar"} inert={mobileViewport && mobilePlayerExpanded && !lyricsFullScreen}>
         <div className="brand">
           <img src="/logo.png" alt={t("brand")} /> <span>{t("brand")}</span>
         </div>
@@ -5568,9 +5568,9 @@ export default function App() {
         </nav>
       </aside>
 
-      <MobileBottomNav items={mobileBottomNavItems} label={t("primaryNavigation")} />
+      <MobileBottomNav items={mobileBottomNavItems} label={t("primaryNavigation")} inert={mobileViewport && mobilePlayerExpanded && !lyricsFullScreen} />
 
-      <main id="main-content" className="main" tabIndex={-1} ref={mainRef}>
+      <main id="main-content" className="main" tabIndex={-1} ref={mainRef} inert={mobileViewport && mobilePlayerExpanded && !lyricsFullScreen}>
         {lyricsFullScreen ? (
           <FullLyrics
             song={current}

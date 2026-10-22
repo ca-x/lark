@@ -5,6 +5,28 @@
 
 ---
 
+## 0.17.0 / Desktop 0.2.0：移动交互与自动连接
+
+发布日期 / Released: 2026-10-22
+
+- 桌面客户端自动探测 Connect、gRPC-Web 和 gRPC，支持普通 HTTP/1.1 反代与 Cloudflare Tunnel 公开域名；探测不携带凭据，登录只发送一次，设置显示实际协议。
+- 三种桌面协议复用 Protobuf、鉴权、媒体分块与 Range；原有桌面接口开关同时控制全部协议。拒绝访问、证书错误、关闭接口、版本不匹配和登录失败不会触发凭据重试或明文降级。
+- MyGo 与 mygo-runtime 升级至 0.6.2；连接页补充自动协商说明、显示密码、忙碌状态与输入保护，优化连接状态卡、字体、列表表头、面板关闭及焦点恢复。
+- 移动播放器支持焦点隔离及顶层弹层关闭；键盘仅在输入框被遮挡时即时定位。滑动加入方向反转、停顿和多指取消保护，取消干扰阅读与原生滚动的整页拖拽动效。
+- 修复 Docker 自选宿主端口时同时改动容器监听端口的问题，新增绑定地址配置和中英文端口、Tunnel、Caddy、Nginx、Access 排错说明。
+
+## v0.17.0 / Desktop v0.2.0: Mobile usability and automatic transport
+
+Released: 2026-10-22
+
+- Automatically negotiate Connect, gRPC-Web, or native gRPC, including HTTP/1.1 proxies and Cloudflare Tunnel public hostnames. Probes carry no credentials; login is sent once and settings show the selected protocol.
+- Reuse Protobuf, authentication, chunked media and byte ranges across all protocols. The desktop API switch disables every desktop transport, without affecting web APIs. Security, authentication and version failures do not trigger credential retries or an HTTP downgrade.
+- Upgrade MyGo and mygo-runtime to 0.6.2. Refine connection guidance, password visibility, busy states, connection cards, typography, list headers, panel dismissal and focus restoration.
+- Improve mobile focus isolation, nested dialog dismissal and keyboard visibility. Reject reversed, resting and multi-touch swipes; remove whole-page gesture motion that interfered with native scrolling.
+- Separate Docker host publishing from the fixed container port. Document bind addresses, Tunnel origins, Caddy/Nginx, Access limitations and troubleshooting in Chinese and English.
+
+---
+
 ## Desktop 0.1.3：修复 Buf 构建限流
 
 发布日期 / Released: 2026-10-15

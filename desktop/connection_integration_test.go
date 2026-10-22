@@ -108,7 +108,7 @@ func TestDesktopConnectAndMediaBridge(t *testing.T) {
 	if response.Code != http.StatusPartialContent || response.Body.String() != "234" || response.Header().Get("Content-Range") != "bytes 2-4/10" {
 		t.Fatalf("media = %d %q %v", response.Code, response.Body.String(), response.Header())
 	}
-	rpc, token, err := d.rpc()
+	rpc, token, err := d.rpc(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

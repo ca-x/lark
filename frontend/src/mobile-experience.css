@@ -115,6 +115,7 @@
   }
   .mobile-experience .mobile-mini-player { grid-template-columns:minmax(0,1fr) 44px 44px; gap:3px; }
   .mobile-experience .mobile-mini-main { gap:10px; touch-action:pan-x; }
+  .mobile-experience .mobile-mini-player :is(.mobile-mini-play,.mobile-mini-queue) { min-width:44px; min-height:44px; }
   .mobile-experience .mobile-mini-art { width:44px; height:44px; min-width:44px; border-radius:8px !important; box-shadow:none !important; }
   .mobile-experience .mobile-mini-art img { border-radius:8px !important; }
   .mobile-experience .mobile-mini-meta { display:grid; gap:4px; }
@@ -211,6 +212,8 @@
     display:flex !important; flex-direction:column; align-items:stretch; gap:12px; width:100%; min-height:100dvh; height:100dvh; max-height:none; padding:calc(8px + var(--safe-top)) 24px calc(12px + var(--safe-bottom)); overflow-y:auto; overscroll-behavior:contain; animation:none !important;
   }
   .mobile-experience .mobile-art-phone > * { flex-shrink:0; }
+  .mobile-experience .mobile-art-phone { touch-action:pan-y; }
+  .mobile-experience .mobile-art-topbar { touch-action:pan-x; }
   .mobile-experience .mobile-art-phone > :is(.mobile-art-bg,.mobile-art-blur-bg,.paper-shader-layer) { pointer-events:none; }
   .app-shell.mobile-experience .mobile-art-topbar { position:relative; inset:auto; order:0; min-height:44px; margin:0 -8px; }
   .app-shell.mobile-experience .mobile-art-topbar > span:nth-child(2) { font-size:13px; font-weight:500; }
@@ -239,6 +242,8 @@
   .mobile-experience .mobile-art-phone button { touch-action:manipulation; transition:transform var(--listening-press); }
   .mobile-experience .mobile-art-phone button:active:not(:disabled) { transform:scale(.96); }
   .mobile-experience .mobile-art-phone button:focus-visible { outline:2px solid var(--mobile-player-focus); outline-offset:3px; }
+  .mobile-experience :is(.mobile-art-phone,.listening-home,.listening-page-header) button:active:focus-visible { transform:none; }
+  .mobile-experience :is(input:not([type='range']):not([type='checkbox']):not([type='radio']),textarea,select), .auth-shell input { font-size:max(16px,1em); }
   .mobile-experience .mobile-art-blur-bg { display:none !important; }
   .mobile-experience .mobile-art-phone > .paper-shader-layer { opacity:.14 !important; }
   .app-shell.mobile-experience[data-mobile-player-expanded='true']:not(.lyrics-mode) .player > .mobile-art-player.mobile-art-smartisan-classic {

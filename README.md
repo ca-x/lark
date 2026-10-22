@@ -8,7 +8,7 @@ It is designed for large local libraries first: FLAC/WAV/Hi-Res albums, CUE shee
 
 The backend is Go + Echo v5 + Ent ORM, with SQLite by default. The frontend is React + TypeScript + Vite. The production web build is embedded into the Go server, so Lark can run as one service.
 
-A separate [Lark Music desktop client](desktop/README.md) connects through a versioned Protobuf/gRPC protocol and provides native packaging, tray controls, and `lark://` links.
+A separate [Lark Music desktop client](desktop/README.md) automatically negotiates Connect, gRPC-Web or gRPC, supports Cloudflare Tunnel, and provides native packaging, tray controls, and `lark://` links. See the [client deployment and ports guide](docs/client-deployment.md).
 
 For release notes, see [CHANGELOG.md](CHANGELOG.md).
 
@@ -236,6 +236,8 @@ go run ./cmd/server
 ---
 
 ## Docker
+
+Use `LARK_PORT=18080 docker compose up -d` to publish host port 18080; the container still listens on 8080. Add `LARK_BIND_IP=127.0.0.1` for a host-only reverse proxy or cloudflared origin. For cloudflared in another container on the same Docker network, use `http://lark:8080`, not localhost or the host port. See the [port publishing guide](docs/client-deployment.md).
 
 Use the Quick Start command above for a basic deployment. This section covers the Docker defaults you usually change after the first run: where music lives, database tuning, and optional Redis.
 

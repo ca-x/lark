@@ -12,14 +12,16 @@ export type MobileBottomNavItem = {
 export function MobileBottomNav({
   items,
   label,
+  inert,
 }: {
   items: MobileBottomNavItem[];
   label: string;
+  inert?: boolean;
 }) {
   const style = { "--mobile-bottom-nav-count": items.length } as CSSProperties;
 
   return (
-    <nav className="mobile-bottom-nav" aria-label={label} style={style}>
+    <nav className="mobile-bottom-nav" aria-label={label} style={style} inert={inert}>
       {items.map((item) => (
         <button
           key={item.key}

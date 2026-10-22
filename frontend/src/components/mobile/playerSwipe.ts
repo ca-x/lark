@@ -2,10 +2,11 @@ export type PlayerSwipe = "previous" | "next" | "expand" | "collapse" | null;
 
 // A gesture needs both intent (distance) and a dominant axis. Short diagonal
 // taps, long holds and system edge gestures must not accidentally change music.
-export function resolvePlayerSwipe(dx: number, dy: number, elapsedMs: number): PlayerSwipe {
+export function resolvePlayerSwipe(dx: number, dy: number, elapsedMs: number, release?: { dx: number; dy: number; idleMs: number }): PlayerSwipe {
   const x = Math.abs(dx);
   const y = Math.abs(dy);
   const elapsed = Math.max(16, elapsedMs);
+  if (release && (release.idleMs > 140 || (x > y && Math.abs(release.dx) > 4 && release.dx * dx < 0) || (y > x && Math.abs(release.dy) > 4 && release.dy * dy < 0))) return null;
   if (x > y * 1.4 && x >= 40 && (x >= 80 || x / elapsed >= 0.35)) return dx > 0 ? "previous" : "next";
   if (y > x * 1.4 && y >= 40 && (y >= 96 || y / elapsed >= 0.35)) return dy > 0 ? "collapse" : "expand";
   return null;

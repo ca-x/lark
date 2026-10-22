@@ -320,7 +320,7 @@ export interface Messages {
    */
   localHttpRestricted(): string;
   /**
-   * `Could not connect to the Lark gRPC server`
+   * `Could not connect to the Lark server`
    */
   connectFailed(): string;
   /**
@@ -348,9 +348,29 @@ export interface Messages {
    */
   cancel(): string;
   /**
-   * `gRPC connection`
+   * `Server connection`
    */
   grpcConnection(): string;
+  /**
+   * `Automatic protocol selection`
+   */
+  automaticTransport(): string;
+  /**
+   * `Connect, gRPC-Web or gRPC is selected automatically. Use the same HTTPS address as the web app, including through Cloudflare Tunnel.`
+   */
+  transportHint(): string;
+  /**
+   * `Show password`
+   */
+  showPassword(): string;
+  /**
+   * `Hide password`
+   */
+  hidePassword(): string;
+  /**
+   * `The app does not store your password.`
+   */
+  connectionSecurity(): string;
   /**
    * `Connected`
    */
@@ -464,6 +484,11 @@ const catalog = createCatalog<Messages>({
     "switchServer": [],
     "cancel": [],
     "grpcConnection": [],
+    "automaticTransport": [],
+    "transportHint": [],
+    "showPassword": [],
+    "hidePassword": [],
+    "connectionSecurity": [],
     "connectionOnline": [],
     "connectionOffline": [],
     "checkConnection": [],
@@ -550,14 +575,19 @@ const catalog = createCatalog<Messages>({
       "invalidServerURL": "Enter a full server URL, such as https://music.example.com",
       "serverSchemeRequired": "Server address must start with https:// or http://",
       "localHttpRestricted": "HTTP is only allowed for an explicitly approved local server; use HTTPS for remote servers",
-      "connectFailed": "Could not connect to the Lark gRPC server",
+      "connectFailed": "Could not connect to the Lark server",
       "protocolMismatch": "The server protocol version is incompatible",
       "loginFailed": "Sign in failed",
       "notConnected": "Connect to a server first",
       "linkServerMismatch": "This music link belongs to another server. Check its address before signing in.",
       "switchServer": "Switch server and sign in",
       "cancel": "Cancel",
-      "grpcConnection": "gRPC connection",
+      "grpcConnection": "Server connection",
+      "automaticTransport": "Automatic protocol selection",
+      "transportHint": "Connect, gRPC-Web or gRPC is selected automatically. Use the same HTTPS address as the web app, including through Cloudflare Tunnel.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "connectionSecurity": "The app does not store your password.",
       "connectionOnline": "Connected",
       "connectionOffline": "Disconnected",
       "checkConnection": "Reconnect / check connection",
@@ -643,14 +673,19 @@ const catalog = createCatalog<Messages>({
       "invalidServerURL": "请输入完整的服务器地址，例如 https://music.example.com",
       "serverSchemeRequired": "服务器地址必须以 https:// 或 http:// 开头",
       "localHttpRestricted": "HTTP 仅用于明确允许的本地或局域网服务器；远程服务器请使用 HTTPS",
-      "connectFailed": "无法连接到百灵音乐 gRPC 服务",
+      "connectFailed": "无法连接到百灵音乐服务器",
       "protocolMismatch": "服务端协议版本不兼容",
       "loginFailed": "登录失败",
       "notConnected": "请先连接服务器",
       "linkServerMismatch": "这个音乐链接来自另一台服务器。登录前请核对服务器地址。",
       "switchServer": "切换服务器并登录",
       "cancel": "取消",
-      "grpcConnection": "gRPC 连接",
+      "grpcConnection": "服务器连接",
+      "automaticTransport": "自动选择连接协议",
+      "transportHint": "自动协商 Connect、gRPC-Web 或 gRPC。直接使用网页的 HTTPS 地址，Cloudflare Tunnel 也无需额外端口。",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
+      "connectionSecurity": "客户端不会保存密码。",
       "connectionOnline": "已连接",
       "connectionOffline": "未连接",
       "checkConnection": "重新连接 / 检查状态",

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/url"
 	"os"
@@ -31,6 +32,7 @@ type desktopConfig struct {
 	AllowInsecure bool   `json:"allow_insecure"`
 	Theme         string `json:"theme"`
 	CloseBehavior string `json:"close_behavior"`
+	Transport     string `json:"transport,omitempty"`
 }
 
 type desktopAuth struct {
@@ -54,6 +56,7 @@ type ConnectionStatus struct {
 	CloseBehavior string `json:"close_behavior"`
 	User          *User  `json:"user,omitempty"`
 	Error         string `json:"error,omitempty"`
+	Transport     string `json:"transport,omitempty"`
 }
 
 type Desktop struct {
@@ -61,8 +64,9 @@ type Desktop struct {
 	dataDir          string
 	config           desktopConfig
 	auth             desktopAuth
-	conn             *grpc.ClientConn
+	conn             io.Closer
 	client           desktopv1.DesktopServiceClient
+	activeTransport  string
 	pendingLink      *DeepLink
 	nativeMu         sync.Mutex
 	nativePlayer     *audio.Player
@@ -173,47 +177,28 @@ func normalizeServerURL(raw string, allowInsecure bool) (string, string, grpc.Di
 	return u.String(), net.JoinHostPort(u.Hostname(), port), transport, nil
 }
 
-func dialDesktop(url string, allowInsecure bool) (*grpc.ClientConn, desktopv1.DesktopServiceClient, error) {
-	_, target, transport, err := normalizeServerURL(url, allowInsecure)
-	if err != nil {
-		return nil, nil, err
-	}
-	conn, err := grpc.NewClient(target, transport)
-	if err != nil {
-		return nil, nil, err
-	}
-	return conn, desktopv1.NewDesktopServiceClient(conn), nil
-}
-
 func (d *Desktop) Connect(ctx context.Context, serverURL, username, password string, allowInsecure bool) (ConnectionStatus, error) {
 	normalized, _, _, err := normalizeServerURL(serverURL, allowInsecure)
 	if err != nil {
 		return ConnectionStatus{}, err
 	}
-	conn, client, err := dialDesktop(normalized, allowInsecure)
+	checkCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	conn, client, protocol, err := dialDesktop(checkCtx, normalized, allowInsecure, "")
 	if err != nil {
-		return ConnectionStatus{}, err
+		return ConnectionStatus{}, fmt.Errorf("%s: %w", locales.ConnectFailed(), err)
 	}
 	defer func() {
 		if conn != nil {
 			_ = conn.Close()
 		}
 	}()
-	checkCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-	info, err := client.GetServerInfo(checkCtx, &desktopv1.GetServerInfoRequest{})
-	if err != nil {
-		return ConnectionStatus{}, fmt.Errorf("%s: %w", locales.ConnectFailed(), err)
-	}
-	if info.GetProtocolVersion() != 1 {
-		return ConnectionStatus{}, fmt.Errorf("%s: %d / 1", locales.ProtocolMismatch(), info.GetProtocolVersion())
-	}
 	login, err := client.Login(checkCtx, &desktopv1.LoginRequest{Username: username, Password: password})
 	if err != nil {
 		return ConnectionStatus{}, fmt.Errorf("%s: %w", locales.LoginFailed(), err)
 	}
 	d.mu.Lock()
-	config := desktopConfig{ServerURL: normalized, AllowInsecure: allowInsecure, Theme: d.config.Theme, CloseBehavior: d.config.CloseBehavior}
+	config := desktopConfig{ServerURL: normalized, AllowInsecure: allowInsecure, Theme: d.config.Theme, CloseBehavior: d.config.CloseBehavior, Transport: protocol}
 	if config.CloseBehavior == "" {
 		config.CloseBehavior = "tray"
 	}
@@ -228,31 +213,46 @@ func (d *Desktop) Connect(ctx context.Context, serverURL, username, password str
 	}
 	old := d.conn
 	d.config, d.auth, d.conn, d.client = config, auth, conn, client
+	d.activeTransport = protocol
 	d.mu.Unlock()
 	conn = nil
 	if old != nil {
 		_ = old.Close()
 	}
-	return ConnectionStatus{Connected: true, HasSession: true, ServerURL: normalized, Theme: config.Theme, CloseBehavior: config.CloseBehavior, User: desktopUser(login.GetUser())}, nil
+	return ConnectionStatus{Connected: true, HasSession: true, ServerURL: normalized, Theme: config.Theme, CloseBehavior: config.CloseBehavior, Transport: protocol, User: desktopUser(login.GetUser())}, nil
 }
 
 func (d *Desktop) Status(ctx context.Context) ConnectionStatus {
 	d.mu.Lock()
 	config, auth := d.config, d.auth
 	d.mu.Unlock()
-	result := ConnectionStatus{ServerURL: config.ServerURL, Theme: config.Theme, CloseBehavior: d.closeBehavior()}
+	result := ConnectionStatus{ServerURL: config.ServerURL, Theme: config.Theme, CloseBehavior: d.closeBehavior(), Transport: config.Transport}
 	if config.ServerURL == "" || auth.Token == "" {
 		return result
 	}
 	result.HasSession = true
-	client, token, err := d.rpc()
+	checkCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	client, token, err := d.rpc(checkCtx)
 	if err != nil {
 		result.Error = err.Error()
 		return result
 	}
-	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 	session, err := client.GetSession(withToken(checkCtx, token), &desktopv1.GetSessionRequest{})
+	if err != nil && canNegotiateTransport(err) && checkCtx.Err() == nil {
+		d.mu.Lock()
+		old := d.conn
+		d.conn, d.client = nil, nil
+		d.config.Transport = ""
+		d.mu.Unlock()
+		if old != nil {
+			_ = old.Close()
+		}
+		client, token, err = d.rpc(checkCtx)
+		if err == nil {
+			session, err = client.GetSession(withToken(checkCtx, token), &desktopv1.GetSessionRequest{})
+		}
+	}
 	if err != nil {
 		if status.Code(err) == codes.Unauthenticated {
 			d.mu.Lock()
@@ -264,13 +264,16 @@ func (d *Desktop) Status(ctx context.Context) ConnectionStatus {
 		result.Error = err.Error()
 		return result
 	}
+	d.mu.Lock()
+	result.Transport = d.activeTransport
+	d.mu.Unlock()
 	result.Connected, result.User = true, desktopUser(session.GetUser())
 	return result
 }
 
 func (d *Desktop) Disconnect(ctx context.Context) error {
 	d.NativeStop()
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err == nil {
 		checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		_, _ = client.Logout(withToken(checkCtx, token), &desktopv1.LogoutRequest{})
@@ -279,6 +282,7 @@ func (d *Desktop) Disconnect(ctx context.Context) error {
 	d.mu.Lock()
 	old := d.conn
 	d.auth, d.conn, d.client = desktopAuth{}, nil, nil
+	d.activeTransport = ""
 	d.mu.Unlock()
 	if old != nil {
 		_ = old.Close()
@@ -330,18 +334,26 @@ func (d *Desktop) closeBehavior() string {
 	return "tray"
 }
 
-func (d *Desktop) rpc() (desktopv1.DesktopServiceClient, string, error) {
+func (d *Desktop) rpc(ctx context.Context) (desktopv1.DesktopServiceClient, string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.config.ServerURL == "" || d.auth.Token == "" {
 		return nil, "", errors.New(locales.NotConnected())
 	}
 	if d.client == nil {
-		conn, client, err := dialDesktop(d.config.ServerURL, d.config.AllowInsecure)
+		conn, client, protocol, err := dialDesktop(ctx, d.config.ServerURL, d.config.AllowInsecure, d.config.Transport)
 		if err != nil {
 			return nil, "", err
 		}
+		config := d.config
+		config.Transport = protocol
+		if err := d.saveJSON("config.json", config); err != nil {
+			_ = conn.Close()
+			return nil, "", err
+		}
+		d.config = config
 		d.conn, d.client = conn, client
+		d.activeTransport = protocol
 	}
 	return d.client, d.auth.Token, nil
 }

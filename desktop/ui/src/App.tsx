@@ -3,6 +3,9 @@ import {
   ArrowLeft,
   ArrowRight,
   Disc,
+  CircleNotch,
+  Eye,
+  EyeSlash,
   GearSix,
   Heart,
   MagnifyingGlass,
@@ -15,6 +18,7 @@ import {
   SkipForward,
   SpeakerHigh,
   TextAlignLeft,
+  ShieldCheck,
   User,
 } from "@phosphor-icons/react";
 import { CassetteDeck } from "../../../frontend/src/components/player-themes/CassetteDeck";
@@ -43,6 +47,7 @@ type PlaybackEngine = { kind: "native" | "web"; songID: number };
 const SONG_PAGE_SIZE = 80;
 const GRID_PAGE_SIZE = 48;
 const t = (key: keyof typeof messages) => messages[key]();
+const transportLabel = (protocol?: string) => protocol === "connect" ? "Connect · HTTP" : protocol === "grpc-web" ? "gRPC-Web" : protocol === "grpc" ? "gRPC · HTTP/2" : t("automaticTransport");
 
 function mediaURL(
   kind: "song" | "song-cover" | "album-cover" | "artist-cover",
@@ -108,6 +113,7 @@ function ConnectScreen({
   const [server, setServer] = useState(initialServer);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [allowInsecure, setAllowInsecure] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError || "");
@@ -128,6 +134,7 @@ function ConnectScreen({
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
@@ -153,7 +160,7 @@ function ConnectScreen({
         </div>
         <span>{t("recordTagline")}</span>
       </div>
-      <form className="connect-form" onSubmit={(event) => void submit(event)}>
+      <form className="connect-form" aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <div className="connect-logo">
           <MusicNotes weight="fill" /> {t("appName")}
         </div>
@@ -170,6 +177,10 @@ function ConnectScreen({
             onChange={(event) => setServer(event.target.value)}
             placeholder="https://music.example.com"
             autoComplete="url"
+            autoCapitalize="none"
+            spellCheck={false}
+            disabled={busy}
+            aria-describedby="desktop-transport-hint"
           />
         </label>
         <div className="connect-credentials">
@@ -180,27 +191,42 @@ function ConnectScreen({
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              disabled={busy}
             />
           </label>
           <label>
             {t("password")}
+            <span className="connect-password-field">
             <input
               required
-              type="password"
+              type={passwordVisible ? "text" : "password"}
+              aria-label={t("password")}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
+              disabled={busy}
             />
+            <button type="button" aria-label={passwordVisible ? t("hidePassword") : t("showPassword")} aria-pressed={passwordVisible} disabled={busy} onClick={() => setPasswordVisible((value) => !value)}>
+              {passwordVisible ? <EyeSlash /> : <Eye />}
+            </button>
+            </span>
           </label>
         </div>
         <label className="connect-checkbox">
           <input
             type="checkbox"
             checked={allowInsecure}
+            disabled={busy}
             onChange={(event) => setAllowInsecure(event.target.checked)}
           />
           {t("allowLocalHttp")}
         </label>
+        <div className="connect-transport-hint" id="desktop-transport-hint">
+          <ShieldCheck aria-hidden="true" />
+          <div><strong>{t("automaticTransport")}</strong><p>{t("transportHint")}</p></div>
+        </div>
         {error ? (
           <p className="connect-error" role="alert">
             {error}
@@ -216,10 +242,11 @@ function ConnectScreen({
             {t("retryConnection")}
           </button>
         ) : null}
-        <button className="connect-submit" disabled={busy}>
-          {busy ? t("connecting") : t("connectAction")} <ArrowRight />
+        <button className="connect-submit" aria-label={busy ? t("connecting") : t("connectAction")} disabled={busy}>
+          {busy ? <CircleNotch className="connection-spinner" aria-hidden="true" /> : null}
+          <span aria-live="polite">{busy ? t("connecting") : t("connectAction")}</span> {!busy ? <ArrowRight aria-hidden="true" /> : null}
         </button>
-        <small>{t("sessionHint")}</small>
+        <small>{t("connectionSecurity")} {t("sessionHint")}</small>
       </form>
     </main>
   );
@@ -252,6 +279,24 @@ export function App() {
   const [showLyrics, setShowLyrics] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const drawerTriggerRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!showQueue && !showSettings) return;
+    const frame = requestAnimationFrame(() => drawerRef.current?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true }));
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
+      event.preventDefault();
+      setShowQueue(false);
+      setShowSettings(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      if (drawerTriggerRef.current?.isConnected) drawerTriggerRef.current.focus({ preventScroll: true });
+    };
+  }, [showQueue, showSettings]);
   const [checkingConnection, setCheckingConnection] = useState(false);
   const [settingsConnection, setSettingsConnection] = useState<ConnectionStatus | null>(null);
   const [closeBehavior, setCloseBehavior] = useState<"tray" | "quit">("tray");
@@ -778,24 +823,32 @@ export function App() {
         <nav aria-label={t("myMusic")}>
           <button
             className={section === "songs" ? "active" : ""}
+            aria-current={section === "songs" ? "page" : undefined}
+            title={t("library")}
             onClick={() => switchSection("songs")}
           >
             <MusicNotes /> {t("library")}
           </button>
           <button
             className={section === "albums" ? "active" : ""}
+            aria-current={section === "albums" ? "page" : undefined}
+            title={t("albums")}
             onClick={() => switchSection("albums")}
           >
             <Disc /> {t("albums")}
           </button>
           <button
             className={section === "artists" ? "active" : ""}
+            aria-current={section === "artists" ? "page" : undefined}
+            title={t("artists")}
             onClick={() => switchSection("artists")}
           >
             <User /> {t("artists")}
           </button>
           <button
             className={section === "favorites" ? "active" : ""}
+            aria-current={section === "favorites" ? "page" : undefined}
+            title={t("favorites")}
             onClick={() => switchSection("favorites")}
           >
             <Heart /> {t("favorites")}
@@ -803,13 +856,15 @@ export function App() {
         </nav>
         <div className="sidebar-bottom">
           <span className="server-name" title={connection.server_url}>
-            {new URL(connection.server_url).host}
+            <span className="connection-dot" aria-hidden="true" /><span className="server-host">{new URL(connection.server_url).host}</span>
           </span>
           <button
             title={t("settings")}
             aria-label={t("settings")}
-            onClick={() => {
+            onClick={(event) => {
+              drawerTriggerRef.current = event.currentTarget;
               setShowSettings(true);
+              setShowQueue(false);
               setCheckingConnection(true);
               void Desktop.status().then(setSettingsConnection).catch((cause) => setSettingsConnection({ ...connection, connected: false, error: errorText(cause) })).finally(() => setCheckingConnection(false));
             }}
@@ -870,7 +925,7 @@ export function App() {
                 placeholder={t("searchSongs")}
                 aria-label={t("searchSongs")}
               />
-              <kbd>⌘ K</kbd>
+              <kbd>{navigator.platform.includes("Mac") ? "⌘" : "Ctrl"} K</kbd>
             </label>
             <span className="user-avatar">
               {(
@@ -882,7 +937,7 @@ export function App() {
           </div>
         </header>
 
-        <main className="library-main">
+        <main className="library-main" aria-busy={loading}>
           {detail ? (
             <button className="back-button" onClick={() => setDetail(null)}>
               <ArrowLeft />{" "}
@@ -1055,7 +1110,7 @@ export function App() {
             </div>
           ) : null}
           {loading ? (
-            <div className="loading-state">{t("loadingRecords")}</div>
+            <div className="loading-state" role="status"><CircleNotch className="connection-spinner" aria-hidden="true" /> {t("loadingRecords")}</div>
           ) : null}
           {!loading && (activeTab === "songs" || !!detail) ? (
             <div className="song-list">
@@ -1285,14 +1340,15 @@ export function App() {
         </aside>
       ) : null}
       {showSettings ? (
-        <aside className="settings-drawer">
+        <aside className="settings-drawer" ref={drawerRef} role="region" aria-label={t("desktopSettings")}>
           <div>
             <strong>{t("desktopSettings")}</strong>
             <button onClick={() => setShowSettings(false)}>{t("close")}</button>
           </div>
           <div className="desktop-connection-setting">
             <strong>{t("grpcConnection")}</strong>
-            <span role="status">{(settingsConnection ?? connection)?.connected ? t("connectionOnline") : t("connectionOffline")}</span>
+            <span className="connection-status" data-online={(settingsConnection ?? connection)?.connected ? "true" : "false"} role="status"><span className="connection-dot" aria-hidden="true" />{(settingsConnection ?? connection)?.connected ? t("connectionOnline") : t("connectionOffline")}</span>
+            <span className="transport-badge">{transportLabel((settingsConnection ?? connection)?.transport)}</span>
             <small>{(settingsConnection ?? connection)?.server_url || ""}</small>
             {(settingsConnection ?? connection)?.error ? <small role="alert">{(settingsConnection ?? connection)?.error}</small> : null}
             <button type="button" disabled={checkingConnection} onClick={() => {
@@ -1340,7 +1396,7 @@ export function App() {
         </aside>
       ) : null}
       {showQueue ? (
-        <aside className="queue-drawer">
+        <aside className="queue-drawer" ref={drawerRef} role="region" aria-label={t("queue")}>
           <div>
             <strong>{t("queue")}</strong>
             <button onClick={() => setShowQueue(false)}>{t("close")}</button>
@@ -1349,6 +1405,7 @@ export function App() {
             <button
               key={`${song.id}-${index}`}
               className={index === queueIndex ? "active" : ""}
+              aria-current={index === queueIndex ? "true" : undefined}
               onClick={() => {
                 setQueueIndex(index);
                 setPlaying(true);
@@ -1493,7 +1550,7 @@ export function App() {
           <button
             title={t("queue")}
             aria-label={t("queue")}
-            onClick={() => setShowQueue((value) => !value)}
+            onClick={(event) => { drawerTriggerRef.current = event.currentTarget; setShowSettings(false); setShowQueue((value) => !value); }}
           >
             <Queue />
           </button>

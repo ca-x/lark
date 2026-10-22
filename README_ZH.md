@@ -8,7 +8,7 @@
 
 后端使用 Go + Echo v5 + Ent ORM，默认 SQLite。前端使用 React + TypeScript + Vite。生产构建会嵌入 Go 服务中，因此可以作为一个服务直接运行。
 
-另有独立的 [百灵音乐桌面客户端](desktop/README.md)，通过 Protobuf/gRPC 连接服务端，支持托盘控制、安装包和 `lark://` 链接。
+另有独立的 [百灵音乐桌面客户端](desktop/README.md)，自动协商 Connect、gRPC-Web 或 gRPC，支持 Cloudflare Tunnel、托盘控制、安装包和 `lark://` 链接。部署见[客户端连接与端口指南](docs/client-deployment.md)。
 
 更新日志见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -238,6 +238,8 @@ go run ./cmd/server
 ## Docker
 
 基础部署可以直接使用前面“快速开始”里的命令。本节主要说明首次启动后通常会调整的 Docker 配置：音乐目录、数据库调优和可选 Redis。
+
+自选宿主端口可用 `LARK_PORT=18080 docker compose up -d`，容器内仍监听 8080。仅供宿主机反代或 cloudflared 使用时加 `LARK_BIND_IP=127.0.0.1`。若 cloudflared 在同一 Docker 网络的另一容器中，上游使用 `http://lark:8080`，不是 localhost 或宿主端口。完整配置见[端口发布指南](docs/client-deployment.md)。
 
 默认 compose 会把应用数据和上传音乐保存在 `lark_data` volume 中。如果你的运行环境已经把音乐目录暴露到了容器内部，请把 `LARK_LIBRARY_DIR` 设置成这个容器内路径；否则保持默认 `/app/data/music`，通过应用数据 volume 使用上传/扫描。发布的 Docker 镜像已经内置 `ffmpeg`/`ffprobe`，默认转码和元数据探测不需要在 compose 里额外配置路径。递归扫描只会跳过名为 `.shared-center` 的平台辅助目录，然后继续扫描同级其他目录；不会改写你配置的曲库根路径。
 

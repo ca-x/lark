@@ -32,15 +32,15 @@ type desktopRPC struct {
 }
 
 func (s *Server) desktopHandler() http.Handler {
-	rpcServer := grpc.NewServer()
-	desktopv1.RegisterDesktopServiceServer(rpcServer, &desktopRPC{lib: s.lib, handler: s.echo})
+	rpcHandler := newDesktopHTTPHandler(&desktopRPC{lib: s.lib, handler: s.echo})
 	return h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.ProtoMajor == 2 && strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
+		if strings.HasPrefix(r.URL.Path, "/lark.desktop.v1.DesktopService/") {
 			if !s.desktopGRPCEnabled.Load() {
-				http.Error(w, "desktop gRPC is disabled", http.StatusServiceUnavailable)
+				w.Header().Set("Lark-Desktop-Disabled", "true")
+				http.Error(w, "desktop client API is disabled", http.StatusServiceUnavailable)
 				return
 			}
-			rpcServer.ServeHTTP(w, r)
+			rpcHandler.ServeHTTP(w, r)
 			return
 		}
 		s.echo.ServeHTTP(w, r)
@@ -328,7 +328,11 @@ func desktopAlbum(item models.Album) *desktopv1.Album {
 }
 
 func (d *desktopRPC) StreamMedia(req *desktopv1.StreamMediaRequest, stream grpc.ServerStreamingServer[desktopv1.StreamMediaResponse]) error {
-	_, token, err := d.session(stream.Context())
+	return d.streamMedia(stream.Context(), req, stream.Send)
+}
+
+func (d *desktopRPC) streamMedia(ctx context.Context, req *desktopv1.StreamMediaRequest, send func(*desktopv1.StreamMediaResponse) error) error {
+	_, token, err := d.session(ctx)
 	if err != nil {
 		return err
 	}
@@ -352,13 +356,13 @@ func (d *desktopRPC) StreamMedia(req *desktopv1.StreamMediaRequest, stream grpc.
 	default:
 		return status.Error(codes.InvalidArgument, "unknown media kind")
 	}
-	r := httptest.NewRequestWithContext(stream.Context(), http.MethodGet, path, nil)
+	r := httptest.NewRequestWithContext(ctx, http.MethodGet, path, nil)
 	r.AddCookie(&http.Cookie{Name: sessionCookieName, Value: token})
 	r.Header.Set("X-Lark-Device-Type", "pc")
 	if req.GetRange() != "" {
 		r.Header.Set("Range", req.GetRange())
 	}
-	w := &desktopMediaWriter{header: make(http.Header), stream: stream}
+	w := &desktopMediaWriter{header: make(http.Header), send: send}
 	d.handler.ServeHTTP(w, r)
 	if w.sendErr != nil {
 		return w.sendErr
@@ -371,7 +375,7 @@ func (d *desktopRPC) StreamMedia(req *desktopv1.StreamMediaRequest, stream grpc.
 
 type desktopMediaWriter struct {
 	header     http.Header
-	stream     grpc.ServerStreamingServer[desktopv1.StreamMediaResponse]
+	send       func(*desktopv1.StreamMediaResponse) error
 	sentHeader bool
 	sendErr    error
 }
@@ -387,7 +391,7 @@ func (w *desktopMediaWriter) WriteHeader(code int) {
 func (w *desktopMediaWriter) writeHeader(code int) error {
 	w.sentHeader = true
 	length, _ := strconv.ParseInt(w.header.Get("Content-Length"), 10, 64)
-	return w.stream.Send(&desktopv1.StreamMediaResponse{Payload: &desktopv1.StreamMediaResponse_Header{Header: &desktopv1.MediaHeader{
+	return w.send(&desktopv1.StreamMediaResponse{Payload: &desktopv1.StreamMediaResponse_Header{Header: &desktopv1.MediaHeader{
 		Status: int32(code), ContentType: w.header.Get("Content-Type"), ContentRange: w.header.Get("Content-Range"), AcceptRanges: w.header.Get("Accept-Ranges"), ContentLength: length,
 	}}})
 }
@@ -402,7 +406,7 @@ func (w *desktopMediaWriter) Write(data []byte) (int, error) {
 	}
 	for len(data) > 0 {
 		chunk := data[:min(len(data), 64<<10)]
-		if err := w.stream.Send(&desktopv1.StreamMediaResponse{Payload: &desktopv1.StreamMediaResponse_Data{Data: chunk}}); err != nil {
+		if err := w.send(&desktopv1.StreamMediaResponse{Payload: &desktopv1.StreamMediaResponse_Data{Data: chunk}}); err != nil {
 			w.sendErr = err
 			return 0, err
 		}

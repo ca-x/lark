@@ -824,11 +824,11 @@ func (msgs Messages) LocalHttpRestricted() string {
 	return Catalog.Format(msgs.locale, "localHttpRestricted", nil)
 }
 
-// ConnectFailed says "Could not connect to the Lark gRPC server"
+// ConnectFailed says "Could not connect to the Lark server"
 // in the language the app shows.
 func ConnectFailed() string { return In(i18n.Locale()).ConnectFailed() }
 
-// ConnectFailed says "Could not connect to the Lark gRPC server"
+// ConnectFailed says "Could not connect to the Lark server"
 // in the language of msgs.
 func (msgs Messages) ConnectFailed() string {
 	return Catalog.Format(msgs.locale, "connectFailed", nil)
@@ -894,14 +894,64 @@ func (msgs Messages) Cancel() string {
 	return Catalog.Format(msgs.locale, "cancel", nil)
 }
 
-// GrpcConnection says "gRPC connection"
+// GrpcConnection says "Server connection"
 // in the language the app shows.
 func GrpcConnection() string { return In(i18n.Locale()).GrpcConnection() }
 
-// GrpcConnection says "gRPC connection"
+// GrpcConnection says "Server connection"
 // in the language of msgs.
 func (msgs Messages) GrpcConnection() string {
 	return Catalog.Format(msgs.locale, "grpcConnection", nil)
+}
+
+// AutomaticTransport says "Automatic protocol selection"
+// in the language the app shows.
+func AutomaticTransport() string { return In(i18n.Locale()).AutomaticTransport() }
+
+// AutomaticTransport says "Automatic protocol selection"
+// in the language of msgs.
+func (msgs Messages) AutomaticTransport() string {
+	return Catalog.Format(msgs.locale, "automaticTransport", nil)
+}
+
+// TransportHint says "Connect, gRPC-Web or gRPC is selected automatically. Use the same HTTPS address as the web app, including through Clo…"
+// in the language the app shows.
+func TransportHint() string { return In(i18n.Locale()).TransportHint() }
+
+// TransportHint says "Connect, gRPC-Web or gRPC is selected automatically. Use the same HTTPS address as the web app, including through Clo…"
+// in the language of msgs.
+func (msgs Messages) TransportHint() string {
+	return Catalog.Format(msgs.locale, "transportHint", nil)
+}
+
+// ShowPassword says "Show password"
+// in the language the app shows.
+func ShowPassword() string { return In(i18n.Locale()).ShowPassword() }
+
+// ShowPassword says "Show password"
+// in the language of msgs.
+func (msgs Messages) ShowPassword() string {
+	return Catalog.Format(msgs.locale, "showPassword", nil)
+}
+
+// HidePassword says "Hide password"
+// in the language the app shows.
+func HidePassword() string { return In(i18n.Locale()).HidePassword() }
+
+// HidePassword says "Hide password"
+// in the language of msgs.
+func (msgs Messages) HidePassword() string {
+	return Catalog.Format(msgs.locale, "hidePassword", nil)
+}
+
+// ConnectionSecurity says "The app does not store your password."
+// in the language the app shows.
+func ConnectionSecurity() string { return In(i18n.Locale()).ConnectionSecurity() }
+
+// ConnectionSecurity says "The app does not store your password."
+// in the language of msgs.
+func (msgs Messages) ConnectionSecurity() string {
+	return Catalog.Format(msgs.locale, "connectionSecurity", nil)
 }
 
 // ConnectionOnline says "Connected"

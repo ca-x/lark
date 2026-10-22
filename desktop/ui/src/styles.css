@@ -12,7 +12,8 @@
   --shadow:0 18px 48px #0005;
   --desktop-ease-out:cubic-bezier(.23,1,.32,1);
   color-scheme:dark;
-  font-family:Inter,"Noto Sans SC",system-ui,sans-serif;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",sans-serif;
+  font-optical-sizing:auto;
 }
 * { box-sizing:border-box; }
 html,body,#root { width:100%; height:100%; margin:0; }
@@ -24,13 +25,13 @@ button:focus-visible,input:focus-visible,select:focus-visible { outline:2px soli
 .boot-screen { height:100%; display:grid; place-content:center; gap:16px; text-align:center; font-size:32px; font-weight:750; letter-spacing:.18em; }
 .boot-screen span { color:var(--muted); font-size:13px; font-weight:400; letter-spacing:0; }
 .eyebrow { display:block; color:var(--accent); font-size:11px; font-weight:700; letter-spacing:.16em; }
-.connect-page { min-height:100%; display:grid; grid-template-columns:minmax(290px,46%) minmax(420px,54%); background:#1e2122; }
+.connect-page { height:100%; min-height:0; overflow:auto; display:grid; grid-template-columns:minmax(290px,46%) minmax(420px,54%); background:#1e2122; }
 .connect-art { position:relative; display:grid; place-items:center; overflow:hidden; background:radial-gradient(circle at 50% 46%,#42503c 0,#2b342e 42%,#151a18 100%); }
 .connect-art::before { content:""; position:absolute; inset:9%; border:1px solid #ffffff19; }
 .connect-art > span { position:absolute; bottom:8%; left:11%; color:#d4dfc1; font-size:11px; letter-spacing:.21em; }
 .connect-record { display:grid; place-items:center; width:min(70%,470px); aspect-ratio:1; border-radius:50%; background:repeating-radial-gradient(circle,#111 0 2px,#1b1d1b 2px 4px,#0c0e0d 4px 6px); box-shadow:0 28px 60px #0009, inset 0 0 0 5px #0009; }
 .connect-record > div { width:26%; aspect-ratio:1; border:7px solid #ddd9ae; border-radius:50%; background:#9cb873; box-shadow:inset 0 0 0 4px #263026; }
-.connect-page[data-busy='true'] .connect-record { animation:connect-spin 4s linear infinite; }
+.connect-page[data-busy='true'] .connect-record { animation:connect-spin 2s linear infinite; }
 @keyframes connect-spin { to { transform:rotate(360deg); } }
 .connect-form { width:min(460px,80%); align-self:center; justify-self:center; display:grid; gap:18px; }
 .connect-logo { display:flex; align-items:center; gap:9px; margin-bottom:42px; font-size:19px; font-weight:800; letter-spacing:.15em; }
@@ -61,7 +62,7 @@ button:focus-visible,input:focus-visible,select:focus-visible { outline:2px soli
 .desktop-sidebar nav button:hover { background:#ffffff0e; color:#f5f6ee; }
 .desktop-sidebar nav button.active { background:#94b56422; color:var(--accent); }
 .sidebar-bottom { display:flex; align-items:center; gap:6px; margin-top:auto; padding:12px 8px 0; border-top:1px solid var(--line); }
-.server-name { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#929a94; font-size:11px; }
+.server-name { display:flex; align-items:center; gap:7px; min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#929a94; font-size:11px; }
 .sidebar-bottom button { width:32px; height:32px; display:grid; place-items:center; border:0; border-radius:5px; background:transparent; color:#aab0a8; }
 .sidebar-bottom button:hover { background:#ffffff13; }
 .sidebar-bottom svg { width:18px; }
@@ -165,7 +166,7 @@ button:focus-visible,input:focus-visible,select:focus-visible { outline:2px soli
 .lyrics-drawer button { border:0; background:transparent; color:var(--muted); }
 .lyrics-drawer p { white-space:pre-wrap; color:#d9dfd3; line-height:2.2; text-align:center; }
 .queue-drawer,.settings-drawer { position:fixed; z-index:19; top:64px; right:0; bottom:100px; width:min(350px,42vw); overflow:auto; padding:22px; border-left:1px solid var(--line); background:#222727; box-shadow:-16px 0 45px #0004; }
-.queue-drawer > div,.settings-drawer > div { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.queue-drawer > div,.settings-drawer > div:not(.desktop-connection-setting) { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
 .queue-drawer > div button,.settings-drawer > div button { border:0; background:transparent; color:var(--muted); }
 .queue-drawer > button { width:100%; display:grid; grid-template-columns:22px minmax(0,1fr); gap:3px 8px; padding:9px 4px; border:0; border-bottom:1px solid var(--line); background:transparent; color:var(--text); text-align:left; }
 .queue-drawer > button.active { color:var(--accent); }
@@ -199,3 +200,40 @@ button:focus-visible,input:focus-visible,select:focus-visible { outline:2px soli
 }
 .desktop-connection-setting small { overflow-wrap: anywhere; }
 .desktop-connection-setting button { justify-self: start; }
+.connect-form { padding-block:32px; }
+.connect-form > small { line-height:1.7; }
+.connect-password-field { position:relative; display:flex; align-items:center; }
+.connect-form .connect-password-field input { padding-right:46px; }
+.connect-password-field button { position:absolute; right:2px; display:grid; place-items:center; width:40px; height:40px; padding:0; border:0; border-radius:6px; background:transparent; color:var(--muted-strong); }
+.connect-password-field button svg { width:19px; height:19px; }
+.connect-transport-hint { display:flex; align-items:flex-start; gap:10px; padding:14px; border:1px solid #b4d47226; border-radius:10px; background:#b4d47208; }
+.connect-transport-hint > svg { flex-shrink:0; width:20px; height:20px; color:var(--accent); }
+.connect-transport-hint strong { font-size:12px; font-weight:600; }
+.connect-transport-hint p { margin:5px 0 0; color:var(--muted); font-size:12px; line-height:1.65; }
+.connect-error { overflow-wrap:anywhere; font-size:13px; }
+.connection-spinner { width:18px; height:18px; animation:connect-spin 600ms linear infinite; }
+.loading-state { display:flex; align-items:center; justify-content:center; gap:10px; }
+.server-host { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.connection-dot { display:inline-block; flex-shrink:0; width:6px; height:6px; border-radius:50%; background:var(--accent); }
+.connection-status { display:flex; align-items:center; gap:7px; color:var(--muted-strong); font-size:12px; }
+.connection-status[data-online='false'] .connection-dot { background:#db9991; }
+.transport-badge { justify-self:start; padding:4px 8px; border:1px solid var(--line); border-radius:5px; color:var(--accent); font-size:11px; font-weight:600; }
+.desktop-connection-setting button { min-height:36px; padding:6px 10px; border:1px solid var(--line); border-radius:6px; color:var(--text); background:var(--panel2); }
+.settings-drawer > div > button,.queue-drawer > div > button { min-height:36px; padding:6px 10px; border-radius:6px; }
+.song-list-head { position:sticky; top:-1px; z-index:2; background:var(--bg); }
+.queue-drawer > button { min-height:56px; }
+.desktop-shell button,.connect-form button { transition:transform 140ms var(--desktop-ease-out); }
+.desktop-shell button:active:not(:disabled):not(:focus-visible),.connect-form button:active:not(:disabled):not(:focus-visible) { transform:scale(.97); }
+@media (max-width:1100px) {
+  .desktop-brand > span:last-child { display:none; }
+  .sidebar-bottom { flex-direction:column; width:100%; }
+  .sidebar-bottom button { width:44px; height:44px; }
+}
+@media (hover:hover) and (pointer:fine) {
+  .connect-password-field button:hover { color:var(--text); background:#ffffff0c; }
+  .desktop-connection-setting button:hover { border-color:#b4d47260; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .connect-record,.connection-spinner { animation:none !important; }
+  .desktop-shell button:active,.connect-form button:active { transform:none !important; }
+}

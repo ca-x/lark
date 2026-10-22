@@ -40,7 +40,7 @@ func (d *Desktop) serveMedia(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(r.Context())
 	if err != nil {
 		http.Error(w, "not connected", http.StatusUnauthorized)
 		return

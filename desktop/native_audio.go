@@ -157,7 +157,7 @@ func (d *Desktop) StartNative(ctx context.Context, songID int64, volume float64)
 	d.nativeGeneration++
 	generation := d.nativeGeneration
 	d.nativeMu.Unlock()
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return NativePlayback{}, err
 	}

@@ -85,7 +85,7 @@ func fromAlbum(item *desktopv1.Album) Album {
 }
 
 func (d *Desktop) Songs(ctx context.Context, query string, favorites bool, limit, offset int32) (SongPage, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return SongPage{}, err
 	}
@@ -99,7 +99,7 @@ func (d *Desktop) Songs(ctx context.Context, query string, favorites bool, limit
 }
 
 func (d *Desktop) Song(ctx context.Context, id int64) (Song, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return Song{}, err
 	}
@@ -111,7 +111,7 @@ func (d *Desktop) Song(ctx context.Context, id int64) (Song, error) {
 }
 
 func (d *Desktop) Artists(ctx context.Context, favorites bool, limit, offset int32) (ArtistPage, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return ArtistPage{}, err
 	}
@@ -130,7 +130,7 @@ func (d *Desktop) Artists(ctx context.Context, favorites bool, limit, offset int
 }
 
 func (d *Desktop) Artist(ctx context.Context, id int64) (Artist, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return Artist{}, err
 	}
@@ -142,7 +142,7 @@ func (d *Desktop) Artist(ctx context.Context, id int64) (Artist, error) {
 }
 
 func (d *Desktop) ArtistSongs(ctx context.Context, id int64) (SongPage, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return SongPage{}, err
 	}
@@ -154,7 +154,7 @@ func (d *Desktop) ArtistSongs(ctx context.Context, id int64) (SongPage, error) {
 }
 
 func (d *Desktop) Albums(ctx context.Context, favorites bool, artistID int64, limit, offset int32) (AlbumPage, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return AlbumPage{}, err
 	}
@@ -173,7 +173,7 @@ func (d *Desktop) Albums(ctx context.Context, favorites bool, artistID int64, li
 }
 
 func (d *Desktop) Album(ctx context.Context, id int64) (Album, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return Album{}, err
 	}
@@ -185,7 +185,7 @@ func (d *Desktop) Album(ctx context.Context, id int64) (Album, error) {
 }
 
 func (d *Desktop) AlbumSongs(ctx context.Context, id int64) (SongPage, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return SongPage{}, err
 	}
@@ -197,7 +197,7 @@ func (d *Desktop) AlbumSongs(ctx context.Context, id int64) (SongPage, error) {
 }
 
 func (d *Desktop) Favorite(ctx context.Context, kind string, id int64, favorite bool) (bool, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -218,7 +218,7 @@ func (d *Desktop) Favorite(ctx context.Context, kind string, id int64, favorite 
 }
 
 func (d *Desktop) Lyrics(ctx context.Context, songID int64) (string, error) {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -230,7 +230,7 @@ func (d *Desktop) Lyrics(ctx context.Context, songID int64) (string, error) {
 }
 
 func (d *Desktop) MarkPlayed(ctx context.Context, songID int64) error {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (d *Desktop) MarkPlayed(ctx context.Context, songID int64) error {
 }
 
 func (d *Desktop) SaveProgress(ctx context.Context, songID int64, position, duration float64, completed bool) error {
-	client, token, err := d.rpc()
+	client, token, err := d.rpc(ctx)
 	if err != nil {
 		return err
 	}

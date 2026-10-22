@@ -1,7 +1,7 @@
 # Lark Music Desktop
 
 Lark Music is a separate MyGo application for macOS, Windows, and Linux.
-It connects to the Lark server with the versioned Protobuf/gRPC protocol in
+It connects to the Lark server with the versioned Protobuf protocol in
 [`../protocol`](../protocol). The desktop UI lives in [`ui`](ui); the web app
 keeps its own build and API.
 
@@ -16,32 +16,38 @@ keeps its own build and API.
 - A setting for closing to the tray or quitting. If a Linux desktop has no
   tray service, closing exits so the window cannot become unreachable.
 
-The server and desktop exchange typed Protobuf messages. Audio and covers
-are sent in bounded gRPC chunks; the local MyGo media protocol exposes them
+The client automatically negotiates Connect, gRPC-Web, or native gRPC. The
+server and desktop exchange typed Protobuf messages. Audio and covers
+are sent in bounded streaming chunks; the local MyGo media protocol exposes them
 to the WebView. Byte ranges are forwarded so seeking works without
 downloading a whole song. The desktop UI does not receive the session token.
 
 For seekable MP3, WAV, and Ogg sources, MyGo's native audio engine decodes
-and plays the gRPC range stream. FLAC, CUE, and sources without byte-range
+and plays the range stream over the negotiated transport. FLAC, CUE, and sources without byte-range
 support stay on the WebView playback path, preserving the existing format
 fallback. Album hover and connection motion respect reduced-motion settings.
 
 The optional `8bitMyGoUI` native pixel mode is not included in this release:
-its current API targets MyGo v0.2.10 and does not compile with the v0.5.1
-native UI API used here. The normal UI still offers the existing vinyl and
+its API integration is not part of the MyGo v0.6.2 upgrade.
+The normal UI still offers the existing vinyl and
 cassette themes.
 
 ## Connect
 
 Use the address of an updated Lark server, for example
-`https://music.example.com`. gRPC uses the same host and port as the web
+`https://music.example.com`. All desktop protocols use the same host and port as the web
 app. Remote connections require HTTPS. To connect to a local or private
 network server over plain HTTP, enter its `http://` URL and explicitly check
 the local HTTP option on the first screen.
 
-The server must allow HTTP/2 gRPC requests through its reverse proxy. With
-Caddy, an h2c upstream for the Lark server can serve both the web and gRPC
-on one public HTTPS address:
+Automatic negotiation works with ordinary HTTP/1.1 reverse proxies, including
+Cloudflare Tunnel public hostnames. It probes server information without credentials,
+then signs in once. Settings show the selected transport. Restored sessions prefer
+their last working transport, and connection checks renegotiate after a transport
+failure. Authentication, TLS and protocol-version errors do not trigger credential
+retries, and HTTPS never falls back to HTTP.
+
+For a direct proxy that also supports native gRPC, Caddy can use an h2c upstream:
 
 ```caddyfile
 music.example.com {
@@ -49,9 +55,11 @@ music.example.com {
 }
 ```
 
-Cloudflare Tunnel public hostnames currently do not support gRPC. For a
-Cloudflare connection, use private network routing with Cloudflare One/WARP;
-see [the connection guide](../docs/desktop-cloudflare-tunnel.md).
+Cloudflare Tunnel public hostnames do not support native gRPC, but the automatic
+HTTP-compatible transport needs neither WARP nor a separate port. WARP private
+network routing remains an option for native gRPC. Interactive Cloudflare Access
+browser challenges are not supported. See the [connection guide](../docs/desktop-cloudflare-tunnel.md)
+and the [Docker, ports, Caddy and Nginx guide](../docs/client-deployment.md).
 
 The desktop saves `config.json` and `auth.json` under MyGo's per-user
 `PathUserData` directory. On Unix they have mode `0600`, and the directory
@@ -73,12 +81,14 @@ credentials before opening it.
 
 ## Build
 
-Requirements: Go 1.27+, Node.js 22+, and pnpm 11+. Linux WebView builds
+Requirements: Go 1.27.1+, MyGo 0.6.2 (pinned in `go.mod`), Node.js 22.13+ (24 recommended), and pnpm 11+. Linux WebView builds
 need WebKitGTK 4.1 at runtime; the tray needs Ayatana AppIndicator.
 
 ```sh
+pnpm --dir frontend install --frozen-lockfile
 pnpm --dir desktop/ui install --frozen-lockfile
 cd desktop
+go tool mygo generate
 go test ./...
 go tool mygo build -platform linux/amd64
 ```
