@@ -262,6 +262,7 @@ type userPreferencesRequest struct {
 	HomePlayerStyle         string  `json:"home_player_style"`
 	MobileHomePlayerStyle   string  `json:"mobile_home_player_style"`
 	MineradioStageEnabled   *bool   `json:"mineradio_stage_enabled"`
+	ToasterStudioEnabled    *bool   `json:"toaster_studio_enabled"`
 	ArtistAlbumDisplayStyle string  `json:"artist_album_display_style"`
 	LyricsDisplayStyle      *string `json:"lyrics_display_style"`
 	LyricsDragSeekEnabled   *bool   `json:"lyrics_drag_seek_enabled"`
@@ -705,10 +706,15 @@ func (s *Server) handleSaveUserPreferences(c *echo.Context) error {
 	if req.MineradioStageEnabled != nil {
 		mineradioStageEnabled = *req.MineradioStageEnabled
 	}
+	toasterStudioEnabled := current.ToasterStudioEnabled
+	if req.ToasterStudioEnabled != nil {
+		toasterStudioEnabled = *req.ToasterStudioEnabled
+	}
 	preferences, err := s.lib.SaveUserPreferences(c.Request().Context(), currentUserID(c), models.UserPreferences{
 		HomePlayerStyle:         req.HomePlayerStyle,
 		MobileHomePlayerStyle:   req.MobileHomePlayerStyle,
 		MineradioStageEnabled:   mineradioStageEnabled,
+		ToasterStudioEnabled:    toasterStudioEnabled,
 		ArtistAlbumDisplayStyle: req.ArtistAlbumDisplayStyle,
 		LyricsDisplayStyle:      lyricsDisplayStyle,
 		LyricsDragSeekEnabled:   lyricsDragSeekEnabled,

@@ -26,6 +26,8 @@ Walkman 桌面播放主题参考并适配了 GordenSun 的 [Walkman](https://git
 
 歌手专辑封面流参考并适配了 opc8838-hub 的 [cover-flow-showcase](https://github.com/opc8838-hub/cover-flow-showcase) 中的环形 3D 定位、景深、倒影、滚轮导航和吸附交互。百灵与该项目官方无从属关系。
 
+可选的 Toaster Studio适配了 Colin 的 [Toaster](https://github.com/StopBanning/toaster) 音频分析、Strudel 代码生成和 MIDI 导出模块，保留其 MIT 许可证。
+
 全屏歌词方向也参考了 chthollyphile 的 [folia-major](https://github.com/chthollyphile/folia-major)，用于歌词时序、歌词轨道和溢光交互设计。
 
 桌面「黑胶唱片室」主题参考了 Sandheep 的 [Vinyls](https://vinyls.sandheep.xyz)，保留原站唱机和唱针图形，接入 Lark 的专辑浏览与播放控制。可在「设置 → 播放与外观 → 首页播放样式」中切换。
@@ -102,6 +104,12 @@ docker compose up -d
 - `播放到其他设备` 可以把当前本地曲库歌曲和百灵队列投放到同一局域网内发现的 DLNA 渲染器，例如电视、功放、音箱或机顶盒。如果设备无法访问百灵发出的媒体 URL，请在站点设置里把 **媒体 Base URL** 设置为后端在局域网内可访问的地址，例如 `http://192.168.1.8:8080`。
 - 布局适配桌面侧栏、Pad 图标侧栏和手机底部导航。
 - 歌曲可以准备为浏览器侧离线缓存，并显示缓存状态和占用空间；也可以把听过的歌自动缓存到本机，断网或开启离线模式时优先播放缓存音频。
+
+### 把当前音乐转成代码与动效
+
+在「设置 → 播放与外观」开启默认关闭的 **Toaster Studio**，再点击「打开工作台」。桌面侧栏和手机「我的」也会出现入口。工作室分析百灵在当前浏览器播放的音乐，显示节拍、调性、实时 Strudel 代码，以及频谱、光球和多米诺动效。
+
+可以复制或下载当前 Strudel 代码，在 strudel.cc 中打开编辑；积累至少四小节后，还可以下载 MIDI。分析从打开工作台后开始，导出覆盖实际分析到的片段。切歌或拖动进度会重新分析，暂停时停止积累。结果是近似重构，不是原曲的精确转录。原曲仍由百灵播放器播放；DLNA 等远端输出没有浏览器本地音频，无法使用这项分析。
 
 ### 建立日常听歌习惯
 

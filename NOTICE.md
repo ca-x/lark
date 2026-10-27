@@ -4,6 +4,7 @@ Lark incorporates and adapts visual-effect implementation ideas and code from:
 - folia-major by chthollyphile, licensed under AGPL-3.0. Full-screen lyrics work may adapt lyric timing, glow, and rail interaction patterns from this project.
 - Walkman by GordenSun, licensed under MIT: https://github.com/GordenSun/Walkman. The desktop Walkman player theme adapts the 3D cassette-player model, smoked door, mechanical controls, reel animation, and amber dot-matrix display concepts.
 - cover-flow-showcase by opc8838-hub, licensed under MIT: https://github.com/opc8838-hub/cover-flow-showcase. The artist album Cover Flow adapts circular 3D positioning, depth, reflection, wheel navigation, and snap behavior from commit eda6308e7e936a0d51b3602640dd870ce76693bd.
+- Toaster by Colin, licensed under MIT: https://github.com/StopBanning/toaster. The optional Toaster Studio adapts browser audio analysis, Strudel code generation and MIDI/song export from commit cc8177d427f88ef780ac9cf596d1c2b6533b7816. The original source notice is retained in `frontend/src/features/toaster/upstream/LICENSE` and bundled at `/licenses/toaster.txt`; camera, media artwork and Electron code are not included.
 - Songloft by the Songloft Team, licensed under Apache-2.0: https://github.com/songloft-org/songloft. Lark's JS plugin compatibility layer derives QuickJS runtime, plugin package, lifecycle, permission, routing, and host-bridge behavior from commit 825f70f603a773fc8c0ded555a0cbe753d2a0d52, with Songloft's Chi/sqlc services replaced by Lark Echo/Ent adapters.
 
 - Vinyls by Sandheep (Sandy): https://vinyls.sandheep.xyz. The Vinyl room theme includes the reference deck, record, fixtures and tonearm SVG artwork retrieved on 2026-09-08. Source and extraction details are recorded in `frontend/src/components/player-themes/vinyl-collection/README.md`; these reference assets are not relicensed by this notice.
@@ -19,6 +20,28 @@ Licensed under the Apache License, Version 2.0. You may obtain a copy at
 ## cover-flow-showcase MIT License
 
 Copyright (c) 2026
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## Toaster MIT License
+
+Copyright (c) 2026 Colin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

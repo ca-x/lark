@@ -7667,6 +7667,13 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
     linear-gradient(180deg, rgba(255,255,255,.035), transparent 24%),
     radial-gradient(ellipse at center, transparent 46%, rgba(0,0,0,.52) 100%);
 }
+/* Flatten the 3D artwork before compositing the playback controls. */
+.artist-album-cover-flow-viewport {
+  position:absolute;
+  inset:0;
+  z-index:1;
+  contain:paint;
+}
 .artist-album-cover-flow-cards {
   position:absolute;
   left:50%;
@@ -7696,6 +7703,11 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
   transform-style:preserve-3d;
   backface-visibility:hidden;
   will-change:transform, opacity, filter;
+}
+/* Transparent distant covers otherwise keep their GPU layers and reflections. */
+.artist-album-cover-flow-card[data-cover-flow-hidden='true'] {
+  visibility:hidden;
+  will-change:auto;
 }
 .artist-album-cover-flow-card[data-active='true'] { cursor:pointer; }
 .artist-album-cover-flow-face {
@@ -7816,6 +7828,7 @@ input[type=range].vslider::-moz-range-thumb { width:14px; height:14px; border-ra
 .artist-album-cover-flow-open strong { font-size:15px; line-height:1.25; }
 .artist-album-cover-flow-open span { color:rgba(255,255,255,.66); font-size:12px; }
 .artist-album-cover-flow-play {
+  flex-shrink:0;
   min-width:112px;
   min-height:44px;
   padding:0 15px;

@@ -406,36 +406,38 @@ function ArtistAlbumShowcase({
         }}
       >
         <div className="artist-album-cover-flow-ambience" aria-hidden="true" />
-        <div className="artist-album-cover-flow-cards">
-          {albums.map((album, index) => (
-            <button
-              key={album.id}
-              ref={(node) => {
-                cardRefs.current[index] = node;
-              }}
-              type="button"
-              className="artist-album-cover-flow-card"
-              data-active={index === activeIndex ? "true" : "false"}
-              tabIndex={-1}
-              aria-label={`${t("albums")} · ${album.title}`}
-              aria-hidden={index !== activeIndex}
-              onClick={(event) => handleCardClick(event, album, index)}
-            >
-              <span className="artist-album-cover-flow-face">
-                <span className="cover plain-cover">
-                  <AlbumCoverImage src={`/api/albums/${album.id}/cover`} />
-                  <Record weight="fill" />
+        <div className="artist-album-cover-flow-viewport">
+          <div className="artist-album-cover-flow-cards">
+            {albums.map((album, index) => (
+              <button
+                key={album.id}
+                ref={(node) => {
+                  cardRefs.current[index] = node;
+                }}
+                type="button"
+                className="artist-album-cover-flow-card"
+                data-active={index === activeIndex ? "true" : "false"}
+                tabIndex={-1}
+                aria-label={`${t("albums")} · ${album.title}`}
+                aria-hidden={index !== activeIndex}
+                onClick={(event) => handleCardClick(event, album, index)}
+              >
+                <span className="artist-album-cover-flow-face">
+                  <span className="cover plain-cover">
+                    <AlbumCoverImage src={`/api/albums/${album.id}/cover`} />
+                    <Record weight="fill" />
+                  </span>
+                  <span className="artist-album-cover-flow-shine" aria-hidden="true" />
                 </span>
-                <span className="artist-album-cover-flow-shine" aria-hidden="true" />
-              </span>
-              <span className="artist-album-cover-flow-reflection" aria-hidden="true">
-                <span className="cover plain-cover">
-                  <AlbumCoverImage src={`/api/albums/${album.id}/cover`} />
-                  <Record weight="fill" />
+                <span className="artist-album-cover-flow-reflection" aria-hidden="true">
+                  <span className="cover plain-cover">
+                    <AlbumCoverImage src={`/api/albums/${album.id}/cover`} />
+                    <Record weight="fill" />
+                  </span>
                 </span>
-              </span>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
 
         {activeAlbum ? (

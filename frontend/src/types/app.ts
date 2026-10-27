@@ -7,6 +7,7 @@ export type View =
   | "favorites"
   | "library"
   | "my"
+  | "toaster"
   | "radio"
   | "playlists"
   | "albums"
@@ -22,6 +23,7 @@ export const MOBILE_PLAYBACK_VIEWS = new Set<View>([
   "favorites",
   "library",
   "my",
+  "toaster",
   "radio",
   "playlists",
   "albums",

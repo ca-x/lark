@@ -1,0 +1,34 @@
+import type { EngineTape } from './tape.js';
+
+export const NOTES: string[];
+export const VOICES: string[];
+export const ROLL_COLS: number;
+export function nowSec(): number;
+export type Hit = { t: number; step: number };
+export type EngineVoice = { shown: boolean[] | null; lastHit: Hit };
+export type Engine = {
+  tape?: EngineTape;
+  song: () => { known: boolean; playing: boolean };
+  tempo: { locked: boolean; bpm: number; shown: number; down: number };
+  key: { root: number; mode: string } | null;
+  bar: number | null;
+  step: number | null;
+  silent: boolean;
+  resetAt: number;
+  lastSound: number;
+  bassSeen: number;
+  chordSeen: number;
+  hhHit: Hit;
+  v: Record<string, EngineVoice>;
+  fastDb: Float32Array;
+  prevDb: Float32Array;
+  prevLg: Float32Array;
+  prevMidMag: Float32Array;
+  lowE: number;
+  time: Float32Array;
+  frame(t: number, audioTime?: number): void;
+  harmonyBar(bar: number): void;
+  reset(options?: { top?: boolean }): void;
+  tap(t: number): number;
+};
+export function createEngine(options: { fast: AnalyserNode; mid: AnalyserNode; slow: AnalyserNode; sampleRate: number }): Engine;

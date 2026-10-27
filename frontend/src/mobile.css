@@ -1204,6 +1204,10 @@
     min-height:56px;
     padding:6px;
     border-radius:16px;
+    /* Avoid backdrop sampling of the moving 3D covers on mobile GPUs. */
+    background:rgba(16,16,22,.96);
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
   }
   .artist-album-cover-flow-open {
     min-width:0;

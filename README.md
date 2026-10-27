@@ -26,6 +26,8 @@ The Walkman desktop player theme adapts the 3D cassette-player model, smoked doo
 
 The artist album Cover Flow adapts the circular 3D positioning, depth, reflection, wheel navigation, and snap behavior from [cover-flow-showcase](https://github.com/opc8838-hub/cover-flow-showcase) by opc8838-hub. Lark is not affiliated with that project.
 
+The optional Toaster Studio adapts audio analysis, Strudel code generation and MIDI export from [Toaster](https://github.com/StopBanning/toaster) by Colin, retaining its MIT license.
+
 The fullscreen lyrics direction also references [folia-major](https://github.com/chthollyphile/folia-major) by chthollyphile for lyric timing, rail, and glow interaction ideas.
 
 The Vinyl room desktop theme references [Vinyls](https://vinyls.sandheep.xyz) by Sandheep, retaining its original deck and tonearm artwork with Lark album browsing and playback controls. Select it in Settings → Playback & appearance → Home player style.
@@ -102,6 +104,12 @@ By default, Lark stores app data and uploaded music in the `lark_data` Docker vo
 - `Play to device` can send the current local-library song and Lark queue to a discovered DLNA renderer such as a TV, receiver, speaker, or set-top box on the same LAN. If the renderer cannot fetch Lark's media URL, set **Media base URL** in Site Settings to the backend's reachable LAN URL, for example `http://192.168.1.8:8080`.
 - The layout adapts across desktop sidebar, tablet icon rail, and mobile bottom navigation.
 - Songs can be prepared for browser-side offline playback with visible cache status and storage use. Played songs can also be cached automatically, and offline mode prefers cached audio when the network is unavailable.
+
+### Turn Current Music Into Code And Visuals
+
+Enable **Toaster Studio** in Settings → Playback & appearance, then choose Open studio. The feature defaults to off; enabling it also adds a desktop navigation entry and a mobile My entry. It analyses music played locally by Lark, showing measured tempo/key, live Strudel code, and spectrum, orb and domino visuals.
+
+Copy or download the current Strudel code, or open it at strudel.cc. MIDI export becomes available after at least four analysed bars. Analysis starts when the workspace opens; exports cover the analysed portion. Changing track or seeking restarts analysis, and pausing stops accumulation. Results are approximate reconstructions rather than exact transcriptions. The existing Lark player remains responsible for playback; remote outputs such as DLNA provide no local browser audio to analyse.
 
 ### Build Daily Listening Habits
 

@@ -301,6 +301,7 @@ export interface UserPreferences {
   home_player_style: HomePlayerStyle;
   mobile_home_player_style: MobileHomePlayerStyle;
   mineradio_stage_enabled: boolean;
+  toaster_studio_enabled: boolean;
   artist_album_display_style: ArtistAlbumDisplayStyle;
   lyrics_display_style: LyricsDisplayStyle;
   lyrics_drag_seek_enabled: boolean;

@@ -5,6 +5,26 @@
 
 ---
 
+## 0.18.0：Toaster Studio 与移动封面流修复
+
+发布日期 / Released: 2026-10-27
+
+- 新增默认关闭、按用户保存的 Toaster Studio，可在「设置 → 播放与外观」开启，并从桌面侧栏或手机「我的」进入。
+- 使用当前浏览器播放的音乐进行节拍、调性和音符的近似分析，显示实时 Strudel 代码及频谱、光球、多米诺动效；支持复制、下载 Strudel、在外部编辑器打开，以及分析至少四小节后下载 MIDI。
+- 复用现有播放器音频链路，暂停或静音时停止积累，切歌或拖动进度后重新分析，退出时释放分析资源。按需加载功能，无需新增服务。
+- 修复移动端歌手专辑封面流中控制栏闪烁、被封面遮挡，以及长标题挤压播放按钮的问题；减少不可见封面的合成图层。
+
+## v0.18.0: Toaster Studio and mobile Cover Flow fixes
+
+Released: 2026-10-27
+
+- Add an optional, per-user Toaster Studio, disabled by default. Enable it in Settings → Playback & appearance, then enter from desktop navigation or mobile My.
+- Approximately reconstruct locally playing music as measured tempo/key, live Strudel code, and spectrum, orb or domino visuals. Copy or download Strudel, open it in the external editor, and export MIDI after at least four analysed bars.
+- Reuse the existing playback audio graph, freeze accumulation during pauses or silence, reset on track changes or seeking, and release analysis resources on exit. Load the workspace on demand without an additional service.
+- Fix flickering or obscured mobile artist-album Cover Flow controls and play buttons squeezed by long titles; reduce compositing layers for hidden artwork.
+
+---
+
 ## 0.17.0 / Desktop 0.2.0：移动交互与自动连接
 
 发布日期 / Released: 2026-10-22

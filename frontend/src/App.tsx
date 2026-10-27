@@ -1,9 +1,10 @@
 import { DesktopPlayerBackdrop } from "./components/player-themes/DesktopPlayerBackdrop";
 import { registerAudioAnalysis } from "./services/audioAnalysis";
 import { MobileThemePicker } from "./components/mobile/MobileThemePicker";
+import ToasterBoundary from "./components/toaster/ToasterBoundary";
 import type { CSSProperties, ChangeEvent, ReactNode, UIEvent } from "react";
 import { createPortal, flushSync } from "react-dom";
-import { Fragment, memo, useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import {
@@ -51,6 +52,7 @@ import {
   UploadSimple,
   UserCircle,
   WarningCircle,
+  Waveform,
   X,
 } from "@phosphor-icons/react";
 import { LiveSpectrum } from "./components/LiveSpectrum";
@@ -253,6 +255,8 @@ import {
   wait,
   withTimeout,
 } from "./utils/app";
+
+const ToasterStudio = lazy(() => import("./components/toaster/ToasterStudio"));
 
 const ARTIST_INITIALS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#".split("");
 const SLEEP_DURATION_PRESETS = [15, 30, 60, 90] as const;
@@ -495,6 +499,7 @@ function normalizeUserPreferences(value?: Partial<UserPreferences> | null): User
     home_player_style: normalizeHomePlayerStyle(value?.home_player_style),
     mobile_home_player_style: normalizeMobileHomePlayerStyle(value?.mobile_home_player_style),
     mineradio_stage_enabled: value?.mineradio_stage_enabled ?? false,
+    toaster_studio_enabled: value?.toaster_studio_enabled ?? false,
     artist_album_display_style: normalizeArtistAlbumDisplayStyle(value?.artist_album_display_style),
     lyrics_display_style: normalizeLyricsDisplayStyle(value?.lyrics_display_style),
     lyrics_drag_seek_enabled: value?.lyrics_drag_seek_enabled ?? true,
@@ -507,6 +512,7 @@ function sameUserPreferences(left: UserPreferences | null, right: UserPreference
   return left.home_player_style === right.home_player_style &&
     left.mobile_home_player_style === right.mobile_home_player_style &&
     left.mineradio_stage_enabled === right.mineradio_stage_enabled &&
+    left.toaster_studio_enabled === right.toaster_studio_enabled &&
     left.artist_album_display_style === right.artist_album_display_style &&
     left.lyrics_display_style === right.lyrics_display_style &&
     left.lyrics_drag_seek_enabled === right.lyrics_drag_seek_enabled &&
@@ -1183,6 +1189,8 @@ export default function App() {
   const [homePlayerStyle, setHomePlayerStyle] = useState<HomePlayerStyle>(storedHomePlayerStyle);
   const [mobileHomePlayerStyle, setMobileHomePlayerStyle] = useState<MobileHomePlayerStyle>(storedMobileHomePlayerStyle);
   const [mineradioStageEnabled, setMineradioStageEnabled] = useState(storedMineradioStageEnabled);
+  const [toasterStudioEnabled, setToasterStudioEnabled] = useState(false);
+  const toasterReturnViewRef = useRef<View>("home");
   const [artistAlbumDisplayStyle, setArtistAlbumDisplayStyle] = useState<ArtistAlbumDisplayStyle>(() => storedArtistAlbumDisplayStyle());
   const [lyricsDisplayStyle, setLyricsDisplayStyle] = useState<LyricsDisplayStyle>("immersive");
   const [lyricsDragSeekEnabled, setLyricsDragSeekEnabled] = useState(true);
@@ -1585,6 +1593,7 @@ export default function App() {
       home_player_style: homePlayerStyle,
       mobile_home_player_style: mobileHomePlayerStyle,
       mineradio_stage_enabled: mineradioStageEnabled,
+      toaster_studio_enabled: toasterStudioEnabled,
       artist_album_display_style: artistAlbumDisplayStyle,
       lyrics_display_style: lyricsDisplayStyle,
       lyrics_drag_seek_enabled: lyricsDragSeekEnabled,
@@ -1602,7 +1611,11 @@ export default function App() {
         })
         .catch(() => undefined);
     }, 250);
-  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, lyricsDisplayStyle, lyricsDragSeekEnabled, mineradioStageEnabled, mobileHomePlayerStyle, terminalShellTheme]);
+  }, [artistAlbumDisplayStyle, auth?.user?.id, homePlayerStyle, lyricsDisplayStyle, lyricsDragSeekEnabled, mineradioStageEnabled, mobileHomePlayerStyle, terminalShellTheme, toasterStudioEnabled]);
+
+  useEffect(() => {
+    if (!toasterStudioEnabled && view === "toaster") setView(mobileViewport ? "my" : "home");
+  }, [toasterStudioEnabled, view, mobileViewport]);
 
   useEffect(() => {
     return () => {
@@ -2349,6 +2362,7 @@ export default function App() {
   async function loadAppData(user?: User | null) {
     setQueueSyncReady(false);
     userPreferencesReadyRef.current = false;
+    setToasterStudioEnabled(false);
     const [loaded, preferences] = await Promise.all([
       api.settings().catch(() => defaultSettings),
       api.userPreferences().catch(() => null),
@@ -2360,6 +2374,7 @@ export default function App() {
       setHomePlayerStyle(normalized.home_player_style);
       setMobileHomePlayerStyle(normalized.mobile_home_player_style);
       setMineradioStageEnabled(normalized.mineradio_stage_enabled);
+      setToasterStudioEnabled(normalized.toaster_studio_enabled);
       setArtistAlbumDisplayStyle(normalized.artist_album_display_style);
       setLyricsDisplayStyle(normalized.lyrics_display_style);
       setLyricsDragSeekEnabled(normalized.lyrics_drag_seek_enabled);
@@ -5075,6 +5090,7 @@ export default function App() {
     { id: "playlists", label: t("playlists"), icon: <PlaylistIcon /> },
     { id: "albums", label: t("albums"), icon: <Disc /> },
     { id: "artists", label: t("artists"), icon: <Record /> },
+    ...(toasterStudioEnabled ? [{ id: "toaster" as const, label: t("toasterStudio"), icon: <Waveform /> }] : []),
   ];
   const desktopNav: { id: View; label: string; icon: ReactNode }[] = [
     ...playbackNav,
@@ -5083,6 +5099,18 @@ export default function App() {
     { id: "about", label: t("about"), icon: <Info /> },
   ];
   const openNavigationView = (id: View) => {
+    if (id === "toaster") {
+      if (!toasterStudioEnabled) return;
+      if (view !== "toaster") toasterReturnViewRef.current = view;
+      if (audioEl && (current || currentNetworkTrack) && !currentRadio && !remoteDLNAActive) {
+        try {
+          ensureEqualizerGraph();
+          resumeEqualizer();
+        } catch (err) {
+          showMessage(err instanceof Error ? err.message : String(err));
+        }
+      }
+    }
     setMobileSearchActive(false);
     setLyricsFullScreen(false);
     setMobilePlayerExpanded(false);
@@ -5137,6 +5165,7 @@ export default function App() {
   }, [mobilePlayerAvailable, mobilePlayerExpanded]);
   const mobileMyActive =
     view === "my" ||
+    view === "toaster" ||
     view === "history" ||
     view === "favorites" ||
     view === "settings" ||
@@ -5747,8 +5776,30 @@ export default function App() {
                 onOpenQueue={toggleQueuePanel}
                 onOpenSettings={() => openNavigationView("settings")}
                 onOpenAbout={() => openNavigationView("about")}
+                onOpenToaster={toasterStudioEnabled ? () => openNavigationView("toaster") : undefined}
               />
             )}
+
+            {view === "toaster" && toasterStudioEnabled ? (
+              <ToasterBoundary title={t("toasterStudio")} message={t("toasterStudioLoadError")} backLabel={t("close")} onBack={() => openNavigationView(toasterReturnViewRef.current)}>
+                <Suspense fallback={<div className="empty-state" role="status">{t("toasterStudioLoading")}</div>}>
+                  <ToasterStudio
+                    audio={!currentRadio && !remoteDLNAActive ? audioEl : null}
+                    playing={playerPlaying}
+                    available={Boolean((current || currentNetworkTrack) && !currentRadio && !remoteDLNAActive)}
+                    meta={{ mediaKey: current ? `song:${current.id}` : currentNetworkTrack ? `network:${currentNetworkTrack.source_id}:${currentNetworkTrack.id}` : "", title: current?.title ?? currentNetworkTrack?.title ?? "", artist: current?.artist ?? currentNetworkTrack?.artist ?? "" }}
+                    language={settings.language}
+                    onBack={() => openNavigationView(toasterReturnViewRef.current)}
+                    onTogglePlayback={toggleMobilePlayback}
+                    onEnableAnalysis={() => {
+                      if (!audioEl || !(current || currentNetworkTrack) || currentRadio || remoteDLNAActive) return;
+                      ensureEqualizerGraph();
+                      resumeEqualizer();
+                    }}
+                  />
+                </Suspense>
+              </ToasterBoundary>
+            ) : null}
 
             {view === "history" && (
               <HistoryView
@@ -6109,6 +6160,9 @@ export default function App() {
                 onMobileHomePlayerStyleChange={setMobileHomePlayerStyle}
                 mineradioStageEnabled={mineradioStageEnabled}
                 onMineradioStageEnabledChange={setMineradioStageEnabled}
+                toasterStudioEnabled={toasterStudioEnabled}
+                onToasterStudioEnabledChange={setToasterStudioEnabled}
+                onOpenToaster={() => openNavigationView("toaster")}
                 artistAlbumDisplayStyle={artistAlbumDisplayStyle}
                 onArtistAlbumDisplayStyleChange={setArtistAlbumDisplayStyle}
                 lyricsDisplayStyle={lyricsDisplayStyle}
@@ -7598,6 +7652,7 @@ function MobileMyView({
   onOpenQueue,
   onOpenSettings,
   onOpenAbout,
+  onOpenToaster,
 }: {
   user: User;
   stats: LibraryStats | null;
@@ -7608,6 +7663,7 @@ function MobileMyView({
   onOpenQueue: () => void;
   onOpenSettings: () => void;
   onOpenAbout: () => void;
+  onOpenToaster?: () => void;
 }) {
   const librarySummary = stats
     ? `${stats.songs} ${t("count")} · ${stats.albums} ${t("album")}`
@@ -7641,6 +7697,7 @@ function MobileMyView({
       icon: <GearSix />,
       onClick: onOpenSettings,
     },
+    ...(onOpenToaster ? [{ key: "toaster", label: t("toasterStudio"), detail: t("toasterStudioMobileHint"), icon: <Waveform />, onClick: onOpenToaster }] : []),
     {
       key: "about",
       label: t("about"),
@@ -10490,6 +10547,9 @@ function SettingsPanel({
   onMobileHomePlayerStyleChange,
   mineradioStageEnabled,
   onMineradioStageEnabledChange,
+  toasterStudioEnabled,
+  onToasterStudioEnabledChange,
+  onOpenToaster,
   artistAlbumDisplayStyle,
   onArtistAlbumDisplayStyleChange,
   lyricsDisplayStyle,
@@ -10535,6 +10595,9 @@ function SettingsPanel({
   onMobileHomePlayerStyleChange: (style: MobileHomePlayerStyle) => void;
   mineradioStageEnabled: boolean;
   onMineradioStageEnabledChange: (enabled: boolean) => void;
+  toasterStudioEnabled: boolean;
+  onToasterStudioEnabledChange: (enabled: boolean) => void;
+  onOpenToaster: () => void;
   artistAlbumDisplayStyle: ArtistAlbumDisplayStyle;
   onArtistAlbumDisplayStyleChange: (style: ArtistAlbumDisplayStyle) => void;
   lyricsDisplayStyle: LyricsDisplayStyle;
@@ -11088,6 +11151,21 @@ function SettingsPanel({
             <MobileThemePicker value={mobileHomePlayerStyle} onChange={onMobileHomePlayerStyleChange} t={t} />
           </SettingsSection>
           ) : null}
+          <SettingsSection
+            wideRow
+            owner="playback"
+            title={t("toasterStudio")}
+            description={t("toasterStudioHint")}
+          >
+            <label className="switch-row">
+              <span>
+                <span>{t("toasterStudioEnable")}</span>
+                <small>{t("toasterStudioEnableHint")}</small>
+              </span>
+              <input type="checkbox" checked={toasterStudioEnabled} onChange={(event) => onToasterStudioEnabledChange(event.target.checked)} />
+            </label>
+            {toasterStudioEnabled ? <button type="button" onClick={onOpenToaster}><Waveform aria-hidden="true" />{t("toasterStudioOpen")}</button> : null}
+          </SettingsSection>
           <SettingsSection
             wideRow
             owner="playback"
