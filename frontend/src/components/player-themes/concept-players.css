@@ -62,6 +62,11 @@
 .soft-static-heading > span:last-child { color: var(--concept-muted); font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .soft-static-platter { position: absolute; top: 49%; left: -39%; width: 77%; aspect-ratio: 1; transform: translateY(-50%); border-radius: 50%; background: #250d2b; box-shadow: 0 0 0 1px #f1b4db20, 0 0 0 5px #0c0b0c, 0 12px 28px #0007; }
 .soft-static-strobe { position: absolute; inset: -3%; border-radius: 50%; background: repeating-conic-gradient(#b96e86 0deg .35deg, transparent .35deg 2deg); mask-image: radial-gradient(closest-side, transparent 96%, #000 96.2% 98%, transparent 98.5%); opacity: .7; }
+.soft-static-progress { position: absolute; z-index: 1; inset: -3%; width: 106%; height: 106%; overflow: visible; fill: none; color: #ce708d; pointer-events: none; }
+.soft-static-progress-rail { stroke: currentColor; stroke-width: .12; opacity: .5; }
+.soft-static-progress-cursor { transform-origin: 50% 50%; transform-box: view-box; transition: transform 200ms linear; }
+.soft-static-progress-cursor > circle { stroke: currentColor; stroke-width: .2; fill: var(--concept-bg); }
+.soft-static-progress-cursor > .soft-static-progress-dot { fill: currentColor; stroke: none; }
 .soft-static-rotor { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; animation: soft-static-spin 1.8s linear infinite paused; }
 .soft-static-marble { display: block; width: 100%; height: 100%; }
 .soft-static-grooves { position: absolute; inset: 0; border: 2px solid #421c45; border-radius: 50%; background: repeating-radial-gradient(circle, transparent 0 2px, #ffffff1a 2.5px, #160d1933 3px, transparent 3.5px 4px); box-shadow: inset 0 0 0 7px #35143588, inset 0 0 30px #f8a1d733; }
@@ -74,6 +79,8 @@
 .soft-static-sheen { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from 20deg, transparent 12%, #e9c4ff2b 17%, transparent 26% 61%, #ffe2ee1c 68%, transparent 78%); pointer-events: none; }
 .soft-static-player .soft-static-tonearm { position: absolute; z-index: 2; top: -5%; left: 21.5%; width: 7%; height: 58%; transform: rotate(var(--soft-static-arm)); transform-origin: 50% 12%; filter: drop-shadow(4px 6px 3px #0009); }
 .soft-static-tonearm .metal-headshell { height: 10%; top: 87%; }
+.soft-static-tonearm .metal-tube { height: 88%; }
+.soft-static-tonearm .metal-fingerlift { top: 90%; }
 .soft-static-listening { position: absolute; z-index: 1; top: 47%; left: 43%; right: 7%; transform: translateY(-50%); text-align: left; }
 .soft-static-listening .soft-static-lyric { max-height: 6.4em; overflow: auto; scrollbar-width: thin; font: 500 clamp(18px, 2.25cqw, 32px)/1.6 ui-monospace, "SFMono-Regular", monospace; overflow-wrap: anywhere; text-wrap: pretty; }
 .soft-static-listening .soft-static-credit { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 18px; color: var(--concept-muted); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; overflow: hidden; }
@@ -159,6 +166,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .soft-static-rotor { animation: none; }
+  .soft-static-progress-cursor { transition: none; }
   .prism-glass { transform: none !important; transition: none; }
   .concept-player button { transition: background-color 140ms ease; }
   .concept-player button:active { transform: none !important; }

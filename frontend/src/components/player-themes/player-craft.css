@@ -13,7 +13,7 @@
 .metal-headshell > span:not(.metal-cartridge):nth-child(2) { left:auto; right:17%; }
 .metal-headshell > .metal-cartridge { position:absolute; width:68%; height:24%; left:16%; bottom:-13%; border-radius:0 0 2px 2px; background:#a86e4e; border-top:2px solid #b78c66; }
 .metal-headshell > .metal-cartridge::after { content:''; position:absolute; width:12%; height:60%; left:44%; top:85%; background:#c8cdd1; }
-.metal-fingerlift { width:39%; height:2%; right:-8%; top:86%; border-radius:2px; background:linear-gradient(0deg,#3b434c,#b9c1ca,#697482); transform:rotate(-25deg); transform-origin:left; }
+.metal-fingerlift { width:39%; height:2%; right:1%; top:86%; border-radius:2px; background:linear-gradient(0deg,#3b434c,#b9c1ca,#697482); transform:rotate(-25deg); transform-origin:left; }
 .gramophone-player .gramophone-arm.metal-tonearm { width:54px; height:240px; top:-2%; right:8%; transform-origin:50% 12%; filter:drop-shadow(3px 5px 2px #0005); transition:transform 240ms cubic-bezier(.23,1,.32,1); }
 .material-soft-vinyl .metal-bearing { background:repeating-conic-gradient(#b5bbc0 0deg,#e4e8eb 4deg,#c0c5ca 8deg); box-shadow:0 2px 3px #0002,inset 0 0 0 2px #fff7,inset 0 0 0 5px #cad0d5; border-color:#b6bec5; }
 .material-soft-vinyl .metal-headshell { background:linear-gradient(90deg,#b8bfc7,#edf0f1 44%,#cbd1d7 84%,#9099a4); border-color:#aeb5bd; }

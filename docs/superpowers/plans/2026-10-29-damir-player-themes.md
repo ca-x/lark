@@ -82,3 +82,11 @@ Produces: durable per-user theme selection and evidence of behavior/rendering.
 | Unbounded Prism metadata and Soft Static credits | Bounded lines with full-text tooltips | Long multilingual names cannot cover playback controls |
 | Lyrics loading messages in the main line | Only active timed lyrics, otherwise track metadata | Status placeholders are not song lyrics |
 | Light crossing small functional labels | Opaque local label/control surfaces | Optical effects must not reduce text legibility |
+
+## Follow-up patch v0.18.2
+
+- User identified the detached fingerlift after the v0.18.1 tag/image publication and requested a patch in the same 0.18.x series, plus the video's moving pink outer-arc cursor. Do not overwrite v0.18.1 or redesign the texture.
+- Root cause: the shared fingerlift started beyond the headshell's right edge; Soft Static also moved the headshell down without moving the fingerlift or extending the tube. Move the shared lift base inside the shell and overlap the Soft Static tube and lift vertically.
+- Cursor uses bounded real playback progress with transform-only interpolation, retains its paused position and follows seeking. A resize observer fits its arc to the visible platter; reduced motion removes interpolation, not playback controls.
+- Regression evidence: the two connection checks and cursor check fail on v0.18.1, then pass after the fix. The actual browser initially reports a lift base at x=62 beyond the shell's right edge at x=59; the fix gives 2–5px overlap across Soft Static, Gramophone and mobile material arms at 1440×1000, 1280×720 and 900×640. All five sampled progress positions remain visible and the paused cursor matrix stays unchanged.
+- Local release gates: 100 frontend tests, TypeScript/Vite build, lint, player-motion and Smartisan-tonearm checks pass. Go module verification, all backend tests, vet and the embedded v0.18.2 build pass. An isolated packaged-server smoke returns v0.18.2 and serves HTML/JS/CSS identical to the generated dist; both themes and the cursor ship without reference-video URLs. Independent patch review reports no Critical or Important findings.

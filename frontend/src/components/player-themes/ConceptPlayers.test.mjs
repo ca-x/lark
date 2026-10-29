@@ -223,3 +223,46 @@ test("long metadata retains complete names when its visible layout is bounded", 
   const soft = host("SoftStaticPlayer", { artist, album }).render();
   assert.equal(find(soft, (node) => node.props?.className === "soft-static-credit").props.title, `${artist} / ${album}`);
 });
+
+function cssDeclarations(source, selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const block = new RegExp(`${escaped}\\s*\\{([^}]+)\\}`).exec(source)?.[1] ?? "";
+  return Object.fromEntries(block.split(";").filter((entry) => entry.includes(":")).map((entry) => entry.trim().split(/:\s*/)));
+}
+
+for (const variant of ["shared", "soft-static"]) {
+  test(`${variant} tonearm keeps its tube and fingerlift attached to the headshell at every size`, () => {
+    const shared = readFileSync(new URL("./player-craft.css", import.meta.url), "utf8");
+    const concept = readFileSync(new URL("./concept-players.css", import.meta.url), "utf8");
+    const part = (name) => ({
+      ...cssDeclarations(shared, `.metal-${name}`),
+      ...(variant === "soft-static" ? cssDeclarations(concept, `.soft-static-tonearm .metal-${name}`) : {}),
+    });
+    const shell = part("headshell");
+    const lift = part("fingerlift");
+    const tube = part("tube");
+    for (const [width, height] of [[38, 160], [54, 240], [84, 460], [105, 487]]) {
+      const shellLeft = parseFloat(shell.left) / 100 * width;
+      const shellRight = shellLeft + parseFloat(shell.width) / 100 * width;
+      const shellTop = parseFloat(shell.top) / 100 * height;
+      const shellBottom = shellTop + parseFloat(shell.height) / 100 * height;
+      const liftOriginX = (100 - parseFloat(lift.right) - parseFloat(lift.width)) / 100 * width;
+      const liftOriginY = (parseFloat(lift.top) + parseFloat(lift.height) / 2) / 100 * height;
+      assert.ok(liftOriginX >= shellLeft + 0.5 && liftOriginX <= shellRight - 0.5, `${width}×${height}: lift must overlap the headshell horizontally`);
+      assert.ok(liftOriginY >= shellTop + 0.5 && liftOriginY <= shellBottom - 0.5, `${width}×${height}: lift must overlap the headshell vertically`);
+      assert.ok((parseFloat(tube.top) + parseFloat(tube.height)) / 100 * height >= shellTop + 0.5, `${width}×${height}: tube must overlap the headshell`);
+    }
+  });
+}
+
+test("Soft Static's outer pink cursor follows finite playback progress and retains its position on pause", () => {
+  const player = host("SoftStaticPlayer", { duration: 180, progress: 0, playing: true });
+  const cursor = (tree) => find(tree, (node) => node.props?.className === "soft-static-progress-cursor");
+  for (const [progress, angle] of [[0, -65], [45, -32.5], [90, 0], [135, 32.5], [180, 65], [999, 65], [-10, -65], [Number.NaN, -65]]) {
+    assert.equal(cursor(player.render({ progress })).props.style.transform, `rotate(${angle}deg)`);
+  }
+  const playing = cursor(player.render({ progress: 90 }));
+  const paused = cursor(player.render({ playing: false }));
+  assert.equal(paused.props.style.transform, playing.props.style.transform);
+  assert.equal(cursor(player.render({ duration: Number.POSITIVE_INFINITY })).props.style.transform, "rotate(-65deg)");
+});

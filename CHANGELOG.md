@@ -5,6 +5,22 @@
 
 ---
 
+## 0.18.2：唱针连接与外圈进度动效
+
+发布日期 / Released: 2026-10-29
+
+- 修复彩色黑胶主题的金属提手、唱臂与唱头之间的断开，缩放和切换播放状态时保持连接。
+- 为粉色外圈添加随真实播放进度移动的光点，暂停时停住、跳转时同步，并适配紧凑窗口和减少动态效果设置。
+
+## v0.18.2: Connected tonearm and outer progress cursor
+
+Released: 2026-10-29
+
+- Fix disconnected metal fingerlift, tube and headshell parts in Soft Static, keeping them attached across sizes and playback states.
+- Add a pink outer-arc cursor that follows actual playback progress, stays in place when paused and follows seeking, with compact-window and reduced-motion support.
+
+---
+
 ## 0.18.1：彩色黑胶与棱镜光谱
 
 发布日期 / Released: 2026-10-29

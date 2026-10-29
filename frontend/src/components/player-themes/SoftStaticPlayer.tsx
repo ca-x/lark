@@ -1,4 +1,4 @@
-import { useId, type CSSProperties } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 import { ConceptPlayerControls, type ConceptPlayerProps } from "./ConceptPlayerControls";
 import { playbackPosition } from "./conceptPlayback";
 import { MetalTonearm } from "./MetalTonearm";
@@ -11,7 +11,24 @@ export function SoftStaticPlayer(props: ConceptPlayerProps) {
   const cover = useCoverFallback(props.cover);
   const textureId = useId().replaceAll(":", "");
   const { fraction } = playbackPosition(props.progress, props.duration);
+  const [arcSweep, setArcSweep] = useState(65);
   const style = { "--soft-static-arm": `${playing ? -16 + fraction * 14 : -29}deg` } as CSSProperties;
+
+  useEffect(() => {
+    const player = ref.current;
+    const platter = player?.querySelector<HTMLElement>(".soft-static-platter");
+    if (!player || !platter || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      const playerBounds = player.getBoundingClientRect();
+      const platterBounds = platter.getBoundingClientRect();
+      if (!platterBounds.width) return;
+      const center = platterBounds.top + platterBounds.height / 2 - playerBounds.top;
+      const available = Math.max(0, Math.min(center, playerBounds.height - center) - 16);
+      setArcSweep(Math.min(65, Math.asin(Math.min(1, available / (platterBounds.width * .5035))) * 180 / Math.PI));
+    });
+    observer.observe(player);
+    return () => observer.disconnect();
+  }, [ref]);
 
   return (
     <div ref={ref} className="concept-player soft-static-player" data-playing={String(playing)} data-motion={visible ? "running" : "paused"} style={style}>
@@ -22,6 +39,13 @@ export function SoftStaticPlayer(props: ConceptPlayerProps) {
       </header>
       <div className="soft-static-platter" aria-hidden="true">
         <div className="soft-static-strobe" />
+        <svg className="soft-static-progress" viewBox="0 0 100 100" focusable="false">
+          <path className="soft-static-progress-rail" d="M70.0744 6.9504A47.5 47.5 0 0 1 70.0744 93.0496" />
+          <g className="soft-static-progress-cursor" style={{ transform: `rotate(${(fraction * 2 - 1) * arcSweep}deg)` }}>
+            <circle cx="97.5" cy="50" r=".72" />
+            <circle className="soft-static-progress-dot" cx="97.5" cy="50" r=".21" />
+          </g>
+        </svg>
         <div className="soft-static-rotor">
           <svg className="soft-static-marble" viewBox="0 0 640 640" focusable="false">
             <defs>
