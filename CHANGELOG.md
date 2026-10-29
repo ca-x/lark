@@ -5,6 +5,20 @@
 
 ---
 
+## 0.18.5：侧栏 Logo 自适应放大
+
+发布日期 / Released: 2026-10-29
+
+- 放大侧栏顶部 Logo，按导航栏可用宽度等比例缩放，至少占侧栏宽度的一半；保留「播放」分组文字及其他页面的 Logo 尺寸。
+
+## v0.18.5: Responsive sidebar logo
+
+Released: 2026-10-29
+
+- Enlarge the sidebar logo and scale it proportionally with the available navigation width to occupy at least half the sidebar width, while retaining the Playback heading and logo sizes on other pages.
+
+---
+
 ## 0.18.4：恢复 Logo 可见大小
 
 发布日期 / Released: 2026-10-29

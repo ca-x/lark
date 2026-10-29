@@ -27,7 +27,7 @@
   }
   .app-shell.lyrics-mode:not([data-interface-mode='shell']) { grid-template-columns:minmax(0,1fr); }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand { gap:10px; font-size:22px; font-weight:700; padding:0 8px; }
-  .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand img { width:42px; height:42px; }
+  .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand img { width:80%; height:auto; aspect-ratio:1; flex-shrink:0; }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav { gap:3px; }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav button { min-height:42px; padding:9px 12px; gap:12px; border:0; border-radius:9px; background:transparent; box-shadow:none; font-size:calc(14px * var(--interface-text-in-button-scale)); font-weight:550; }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav button.active { background:color-mix(in srgb,var(--accent) 13%,var(--bg)); color:var(--text); font-weight:700; }
@@ -266,7 +266,7 @@
   .app-shell:not([data-interface-mode='shell']):not([data-mineradio-stage-active='true']) { --desktop-sidebar-width:72px; --desktop-gutter:20px; --desktop-song-columns:28px minmax(110px,1.5fr) minmax(90px,1fr) 100px 50px calc(108px * var(--interface-button-relative-scale)); }
   .app-shell:not([data-mineradio-stage-active='true']) > .sidebar { padding:18px 10px; }
   .app-shell .desktop-sidebar :is(.brand > span,nav button > span,.nav-section-label) { display:none; }
-  .app-shell .desktop-sidebar .brand { padding:0; justify-content:center; }
+  .app-shell:not([data-mineradio-stage-active='true']) .desktop-sidebar .brand { padding:0; justify-content:center; }
   .app-shell .desktop-sidebar nav button { justify-content:center; padding:10px 0; }
   .app-shell:not([data-mineradio-stage-active='true']) > .player { grid-template-columns:minmax(140px,1fr) minmax(200px,1fr) 304px; gap:12px; padding-inline:14px; }
   .app-shell > .player .volume > button { flex-basis:32px; width:32px; min-width:32px; }

@@ -84,6 +84,15 @@ try {
         return { tableLeft:table.left, viewLeft:view.left };
       })()`);
       assert.ok(Math.abs(tableAlignment.tableLeft - tableAlignment.viewLeft) <= 2, `${theme} ${width}px: the song list must start at the content's left edge`);
+      const { result: brandLayout } = await browser("eval", `(() => {
+        const sidebar = document.querySelector('.desktop-sidebar').getBoundingClientRect();
+        const logo = document.querySelector('.desktop-sidebar .brand img').getBoundingClientRect();
+        const headings = Array.from(document.querySelectorAll('.desktop-sidebar .nav-section-label')).map(label => label.textContent);
+        return { sidebarWidth:sidebar.width, logoWidth:logo.width, logoHeight:logo.height, centered:Math.abs(logo.left + logo.width / 2 - sidebar.left - sidebar.width / 2) <= 1, fits:logo.left >= sidebar.left && logo.right <= sidebar.right, headings };
+      })()`);
+      assert.ok(brandLayout.logoWidth >= brandLayout.sidebarWidth * 0.5, `${theme} ${width}px: logo must occupy at least half the sidebar width, got ${brandLayout.logoWidth}/${brandLayout.sidebarWidth}`);
+      assert.ok(Math.abs(brandLayout.logoWidth - brandLayout.logoHeight) <= 1 && brandLayout.centered && brandLayout.fits, `${theme} ${width}px: logo must remain square, centered and within the sidebar`);
+      assert.ok(brandLayout.headings.includes("播放"), `${theme} ${width}px: retain the playback section heading`);
       const { result: rows } = await browser("eval", `Array.from(document.querySelectorAll('.song-row')).map(row => {
         const title = row.querySelector('.song-title-play strong');
         const artist = row.querySelector('.song-row-copy > .artist-link');
@@ -119,6 +128,16 @@ try {
         else assert.ok(!row.primaryVisible && row.moreVisible, `${theme} ${width}px: compact rows need the more button`);
       }
       if (theme === checkedThemes[0] && width === 1920) {
+        const { result: logoResize } = await browser("eval", `(() => {
+          const shell = document.querySelector('.app-shell');
+          const logo = document.querySelector('.desktop-sidebar .brand img');
+          const before = logo.getBoundingClientRect().width;
+          shell.style.setProperty('--desktop-sidebar-width', '280px');
+          const after = logo.getBoundingClientRect().width;
+          shell.style.removeProperty('--desktop-sidebar-width');
+          return { before, after };
+        })()`);
+        assert.ok(logoResize.after >= logoResize.before * 1.2, "1920px: logo must scale dynamically when the sidebar gets wider");
         if (process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT)
           await browser("screenshot", process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT);
         const { result: textScaleRatios } = await browser("eval", `(() => {
@@ -157,8 +176,21 @@ try {
         await browser("eval", `document.documentElement.style.removeProperty('--interface-button-relative-scale'); document.documentElement.style.removeProperty('--interface-text-in-button-scale')`);
       }
     }
-    console.log(`PASS ${theme}: titles, artists, headers and final-column playback controls align at ${checkedWidths.join("/")}px`);
+    console.log(`PASS ${theme}: responsive sidebar logo >=50%, retained headings and aligned song controls at ${checkedWidths.join("/")}px`);
   }
+  await browser("set", "viewport", "1440", "600");
+  const { result: shortSidebar } = await browser("eval", `(() => {
+    const sidebar = document.querySelector('.desktop-sidebar');
+    const about = sidebar.querySelector('button[aria-label="关于"]');
+    sidebar.scrollTop = sidebar.scrollHeight;
+    const bounds = sidebar.getBoundingClientRect();
+    const item = about.getBoundingClientRect();
+    const reachable = item.top >= bounds.top && item.bottom <= bounds.bottom;
+    sidebar.scrollTop = 0;
+    return { reachable };
+  })()`);
+  assert.ok(shortSidebar.reachable, "short windows: the enlarged logo must not make the last navigation item unreachable");
+  console.log("PASS short window 1440x600: final navigation item remains reachable");
   await browser("set", "viewport", "375", "812");
   await browser("wait", "--fn", "document.querySelectorAll('.song-row').length === 3");
   const { result: mobileRows } = await browser("eval", `Array.from(document.querySelectorAll('.song-row')).map(row => {
