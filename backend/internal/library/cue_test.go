@@ -49,7 +49,7 @@ func TestCueWithoutAudioTracksDoesNotBlockImageAudioScan(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:cue-no-audio?mode=memory&cache=shared&_pragma=foreign_keys(1)")
 	defer client.Close()
 	service := &Service{client: client, libraryDir: root}
-	result, err := service.Scan(ctx, 0)
+	result, err := service.scanLibrary(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

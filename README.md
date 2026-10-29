@@ -18,6 +18,8 @@ Lark is licensed under the GNU Affero General Public License v3.0. See [LICENSE]
 
 ## Acknowledgements
 
+The current logo is the original artwork supplied by @czyt in [issue #9](https://github.com/ca-x/lark/issues/9). See [logo provenance and regeneration](assets/brand/README.md).
+
 Thanks to the [LinuxDo Community](https://linux.do) for discussion and feedback.
 
 The Mineradio Stage player theme and its optional dark-stage effects adapt visual-effect code and interaction models from [Mineradio](https://github.com/XxHuberrr/Mineradio) by XxHuberrr, including the startup shader, cover-particle motion, 3D playlist shelf, lyric glow, and render-loop dynamics. Lark is not affiliated with Mineradio.
@@ -32,7 +34,12 @@ The fullscreen lyrics direction also references [folia-major](https://github.com
 
 The Vinyl room desktop theme references [Vinyls](https://vinyls.sandheep.xyz) by Sandheep, retaining its original deck and tonearm artwork with Lark album browsing and playback controls. Select it in Settings → Playback & appearance → Home player style.
 
-The Soft Static and Prism desktop themes are independent implementations inspired by [Damir's video concepts](https://heydamir.design/). They use generated record texture and geometric light effects, not bundled source videos or artwork. Prism is an optical visualization, not audio frequency analysis.
+The Soft Static and Prism desktop themes are independently implemented for Lark, with visual inspiration from [Damir's video concepts](https://heydamir.design/):
+
+- **Soft Static** references [Soft Static](https://media.sokol.studio/v1/concepts/music/full.mp4), including its cropped marbled record, metal tonearm and pink outer-arc dot.
+- **Prism** references [One light, every color](https://media.sokol.studio/v1/concepts/rainbow/full.mp4), including its incoming white light, translucent panel, split spectrum and reflection.
+
+The record texture and light effects are generated in code; the original videos and artwork are not bundled. Prism is an optical visualization, not audio frequency analysis.
 
 
 ---
@@ -128,7 +135,7 @@ Copy or download the current Strudel code, or open it at strudel.cc. MIDI export
 - Online radio includes the built-in cliamp source, custom playlist sources, Radio Browser top/search, and radio favorites.
 - Network library sources can connect to Navidrome/Subsonic, Jellyfin, and Plex for search and streaming.
 - Streaming quality and transcode policy can be tuned for local network, mobile data, or constrained devices.
-- Public share links can expose songs, albums, artists, or playlists on a playback page without sign-in.
+- With public sharing enabled by an admin, share songs, albums, artists, or playlists on a playback page without sign-in. Select multiple songs in Library and choose **Share** to create one link for up to 500 songs in list order.
 - Share links can be permanent or expire after 1 hour, 1 day, 7 days, or 30 days, and users can manage links they created.
 - Optional DLNA library exposure lets TVs, receivers, speakers, and third-party DLNA clients discover Lark as a LAN music source and browse songs, albums, artists, playlists, and folders. This is a separate admin setting from casting and defaults off.
 - The optional Subsonic-compatible `/rest/*.view` service lets Subsonic/Navidrome clients connect with separate Subsonic credentials.
@@ -138,6 +145,7 @@ Copy or download the current Strudel code, or open it at strudel.cc. MIDI export
 ### Administer A Private Music Service
 
 - First-run setup creates the first admin account. Admins can also enable registration.
+- Media-library settings, directory checks/changes, scans (including Subsonic) and uploads are admin-only in both the interface and API. Other users retain playback, folder browsing and personal offline preferences under **Playback & appearance**.
 - Settings cover language, theme, library paths, directory status, directory watch, diagnostics, font uploads, lyrics font, DLNA casting/library exposure, and transcode policy.
 - Lark supports Simplified Chinese and English. The app name appears as **百灵** in Chinese and **Lark** in English.
 - The theme system includes 21 schemes: original dark and light themes, Apple Music / Spotify / NetEase / Winamp / Foobar2000 inspired dark and light themes, and a Smartisan Music classic theme.

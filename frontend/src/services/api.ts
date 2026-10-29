@@ -138,7 +138,7 @@ export const api = {
   prepareOfflineSong: (id: number, quality = 192) => request<OfflineAudioStatus>(`/api/offline/songs/${id}/prepare?quality=${quality}`, { method: 'POST' }),
   offlineSongStatus: (id: number, quality = 192) => request<OfflineAudioStatus>(`/api/offline/songs/${id}/status?quality=${quality}`),
   shares: () => request<ShareList>('/api/shares'),
-  createShare: (type: Share['type'], id: number, expires_at?: string) => request<Share>('/api/shares', { method: 'POST', body: JSON.stringify({ type, id, expires_at: expires_at || null }) }),
+  createShare: (type: Share['type'], id: number, expires_at?: string, song_ids?: number[]) => request<Share>('/api/shares', { method: 'POST', body: JSON.stringify({ type, id, expires_at: expires_at || null, song_ids }) }),
   updateShare: (token: string, expires_at?: string) => request<Share>(`/api/shares/${encodeURIComponent(token)}`, { method: 'PATCH', body: JSON.stringify({ expires_at: expires_at || null }) }),
   deleteShare: (token: string) => request<void>(`/api/shares/${encodeURIComponent(token)}`, { method: 'DELETE' }),
   publicShare: (token: string) => request<PublicShare>(`/api/public/shares/${encodeURIComponent(token)}`),

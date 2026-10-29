@@ -8,9 +8,10 @@ import { SHARE_DURATION_OPTIONS, expiresAtFromDuration } from "./share-duration"
 import { useDialogLifecycle } from "../hooks/useDialogLifecycle";
 
 export type ShareTarget = {
-  type: "song" | "album" | "artist" | "playlist";
+  type: "song" | "songs" | "album" | "artist" | "playlist";
   id: number;
   title: string;
+  songIDs?: number[];
 };
 
 export function ShareDialog({
@@ -36,7 +37,7 @@ export function ShareDialog({
     setSubmitting(true);
     setError("");
     try {
-      const share = createdShare ?? await api.createShare(target.type, target.id, expiresAt);
+      const share = createdShare ?? await api.createShare(target.type, target.id, expiresAt, target.songIDs);
       setCreatedShare(share);
       const url = share.url || `${window.location.origin}/share/${encodeURIComponent(share.token)}`;
       try {
@@ -69,7 +70,7 @@ export function ShareDialog({
         </div>
         {!createdShare ? <p className="section-subtitle">{t("createShareHint")}</p> : null}
         <div className="share-target-card">
-          <span>{target.type}</span>
+          <span>{target.type === "songs" ? t("songs") : target.type}</span>
           <strong>{target.title}</strong>
         </div>
         {target.type === "song" || target.type === "album" ? (

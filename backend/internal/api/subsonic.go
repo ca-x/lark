@@ -303,9 +303,15 @@ func (s *Server) handleSubsonic(c *echo.Context) error {
 		}
 		return subsonicOK(c, subsonicResponse{Lyrics: &subsonicLyrics{Value: lyrics.Lyrics}})
 	case "getscanstatus":
+		if u.Role != "admin" {
+			return subsonicError(c, 50, "Administrator privileges required")
+		}
 		status := s.lib.ScanStatus()
 		return subsonicOK(c, subsonicResponse{ScanStatus: &subsonicScanStatus{Scanning: status.Running, Count: status.Scanned, FolderCount: 1}})
 	case "startscan":
+		if u.Role != "admin" {
+			return subsonicError(c, 50, "Administrator privileges required")
+		}
 		go func() {
 			_, _ = s.lib.Scan(context.Background(), u.ID)
 		}()

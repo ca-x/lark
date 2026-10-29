@@ -25,6 +25,13 @@ func (s *Service) ScanStatus() models.ScanStatus {
 	return cloneScanStatus(s.scanStatus)
 }
 func (s *Service) Scan(ctx context.Context, userID int) (models.ScanResult, error) {
+	if err := s.requireLibraryAdmin(ctx, userID); err != nil {
+		return models.ScanResult{}, err
+	}
+	return s.scanLibrary(ctx, userID)
+}
+
+func (s *Service) scanLibrary(ctx context.Context, userID int) (models.ScanResult, error) {
 	if !s.scanRunMu.TryLock() {
 		return models.ScanResult{Errors: []string{ErrScanRunning.Error()}}, ErrScanRunning
 	}

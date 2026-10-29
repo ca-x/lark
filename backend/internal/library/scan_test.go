@@ -60,7 +60,7 @@ func TestScanSkipsSharedCenterAndContinuesSiblings(t *testing.T) {
 	}
 
 	service := &Service{libraryDir: root}
-	result, err := service.Scan(context.Background(), 0)
+	result, err := service.scanLibrary(context.Background(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestScanRejectsConcurrentRun(t *testing.T) {
 	service := &Service{}
 	service.scanRunMu.Lock()
 	defer service.scanRunMu.Unlock()
-	_, err := service.Scan(context.Background(), 0)
+	_, err := service.scanLibrary(context.Background(), 0)
 	if !errors.Is(err, ErrScanRunning) {
 		t.Fatalf("expected ErrScanRunning, got %v", err)
 	}
@@ -90,7 +90,7 @@ func TestScanImportsWMAFiles(t *testing.T) {
 	defer client.Close()
 	service := &Service{client: client, libraryDir: root}
 
-	result, err := service.Scan(ctx, 0)
+	result, err := service.scanLibrary(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestScanPreservesSongFavoriteForExistingPath(t *testing.T) {
 	}
 	client := enttest.Open(t, "sqlite3", "file:scan-favorites?mode=memory&cache=shared&_pragma=foreign_keys(1)")
 	defer client.Close()
-	userItem, err := client.User.Create().SetUsername("owner").SetPasswordHash("hash").Save(ctx)
+	userItem, err := client.User.Create().SetUsername("owner").SetPasswordHash("hash").SetRole("admin").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +304,7 @@ FILE "album.ape" WAVE
 	}
 	client := enttest.Open(t, "sqlite3", "file:scan-cue-custom?mode=memory&cache=shared&_pragma=foreign_keys(1)")
 	defer client.Close()
-	userItem, err := client.User.Create().SetUsername("owner").SetPasswordHash("hash").Save(ctx)
+	userItem, err := client.User.Create().SetUsername("owner").SetPasswordHash("hash").SetRole("admin").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

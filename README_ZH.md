@@ -18,6 +18,8 @@
 
 ## 致谢
 
+新版 Logo 采用 @czyt 在 [issue #9](https://github.com/ca-x/lark/issues/9) 中提供的原图，来源、校验值和图标生成方法见 [Logo 说明](assets/brand/README.md)。
+
 感谢 [LinuxDo 社区](https://linux.do) 的讨论与反馈。
 
 暗场电台播放器样式及可选的 3D 歌单架 / 歌词舞台效果，直接适配了 XxHuberrr 的 [Mineradio](https://github.com/XxHuberrr/Mineradio) 中的启动幕 shader、封面粒子运动、3D 歌单架、歌词溢光和渲染循环动态。百灵与 Mineradio 官方无从属关系。
@@ -32,7 +34,12 @@ Walkman 桌面播放主题参考并适配了 GordenSun 的 [Walkman](https://git
 
 桌面「黑胶唱片室」主题参考了 Sandheep 的 [Vinyls](https://vinyls.sandheep.xyz)，保留原站唱机和唱针图形，接入 Lark 的专辑浏览与播放控制。可在「设置 → 播放与外观 → 首页播放样式」中切换。
 
-桌面「彩色黑胶 · Soft Static」与「棱镜光谱 · Prism」参考了 [Damir 的视频概念设计](https://heydamir.design/)，由 Lark 独立实现。唱片纹理由代码生成，光效使用几何绘制，不包含原站视频或美术资源；Prism 为光学演示，不是音频频谱分析。
+桌面「彩色黑胶 · Soft Static」与「棱镜光谱 · Prism」的视觉灵感来自 [Damir 的视频概念设计](https://heydamir.design/)，由 Lark 独立实现：
+
+- **彩色黑胶 · Soft Static**：参考 [Soft Static 原视频](https://media.sokol.studio/v1/concepts/music/full.mp4)中的裁切彩色黑胶、金属唱臂与粉色外圈光点。
+- **棱镜光谱 · Prism**：参考 [One light, every color 原视频](https://media.sokol.studio/v1/concepts/rainbow/full.mp4)中的白光入射、透光面板、彩色分光与倒影。
+
+唱片纹理由代码生成，光效使用几何绘制，不包含原站视频或美术资源；Prism 为光学演示，不是音频频谱分析。
 
 
 ---
@@ -129,6 +136,7 @@ docker compose up -d
 - 网络曲库可以连接 Navidrome/Subsonic、Jellyfin 和 Plex，用于搜索和串流播放。
 - 转码策略和默认码率可以按本地网络、移动流量或低性能设备调整。
 - 可以为歌曲、专辑、歌手或歌单创建公开播放链接，访问者不需要登录。
+- 管理员开启公开分享后，可在曲库多选歌曲，点击「分享」生成一个免登录收听的链接，每次最多 500 首，按列表顺序播放；也支持原有的单曲、专辑和歌单分享。
 - 分享链接可以永久有效，也可以设置 1 小时、1 天、7 天或 30 天过期；用户可以管理自己创建的分享。
 - 可选 DLNA 曲库暴露可以让电视、功放、音箱和第三方 DLNA 客户端在局域网内发现百灵，并浏览歌曲、专辑、歌手、歌单和文件夹。它是独立于投放的管理员设置，默认关闭。
 - 可选 Subsonic 兼容服务提供 `/rest/*.view` 接口，供 Subsonic/Navidrome 客户端连接，并使用单独的 Subsonic 账户。
@@ -137,6 +145,7 @@ docker compose up -d
 
 ### 管理一个私有音乐服务
 
+- 媒体库设置、目录读取/检查/修改、扫描（含 Subsonic 入口）和上传仅向管理员开放，界面与 API 同时限制权限。普通用户仍可播放、浏览文件夹，并在「播放与外观」调整个人离线缓存偏好。
 - 首次启动可创建第一个管理员账号；管理员也可以开启注册。
 - 设置项覆盖语言、主题、曲库路径、目录状态、目录监控、诊断开关、字体上传、歌词字体、DLNA 投放/曲库暴露和转码策略。
 - 支持简体中文和英文。中文界面显示 **百灵**，英文界面显示 **Lark**。

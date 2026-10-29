@@ -1,4 +1,4 @@
-const SHELL_CACHE = "lark-shell-v1";
+const SHELL_CACHE = "lark-shell-v2";
 const OFFLINE_CACHE = "lark-offline-v1";
 const CACHE_NAMES = [SHELL_CACHE, OFFLINE_CACHE];
 const SHELL_ASSETS = [
@@ -9,6 +9,8 @@ const SHELL_ASSETS = [
   "/favicon-16x16.png",
   "/favicon-32x32.png",
   "/apple-touch-icon.png",
+  "/android-chrome-192x192.png",
+  "/android-chrome-512x512.png",
 ];
 
 self.addEventListener("install", (event) => {

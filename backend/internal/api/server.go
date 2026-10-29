@@ -241,6 +241,7 @@ type settingsRequest struct {
 type shareRequest struct {
 	Type      string     `json:"type"`
 	ID        int        `json:"id"`
+	SongIDs   []int      `json:"song_ids"`
 	ExpiresAt *time.Time `json:"expires_at"`
 }
 
@@ -280,7 +281,6 @@ type healthResponse struct {
 	Commit           string `json:"commit"`
 	BuildTime        string `json:"build_time"`
 	GoVersion        string `json:"go_version"`
-	Library          string `json:"library"`
 	AudioBackend     string `json:"audio_backend"`
 	MetadataBackend  string `json:"metadata_backend"`
 	TranscodeBackend string `json:"transcode_backend"`
@@ -339,9 +339,9 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.POST("/api/auth/login", s.handleLogin)
 	e.POST("/api/auth/register", s.handleRegister)
 	e.POST("/api/auth/logout", s.handleLogout, auth)
-	e.GET("/api/public/shares/:token", s.handlePublicShare)
-	e.GET("/api/public/shares/:token/stream/:id", s.handlePublicShareStream)
-	e.GET("/api/public/shares/:token/cover/:id", s.handlePublicShareCover)
+	e.GET("/api/public/shares/:token", s.handlePublicShare, sanitizePublicShareErrors)
+	e.GET("/api/public/shares/:token/stream/:id", s.handlePublicShareStream, sanitizePublicShareErrors)
+	e.GET("/api/public/shares/:token/cover/:id", s.handlePublicShareCover, sanitizePublicShareErrors)
 	e.GET("/rest/:endpoint", s.handleSubsonic)
 	e.POST("/rest/:endpoint", s.handleSubsonic)
 	e.PUT("/api/me", s.handleUpdateProfile, auth)
@@ -403,12 +403,12 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/library/scan/status", s.handleScanStatus, admin)
 	e.GET("/api/library/stats", s.handleLibraryStats, auth)
 	e.GET("/api/library/review-summary", s.handleLibraryReviewSummary, auth)
-	e.GET("/api/library/sources", s.handleLibrarySources, auth)
-	e.GET("/api/library/directories", s.handleLibraryDirectories, auth)
-	e.POST("/api/library/directories/check", s.handleCheckLibraryDirectories, auth)
-	e.POST("/api/library/directories", s.handleAddLibraryDirectory, auth)
-	e.PATCH("/api/library/directories/:id", s.handleUpdateLibraryDirectory, auth)
-	e.DELETE("/api/library/directories/:id", s.handleDeleteLibraryDirectory, auth)
+	e.GET("/api/library/sources", s.handleLibrarySources, admin)
+	e.GET("/api/library/directories", s.handleLibraryDirectories, admin)
+	e.POST("/api/library/directories/check", s.handleCheckLibraryDirectories, admin)
+	e.POST("/api/library/directories", s.handleAddLibraryDirectory, admin)
+	e.PATCH("/api/library/directories/:id", s.handleUpdateLibraryDirectory, admin)
+	e.DELETE("/api/library/directories/:id", s.handleDeleteLibraryDirectory, admin)
 	e.GET("/api/network/sources", s.handleNetworkSources, auth)
 	e.POST("/api/network/sources", s.handleUpsertNetworkSource, admin)
 	e.DELETE("/api/network/sources/:id", s.handleDeleteNetworkSource, admin)
@@ -522,7 +522,6 @@ func (s *Server) handleHealth(c *echo.Context) error {
 		Commit:           version.GitCommit,
 		BuildTime:        version.BuildTime,
 		GoVersion:        runtime.Version(),
-		Library:          s.lib.LibraryDir(),
 		AudioBackend:     "pure-go-http-range",
 		MetadataBackend:  "dhowden/tag+taglib-writeback+ffprobe-optional",
 		TranscodeBackend: "ffmpeg-cli-optional",
@@ -1056,7 +1055,7 @@ func (s *Server) handleCreateShare(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	share, err := s.lib.CreateShare(c.Request().Context(), currentUserID(c), req.Type, req.ID, req.ExpiresAt, requestBaseURL(c))
+	share, err := s.lib.CreateShare(c.Request().Context(), currentUserID(c), req.Type, req.ID, req.ExpiresAt, requestBaseURL(c), req.SongIDs...)
 	if err != nil {
 		return mapError(err)
 	}
@@ -2363,6 +2362,28 @@ func (s *Server) handleGetSettings(c *echo.Context) error {
 		return mapError(err)
 	}
 	settings = s.applyDLNAOptionPolicy(settings)
+	if user := currentUser(c); user == nil || user.Role != "admin" {
+		return c.JSON(http.StatusOK, map[string]any{
+			"language":                settings.Language,
+			"theme":                   settings.Theme,
+			"sleep_timer_mins":        settings.SleepTimerMins,
+			"netease_fallback":        settings.NeteaseFallback,
+			"diagnostics_enabled":     settings.DiagnosticsEnabled,
+			"dlna_cast_enabled":       settings.DLNACastEnabled,
+			"no_dlna_option":          settings.NoDLNAOption,
+			"web_font_family":         settings.WebFontFamily,
+			"web_font_url":            settings.WebFontURL,
+			"lyrics_font_family":      settings.LyricsFontFamily,
+			"lyrics_font_url":         settings.LyricsFontURL,
+			"lyrics_font_size":        settings.LyricsFontSize,
+			"smart_playlists_enabled": settings.SmartPlaylistsEnabled,
+			"sharing_enabled":         settings.SharingEnabled,
+			"subsonic_server_enabled": settings.SubsonicServerEnabled,
+			"desktop_grpc_enabled":    settings.DesktopGRPCEnabled,
+			"transcode_policy":        settings.TranscodePolicy,
+			"transcode_quality_kbps":  settings.TranscodeQualityKbps,
+		})
+	}
 	return c.JSON(http.StatusOK, settings)
 }
 
@@ -2631,7 +2652,28 @@ func requestBaseURL(c *echo.Context) string {
 	return proto + "://" + host
 }
 
+func sanitizePublicShareErrors(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		err := next(c)
+		if err == nil {
+			return nil
+		}
+		status := http.StatusInternalServerError
+		var httpError *echo.HTTPError
+		if errors.As(err, &httpError) {
+			status = httpError.Code
+		}
+		if status >= http.StatusInternalServerError || status == http.StatusUnsupportedMediaType {
+			c.Logger().Error("public share request failed", "error", err)
+		}
+		return echo.NewHTTPError(status, http.StatusText(status))
+	}
+}
+
 func mapError(err error) error {
+	if errors.Is(err, library.ErrInvalidShareRequest) {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
 	if errors.Is(err, library.ErrUnauthenticated) {
 		return echo.NewHTTPError(http.StatusUnauthorized, "unauthenticated")
 	}

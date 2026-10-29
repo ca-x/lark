@@ -314,7 +314,7 @@ export interface HealthInfo {
   commit: string;
   build_time: string;
   go_version: string;
-  library: string;
+  library?: string;
   audio_backend: string;
   metadata_backend: string;
   transcode_backend: string;

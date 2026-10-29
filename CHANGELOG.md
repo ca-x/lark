@@ -5,6 +5,28 @@
 
 ---
 
+## 0.18.3：批量公开分享与新版 Logo
+
+发布日期 / Released: 2026-10-29
+
+- 曲库多选歌曲后可一次创建免登录收听的分享链接，最多 500 首，保留列表顺序；沿用分享有效期、取消分享与管理员分享开关，兼容已有歌曲、专辑和歌单链接。
+- 普通用户不再看到媒体库设置、目录管理、扫描和上传入口；服务端同时限制目录读取、检查与修改。个人离线缓存设置移至「播放与外观」，日常播放和文件夹浏览保持可用。
+- 公开分享只返回播放所需的展示信息，不再暴露曲目文件路径或音源私有数据；普通用户设置与匿名健康检查不返回曲库配置，Subsonic 扫描入口也限制为管理员。
+- 采用 issue #9 提供的新 Logo，同步网页、PWA、favicon 与桌面图标资源；更新页面缓存，不清除已下载的离线音乐。
+- README 补充 Damir 的 Soft Static 与 One light, every color 视频来源及独立实现说明。
+
+## v0.18.3: Selected-song sharing and a new logo
+
+Released: 2026-10-29
+
+- Share a selection of up to 500 library songs in one anonymous playback link, preserving list order. Reuse expiry, revocation and the admin sharing switch while keeping existing song, album and playlist links compatible.
+- Hide media-library settings, directory management, scanning and uploads from non-admin users, with matching server-side authorization. Move personal offline settings to Playback & appearance; retain playback and folder browsing.
+- Return only safe playback/display metadata in public shares instead of private file paths and source data. Omit library configuration from member settings and anonymous health checks, and restrict Subsonic scans to administrators.
+- Adopt the exact logo supplied in issue #9 across web, PWA, favicons and desktop icon assets. Refresh the shell cache without clearing downloaded music.
+- Document Damir's Soft Static and One light, every color video references and the independent theme implementation in both READMEs.
+
+---
+
 ## 0.18.2：唱针连接与外圈进度动效
 
 发布日期 / Released: 2026-10-29

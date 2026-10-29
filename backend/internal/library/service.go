@@ -319,7 +319,24 @@ func (s *Service) LibraryDirectories(ctx context.Context, userID int) ([]models.
 }
 
 func (s *Service) CheckLibraryDirectories(ctx context.Context, userID int) ([]models.LibraryDirectory, error) {
+	if err := s.requireLibraryAdmin(ctx, userID); err != nil {
+		return nil, err
+	}
 	return s.LibraryDirectories(ctx, userID)
+}
+
+func (s *Service) requireLibraryAdmin(ctx context.Context, userID int) error {
+	if userID == 0 {
+		return ErrUnauthenticated
+	}
+	admin, err := s.IsAdmin(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !admin {
+		return ErrForbidden
+	}
+	return nil
 }
 
 func (s *Service) withDirectoryHealth(item models.LibraryDirectory) models.LibraryDirectory {
@@ -572,6 +589,9 @@ func addWatchTree(watcher *fsnotify.Watcher, root string) error {
 }
 
 func (s *Service) AddLibraryDirectory(ctx context.Context, userID int, path, note string) (models.LibraryDirectory, error) {
+	if err := s.requireLibraryAdmin(ctx, userID); err != nil {
+		return models.LibraryDirectory{}, err
+	}
 	if userID == 0 {
 		return models.LibraryDirectory{}, ErrUnauthenticated
 	}
@@ -602,6 +622,9 @@ func (s *Service) AddLibraryDirectory(ctx context.Context, userID int, path, not
 }
 
 func (s *Service) UpdateLibraryDirectory(ctx context.Context, userID int, id string, watchEnabled bool) (models.LibraryDirectory, error) {
+	if err := s.requireLibraryAdmin(ctx, userID); err != nil {
+		return models.LibraryDirectory{}, err
+	}
 	if userID == 0 {
 		return models.LibraryDirectory{}, ErrUnauthenticated
 	}
@@ -636,6 +659,9 @@ func (s *Service) UpdateLibraryDirectory(ctx context.Context, userID int, id str
 }
 
 func (s *Service) DeleteLibraryDirectory(ctx context.Context, userID int, id int) error {
+	if err := s.requireLibraryAdmin(ctx, userID); err != nil {
+		return err
+	}
 	if userID == 0 {
 		return ErrUnauthenticated
 	}

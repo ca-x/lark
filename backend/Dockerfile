@@ -3,6 +3,8 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY frontend/ ./
+COPY assets/brand/lark-issue-9.png /build/assets/brand/lark-issue-9.png
+COPY desktop/resources/ /build/desktop/resources/
 COPY backend/internal/api/server.go /build/backend/internal/api/server.go
 COPY backend/internal/library/catalog.go /build/backend/internal/library/catalog.go
 RUN pnpm build

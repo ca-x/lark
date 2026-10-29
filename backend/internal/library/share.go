@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -20,17 +21,22 @@ import (
 
 const shareSettingPrefix = "share:"
 
+const maxShareSongs = 500
+
+var ErrInvalidShareRequest = errors.New("invalid share request")
+
 type storedShare struct {
 	Token     string     `json:"token"`
 	Type      string     `json:"type"`
 	ID        int        `json:"id"`
+	SongIDs   []int      `json:"song_ids,omitempty"`
 	Title     string     `json:"title"`
 	CreatedBy int        `json:"created_by"`
 	CreatedAt time.Time  `json:"created_at"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
-func (s *Service) CreateShare(ctx context.Context, userID int, targetType string, targetID int, expiresAt *time.Time, baseURL string) (models.Share, error) {
+func (s *Service) CreateShare(ctx context.Context, userID int, targetType string, targetID int, expiresAt *time.Time, baseURL string, songIDs ...int) (models.Share, error) {
 	settings, err := s.GetSettings(ctx)
 	if err != nil {
 		return models.Share{}, err
@@ -39,9 +45,32 @@ func (s *Service) CreateShare(ctx context.Context, userID int, targetType string
 		return models.Share{}, ErrForbidden
 	}
 	targetType = strings.ToLower(strings.TrimSpace(targetType))
-	title, err := s.shareTargetTitle(ctx, userID, targetType, targetID)
-	if err != nil {
-		return models.Share{}, err
+	var title string
+	if targetType == "songs" {
+		songIDs, err = normalizeShareSongIDs(songIDs)
+		if err != nil {
+			return models.Share{}, err
+		}
+		items, err := s.shareSelectionSongs(ctx, songIDs)
+		if err != nil {
+			return models.Share{}, err
+		}
+		if len(items) != len(songIDs) {
+			return models.Share{}, &ent.NotFoundError{}
+		}
+		targetID = 0
+		title = firstString(items[0].Title, items[0].FileName)
+		if len(items) > 1 {
+			title += fmt.Sprintf(" +%d", len(items)-1)
+		}
+	} else {
+		if len(songIDs) != 0 {
+			return models.Share{}, fmt.Errorf("%w: song_ids requires the songs target type", ErrInvalidShareRequest)
+		}
+		title, err = s.shareTargetTitle(ctx, userID, targetType, targetID)
+		if err != nil {
+			return models.Share{}, err
+		}
 	}
 	var token string
 	for i := 0; i < 8; i++ {
@@ -66,6 +95,7 @@ func (s *Service) CreateShare(ctx context.Context, userID int, targetType string
 		Token:     token,
 		Type:      targetType,
 		ID:        targetID,
+		SongIDs:   songIDs,
 		Title:     title,
 		CreatedBy: userID,
 		CreatedAt: time.Now().UTC(),
@@ -167,6 +197,16 @@ func (s *Service) PublicShare(ctx context.Context, token string, baseURL string)
 	if err != nil {
 		return models.PublicShare{}, err
 	}
+	for index, item := range songs {
+		songs[index] = models.Song{
+			ID: item.ID, Type: item.Type, Title: item.Title,
+			ArtistID: item.ArtistID, Artist: item.Artist, AlbumID: item.AlbumID, Album: item.Album,
+			Format: item.Format, Mime: item.Mime, DurationSeconds: item.DurationSeconds,
+			SampleRate: item.SampleRate, BitRate: item.BitRate, BitDepth: item.BitDepth,
+			Year: item.Year, Genre: item.Genre, Language: item.Language, Style: item.Style,
+			Track: item.Track, CoverVersion: item.CoverVersion,
+		}
+	}
 	return models.PublicShare{Share: mapShare(share, baseURL), Songs: songs}, nil
 }
 
@@ -185,7 +225,7 @@ func (s *Service) ShareAllowsSong(ctx context.Context, token string, songID int)
 
 func (s *Service) shareTargetTitle(ctx context.Context, userID int, targetType string, targetID int) (string, error) {
 	if targetID <= 0 {
-		return "", fmt.Errorf("share target id is required")
+		return "", fmt.Errorf("%w: share target id is required", ErrInvalidShareRequest)
 	}
 	switch targetType {
 	case "song":
@@ -213,7 +253,7 @@ func (s *Service) shareTargetTitle(ctx context.Context, userID int, targetType s
 		}
 		return item.Name, nil
 	default:
-		return "", fmt.Errorf("share target type must be song, album, artist or playlist")
+		return "", fmt.Errorf("%w: share target type must be song, songs, album, artist or playlist", ErrInvalidShareRequest)
 	}
 }
 
@@ -238,6 +278,8 @@ func (s *Service) loadShare(ctx context.Context, token string) (storedShare, err
 
 func (s *Service) shareSongs(ctx context.Context, share storedShare) ([]models.Song, error) {
 	switch share.Type {
+	case "songs":
+		return s.shareSelectionSongs(ctx, share.SongIDs)
 	case "song":
 		items, err := s.client.Song.Query().Where(song.ID(share.ID)).WithArtist().WithAlbum().All(ctx)
 		if err != nil {
@@ -262,7 +304,7 @@ func (s *Service) shareSongs(ctx context.Context, share storedShare) ([]models.S
 		}
 		return mapSongs(item.Edges.Songs), nil
 	case "playlist":
-		item, err := s.client.Playlist.Query().Where(playlist.ID(share.ID)).WithSongs(func(q *ent.SongQuery) {
+		item, err := s.client.Playlist.Query().Where(playlist.ID(share.ID), playlist.HasOwnerWith(user.ID(share.CreatedBy))).WithSongs(func(q *ent.SongQuery) {
 			q.WithArtist().WithAlbum().Order(ent.Asc(song.FieldID))
 		}).Only(ctx)
 		if err != nil {
@@ -272,6 +314,46 @@ func (s *Service) shareSongs(ctx context.Context, share storedShare) ([]models.S
 	default:
 		return nil, fmt.Errorf("unsupported share target type")
 	}
+}
+
+func normalizeShareSongIDs(songIDs []int) ([]int, error) {
+	if len(songIDs) == 0 || len(songIDs) > maxShareSongs {
+		return nil, fmt.Errorf("%w: select between 1 and %d songs", ErrInvalidShareRequest, maxShareSongs)
+	}
+	unique := make([]int, 0, len(songIDs))
+	seen := make(map[int]struct{}, len(songIDs))
+	for _, songID := range songIDs {
+		if songID <= 0 {
+			return nil, fmt.Errorf("%w: song ids must be positive", ErrInvalidShareRequest)
+		}
+		if _, exists := seen[songID]; exists {
+			continue
+		}
+		seen[songID] = struct{}{}
+		unique = append(unique, songID)
+	}
+	return unique, nil
+}
+
+func (s *Service) shareSelectionSongs(ctx context.Context, songIDs []int) ([]models.Song, error) {
+	if len(songIDs) == 0 || len(songIDs) > maxShareSongs {
+		return nil, &ent.NotFoundError{}
+	}
+	items, err := s.client.Song.Query().Where(song.IDIn(songIDs...)).WithArtist().WithAlbum().All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[int]models.Song, len(items))
+	for _, item := range mapSongs(items) {
+		byID[item.ID] = item
+	}
+	ordered := make([]models.Song, 0, len(items))
+	for _, songID := range songIDs {
+		if item, exists := byID[songID]; exists {
+			ordered = append(ordered, item)
+		}
+	}
+	return ordered, nil
 }
 
 func mapShare(share storedShare, baseURL string) models.Share {

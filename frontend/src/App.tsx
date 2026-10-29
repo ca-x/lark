@@ -57,6 +57,7 @@ import {
 } from "@phosphor-icons/react";
 import { LiveSpectrum } from "./components/LiveSpectrum";
 import { api, SESSION_CHANGED_EVENT, setExpectedSessionUserId } from "./services/api";
+import { canManageLibrary, resolveLibraryTab, resolveSettingsTab } from "./utils/libraryAccess";
 import {
   getCandidateCache,
   invalidateLyricCandidateCache,
@@ -2390,7 +2391,7 @@ export default function App() {
     } else {
       lastSavedUserPreferencesRef.current = null;
     }
-    await refreshAll({ initializeQueue: true });
+    await refreshAll({ initializeQueue: true, user });
   }
 
   async function submitAuth(mode: "setup" | "login" | "register", username: string, password: string) {
@@ -2641,7 +2642,7 @@ export default function App() {
     }, AUTO_DOWNGRADE_STALL_MS);
   }
 
-  async function refreshAll(options: { initializeQueue?: boolean } = {}) {
+  async function refreshAll(options: { initializeQueue?: boolean; user?: User | null } = {}) {
     if (offlineModeRef.current) {
       activateOfflineSession(readOfflineSongIndex());
       return;
@@ -2730,7 +2731,7 @@ export default function App() {
     const favoriteArtistMutationEpoch = artistFavoriteMutationRef.current;
     const [folderItems, libraryDirectoryItems, favoriteSongPageItem, favoriteAlbumItems, favoriteArtistItems, networkSourceItems, radioSourceItems, radioStationItems, radioFavoriteItems, scrobblingItem, uiSoundItem, playbackHistoryItem] = await Promise.all([
       api.folders(STARTUP_FOLDER_LIMIT).catch(() => []),
-      api.libraryDirectories().catch(() => []),
+      canManageLibrary((options.user ?? auth?.user)?.role) ? api.libraryDirectories().catch(() => []) : Promise.resolve([]),
       api.songsPage("", 1, FAVORITES_FETCH_LIMIT, true).catch(() => ({
         items: [],
         total: 0,
@@ -4410,9 +4411,9 @@ export default function App() {
     playUISound(updated.favorite ? "favorite" : "toggleOff");
   }
 
-  function openShareDialog(type: ShareTarget["type"], id: number, title: string) {
+  function openShareDialog(type: ShareTarget["type"], id: number, title: string, songIDs?: number[]) {
     playUISound("share");
-    setShareDialogTarget({ type, id, title });
+    setShareDialogTarget({ type, id, title, songIDs });
   }
 
   function updateAlbumFavoriteState(updated: Album, previousFavorite?: boolean) {
@@ -5872,6 +5873,7 @@ export default function App() {
                 onInsertNext={(items) => insertNextBatch(items)}
                 offlineCache={offlineCacheControls}
                 onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
+                onShareSongs={settings.sharing_enabled ? (items) => openShareDialog("songs", 0, t("shareSelectedSongs").replace("{count}", String(items.length)), items.map((song) => song.id)) : undefined}
                 onOpenAlbum={(song) => {
                   void openSongAlbum(song);
                 }}
@@ -8580,6 +8582,7 @@ function LibraryView({
   onInsertNext,
   offlineCache,
   onShareSong,
+  onShareSongs,
   onOpenAlbum,
   onOpenArtist,
   onEditMetadata,
@@ -8624,6 +8627,7 @@ function LibraryView({
   onInsertNext: (songs: Song[]) => void;
   offlineCache: OfflineCacheControls;
   onShareSong?: (song: Song) => void;
+  onShareSongs?: (songs: Song[]) => void;
   onOpenAlbum: (song: Song) => void;
   onOpenArtist: (song: Song) => void;
   onEditMetadata?: (song: Song) => void;
@@ -8652,18 +8656,19 @@ function LibraryView({
     rememberLibraryTab("songs");
   }, [searchRequest]);
   const scanRunning = Boolean(scanStatus?.running);
-  const activeTab = mobileBasic && tab !== "songs" && tab !== "folders" && tab !== "manage" ? "songs" : tab;
+  const canManage = canManageLibrary(userRole);
+  const activeTab = resolveLibraryTab(tab, userRole, mobileBasic);
   const setTab = (nextTab: LibraryTab) => {
-    if (mobileBasic && nextTab !== "songs" && nextTab !== "folders" && nextTab !== "manage") return;
+    if (resolveLibraryTab(nextTab, userRole, mobileBasic) !== nextTab) return;
     setTabState(nextTab);
     rememberLibraryTab(nextTab);
   };
   useEffect(() => {
-    if (mobileBasic && tab !== "songs" && tab !== "folders" && tab !== "manage") {
-      setTabState("songs");
-      rememberLibraryTab("songs");
+    if (activeTab !== tab) {
+      setTabState(activeTab);
+      rememberLibraryTab(activeTab);
     }
-  }, [mobileBasic, tab]);
+  }, [activeTab, tab]);
   useEffect(() => {
     if (!searchQuery.trim()) return;
     setTabState("songs");
@@ -8713,25 +8718,34 @@ function LibraryView({
               <button onClick={insertSelected}>
                 <SkipForward /> {t("insertNext")}
               </button>
+              {onShareSongs ? (
+                <button type="button" onClick={() => onShareSongs(selectedSongs)} disabled={selectedSongs.length > 500} title={selectedSongs.length > 500 ? t("shareSelectionLimit") : undefined}>
+                  <ShareNetwork /> {t("share")}
+                </button>
+              ) : null}
               <button onClick={() => setSelected(new Set())}>
                 {t("clearSelection")}
               </button>
             </div>
           ) : null}
-          <button className="desktop-only-action" onClick={onScan} disabled={scanRunning}>
-            <MagnifyingGlass /> {t("scan")}
-          </button>
-          <label className="upload desktop-only-action">
-            <UploadSimple /> {t("upload")}
-            <input
-              type="file"
-              accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.wma,.cue"
-              onChange={(event) => onUpload(event)}
-            />
-          </label>
+          {canManage ? (
+            <>
+              <button className="desktop-only-action" onClick={onScan} disabled={scanRunning}>
+                <MagnifyingGlass /> {t("scan")}
+              </button>
+              <label className="upload desktop-only-action">
+                <UploadSimple /> {t("upload")}
+                <input
+                  type="file"
+                  accept="audio/*,.flac,.dsf,.dff,.dst,.ape,.wma,.cue"
+                  onChange={(event) => onUpload(event)}
+                />
+              </label>
+            </>
+          ) : null}
         </div>
       </div>
-      {scanStatus && !mobileBasic ? <ScanProgress status={scanStatus} t={t} onCancel={onCancelScan} onClose={onDismissScan} /> : null}
+      {canManage && scanStatus && !mobileBasic ? <ScanProgress status={scanStatus} t={t} onCancel={onCancelScan} onClose={onDismissScan} /> : null}
       <div className="collection-tabs library-tabs">
         <button
           className={activeTab === "songs" ? "active" : ""}
@@ -8745,7 +8759,7 @@ function LibraryView({
         >
           {t("folderBrowser")} · {folders.length}
         </button>
-        {mobileBasic ? (
+        {mobileBasic && canManage ? (
           <button
             className={activeTab === "manage" ? "active" : ""}
             onClick={() => setTab("manage")}
@@ -8776,7 +8790,7 @@ function LibraryView({
           </>
         ) : null}
       </div>
-      {activeTab === "manage" ? (
+      {canManage && activeTab === "manage" ? (
         <LibraryDirectoryManager
           directories={libraryDirectories}
           onDirectoriesChange={onLibraryDirectoriesChange}
@@ -8873,7 +8887,7 @@ function LibraryView({
           <button type="button" onClick={onReviewToggle}>{t("showAllSongs")}</button>
         </div>
       ) : (
-        <EmptyLibrary t={t} mobileBasic={mobileBasic} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
+        <EmptyLibrary t={t} mobileBasic={mobileBasic} canManage={canManage} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
       )}
     </section>
   );
@@ -10095,12 +10109,14 @@ function ScanProgress({
 function EmptyLibrary({
   t,
   mobileBasic,
+  canManage,
   onScan,
   onUpload,
   scanStatus,
 }: {
   t: ReturnType<typeof createT>;
   mobileBasic?: boolean;
+  canManage: boolean;
   onScan: () => void;
   onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   scanStatus: ScanStatus | null;
@@ -10112,8 +10128,8 @@ function EmptyLibrary({
         <Record weight="fill" />
       </div>
       <h2>{t("emptyTitle")}</h2>
-      <p>{t("emptyBody")}</p>
-      {!mobileBasic ? (
+      <p>{t(canManage ? "emptyBody" : "emptyLibraryMemberHint")}</p>
+      {canManage && !mobileBasic ? (
         <>
           <div className="empty-actions">
             <button className="primary" onClick={onScan} disabled={scanRunning}>
@@ -10705,7 +10721,7 @@ function SettingsPanel({
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "account", label: t("accountSettings") },
     { id: "playback", label: t("playbackAppearanceSettings") },
-    { id: "library", label: t("mediaLibrarySettings") },
+    ...(canManageLibrary(user.role) ? [{ id: "library" as const, label: t("mediaLibrarySettings") }] : []),
     { id: "services", label: t("servicesConnectionsSettings") },
     ...(user.role === "admin"
       ? [
@@ -10715,7 +10731,7 @@ function SettingsPanel({
         ]
       : []),
   ];
-  const settingsActiveTab: SettingsTab = activeTab;
+  const settingsActiveTab = resolveSettingsTab(activeTab, user.role);
 
   useEffect(() => {
     setNickname(user.nickname || user.username);
@@ -11284,7 +11300,7 @@ function SettingsPanel({
             />
           </label>
           <OfflineSettingsCard
-            owner="library"
+            owner="playback"
             usage={offlineUsage}
             usageLabel={t("offlineCacheUsage")}
             description={t("offlineCacheUsageHint")}
@@ -11294,7 +11310,7 @@ function SettingsPanel({
             onRefresh={onRefreshOfflineUsage}
             onManage={onManageOfflineCache}
           />
-          <label className="switch-row settings-wide-row" data-settings-owner="library">
+          <label className="switch-row settings-wide-row" data-settings-owner="playback">
             <span>
               <span>{t("offlineCacheAutoPlayed")}</span>
               <small>{t("offlineCacheAutoPlayedHint")}</small>
@@ -12113,7 +12129,7 @@ function SettingsPanel({
               )}
             </div>
           </div>
-          <div className="library-dir-card settings-wide-row" data-settings-owner="library">
+          {canManageLibrary(user.role) ? <div className="library-dir-card settings-wide-row" data-settings-owner="library">
             <div className="library-dir-head">
               <div>
                 <strong>{t("libraryDirectories")}</strong>
@@ -12171,7 +12187,7 @@ function SettingsPanel({
               </button>
             </div>
             {libraryDirError ? <div className="settings-empty error">{libraryDirError}</div> : null}
-          </div>
+          </div> : null}
         </div>
       )}
     </section>
