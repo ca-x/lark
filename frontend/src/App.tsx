@@ -163,7 +163,7 @@ import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
 import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
-import { AlbumSlidePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, NeuralCathedralPlayer, PaperShaderLayer, RunningKittenTurntable, SingularityPlayer, SmartisanTurntable, VinylCollectionPlayer, VinylTurntable, WalkmanPlayer } from "./components/player-themes";
+import { AlbumSlidePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, NeuralCathedralPlayer, PaperShaderLayer, PrismPlayer, RunningKittenTurntable, SingularityPlayer, SmartisanTurntable, SoftStaticPlayer, VinylCollectionPlayer, VinylTurntable, WalkmanPlayer } from "./components/player-themes";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -395,7 +395,9 @@ function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
     value === "running-kitten" ||
     value === "mineradio-stage" ||
     value === "walkman" ||
-    value === "singularity"
+    value === "singularity" ||
+    value === "soft-static" ||
+    value === "prism"
     ? value
     : "vinyl";
 }
@@ -5719,6 +5721,7 @@ export default function App() {
                 playMode={playMode}
                 playModeLabel={playModeLabel}
                 activeLyricText={activeLyricText}
+                currentLyricText={activeLyric && lyricLines.length ? activeLyricText : ""}
                 homePlayerStyle={homePlayerStyle}
                 mineradioStageEnabled={mineradioStageEnabled}
                 mobileHomePlayerStyle={mobileHomePlayerStyle}
@@ -6906,6 +6909,7 @@ function HomeView({
   playMode,
   playModeLabel,
   activeLyricText,
+  currentLyricText,
   homePlayerStyle,
   mineradioStageEnabled,
   mobileHomePlayerStyle,
@@ -6956,6 +6960,7 @@ function HomeView({
   playMode: PlayMode;
   playModeLabel: string;
   activeLyricText: string;
+  currentLyricText: string;
   homePlayerStyle: HomePlayerStyle;
   mineradioStageEnabled: boolean;
   mobileHomePlayerStyle: MobileHomePlayerStyle;
@@ -7084,6 +7089,36 @@ function HomeView({
             onVolume={onVolume}
             onCyclePlayMode={onCyclePlayMode}
           />
+        </section>
+      </section>
+    );
+  }
+
+  if ((homePlayerStyle === "soft-static" || homePlayerStyle === "prism") && !currentRadio && !currentNetworkTrack) {
+    const conceptProps = {
+      cover: coverUrl(displaySong),
+      playing: heroPlaying,
+      progress: heroActive ? progress : 0,
+      duration: heroActive ? duration : displaySong?.duration_seconds || 0,
+      title: displaySong?.title || t("brand"),
+      artist: displaySong?.artist,
+      album: displaySong?.album,
+      activeLyricText: heroActive ? currentLyricText : "",
+      playMode,
+      playModeLabel,
+      labels: playerThemeLabels,
+      onToggle: heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined,
+      onPrevious: heroActive ? onPrevious : undefined,
+      onNext: heroActive ? onNext : undefined,
+      onCyclePlayMode,
+      onSeek: heroActive ? onSeek : undefined,
+    };
+    return (
+      <section className="home-view desktop-home-view" data-home-player-style={homePlayerStyle}>
+        <section className="concept-player-stage">
+          {homePlayerStyle === "soft-static" ? <SoftStaticPlayer {...conceptProps} /> : (
+            <PrismPlayer {...conceptProps} splitLightLabel={t("prismSplitLight")} spectrumLabel={t("prismSpectrumColor")} visualizationLabel={t("prismOpticalStudy")} />
+          )}
         </section>
       </section>
     );
@@ -11118,6 +11153,24 @@ function SettingsPanel({
                 onClick={() => onHomePlayerStyleChange("singularity")}
               >
                 {t("homePlayerSingularity")}
+              </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "soft-static" ? "active" : ""}
+                data-player-style="soft-static"
+                aria-pressed={homePlayerStyle === "soft-static"}
+                onClick={() => onHomePlayerStyleChange("soft-static")}
+              >
+                {t("homePlayerSoftStatic")}
+              </button>
+              <button
+                type="button"
+                className={homePlayerStyle === "prism" ? "active" : ""}
+                data-player-style="prism"
+                aria-pressed={homePlayerStyle === "prism"}
+                onClick={() => onHomePlayerStyleChange("prism")}
+              >
+                {t("homePlayerPrism")}
               </button>
                 </div>
               </SettingsSection>

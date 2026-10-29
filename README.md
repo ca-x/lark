@@ -32,6 +32,8 @@ The fullscreen lyrics direction also references [folia-major](https://github.com
 
 The Vinyl room desktop theme references [Vinyls](https://vinyls.sandheep.xyz) by Sandheep, retaining its original deck and tonearm artwork with Lark album browsing and playback controls. Select it in Settings → Playback & appearance → Home player style.
 
+The Soft Static and Prism desktop themes are independent implementations inspired by [Damir's video concepts](https://heydamir.design/). They use generated record texture and geometric light effects, not bundled source videos or artwork. Prism is an optical visualization, not audio frequency analysis.
+
 
 ---
 
@@ -94,7 +96,7 @@ By default, Lark stores app data and uploaded music in the `lark_data` Docker vo
 
 ### Listen Across Devices
 
-- Desktop home player styles include vinyl deck, cassette deck, iPod, audio scope, album sleeve, Smartisan deck, Gramophone, and Running kitten.
+- Desktop home player styles include vinyl deck, cassette deck, iPod, audio scope, album sleeve, Smartisan deck, Gramophone, Running kitten, Soft Static, and Prism.
 - Mobile player styles include Precision Audio, Gramophone, indiewave, iPod, soft vinyl, stage glass, blue halo, and Smartisan classic.
 - The bottom player exposes queue, play mode, volume, progress, favorites, sleep timer, and fullscreen lyrics.
 - Sleep timer can stop by duration, after a number of songs, or at the end of the current album.

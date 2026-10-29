@@ -925,6 +925,37 @@ func TestMobileMaterialThemesPersist(t *testing.T) {
 	}
 }
 
+func TestConceptPlayerPreferencesPersist(testContext *testing.T) {
+	for _, style := range []string{"soft-static", "prism"} {
+		testContext.Run(style, func(themeTest *testing.T) {
+			client := enttest.Open(themeTest, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", themeTest.Name()))
+			themeTest.Cleanup(func() { _ = client.Close() })
+			service := &Service{client: client}
+			preferences := defaultUserPreferences()
+			preferences.HomePlayerStyle = style
+			preferences.MobileHomePlayerStyle = "moss-wave"
+			saved, err := service.SaveUserPreferences(themeTest.Context(), 19, preferences)
+			if err != nil {
+				themeTest.Fatal(err)
+			}
+			loaded, err := service.GetUserPreferences(themeTest.Context(), 19)
+			if err != nil {
+				themeTest.Fatal(err)
+			}
+			if saved.HomePlayerStyle != style || loaded.HomePlayerStyle != style || loaded.MobileHomePlayerStyle != "moss-wave" {
+				themeTest.Fatalf("theme did not round-trip independently: saved=%+v loaded=%+v", saved, loaded)
+			}
+			other, err := service.GetUserPreferences(themeTest.Context(), 20)
+			if err != nil {
+				themeTest.Fatal(err)
+			}
+			if other.HomePlayerStyle != "vinyl" || other.MobileHomePlayerStyle != "neon-console" {
+				themeTest.Fatalf("theme leaked to another user: %+v", other)
+			}
+		})
+	}
+}
+
 func TestDesktopGRPCSettingDefaultsAndPersists(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:desktop-grpc-settings?mode=memory&cache=shared&_pragma=foreign_keys(1)")
 	defer client.Close()

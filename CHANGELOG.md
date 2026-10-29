@@ -5,6 +5,24 @@
 
 ---
 
+## 0.18.1：彩色黑胶与棱镜光谱
+
+发布日期 / Released: 2026-10-29
+
+- 桌面新增「彩色黑胶 · Soft Static」主题，保留大幅裁切的彩色唱片与金属唱臂，播放时转动、暂停时停在当前位置；中央显示当前歌词，没有歌词时显示曲目信息。
+- 桌面新增「棱镜光谱 · Prism」主题，呈现白光入射、透光面板、彩色分光与倒影，支持分光开关和光谱颜色选择；光效为视觉演示，不是音频频谱分析。
+- 两款主题都可在「设置 → 播放与外观 → 首页播放样式」选择，按用户保存，支持键盘操作和减少动态效果；移动端主题、在线电台与网络曲目的播放入口保持不变。
+
+## v0.18.1: Soft Static and Prism player themes
+
+Released: 2026-10-29
+
+- Add the Soft Static desktop theme with a large cropped marbled record and metal tonearm. The record rotates during playback and holds its position when paused; the center shows current lyrics or track information when lyrics are unavailable.
+- Add the Prism desktop theme with incoming white light, a translucent panel, a reflected spectrum, a split-light toggle and a spectrum color selector. The light is an optical visualization, not audio frequency analysis.
+- Select either theme in Settings → Playback & appearance → Home player style, with per-user persistence, keyboard controls and reduced-motion support. Mobile themes and playback entry points for radio and network tracks remain unchanged.
+
+---
+
 ## 0.18.0：Toaster Studio 与移动封面流修复
 
 发布日期 / Released: 2026-10-27
