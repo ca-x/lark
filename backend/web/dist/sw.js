@@ -1,4 +1,4 @@
-const SHELL_CACHE = "lark-shell-v2";
+const SHELL_CACHE = "lark-shell-v3";
 const OFFLINE_CACHE = "lark-offline-v1";
 const CACHE_NAMES = [SHELL_CACHE, OFFLINE_CACHE];
 const SHELL_ASSETS = [

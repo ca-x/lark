@@ -5,6 +5,20 @@
 
 ---
 
+## 0.18.4：恢复 Logo 可见大小
+
+发布日期 / Released: 2026-10-29
+
+- 裁掉新 Logo 周围多余的近透明留白，让侧栏、关于、登录和分享页中的图案恢复之前的可见大小，保持原有布局尺寸；同步应用图标并刷新页面缓存，不清除离线音乐。
+
+## v0.18.4: Restore the logo's visible size
+
+Released: 2026-10-29
+
+- Trim excess nearly transparent padding from the new logo to restore its previous visible size in the sidebar, About, sign-in and share pages without changing layout dimensions; update app icons and refresh the shell cache without clearing offline music.
+
+---
+
 ## 0.18.3：批量公开分享与新版 Logo
 
 发布日期 / Released: 2026-10-29
