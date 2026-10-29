@@ -90,7 +90,8 @@ try {
         const headings = Array.from(document.querySelectorAll('.desktop-sidebar .nav-section-label')).map(label => label.textContent);
         return { sidebarWidth:sidebar.width, logoWidth:logo.width, logoHeight:logo.height, centered:Math.abs(logo.left + logo.width / 2 - sidebar.left - sidebar.width / 2) <= 1, fits:logo.left >= sidebar.left && logo.right <= sidebar.right, headings };
       })()`);
-      assert.ok(brandLayout.logoWidth >= brandLayout.sidebarWidth * 0.5, `${theme} ${width}px: logo must occupy at least half the sidebar width, got ${brandLayout.logoWidth}/${brandLayout.sidebarWidth}`);
+      const expectedLogoWidth = width <= 1100 ? 41.6 : 86;
+      assert.ok(Math.abs(brandLayout.logoWidth - expectedLogoWidth) <= 1, `${theme} ${width}px: sidebar logo must use the former About size and fit compact navigation, got ${brandLayout.logoWidth}px`);
       assert.ok(Math.abs(brandLayout.logoWidth - brandLayout.logoHeight) <= 1 && brandLayout.centered && brandLayout.fits, `${theme} ${width}px: logo must remain square, centered and within the sidebar`);
       assert.ok(brandLayout.headings.includes("播放"), `${theme} ${width}px: retain the playback section heading`);
       const { result: rows } = await browser("eval", `Array.from(document.querySelectorAll('.song-row')).map(row => {
@@ -134,10 +135,13 @@ try {
           const before = logo.getBoundingClientRect().width;
           shell.style.setProperty('--desktop-sidebar-width', '280px');
           const after = logo.getBoundingClientRect().width;
+          shell.style.setProperty('--desktop-sidebar-width', '120px');
+          const narrow = logo.getBoundingClientRect().width;
           shell.style.removeProperty('--desktop-sidebar-width');
-          return { before, after };
+          return { before, after, narrow };
         })()`);
-        assert.ok(logoResize.after >= logoResize.before * 1.2, "1920px: logo must scale dynamically when the sidebar gets wider");
+        assert.ok(Math.abs(logoResize.after - 86) <= 1 && Math.abs(logoResize.before - logoResize.after) <= 1, "1920px: sidebar logo must stay capped at the former About size in wider navigation");
+        assert.ok(Math.abs(logoResize.narrow - 60.8) <= 1, "1920px: sidebar logo must shrink proportionally when navigation gets narrower");
         if (process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT)
           await browser("screenshot", process.env.LARK_SONG_LAYOUT_DESKTOP_SCREENSHOT);
         const { result: textScaleRatios } = await browser("eval", `(() => {
@@ -176,7 +180,30 @@ try {
         await browser("eval", `document.documentElement.style.removeProperty('--interface-button-relative-scale'); document.documentElement.style.removeProperty('--interface-text-in-button-scale')`);
       }
     }
-    console.log(`PASS ${theme}: responsive sidebar logo >=50%, retained headings and aligned song controls at ${checkedWidths.join("/")}px`);
+    await browser("click", '.desktop-sidebar nav button[aria-label="关于"]');
+    await browser("wait", "--fn", "document.querySelector('.about-hero img')?.complete");
+    for (const width of [1440, 1280, 800, 375]) {
+      await browser("set", "viewport", String(width), width === 375 ? "812" : "900");
+      const { result: aboutLayout } = await browser("eval", `(() => {
+        const hero = document.querySelector('.about-hero');
+        const image = hero.querySelector('img');
+        const logo = image.getBoundingClientRect();
+        const copy = hero.querySelector('div').getBoundingClientRect();
+        const bounds = hero.getBoundingClientRect();
+        return { width:logo.width, height:logo.height, loaded:image.complete && image.naturalWidth > 0, source:image.getAttribute('src'), fits:logo.left >= bounds.left && logo.right <= copy.left && copy.right <= bounds.right && logo.top >= bounds.top && logo.bottom <= bounds.bottom, pageFits:document.documentElement.scrollWidth <= innerWidth };
+      })()`);
+      const expectedAboutWidth = width === 375 ? 66 : 132;
+      assert.ok(Math.abs(aboutLayout.width - expectedAboutWidth) <= 1 && Math.abs(aboutLayout.height - expectedAboutWidth) <= 1, `${theme} ${width}px: About logo must use the former large sidebar size on desktop and retain its mobile size, got ${aboutLayout.width}x${aboutLayout.height}`);
+      assert.ok(aboutLayout.loaded && aboutLayout.source === "/logo.png" && aboutLayout.fits && aboutLayout.pageFits, `${theme} ${width}px: About logo must load without squeezing its text or overflowing`);
+      if (theme === checkedThemes[0] && width === 1440 && process.env.LARK_SONG_LAYOUT_ABOUT_SCREENSHOT)
+        await browser("screenshot", process.env.LARK_SONG_LAYOUT_ABOUT_SCREENSHOT);
+      if (theme === checkedThemes[0] && width === 375 && process.env.LARK_SONG_LAYOUT_ABOUT_MOBILE_SCREENSHOT)
+        await browser("screenshot", process.env.LARK_SONG_LAYOUT_ABOUT_MOBILE_SCREENSHOT);
+    }
+    await browser("set", "viewport", "1440", "900");
+    await browser("click", '.desktop-sidebar nav button[aria-label="曲库"]');
+    await browser("wait", "--fn", "document.querySelectorAll('.song-row').length === 3");
+    console.log(`PASS ${theme}: swapped desktop sidebar/About logo sizes, unchanged mobile About logo, retained headings and aligned song controls at ${checkedWidths.join("/")}px`);
   }
   await browser("set", "viewport", "1440", "600");
   const { result: shortSidebar } = await browser("eval", `(() => {
@@ -189,7 +216,7 @@ try {
     sidebar.scrollTop = 0;
     return { reachable };
   })()`);
-  assert.ok(shortSidebar.reachable, "short windows: the enlarged logo must not make the last navigation item unreachable");
+  assert.ok(shortSidebar.reachable, "short windows: the last navigation item must remain reachable");
   console.log("PASS short window 1440x600: final navigation item remains reachable");
   await browser("set", "viewport", "375", "812");
   await browser("wait", "--fn", "document.querySelectorAll('.song-row').length === 3");

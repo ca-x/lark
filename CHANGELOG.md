@@ -5,6 +5,20 @@
 
 ---
 
+## 0.18.6：交换侧栏与关于页 Logo 大小
+
+发布日期 / Released: 2026-10-29
+
+- 交换桌面侧栏与关于页的 Logo 大小：侧栏缩小、关于页放大；紧凑侧栏仍等比例适配，手机端尺寸和「播放」分组文字保持不变。
+
+## v0.18.6: Swap sidebar and About logo sizes
+
+Released: 2026-10-29
+
+- Swap the desktop sidebar and About logo sizes for a smaller sidebar logo and a larger About logo, while keeping compact navigation proportional, mobile sizes unchanged and the Playback heading intact.
+
+---
+
 ## 0.18.5：侧栏 Logo 自适应放大
 
 发布日期 / Released: 2026-10-29

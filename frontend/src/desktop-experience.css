@@ -27,7 +27,7 @@
   }
   .app-shell.lyrics-mode:not([data-interface-mode='shell']) { grid-template-columns:minmax(0,1fr); }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand { gap:10px; font-size:22px; font-weight:700; padding:0 8px; }
-  .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand img { width:80%; height:auto; aspect-ratio:1; flex-shrink:0; }
+  .app-shell:not([data-mineradio-stage-active='true']) .sidebar .brand img { width:min(86px,80%); height:auto; aspect-ratio:1; flex-shrink:0; }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav { gap:3px; }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav button { min-height:42px; padding:9px 12px; gap:12px; border:0; border-radius:9px; background:transparent; box-shadow:none; font-size:calc(14px * var(--interface-text-in-button-scale)); font-weight:550; }
   .app-shell:not([data-mineradio-stage-active='true']) .sidebar nav button.active { background:color-mix(in srgb,var(--accent) 13%,var(--bg)); color:var(--text); font-weight:700; }
@@ -208,6 +208,7 @@
   .app-shell .folder-browser-actions button { color:var(--text); background:var(--panel); border-color:var(--line); }
   .app-shell .history-calendar-panel { border-radius:14px; padding:16px; }
   .app-shell .history-calendar-panel .react-calendar__month-view__days__day--neighboringMonth { color:var(--muted); }
+  .app-shell .about-hero > img { width:132px; height:132px; flex-shrink:0; }
   .app-shell .about-hero a, .app-shell .about-row a { color:var(--text); text-decoration:underline; text-decoration-color:var(--accent); text-underline-offset:4px; }
   :root[data-theme='smartisan-classic'] .app-shell { --smartisan-body-text:#353535; --smartisan-sub-text:#616161; --text:#353535; --muted:#616161; }
   :root[data-theme='smartisan-classic'] .app-shell .desktop-sidebar :is(nav button,.nav-section-label) { color:var(--muted); }
