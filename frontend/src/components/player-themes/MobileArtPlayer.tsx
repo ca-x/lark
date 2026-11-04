@@ -1,4 +1,5 @@
-import { isMaterialTheme } from "./types";
+import { isMaterialTheme, isRewindTheme } from "./types";
+import { RewindCassette } from "./RewindCassette";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import {
   CaretDown,
@@ -47,6 +48,8 @@ const DEFAULT_LABELS = {
   queue: "Queue",
   sleepTimer: "Sleep timer",
   lyrics: "Lyrics",
+  flipTape: "Flip cassette",
+  tapeHint: "Tap to flip · swipe to change track · hold for queue",
 };
 
 type CoverVisualProps = {
@@ -256,10 +259,10 @@ export function MobileArtPlayer({
     playMode === "shuffle" ? <Shuffle weight="bold" /> : playMode === "repeat-one" ? <RepeatOnce weight="bold" /> : <Repeat weight="bold" />;
 
   return (
-    <div className={`mobile-art-player mobile-art-${variant}${isMaterialTheme(variant) ? " mobile-material-player" : ""}`} data-playing={playing ? "true" : "false"} style={style}>
+    <div className={`mobile-art-player mobile-art-${variant}${isMaterialTheme(variant) ? " mobile-material-player" : ""}${isRewindTheme(variant) ? " rewind-player" : ""}`} data-playing={playing ? "true" : "false"} style={style}>
       <div ref={dialogRef} role={onBack ? "dialog" : undefined} aria-modal={onBack ? true : undefined} aria-label={onBack ? text.nowPlaying : undefined} tabIndex={onBack ? -1 : undefined} className="mobile-art-phone" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onLostPointerCapture={handlePointerCancel}>
         <div className="mobile-art-bg" aria-hidden="true" />
-        {!isMaterialTheme(variant) ? <PaperShaderLayer variant={`mobile-${variant}`} playing={playing} cover={coverState.displayUrl} compact /> : null}
+        {!isMaterialTheme(variant) && !isRewindTheme(variant) ? <PaperShaderLayer variant={`mobile-${variant}`} playing={playing} cover={coverState.displayUrl} compact /> : null}
         {onBack ? (
           <div className="mobile-art-topbar">
             <button type="button" className="mobile-art-topbar-icon" data-autofocus aria-label={text.back} onClick={onBack}>
@@ -270,7 +273,9 @@ export function MobileArtPlayer({
           </div>
         ) : null}
 
-        {isMaterialTheme(variant) ? (
+        {isRewindTheme(variant) ? (
+          <RewindCassette key={`${variant}:${mediaKey}`} variant={variant} cover={coverState.displayUrl} title={title} artist={artist} album={album} playing={playing} progress={displayPct} flipLabel={text.flipTape} hint={text.tapeHint} onCoverError={coverState.onCoverError} onPrevious={onPrevious} onNext={onNext} onQueue={onQueue} />
+        ) : isMaterialTheme(variant) ? (
           <MobilePlayerArtwork variant={variant} cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} progress={pct} onCoverError={coverState.onCoverError} />
         ) : variant === "neon-console" ? (
           <PrecisionAudioVisual cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} onCoverError={coverState.onCoverError} />

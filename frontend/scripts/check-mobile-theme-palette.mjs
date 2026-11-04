@@ -34,6 +34,9 @@ const themes = [
   "deep-sea",
   "amber-tape",
   "clear-tape",
+  "rewind-classic",
+  "rewind-studio",
+  "rewind-crystal",
 ];
 const expandedSurfaces = {
   "gramophone": ["--mobile-art-phone-bg", "--mobile-art-phone-bg-2", "--mobile-art-panel"],

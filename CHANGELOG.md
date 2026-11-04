@@ -5,6 +5,24 @@
 
 ---
 
+## 0.18.7：桌面与手机磁带主题
+
+发布日期 / Released: 2026-11-04
+
+- 桌面首页与手机播放页新增「纸标磁带」「朱红磁带」「冰蓝磁带」三套主题，两端可独立选择并保存。
+- 点击磁带可翻面查看专辑封面，左右拖动或划动切歌、长按打开播放队列，同时保留按钮与键盘操作。
+- 播放时卷轴转动，暂停、切到后台或移出视野后停止；减弱动态模式保留慢速卷轴，关闭倾斜与翻面过渡。
+
+## v0.18.7: Cassette themes for desktop and mobile
+
+Released: 2026-11-04
+
+- Add Paper, Red and Ice cassette themes to desktop and mobile players, with independently saved preferences.
+- Click to flip, swipe or drag to change tracks, or hold for the queue; buttons and keyboard remain available.
+- Reels stop when paused, hidden or off-screen; reduced motion keeps slow playback reels without tilt or flip transitions.
+
+---
+
 ## 0.18.6：交换侧栏与关于页 Logo 大小
 
 发布日期 / Released: 2026-10-29

@@ -292,8 +292,9 @@ export interface UISoundSettings {
 export interface PlaybackHistorySettings {
   separate_by_device: boolean;
 }
-export type HomePlayerStyle = "vinyl-collection" | "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide" | "smartisan-turntable" | "gramophone" | "running-kitten" | "mineradio-stage" | "walkman" | "singularity" | "soft-static" | "prism";
-export type MobileHomePlayerStyle = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic" | "moss-wave" | "deep-sea" | "amber-tape" | "clear-tape";
+export type RewindTheme = "rewind-classic" | "rewind-studio" | "rewind-crystal";
+export type HomePlayerStyle = RewindTheme | "vinyl-collection" | "vinyl" | "cassette" | "ipod" | "audio-scope" | "album-slide" | "smartisan-turntable" | "gramophone" | "running-kitten" | "mineradio-stage" | "walkman" | "singularity" | "soft-static" | "prism";
+export type MobileHomePlayerStyle = RewindTheme | "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic" | "moss-wave" | "deep-sea" | "amber-tape" | "clear-tape";
 export type ArtistAlbumDisplayStyle = "classic" | "showcase";
 export type LyricsDisplayStyle = "immersive" | "classic" | "folia-monet" | "folia-fume" | "folia-tilt" | "folia-cadenza";
 export type TerminalShellTheme = "operator" | "dusk" | "phosphor" | "ashgray" | "embers";

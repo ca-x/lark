@@ -28,7 +28,7 @@ const DEFAULT_PLAYER_THEME_LABELS = {
 export function resolvePlayerThemeLabels(labels?: PlayerThemeLabels) {
   return { ...DEFAULT_PLAYER_THEME_LABELS, ...labels };
 }
-export type MobileArtPlayerVariant = "neon-console" | "indiewave" | "editorial-pulse" | "soft-vinyl" | "gramophone" | "stage-glass" | "blue-halo" | "smartisan-classic" | "moss-wave" | "deep-sea" | "amber-tape" | "clear-tape";
+export type MobileArtPlayerVariant = import("../../types").MobileHomePlayerStyle;
 
 export type MobileArtPlayerLabels = Partial<{
   nowPlaying: string;
@@ -50,7 +50,14 @@ export type MobileArtPlayerLabels = Partial<{
   queue: string;
   sleepTimer: string;
   lyrics: string;
+  flipTape: string;
+  tapeHint: string;
 }>;
+
+export const REWIND_THEMES = ["rewind-classic", "rewind-studio", "rewind-crystal"] as const;
+export function isRewindTheme(value: string | null | undefined): value is import("../../types").RewindTheme {
+  return REWIND_THEMES.some((theme) => theme === value);
+}
 
 export const MATERIAL_THEMES = ["soft-vinyl", "gramophone", "stage-glass", "blue-halo", "moss-wave", "deep-sea", "amber-tape", "clear-tape"] as const;
 export type MaterialTheme = (typeof MATERIAL_THEMES)[number];

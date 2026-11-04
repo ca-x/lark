@@ -1,4 +1,5 @@
-import { isMaterialTheme } from "../player-themes/types";
+import { isMaterialTheme, isRewindTheme } from "../player-themes/types";
+import { RewindCassette } from "../player-themes/RewindCassette";
 import { Check } from "@phosphor-icons/react";
 import type { MobileHomePlayerStyle } from "../../types";
 import type { TKey } from "../../i18n";
@@ -17,6 +18,9 @@ const themes: { id: MobileHomePlayerStyle; label: TKey }[] = [
   { id: "deep-sea", label: "mobileHomePlayerDeepSea" },
   { id: "amber-tape", label: "mobileHomePlayerAmberTape" },
   { id: "clear-tape", label: "mobileHomePlayerClearTape" },
+  { id: "rewind-classic", label: "rewindClassic" },
+  { id: "rewind-studio", label: "rewindStudio" },
+  { id: "rewind-crystal", label: "rewindCrystal" },
 ];
 
 export function MobileThemePicker({ value, onChange, t }: { value: MobileHomePlayerStyle; onChange: (theme: MobileHomePlayerStyle) => void; t: (key: TKey) => string }) {
@@ -25,7 +29,7 @@ export function MobileThemePicker({ value, onChange, t }: { value: MobileHomePla
       {themes.map(({ id, label }) => (
         <button key={id} type="button" data-theme={id} aria-pressed={value === id} onClick={() => onChange(id)}>
           <span className="mobile-material-preview" aria-hidden="true">
-            {isMaterialTheme(id) ? <MobilePlayerArtwork variant={id} preview /> : <span className={`material-classic-preview classic-${id}`}><i /><b /><em /></span>}
+            {isRewindTheme(id) ? <RewindCassette variant={id} preview /> : isMaterialTheme(id) ? <MobilePlayerArtwork variant={id} preview /> : <span className={`material-classic-preview classic-${id}`}><i /><b /><em /></span>}
           </span>
           <span className="mobile-material-choice-label">{t(label)}{value === id ? <Check aria-hidden="true" weight="bold" /> : null}</span>
         </button>

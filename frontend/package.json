@@ -1,12 +1,12 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.18.6",
+  "version": "0.18.7",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/check-album-slide-theme.mjs && node scripts/check-favorite-filters.mjs && node scripts/check-mobile-theme-palette.mjs && node --experimental-strip-types --test src/features/toaster/session.test.mjs src/components/toaster/*.test.mjs src/services/audioAnalysis.test.mjs src/components/equalizerCurve.test.mjs src/features/interfaceScale.test.mjs src/features/plugins/songloftPlayerMode.test.mjs src/components/mobile/playerSwipe.test.mjs src/components/mobile/MobileExperience.test.mjs src/components/DesktopInteractions.test.mjs src/components/player-themes/useDiscScratchSeek.test.mjs src/components/player-themes/VinylCollectionPlayer.test.mjs src/components/player-themes/ConceptPlayers.test.mjs src/utils/libraryAccess.test.mjs src/components/ShareDialog.test.mjs src/services/sharing.test.mjs src/services/brandAssets.test.mjs && tsc -b && vite build",
+    "build": "node scripts/check-album-slide-theme.mjs && node scripts/check-favorite-filters.mjs && node scripts/check-mobile-theme-palette.mjs && node --experimental-strip-types --test src/features/toaster/session.test.mjs src/components/toaster/*.test.mjs src/services/audioAnalysis.test.mjs src/components/equalizerCurve.test.mjs src/features/interfaceScale.test.mjs src/features/plugins/songloftPlayerMode.test.mjs src/components/mobile/playerSwipe.test.mjs src/components/mobile/MobileExperience.test.mjs src/components/DesktopInteractions.test.mjs src/components/player-themes/useDiscScratchSeek.test.mjs src/components/player-themes/VinylCollectionPlayer.test.mjs src/components/player-themes/ConceptPlayers.test.mjs src/components/player-themes/cassetteGesture.test.mjs src/utils/libraryAccess.test.mjs src/components/ShareDialog.test.mjs src/services/sharing.test.mjs src/services/brandAssets.test.mjs && tsc -b && vite build",
     "test:sharing": "node --experimental-strip-types --test src/utils/libraryAccess.test.mjs src/components/ShareDialog.test.mjs src/services/sharing.test.mjs src/services/brandAssets.test.mjs",
     "lint": "eslint .",
     "test:candidate-cache": "node --test src/services/candidateCache.test.mjs",
@@ -23,6 +23,7 @@
     "test:mobile-theme-palette": "node scripts/check-mobile-theme-palette.mjs",
     "test:mobile-interactions": "node --experimental-strip-types --test src/components/mobile/playerSwipe.test.mjs src/components/mobile/MobileExperience.test.mjs",
     "test:desktop-layout": "node scripts/check-song-row-layout.mjs",
+    "test:rewind-cassette": "node --experimental-strip-types --test src/components/player-themes/cassetteGesture.test.mjs && node scripts/check-rewind-cassette.mjs",
     "test:smartisan-tonearm": "node scripts/check-smartisan-tonearm.mjs",
     "test:walkman-theme": "node scripts/check-walkman-theme.mjs",
     "preview": "vite preview",

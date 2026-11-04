@@ -164,7 +164,8 @@ import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
 import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
-import { AlbumSlidePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, NeuralCathedralPlayer, PaperShaderLayer, PrismPlayer, RunningKittenTurntable, SingularityPlayer, SmartisanTurntable, SoftStaticPlayer, VinylCollectionPlayer, VinylTurntable, WalkmanPlayer } from "./components/player-themes";
+import { AlbumSlidePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, MobileArtPlayer, NeuralCathedralPlayer, PaperShaderLayer, PrismPlayer, RunningKittenTurntable, SingularityPlayer, SmartisanTurntable, SoftStaticPlayer, VinylCollectionPlayer, VinylTurntable, WalkmanPlayer } from "./components/player-themes";
+import { isRewindTheme, REWIND_THEMES } from "./components/player-themes/types";
 import { PublicShareView } from "./components/PublicShareView";
 import { ShareManagementView } from "./components/ShareManagementView";
 import { ShareDialog, type ShareTarget } from "./components/ShareDialog";
@@ -386,6 +387,7 @@ function offlineUser(): User {
 }
 
 function normalizeHomePlayerStyle(value?: string | null): HomePlayerStyle {
+  if (isRewindTheme(value)) return value;
   if (value === "smartisan-turntable" || value === "smartisan" || value === "smartisan-classic") return "smartisan-turntable";
   return value === "vinyl-collection" ||
     value === "cassette" ||
@@ -436,6 +438,7 @@ function rememberMineradioStageEnabled(enabled: boolean) {
 }
 
 function normalizeMobileHomePlayerStyle(value?: string | null): MobileHomePlayerStyle {
+  if (isRewindTheme(value)) return value;
   return value === "indiewave" ||
     value === "editorial-pulse" ||
     value === "soft-vinyl" ||
@@ -5481,6 +5484,8 @@ export default function App() {
   }, [currentRadio, radioQueue, radioSources, radioStations]);
   const queuePanelMode = currentRadio ? "radio" : "songs";
   const mobilePlayerLabels = {
+    flipTape: t("flipTape"),
+    tapeHint: t("tapeHint"),
     nowPlaying: t("nowPlaying"),
     position: t("position"),
     volume: t("volume"),
@@ -5731,6 +5736,8 @@ export default function App() {
                 onPlay={playSong}
                 onResume={(song) => void resumePlayback(song)}
                 onTogglePlayback={() => void togglePlaybackOutput()}
+                onQueue={current ? toggleQueuePanel : undefined}
+                onLyrics={current ? () => setLyricsFullScreen(true) : undefined}
                 onPrevious={() => next(-1)}
                 onNext={() => next(1)}
                 onVolume={updateVolume}
@@ -6920,6 +6927,8 @@ function HomeView({
   onPlay,
   onResume,
   onTogglePlayback,
+  onQueue,
+  onLyrics,
   onPrevious,
   onNext,
   onVolume,
@@ -6971,6 +6980,8 @@ function HomeView({
   onPlay: (song: Song, list?: Song[]) => void;
   onResume: (song: Song) => void;
   onTogglePlayback: () => void;
+  onQueue?: () => void;
+  onLyrics?: () => void;
   onPrevious: () => void;
   onNext: () => void;
   onVolume: (value: number) => void;
@@ -7063,6 +7074,36 @@ function HomeView({
           onOpenAlbum={onOpenAlbum}
           onOpenArtist={onOpenArtist}
           onOpenPlaylist={onOpenPlaylist}
+        />
+      </section>
+    );
+  }
+
+  if (isRewindTheme(homePlayerStyle) && !currentRadio && !currentNetworkTrack) {
+    return (
+      <section className="home-view desktop-home-view rewind-desktop" data-home-player-style={homePlayerStyle}>
+        <MobileArtPlayer
+          mediaKey={`song:${displaySong?.id ?? 0}`}
+          variant={homePlayerStyle}
+          cover={coverUrl(displaySong)}
+          title={displaySong?.title || t("brand")}
+          artist={displaySong?.artist || t("artist")}
+          album={displaySong?.album || t("nowPlaying")}
+          playing={heroPlaying}
+          progress={heroActive ? progress : 0}
+          duration={heroActive ? duration : displaySong?.duration_seconds || 0}
+          volume={volume}
+          playMode={playMode}
+          playModeLabel={playModeLabel}
+          labels={{ ...playerThemeLabels, flipTape: t("flipTape"), tapeHint: t("tapeHint"), queue: t("queue"), lyrics: t("lyrics"), favorite: t("favorites"), menu: t("mobilePlayerMenu"), soundEffects: t("mobileSoundEffects"), sleepTimer: t("sleepTimer") }}
+          onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
+          onPrevious={heroActive ? onPrevious : undefined}
+          onNext={heroActive ? onNext : undefined}
+          onSeek={heroActive ? onSeek : undefined}
+          onVolume={onVolume}
+          onCyclePlayMode={onCyclePlayMode}
+          onQueue={onQueue}
+          onLyrics={onLyrics}
         />
       </section>
     );
@@ -11188,6 +11229,11 @@ function SettingsPanel({
               >
                 {t("homePlayerPrism")}
               </button>
+              {REWIND_THEMES.map((theme, index) => (
+                <button key={theme} type="button" className={homePlayerStyle === theme ? "active" : ""} data-player-style={theme} aria-pressed={homePlayerStyle === theme} onClick={() => onHomePlayerStyleChange(theme)}>
+                  {t((["rewindClassic", "rewindStudio", "rewindCrystal"] as const)[index])}
+                </button>
+              ))}
                 </div>
               </SettingsSection>
               <SettingsSection

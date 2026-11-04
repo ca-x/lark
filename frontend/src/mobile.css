@@ -10185,6 +10185,18 @@
     background:var(--mobile-art-phone-bg) !important;
   }
 
+  .mobile-art-rewind-classic .mobile-art-phone {
+    background:var(--mobile-art-phone-bg) !important;
+  }
+
+  .mobile-art-rewind-studio .mobile-art-phone {
+    background:var(--mobile-art-phone-bg) !important;
+  }
+
+  .mobile-art-rewind-crystal .mobile-art-phone {
+    background:var(--mobile-art-phone-bg) !important;
+  }
+
   .mobile-art-blue-halo .mobile-art-phone {
     background:var(--mobile-art-phone-bg) !important;
   }
@@ -10762,6 +10774,114 @@
     --mobile-art-text:#403832;
     --mobile-art-muted:#79685a;
     --mobile-art-accent:#b14b23;
+    --mobile-art-glow:transparent;
+  }
+
+  .app-shell[data-mobile-theme='rewind-classic'] {
+    --bg:#151817;
+    --panel:#202322;
+    --panel2:#303633;
+    --text:#f3eee2;
+    --muted:#b9bcb3;
+    --accent:#ebad76;
+    --line:#4a514c;
+    --mobile-ui-bg:#151817;
+    --mobile-ui-surface:#202322;
+    --mobile-ui-surface-2:#303633;
+    --mobile-ui-text:#f3eee2;
+    --mobile-ui-muted:#b9bcb3;
+    --mobile-ui-accent:#ebad76;
+    --mobile-ui-border:#4a514c;
+    --mobile-player-bg:#151817;
+    --mobile-active-text:#241b14;
+    --mobile-mini-control:#f3eee2;
+    --mobile-mini-control-bg:#303633;
+    --mobile-mini-control-border:#4a514c;
+    --mobile-mini-play-bg:#ebad76;
+    --mobile-mini-play-fg:#241b14;
+    --mobile-mini-play-border:#ebad76;
+  }
+
+  .app-shell[data-mobile-theme='rewind-classic'] .mobile-art-rewind-classic {
+    --mobile-art-phone-bg:#202322;
+    --mobile-art-phone-bg-2:#151817;
+    --mobile-art-panel:#303633;
+    --mobile-art-panel-strong:#4a514c;
+    --mobile-art-text:#f3eee2;
+    --mobile-art-muted:#b9bcb3;
+    --mobile-art-accent:#ebad76;
+    --mobile-art-glow:transparent;
+  }
+
+  .app-shell[data-mobile-theme='rewind-studio'] {
+    --bg:#151817;
+    --panel:#202322;
+    --panel2:#303633;
+    --text:#f3eee2;
+    --muted:#b9bcb3;
+    --accent:#ebad76;
+    --line:#4a514c;
+    --mobile-ui-bg:#151817;
+    --mobile-ui-surface:#202322;
+    --mobile-ui-surface-2:#303633;
+    --mobile-ui-text:#f3eee2;
+    --mobile-ui-muted:#b9bcb3;
+    --mobile-ui-accent:#ebad76;
+    --mobile-ui-border:#4a514c;
+    --mobile-player-bg:#151817;
+    --mobile-active-text:#241b14;
+    --mobile-mini-control:#f3eee2;
+    --mobile-mini-control-bg:#303633;
+    --mobile-mini-control-border:#4a514c;
+    --mobile-mini-play-bg:#ebad76;
+    --mobile-mini-play-fg:#241b14;
+    --mobile-mini-play-border:#ebad76;
+  }
+
+  .app-shell[data-mobile-theme='rewind-studio'] .mobile-art-rewind-studio {
+    --mobile-art-phone-bg:#202322;
+    --mobile-art-phone-bg-2:#151817;
+    --mobile-art-panel:#303633;
+    --mobile-art-panel-strong:#4a514c;
+    --mobile-art-text:#f3eee2;
+    --mobile-art-muted:#b9bcb3;
+    --mobile-art-accent:#ebad76;
+    --mobile-art-glow:transparent;
+  }
+
+  .app-shell[data-mobile-theme='rewind-crystal'] {
+    --bg:#151817;
+    --panel:#202322;
+    --panel2:#303633;
+    --text:#f3eee2;
+    --muted:#b9bcb3;
+    --accent:#ebad76;
+    --line:#4a514c;
+    --mobile-ui-bg:#151817;
+    --mobile-ui-surface:#202322;
+    --mobile-ui-surface-2:#303633;
+    --mobile-ui-text:#f3eee2;
+    --mobile-ui-muted:#b9bcb3;
+    --mobile-ui-accent:#ebad76;
+    --mobile-ui-border:#4a514c;
+    --mobile-player-bg:#151817;
+    --mobile-active-text:#241b14;
+    --mobile-mini-control:#f3eee2;
+    --mobile-mini-control-bg:#303633;
+    --mobile-mini-control-border:#4a514c;
+    --mobile-mini-play-bg:#ebad76;
+    --mobile-mini-play-fg:#241b14;
+    --mobile-mini-play-border:#ebad76;
+  }
+
+  .app-shell[data-mobile-theme='rewind-crystal'] .mobile-art-rewind-crystal {
+    --mobile-art-phone-bg:#202322;
+    --mobile-art-phone-bg-2:#151817;
+    --mobile-art-panel:#303633;
+    --mobile-art-panel-strong:#4a514c;
+    --mobile-art-text:#f3eee2;
+    --mobile-art-muted:#b9bcb3;
+    --mobile-art-accent:#ebad76;
     --mobile-art-glow:transparent;
   }
 

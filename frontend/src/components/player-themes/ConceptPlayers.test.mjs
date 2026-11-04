@@ -77,6 +77,7 @@ function renderHome(overrides = {}) {
     useState: (value) => [value, () => {}],
     coverUrl: () => "/cover.webp",
     resumePosition: () => 0,
+    isRewindTheme: (value) => ["rewind-classic", "rewind-studio", "rewind-crystal"].includes(value),
   };
   const visit = (node) => {
     if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && ts.isIdentifier(node.tagName)) context[node.tagName.text] = node.tagName.text;
@@ -107,6 +108,23 @@ test("Home keeps both concept themes out of mobile, radio and network playback",
     assert.ok(find(renderHome({ homePlayerStyle }), (node) => node.type === component));
     for (const external of [{ mobileViewport: true }, { currentRadio: { name: "QA radio" } }, { currentNetworkTrack: { title: "QA network track" } }]) {
       assert.equal(find(renderHome({ homePlayerStyle, ...external }), (node) => node.type === component), undefined);
+    }
+  }
+});
+
+test("Home offers all Rewind themes on desktop with existing transport and queue callbacks", () => {
+  const onQueue = () => {};
+  const onLyrics = () => {};
+  const onNext = () => {};
+  for (const homePlayerStyle of ["rewind-classic", "rewind-studio", "rewind-crystal"]) {
+    const tree = renderHome({ homePlayerStyle, onQueue, onLyrics, onNext });
+    const player = find(tree, (node) => node.type === "MobileArtPlayer");
+    assert.equal(player.props.variant, homePlayerStyle);
+    assert.equal(player.props.onQueue, onQueue);
+    assert.equal(player.props.onLyrics, onLyrics);
+    assert.equal(player.props.onNext, onNext);
+    for (const external of [{ mobileViewport: true }, { currentRadio: { name: "QA radio" } }, { currentNetworkTrack: { title: "QA network track" } }]) {
+      assert.equal(find(renderHome({ homePlayerStyle, ...external }), (node) => node.type === "MobileArtPlayer"), undefined);
     }
   }
 });

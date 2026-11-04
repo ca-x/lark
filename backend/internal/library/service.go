@@ -1437,7 +1437,7 @@ func normalizeLyricsDisplayStyle(value string) string {
 
 func normalizeUserHomePlayerStyle(value string) string {
 	switch strings.TrimSpace(value) {
-	case "vinyl", "vinyl-collection", "cassette", "ipod", "audio-scope", "album-slide", "smartisan-turntable", "gramophone", "running-kitten", "mineradio-stage", "walkman", "singularity", "soft-static", "prism":
+	case "vinyl", "vinyl-collection", "cassette", "ipod", "audio-scope", "album-slide", "smartisan-turntable", "gramophone", "running-kitten", "mineradio-stage", "walkman", "singularity", "soft-static", "prism", "rewind-classic", "rewind-studio", "rewind-crystal":
 		return strings.TrimSpace(value)
 	default:
 		return "vinyl"
@@ -1446,7 +1446,7 @@ func normalizeUserHomePlayerStyle(value string) string {
 
 func normalizeUserMobileHomePlayerStyle(value string) string {
 	switch strings.TrimSpace(value) {
-	case "neon-console", "indiewave", "editorial-pulse", "soft-vinyl", "gramophone", "stage-glass", "blue-halo", "smartisan-classic", "moss-wave", "deep-sea", "amber-tape", "clear-tape":
+	case "neon-console", "indiewave", "editorial-pulse", "soft-vinyl", "gramophone", "stage-glass", "blue-halo", "smartisan-classic", "moss-wave", "deep-sea", "amber-tape", "clear-tape", "rewind-classic", "rewind-studio", "rewind-crystal":
 		return strings.TrimSpace(value)
 	default:
 		return "neon-console"
