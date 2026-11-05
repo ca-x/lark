@@ -5486,6 +5486,10 @@ export default function App() {
   const mobilePlayerLabels = {
     flipTape: t("flipTape"),
     tapeHint: t("tapeHint"),
+    cassette: t("cassette"), artwork: t("artwork"), tapeRack: t("tapeRack"), albumTracks: t("albumTracks"), albumBack: t("toasterBack"),
+    expandTapes: t("expandTapes"), collapseTapes: t("collapseTapes"), loadingTracks: t("loadingTracks"),
+    failedTracks: t("failedTracks"), emptyTapes: t("emptyTapes"), noAlbumTracks: t("noAlbumTracks"), retry: t("retry"),
+    loading: t("loading"), loadMore: t("loadMore"), failedTapes: t("failedTapes"),
     nowPlaying: t("nowPlaying"),
     position: t("position"),
     volume: t("volume"),
@@ -6323,6 +6327,7 @@ export default function App() {
           playMode={playMode}
           playModeLabel={playModeLabel}
           labels={mobilePlayerLabels}
+          rewindLibrary={isRewindTheme(mobileHomePlayerStyle) ? { albums, cover: albumCoverUrl, loadAlbums: (page, signal) => api.albumsPage(page, 48, 0, signal, false), loadSongs: (album) => api.albumSongs(album.id, MAX_PLAYBACK_QUEUE_SIZE), playAlbum: (album) => void playAlbum(album), playSong: (song, songs) => void playSong(song, songs) } : undefined}
           onToggle={toggleMobilePlayback}
           onPrevious={mobilePlaybackActive ? () => next(-1) : undefined}
           onNext={mobilePlaybackActive ? () => next(1) : undefined}
@@ -7095,7 +7100,8 @@ function HomeView({
           volume={volume}
           playMode={playMode}
           playModeLabel={playModeLabel}
-          labels={{ ...playerThemeLabels, flipTape: t("flipTape"), tapeHint: t("tapeHint"), queue: t("queue"), lyrics: t("lyrics"), favorite: t("favorites"), menu: t("mobilePlayerMenu"), soundEffects: t("mobileSoundEffects"), sleepTimer: t("sleepTimer") }}
+          labels={{ ...playerThemeLabels, flipTape: t("flipTape"), tapeHint: t("tapeHint"), queue: t("queue"), lyrics: t("lyrics"), favorite: t("favorites"), menu: t("mobilePlayerMenu"), soundEffects: t("mobileSoundEffects"), sleepTimer: t("sleepTimer"), cassette: t("cassette"), artwork: t("artwork"), tapeRack: t("tapeRack"), albumTracks: t("albumTracks"), albumBack: t("toasterBack"), expandTapes: t("expandTapes"), collapseTapes: t("collapseTapes"), loadingTracks: t("loadingTracks"), failedTracks: t("failedTracks"), emptyTapes: t("emptyTapes"), noAlbumTracks: t("noAlbumTracks"), retry: t("retry"), loading: t("loading"), loadMore: t("loadMore"), failedTapes: t("failedTapes") }}
+          rewindLibrary={{ albums, cover: albumCoverUrl, loadAlbums: (page, signal) => api.albumsPage(page, 48, 0, signal, false), loadSongs: (album) => api.albumSongs(album.id, MAX_PLAYBACK_QUEUE_SIZE), playAlbum: onPlayAlbum, playSong: onPlay }}
           onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
           onPrevious={heroActive ? onPrevious : undefined}
           onNext={heroActive ? onNext : undefined}

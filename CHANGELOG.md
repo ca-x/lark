@@ -5,6 +5,24 @@
 
 ---
 
+## 0.18.8：重做立体磁带播放器
+
+发布日期 / Released: 2026-11-05
+
+- 对照 Rewind Echo 官方截图和预览视频重做三款磁带：补上真实壳体厚度、倒角、齿轮卷轴和换带动画，配上黑色卡座与机械按键。
+- 桌面与手机均可浏览立体磁带架，切换倾斜与展开视图，选择专辑播放；磁带架独立分页，不受音乐库当前筛选影响。
+- 长按磁带或点击曲目按钮查看专辑歌曲，选曲即播，并提供完整封面页、读取失败重试和键盘操作。
+
+## v0.18.8: Rebuilt dimensional cassette player
+
+Released: 2026-11-05
+
+- Rebuild all three cassettes against Rewind Echo's official screenshots and previews, with modeled shell depth, bevels, toothed hubs and loading motion inside a black deck with mechanical keys.
+- Browse an inclined or expanded cassette rack on desktop and mobile and play an album; the rack loads its own pages independently of library filters.
+- Hold a cassette or use its tracks button to inspect and play album songs, with a full artwork page, retry controls and keyboard access.
+
+---
+
 ## 0.18.7：桌面与手机磁带主题
 
 发布日期 / Released: 2026-11-04

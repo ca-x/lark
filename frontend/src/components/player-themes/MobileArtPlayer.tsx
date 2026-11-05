@@ -1,5 +1,6 @@
 import { isMaterialTheme, isRewindTheme } from "./types";
-import { RewindCassette } from "./RewindCassette";
+import { RewindDeck } from "./RewindDeck";
+import type { RewindLibrary } from "./rewindLibrary";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import {
   CaretDown,
@@ -81,6 +82,7 @@ export function MobileArtPlayer({
   playMode = "sequence",
   playModeLabel = "Play mode",
   labels,
+  rewindLibrary,
   onToggle,
   onPrevious,
   onNext,
@@ -115,6 +117,7 @@ export function MobileArtPlayer({
   playMode?: PlayerThemePlayMode;
   playModeLabel?: string;
   labels?: MobileArtPlayerLabels;
+  rewindLibrary?: RewindLibrary;
   onToggle?: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -263,6 +266,7 @@ export function MobileArtPlayer({
       <div ref={dialogRef} role={onBack ? "dialog" : undefined} aria-modal={onBack ? true : undefined} aria-label={onBack ? text.nowPlaying : undefined} tabIndex={onBack ? -1 : undefined} className="mobile-art-phone" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerCancel} onLostPointerCapture={handlePointerCancel}>
         <div className="mobile-art-bg" aria-hidden="true" />
         {!isMaterialTheme(variant) && !isRewindTheme(variant) ? <PaperShaderLayer variant={`mobile-${variant}`} playing={playing} cover={coverState.displayUrl} compact /> : null}
+        {isRewindTheme(variant) && !onBack ? <div className="rewind-chassis-label"><strong>LARK</strong><span>STEREO CASSETTE DECK <b> / </b> 90</span></div> : null}
         {onBack ? (
           <div className="mobile-art-topbar">
             <button type="button" className="mobile-art-topbar-icon" data-autofocus aria-label={text.back} onClick={onBack}>
@@ -274,7 +278,7 @@ export function MobileArtPlayer({
         ) : null}
 
         {isRewindTheme(variant) ? (
-          <RewindCassette key={`${variant}:${mediaKey}`} variant={variant} cover={coverState.displayUrl} title={title} artist={artist} album={album} playing={playing} progress={displayPct} flipLabel={text.flipTape} hint={text.tapeHint} onCoverError={coverState.onCoverError} onPrevious={onPrevious} onNext={onNext} onQueue={onQueue} />
+          <RewindDeck variant={variant} mediaKey={mediaKey} cover={coverState.displayUrl} title={title} artist={artist} album={album} playing={playing} progress={displayPct} labels={text} library={rewindLibrary} onCoverError={coverState.onCoverError} onPrevious={onPrevious} onNext={onNext} onQueue={onQueue} />
         ) : isMaterialTheme(variant) ? (
           <MobilePlayerArtwork variant={variant} cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} progress={pct} onCoverError={coverState.onCoverError} />
         ) : variant === "neon-console" ? (
@@ -308,14 +312,14 @@ export function MobileArtPlayer({
           />
         ) : null}
 
-        <div className="mobile-art-meta">
+        {!isRewindTheme(variant) ? <div className="mobile-art-meta">
           <strong>{title}</strong>
           <span>{variant === "stage-glass" ? `${text.by} ${artist}` : artist}</span>
           <em>{album}</em>
           <button type="button" className={favoriteActive ? "mobile-art-favorite active" : "mobile-art-favorite"} aria-label={text.favorite} aria-pressed={favoriteActive} disabled={!onFavorite} onClick={onFavorite}>
             <HeartStraight weight={favoriteActive ? "fill" : "regular"} />
           </button>
-        </div>
+        </div> : null}
 
 
         <div className="mobile-art-progress">
@@ -376,6 +380,10 @@ export function MobileArtPlayer({
         <VolumeTicks value={volumePct} label={text.volume} onChange={onVolume} />
 
         <div className="mobile-art-actions" role="group" aria-label={text.menu}>
+          {isRewindTheme(variant) ? <button type="button" className={favoriteActive ? "active" : ""} aria-label={text.favorite} aria-pressed={favoriteActive} disabled={!onFavorite} onClick={onFavorite}>
+            <HeartStraight weight={favoriteActive ? "fill" : "regular"} />
+            <span>{text.favorite}</span>
+          </button> : null}
           <button type="button" className={soundEffectsActive ? "active" : ""} aria-label={text.soundEffects} aria-pressed={soundEffectsActive} disabled={!onSoundEffects} onClick={onSoundEffects}>
             <MusicNotes weight={soundEffectsActive ? "fill" : "regular"} />
             <span>{text.soundEffects}</span>

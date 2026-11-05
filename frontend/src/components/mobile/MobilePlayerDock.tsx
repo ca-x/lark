@@ -1,5 +1,6 @@
 import type { MobileHomePlayerStyle } from "../../types";
 import { MobileArtPlayer, type MobileArtPlayerLabels, type PlayerThemePlayMode } from "../player-themes";
+import type { RewindLibrary } from "../player-themes/rewindLibrary";
 
 export function MobilePlayerDock({
   mediaKey,
@@ -15,6 +16,7 @@ export function MobilePlayerDock({
   playMode,
   playModeLabel,
   labels,
+  rewindLibrary,
   onToggle,
   onPrevious,
   onNext,
@@ -49,6 +51,7 @@ export function MobilePlayerDock({
   playMode: PlayerThemePlayMode;
   playModeLabel: string;
   labels?: MobileArtPlayerLabels;
+  rewindLibrary?: RewindLibrary;
   onToggle: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -85,6 +88,7 @@ export function MobilePlayerDock({
       playMode={playMode}
       playModeLabel={playModeLabel}
       labels={labels}
+      rewindLibrary={rewindLibrary}
       onToggle={onToggle}
       onPrevious={onPrevious}
       onNext={onNext}

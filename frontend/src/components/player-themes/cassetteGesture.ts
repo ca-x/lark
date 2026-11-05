@@ -10,7 +10,7 @@ export function resolveCassetteGesture(deltaX: number, deltaY: number, elapsed: 
 
 export function cassetteTilt(deltaX: number, deltaY: number) {
   return {
-    x: Math.max(-7, Math.min(7, -deltaY / 9)),
-    y: Math.max(-9, Math.min(9, deltaX / 9)),
+    x: Math.max(-18, Math.min(18, -deltaY / 5)),
+    y: Math.max(-24, Math.min(24, deltaX / 4)),
   };
 }

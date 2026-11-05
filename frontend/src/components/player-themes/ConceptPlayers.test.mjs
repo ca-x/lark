@@ -76,6 +76,7 @@ function renderHome(overrides = {}) {
     require: () => ({ jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) }),
     useState: (value) => [value, () => {}],
     coverUrl: () => "/cover.webp",
+    albumCoverUrl: () => "/album-cover.webp",
     resumePosition: () => 0,
     isRewindTheme: (value) => ["rewind-classic", "rewind-studio", "rewind-crystal"].includes(value),
   };

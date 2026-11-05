@@ -52,6 +52,21 @@ export type MobileArtPlayerLabels = Partial<{
   lyrics: string;
   flipTape: string;
   tapeHint: string;
+  cassette: string;
+  artwork: string;
+  tapeRack: string;
+  albumTracks: string;
+  albumBack: string;
+  expandTapes: string;
+  collapseTapes: string;
+  loadingTracks: string;
+  failedTracks: string;
+  emptyTapes: string;
+  noAlbumTracks: string;
+  retry: string;
+  loading: string;
+  loadMore: string;
+  failedTapes: string;
 }>;
 
 export const REWIND_THEMES = ["rewind-classic", "rewind-studio", "rewind-crystal"] as const;

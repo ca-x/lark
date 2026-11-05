@@ -13,6 +13,6 @@ test("cassette swipes change tracks only on a deliberate horizontal gesture", ()
 
 test("cassette tilt is bounded in either direction", () => {
   assert.deepEqual(cassetteTilt(0, 0), { x: -0, y: 0 });
-  assert.deepEqual(cassetteTilt(900, -900), { x: 7, y: 9 });
-  assert.deepEqual(cassetteTilt(-900, 900), { x: -7, y: -9 });
+  assert.deepEqual(cassetteTilt(900, -900), { x: 18, y: 24 });
+  assert.deepEqual(cassetteTilt(-900, 900), { x: -18, y: -24 });
 });
