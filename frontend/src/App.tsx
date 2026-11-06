@@ -4266,6 +4266,9 @@ export default function App() {
   }
 
   function updateSongState(updated: Song) {
+    setRecentPlayedSongs((old) => old.map((item) => item.id === updated.id ? updated : item));
+    setRecentAddedSongs((old) => old.map((item) => item.id === updated.id ? updated : item));
+    setDailyMix((old) => old.map((item) => item.id === updated.id ? updated : item));
     setFavoriteSongs((old) => {
       if (!updated.favorite) return old.filter((item) => item.id !== updated.id);
       const exists = old.some((item) => item.id === updated.id);
@@ -5742,6 +5745,13 @@ export default function App() {
                 onTogglePlayback={() => void togglePlaybackOutput()}
                 onQueue={current ? toggleQueuePanel : undefined}
                 onLyrics={current ? () => setLyricsFullScreen(true) : undefined}
+                onFavoriteSong={(song) => void toggleFavorite(song)}
+                onSoundEffects={toggleEqualizerPanel}
+                onSleepTimer={() => setSleepTimerOpen(true)}
+                soundEffectsActive={eqPanelOpen || eqEnabled}
+                sleepTimerActive={sleepTimerMode !== "off"}
+                queueActive={queueOpen}
+                lyricsActive={lyricsFullScreen || inlineLyrics}
                 onPrevious={() => next(-1)}
                 onNext={() => next(1)}
                 onVolume={updateVolume}
@@ -6934,6 +6944,13 @@ function HomeView({
   onTogglePlayback,
   onQueue,
   onLyrics,
+  onFavoriteSong,
+  onSoundEffects,
+  onSleepTimer,
+  soundEffectsActive,
+  sleepTimerActive,
+  queueActive,
+  lyricsActive,
   onPrevious,
   onNext,
   onVolume,
@@ -6987,6 +7004,13 @@ function HomeView({
   onTogglePlayback: () => void;
   onQueue?: () => void;
   onLyrics?: () => void;
+  onFavoriteSong?: (song: Song) => void;
+  onSoundEffects?: () => void;
+  onSleepTimer?: () => void;
+  soundEffectsActive?: boolean;
+  sleepTimerActive?: boolean;
+  queueActive?: boolean;
+  lyricsActive?: boolean;
   onPrevious: () => void;
   onNext: () => void;
   onVolume: (value: number) => void;
@@ -7110,6 +7134,14 @@ function HomeView({
           onCyclePlayMode={onCyclePlayMode}
           onQueue={onQueue}
           onLyrics={onLyrics}
+          onFavorite={displaySong && onFavoriteSong ? () => onFavoriteSong(displaySong) : undefined}
+          favoriteActive={Boolean(displaySong?.favorite)}
+          onSoundEffects={onSoundEffects}
+          onSleepTimer={onSleepTimer}
+          soundEffectsActive={soundEffectsActive}
+          sleepTimerActive={sleepTimerActive}
+          queueActive={queueActive}
+          lyricsActive={lyricsActive}
         />
       </section>
     );

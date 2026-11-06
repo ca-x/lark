@@ -96,6 +96,65 @@ function renderHome(overrides = {}) {
   });
 }
 
+test("new theme names follow the selected interface language", () => {
+  const source = readFileSync(new URL("../../i18n.ts", import.meta.url), "utf8");
+  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } });
+  const context = { exports: {} };
+  vm.runInNewContext(compiled.outputText, context);
+  const chinese = context.exports.createT("zh-CN");
+  const english = context.exports.createT("en-US");
+  for (const [key, expected] of Object.entries({ homePlayerSoftStatic: "彩色黑胶", homePlayerPrism: "棱镜光谱", rewindClassic: "纸标磁带", rewindStudio: "朱红磁带", rewindCrystal: "冰蓝磁带" })) {
+    assert.equal(chinese(key), expected);
+    assert.doesNotMatch(english(key), /\p{Script=Han}/u);
+  }
+});
+
+for (const homePlayerStyle of ["rewind-classic", "rewind-studio", "rewind-crystal"]) {
+  test(`${homePlayerStyle} connects desktop actions and their active state`, () => {
+    const calls = [];
+    const current = { id: 7, title: "Displayed song", artist: "Artist", album: "Album", favorite: true };
+    const actions = {
+      onFavoriteSong: (song) => calls.push(song),
+      onSoundEffects() {}, onSleepTimer() {}, onQueue() {}, onLyrics() {},
+      soundEffectsActive: true, sleepTimerActive: true, queueActive: true, lyricsActive: true,
+    };
+    const tree = renderHome({ homePlayerStyle, current, ...actions });
+    const player = find(tree, (node) => node.type === "MobileArtPlayer");
+    assert.equal(typeof player.props.onFavorite, "function");
+    player.props.onFavorite();
+    assert.deepEqual(calls, [current]);
+    assert.equal(player.props.favoriteActive, true);
+    for (const name of ["onSoundEffects", "onSleepTimer", "onQueue", "onLyrics", "soundEffectsActive", "sleepTimerActive", "queueActive", "lyricsActive"]) assert.equal(player.props[name], actions[name], name);
+    const preview = find(renderHome({ homePlayerStyle, current: null, heroSong: current, ...actions }), (node) => node.type === "MobileArtPlayer");
+    preview.props.onFavorite();
+    assert.deepEqual(calls, [current, current]);
+    const empty = find(renderHome({ homePlayerStyle, current: null, ...actions }), (node) => node.type === "MobileArtPlayer");
+    assert.equal(empty.props.onFavorite, undefined);
+    assert.equal(empty.props.favoriteActive, false);
+  });
+}
+
+test("favorite updates reach the recent and recommended songs used by inactive home players", () => {
+  const song = { id: 7, favorite: false };
+  const states = { favoriteSongs: [], songs: [song], queue: [song], collection: null, recentPlayedSongs: [song], recentAddedSongs: [song], dailyMix: [song] };
+  const context = { exports: {}, current: null };
+  for (const name of Object.keys(states)) context[`set${name[0].toUpperCase()}${name.slice(1)}`] = (update) => { states[name] = update(states[name]); };
+  const source = readFileSync(new URL("../../App.tsx", import.meta.url), "utf8");
+  const syntax = ts.createSourceFile("App.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let declaration;
+  const visit = (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === "updateSongState") declaration = node;
+    ts.forEachChild(node, visit);
+  };
+  visit(syntax);
+  const compiled = ts.transpileModule(`export ${declaration.getText(syntax)}`, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } });
+  vm.runInNewContext(compiled.outputText, context);
+  for (const favorite of [true, false]) {
+    context.exports.updateSongState({ ...song, favorite });
+    for (const name of ["songs", "queue", "recentPlayedSongs", "recentAddedSongs", "dailyMix"]) assert.equal(states[name][0].favorite, favorite, name);
+  }
+});
+
 test("Home forwards only actual lyrics to Soft Static, not loading or missing-lyrics messages", () => {
   const fallback = find(renderHome(), (node) => node.type === "SoftStaticPlayer");
   assert.equal(fallback.props.activeLyricText, "");

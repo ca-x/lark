@@ -5,6 +5,22 @@
 
 ---
 
+## 0.18.9：磁带按钮修复与主题名称整理
+
+发布日期 / Released: 2026-11-06
+
+- 修复桌面磁带页收藏、音效和定时关闭按钮不响应，补齐按钮状态反馈；收藏变化同步到最近播放、最近添加和每日推荐。
+- 中文界面的彩色黑胶、棱镜光谱和三款磁带统一使用纯中文名称，英文界面和已保存的主题选择保持不变。
+
+## v0.18.9: Cassette controls and localized theme names
+
+Released: 2026-11-06
+
+- Fix unresponsive Favorite, Sound effects and Sleep timer buttons in desktop cassette players, restore button-state feedback, and synchronize favorites across recent and recommended songs.
+- Use Chinese-only names for the marbled vinyl, prism and three cassette themes in Chinese; preserve English labels and saved theme selections.
+
+---
+
 ## 0.18.8：重做立体磁带播放器
 
 发布日期 / Released: 2026-11-05

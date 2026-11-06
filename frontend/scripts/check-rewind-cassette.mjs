@@ -30,12 +30,22 @@ const failedAlbums = new Set();
 let failRack = false;
 let emptyRack = false;
 let delayAlbum = 0;
+let favoriteWrites = 0;
 const page = items => ({ items, total: items.length, page: 1, offset: 0, limit: 100 });
 const audio = Buffer.alloc(4800044);
 audio.write("RIFF", 0); audio.writeUInt32LE(audio.length - 8, 4); audio.write("WAVEfmt ", 8); audio.writeUInt32LE(16, 16); audio.writeUInt16LE(1, 20); audio.writeUInt16LE(1, 22); audio.writeUInt32LE(8000, 24); audio.writeUInt32LE(16000, 28); audio.writeUInt16LE(2, 32); audio.writeUInt16LE(16, 34); audio.write("data", 36); audio.writeUInt32LE(audio.length - 44, 40);
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, "http://localhost").pathname;
   if (pathname.endsWith("/stream")) { response.writeHead(200, { "Content-Type": "audio/wav", "Content-Length": audio.length }).end(audio); return; }
+  const favoriteSong = pathname.match(/^\/api\/songs\/(\d+)\/favorite$/);
+  if (favoriteSong && request.method === "POST") {
+    const song = songs.find(item => item.id === Number(favoriteSong[1]));
+    if (!song) { response.writeHead(404).end(); return; }
+    song.favorite = !song.favorite;
+    favoriteWrites++;
+    response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(song));
+    return;
+  }
   if (pathname.endsWith("/cover")) {
     const colors = ["#c4b68f", "#a1bdae", "#989eaf", "#d2a279", "#809caa", "#bc7369", "#b3b09c", "#afb897"];
     const color = colors[(Number(pathname.split("/")[3]) - 1) % colors.length];
@@ -64,6 +74,7 @@ const server = createServer(async (request, response) => {
     for await (const chunk of request) body += chunk;
     preferences = JSON.parse(body);
   }
+  if (pathname === "/api/me/preferences" && process.argv.includes("--trace")) console.log("PREFERENCES", request.method, { selected, ...preferences });
   if (pathname.startsWith("/api/")) {
     const responses = {
       "/api/auth/status": { initialized: true, user: { id: 1, username: "rewind-fixture", role: "admin" } },
@@ -118,8 +129,95 @@ const pointer = async (events) => evaluate(`(() => {
   for (const event of ${JSON.stringify(events)}) tape.dispatchEvent(new PointerEvent(event.type, { bubbles:true, pointerId:event.id ?? 11, isPrimary:event.primary ?? true, pointerType:'touch', button:0, clientX:bounds.x + bounds.width / 2 + (event.x ?? 0), clientY:bounds.y + bounds.height / 2 + (event.y ?? 0) }));
   return true;
 })()`);
+const checkActions = async () => {
+  for (selected of themes) {
+    preferences = {};
+    for (const [width, height] of [[1440, 900], [390, 844]]) {
+      await load(width, height);
+      const favorite = `${player} .mobile-art-actions button[aria-label='收藏']`;
+      const effects = `${player} .mobile-art-actions button[aria-label='音效']`;
+      const sleep = `${player} .mobile-art-actions button[aria-label='定时关闭']`;
+      const soundPanel = width <= 720 ? ".mobile-sound-panel" : ".eq-popover";
+      const soundPower = width <= 720 ? ".mobile-sound-head button:last-child" : ".eq-power";
+      const soundClose = width <= 720 ? ".mobile-sound-head button:first-child" : ".eq-close";
+      const writes = favoriteWrites;
+      assert.equal(await evaluate(`document.querySelector(${JSON.stringify(favorite)}).disabled`), false);
+      await browser("click", favorite);
+      await browser("wait", "--fn", `document.querySelector(${JSON.stringify(favorite)}).getAttribute('aria-pressed') === 'true'`);
+      assert.equal(favoriteWrites, writes + 1);
+      await browser("click", favorite);
+      await browser("wait", "--fn", `document.querySelector(${JSON.stringify(favorite)}).getAttribute('aria-pressed') === 'false'`);
+      assert.equal(favoriteWrites, writes + 2);
+      await browser("click", effects);
+      await browser("wait", "--fn", `!!document.querySelector('${soundPanel}')`);
+      await browser("wait", "--fn", `!document.querySelector('${soundPanel}').getAnimations().some(animation => animation.playState === 'running')`);
+      assert.equal(await evaluate(`document.querySelector(${JSON.stringify(effects)}).getAttribute('aria-pressed')`), "true");
+      await browser("click", soundPower);
+      await browser("wait", "--fn", `document.querySelector('${soundPanel}').dataset.enabled === 'true'`);
+      await browser("click", soundClose);
+      await browser("wait", "--fn", `!document.querySelector('${soundPanel}')`);
+      assert.equal(await evaluate(`document.querySelector(${JSON.stringify(effects)}).getAttribute('aria-pressed')`), "true");
+      await browser("click", effects);
+      await browser("wait", "--fn", `!document.querySelector('${soundPanel}').getAnimations().some(animation => animation.playState === 'running')`);
+      await browser("click", soundPower);
+      await browser("wait", "--fn", `document.querySelector('${soundPanel}').dataset.enabled === 'false'`);
+      await browser("click", soundClose);
+      await browser("wait", "--fn", `document.querySelector(${JSON.stringify(effects)}).getAttribute('aria-pressed') === 'false'`);
+      await browser("click", sleep);
+      await browser("wait", "--fn", "!!document.querySelector('.sleep-timer-dialog')");
+      await browser("click", ".sleep-timer-dialog .sleep-option:first-child");
+      await browser("wait", "--fn", `!document.querySelector('.sleep-timer-dialog') && document.querySelector(${JSON.stringify(sleep)}).getAttribute('aria-pressed') === 'true'`);
+      await browser("click", sleep);
+      await browser("click", ".sleep-timer-status button");
+      await browser("wait", "--fn", `!document.querySelector('.sleep-timer-dialog') && document.querySelector(${JSON.stringify(sleep)}).getAttribute('aria-pressed') === 'false'`);
+      await browser("click", `${player} .mobile-art-queue`);
+      await browser("wait", "--fn", `!!document.querySelector('.queue-panel') && document.querySelector('${player} .mobile-art-queue').getAttribute('aria-pressed') === 'true'`);
+      await browser("press", "Escape");
+      await browser("wait", "--fn", `!document.querySelector('.queue-panel') && document.querySelector('${player} .mobile-art-queue').getAttribute('aria-pressed') === 'false'`);
+      await browser("click", `${player} .mobile-art-actions button[aria-label='歌词']`);
+      await browser("wait", "--fn", "document.querySelector('.app-shell').classList.contains('lyrics-mode') && !!document.querySelector('.full-lyrics')");
+      console.log(`PASS ${selected} ${width}x${height}: favorite API/state, EQ, sleep timer, queue and lyrics actions`);
+    }
+  }
+};
+const checkPreferences = async () => {
+  await load(1440, 900);
+  await browser("click", '.desktop-sidebar nav button[aria-label="设置"]');
+  await browser("click", "#settings-tab-playback");
+  for (const theme of themes) {
+    await browser("click", `button[data-player-style='${theme}']`);
+    await browser("wait", "--fn", `localStorage.getItem('lark.home-player-style') === '${theme}'`);
+    await browser("wait", "--fn", `document.querySelector("button[data-player-style='${theme}']").getAttribute('aria-pressed') === 'true'`);
+  }
+  await browser("set", "viewport", "390", "844");
+  await browser("wait", "--fn", "!!document.querySelector('.mobile-material-picker')");
+  await browser("click", ".mobile-material-picker button[data-theme='rewind-studio']");
+  await browser("wait", "--fn", "localStorage.getItem('lark.mobile-home-player-style') === 'rewind-studio'");
+  const saveDeadline = Date.now() + 10000;
+  while (preferences.home_player_style !== "rewind-crystal" || preferences.mobile_home_player_style !== "rewind-studio") {
+    assert.ok(Date.now() < saveDeadline, "Both theme preferences must reach the server before reloading");
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  const saved = await (await fetch(`${url}/api/me/preferences`)).json();
+  assert.equal(saved.home_player_style, "rewind-crystal");
+  assert.equal(saved.mobile_home_player_style, "rewind-studio");
+  await browser("set", "viewport", "1440", "900");
+  await browser("open", url);
+  await browser("wait", "--fn", "!!document.querySelector('.desktop-sidebar')");
+  await browser("click", '.desktop-sidebar nav button[aria-label="首页"]');
+  await browser("wait", "--fn", "!!document.querySelector('.desktop-home-view[data-home-player-style=rewind-crystal]')");
+  await browser("set", "viewport", "390", "844");
+  await browser("wait", "--fn", "!!document.querySelector('.mobile-mini-player')");
+  await browser("click", ".mobile-mini-main");
+  await browser("wait", "--fn", "!!document.querySelector('.mobile-art-rewind-studio')");
+  console.log("PASS settings: all three choices, independent desktop/mobile preferences, saved and restored after reload");
+};
 try {
-  if (process.argv.includes("--review")) {
+  if (process.argv.includes("--settings-only")) {
+    await checkPreferences();
+  } else if (process.argv.includes("--controls-only")) {
+    await checkActions();
+  } else if (process.argv.includes("--review")) {
     for (selected of process.argv.includes("--quick") ? [themes[0]] : themes) {
       for (const [width, height] of process.argv.includes("--quick") ? [[390, 844]] : [[1440, 900], [390, 844], [390, 568], [844, 390]]) {
         await load(width, height);
@@ -168,6 +266,7 @@ try {
     await browser("record", "stop");
     console.log("PASS visual captures: materials, desktop/phone/short/landscape, rack, album tracks");
   } else {
+  await checkActions();
   if (!process.argv.includes("--collection-only")) {
   for (selected of themes) {
     preferences = {};
@@ -321,31 +420,11 @@ try {
   await browser("click", tape);
   assert.equal(await evaluate(`document.querySelector('${tape}').getAttribute('aria-pressed')`), "true");
   console.log("PASS rack error/retry and WebGL-loss fallback remains interactive");
-  await load(1440, 900);
-  await browser("click", '.desktop-sidebar nav button[aria-label="设置"]');
-  await browser("click", "#settings-tab-playback");
-  for (const theme of themes) {
-    await browser("click", `button[data-player-style='${theme}']`);
-    await browser("wait", "--fn", `localStorage.getItem('lark.home-player-style') === '${theme}'`);
-    await browser("wait", "--fn", `document.querySelector("button[data-player-style='${theme}']").getAttribute('aria-pressed') === 'true'`);
-  }
-  await browser("set", "viewport", "390", "844");
-  await browser("wait", "--fn", "!!document.querySelector('.mobile-material-picker')");
-  await browser("click", ".mobile-material-picker button[data-theme='rewind-studio']");
-  await browser("wait", "--fn", "localStorage.getItem('lark.mobile-home-player-style') === 'rewind-studio'");
-  await browser("wait", "--fn", "fetch('/api/me/preferences').then(response => response.json()).then(value => value.home_player_style === 'rewind-crystal' && value.mobile_home_player_style === 'rewind-studio')");
-  await browser("set", "viewport", "1440", "900");
-  await browser("open", url);
-  await browser("wait", "--fn", "!!document.querySelector('.desktop-sidebar')");
-  await browser("click", '.desktop-sidebar nav button[aria-label="首页"]');
-  await browser("wait", "--fn", "!!document.querySelector('.desktop-home-view[data-home-player-style=rewind-crystal]')");
-  await browser("set", "viewport", "390", "844");
-  await browser("wait", "--fn", "!!document.querySelector('.mobile-mini-player')");
-  await browser("click", ".mobile-mini-main");
-  await browser("wait", "--fn", "!!document.querySelector('.mobile-art-rewind-studio')");
-  console.log("PASS settings: all three choices, independent desktop/mobile preferences, saved and restored after reload");
+  await checkPreferences();
   }
 } catch (error) {
+  console.error({ fixturePreferences: preferences, selected });
+  console.error(await evaluate("({desktop:document.querySelector('.desktop-home-view')?.dataset.homePlayerStyle,desktopSaved:localStorage.getItem('lark.home-player-style'),mobileSaved:localStorage.getItem('lark.mobile-home-player-style')})").catch(() => null));
   await browser("screenshot", "/tmp/lark-rewind-failure.png").catch(() => undefined);
   console.error(await evaluate("({url:location.href,body:document.body.innerText.slice(-3500),audio:[...document.querySelectorAll('audio')].map(audio=>({paused:audio.paused,ready:audio.readyState,time:audio.currentTime,error:audio.error?.message,source:audio.currentSrc})),playing:document.querySelector('.rewind-player')?.dataset.playing})").catch(() => null));
   throw error;
