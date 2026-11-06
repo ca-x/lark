@@ -75,7 +75,7 @@ export type ThemeLabel =
   | "foobarLight";
 
 export type ThemeMode = "dark" | "light";
-export type SettingsTab = "account" | "playback" | "library" | "services" | "system" | "users" | "plugins";
+export type SettingsTab = "account" | "appearance" | "playback" | "lyrics" | "offline" | "library" | "services" | "system" | "users" | "plugins";
 export type LibraryTab = "songs" | "offline" | "folders" | "network" | "radio" | "manage";
 
 export type Collection = {

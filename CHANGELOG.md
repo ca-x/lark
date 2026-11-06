@@ -5,6 +5,24 @@
 
 ---
 
+## 0.18.10：重新整理设置界面
+
+发布日期 / Released: 2026-11-07
+
+- 将播放与外观拆分为外观与显示、播放与声音、歌词设置和离线缓存，个人偏好、服务连接与管理选项分组展示，已有设置保持不变。
+- 桌面采用分类侧栏，平板自动换行，手机使用紧凑的分类选择器；调整长文案、表单和开关对齐，优化主题选中与按压反馈，并支持减弱动态。
+- 设置搜索支持跨分类定位，自动展开折叠选项并聚焦控件，同时保留普通用户的权限边界。
+
+## v0.18.10: Reorganized settings
+
+Released: 2026-11-07
+
+- Separate appearance, playback and sound, lyrics, and offline storage, with clear personal, connection, and administration groups; preserve existing preferences.
+- Use a desktop category rail, wrapping tablet navigation, and a compact phone picker; improve long labels, form and switch alignment, selection and press feedback, with reduced-motion support.
+- Search across categories, reveal collapsed options, and focus their controls while preserving ordinary-user access boundaries.
+
+---
+
 ## 0.18.9：磁带按钮修复与主题名称整理
 
 发布日期 / Released: 2026-11-06

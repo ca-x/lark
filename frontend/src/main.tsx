@@ -13,6 +13,7 @@ import './components/player-themes/vinyl-collection.css'
 import './desktop-player-polish.css'
 import './components/player-themes/concept-players.css'
 import './components/player-themes/rewind-cassette.css'
+import './components/settings/settings-workspace.css'
 
 void registerServiceWorker().catch(() => undefined)
 

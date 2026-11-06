@@ -6,7 +6,7 @@ export function canManageLibrary(role: User["role"] | undefined): boolean {
 }
 
 export function resolveSettingsTab(tab: SettingsTab, role: User["role"]): SettingsTab {
-  if (!canManageLibrary(role) && !["account", "playback", "services"].includes(tab)) return "account";
+  if (!canManageLibrary(role) && !["account", "appearance", "playback", "lyrics", "offline", "services"].includes(tab)) return "account";
   return tab;
 }
 

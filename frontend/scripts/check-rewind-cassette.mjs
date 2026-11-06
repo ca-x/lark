@@ -183,14 +183,17 @@ const checkActions = async () => {
 const checkPreferences = async () => {
   await load(1440, 900);
   await browser("click", '.desktop-sidebar nav button[aria-label="设置"]');
-  await browser("click", "#settings-tab-playback");
+  await browser("click", "#settings-tab-appearance");
+  await evaluate("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))");
   for (const theme of themes) {
+    await evaluate(`document.querySelector("button[data-player-style='${theme}']").scrollIntoView({block:'center',behavior:'instant'}); true`);
     await browser("click", `button[data-player-style='${theme}']`);
     await browser("wait", "--fn", `localStorage.getItem('lark.home-player-style') === '${theme}'`);
     await browser("wait", "--fn", `document.querySelector("button[data-player-style='${theme}']").getAttribute('aria-pressed') === 'true'`);
   }
   await browser("set", "viewport", "390", "844");
   await browser("wait", "--fn", "!!document.querySelector('.mobile-material-picker')");
+  await evaluate("document.querySelector('.mobile-material-picker button[data-theme=rewind-studio]').scrollIntoView({block:'center',behavior:'instant'}); true");
   await browser("click", ".mobile-material-picker button[data-theme='rewind-studio']");
   await browser("wait", "--fn", "localStorage.getItem('lark.mobile-home-player-style') === 'rewind-studio'");
   const saveDeadline = Date.now() + 10000;
@@ -346,10 +349,12 @@ try {
   await load(1440, 900);
   const beforeDrag = await evaluate(`document.querySelector('${player} .mobile-art-meta strong').textContent`);
   const point = await evaluate(`(() => { const bounds = document.querySelector('${tape}').getBoundingClientRect(); return {x:Math.round(bounds.x + bounds.width / 2),y:Math.round(bounds.y + bounds.height / 2)}; })()`);
-  await browser("mouse", "move", String(point.x), String(point.y));
-  await browser("mouse", "down");
-  await browser("mouse", "move", String(point.x - 100), String(point.y));
-  await browser("mouse", "up");
+  const { stdout: dragOutput } = await exec("agent-browser", ["--session", session, "--json", "batch", "--bail",
+    `mouse move ${point.x} ${point.y}`, "mouse down", `mouse move ${point.x - 100} ${point.y}`, "mouse up",
+  ], { timeout: 40000, maxBuffer: 1024 * 1024 });
+  const dragResults = JSON.parse(dragOutput);
+  assert.equal(dragResults.length, 4);
+  for (const result of dragResults) assert.ok(result.success, result.error);
   await browser("wait", "--fn", `document.querySelector('${player} .mobile-art-meta strong').textContent !== ${JSON.stringify(beforeDrag)}`);
   assert.equal(await evaluate(`document.querySelector('${tape}').getAttribute('aria-pressed')`), "false");
   console.log("PASS desktop: native mouse drag changes track once without flipping");

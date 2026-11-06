@@ -32,7 +32,7 @@ The optional Toaster Studio adapts audio analysis, Strudel code generation and M
 
 The fullscreen lyrics direction also references [folia-major](https://github.com/chthollyphile/folia-major) by chthollyphile for lyric timing, rail, and glow interaction ideas.
 
-The Vinyl room desktop theme references [Vinyls](https://vinyls.sandheep.xyz) by Sandheep, retaining its original deck and tonearm artwork with Lark album browsing and playback controls. Select it in Settings → Playback & appearance → Home player style.
+The Vinyl room desktop theme references [Vinyls](https://vinyls.sandheep.xyz) by Sandheep, retaining its original deck and tonearm artwork with Lark album browsing and playback controls. Select it in Settings → Appearance & display → Home player style.
 
 The Soft Static and Prism desktop themes are independently implemented for Lark, with visual inspiration from [Damir's video concepts](https://heydamir.design/):
 
@@ -116,7 +116,7 @@ By default, Lark stores app data and uploaded music in the `lark_data` Docker vo
 
 ### Turn Current Music Into Code And Visuals
 
-Enable **Toaster Studio** in Settings → Playback & appearance, then choose Open studio. The feature defaults to off; enabling it also adds a desktop navigation entry and a mobile My entry. It analyses music played locally by Lark, showing measured tempo/key, live Strudel code, and spectrum, orb and domino visuals.
+Enable **Toaster Studio** in Settings → Playback & sound, then choose Open studio. The feature defaults to off; enabling it also adds a desktop navigation entry and a mobile My entry. It analyses music played locally by Lark, showing measured tempo/key, live Strudel code, and spectrum, orb and domino visuals.
 
 Copy or download the current Strudel code, or open it at strudel.cc. MIDI export becomes available after at least four analysed bars. Analysis starts when the workspace opens; exports cover the analysed portion. Changing track or seeking restarts analysis, and pausing stops accumulation. Results are approximate reconstructions rather than exact transcriptions. The existing Lark player remains responsible for playback; remote outputs such as DLNA provide no local browser audio to analyse.
 
@@ -145,7 +145,8 @@ Copy or download the current Strudel code, or open it at strudel.cc. MIDI export
 ### Administer A Private Music Service
 
 - First-run setup creates the first admin account. Admins can also enable registration.
-- Media-library settings, directory checks/changes, scans (including Subsonic) and uploads are admin-only in both the interface and API. Other users retain playback, folder browsing and personal offline preferences under **Playback & appearance**.
+- Media-library settings, directory checks/changes, scans (including Subsonic) and uploads are admin-only in both the interface and API. Other users retain playback, folder browsing and personal preferences.
+- Settings separate **Appearance & display**, **Playback & sound**, **Lyrics**, and **Offline storage**, with account, connections, and administrator categories alongside them. Desktop uses a category rail, tablets use wrapping tabs, and phones use a compact category picker. Search can jump across categories and open collapsed options; keyboard navigation and enlarged interface sizes remain supported. Desktop and mobile player selections stay independent.
 - Settings cover language, theme, library paths, directory status, directory watch, diagnostics, font uploads, lyrics font, DLNA casting/library exposure, and transcode policy.
 - Lark supports Simplified Chinese and English. The app name appears as **百灵** in Chinese and **Lark** in English.
 - The theme system includes 21 schemes: original dark and light themes, Apple Music / Spotify / NetEase / Winamp / Foobar2000 inspired dark and light themes, and a Smartisan Music classic theme.
@@ -250,6 +251,11 @@ pnpm build   # writes embedded assets to ../backend/web/dist
 cd ../backend
 go run ./cmd/server
 ```
+
+After building, run `pnpm test:settings` from `frontend` for settings category,
+permission, keyboard, search, save, and responsive-layout checks. Browser checks
+require `agent-browser` and its Chromium runtime on `PATH`; screenshots are saved
+under `/tmp/lark-settings-*` (override with `LARK_SETTINGS_ARTIFACTS`).
 
 ---
 
@@ -357,6 +363,6 @@ GHCR publishing uses the repository `GITHUB_TOKEN`.
 
 ## Credits And Notices
 
-- The desktop and mobile **Paper cassette · Classic**, **Red cassette · Studio**, and **Ice cassette · Crystal** themes are inspired by [Rewind Echo](https://apps.apple.com/cn/app/id6776126230). The revised player is based on its official screenshots and both preview videos: beveled 3D shells, toothed reels, a cassette rack, loading transitions and mechanical deck controls. Lark implements the models and textures independently with Three.js, Canvas and CSS, using your own album artwork; no App Store screenshots, branding or proprietary assets are bundled. Select themes in Settings → Playback (desktop and mobile preferences are independent). Tap to inspect both cassette sides, swipe/drag to change tracks, or hold/use the tracks button to inspect an album (the queue remains the fallback for unmatched albums). The rack browses actual, independently paginated library albums; its details buttons and keyboard controls are alternatives to long press. The Artwork page shows the full cover. Reduced motion removes tilt, flip and loading transitions but retains slow playback-only reels; paused, hidden and off-screen players stop the reels. WebGL failure retains a non-3D cassette and all playback controls.
+- The desktop and mobile **Paper cassette · Classic**, **Red cassette · Studio**, and **Ice cassette · Crystal** themes are inspired by [Rewind Echo](https://apps.apple.com/cn/app/id6776126230). The revised player is based on its official screenshots and both preview videos: beveled 3D shells, toothed reels, a cassette rack, loading transitions and mechanical deck controls. Lark implements the models and textures independently with Three.js, Canvas and CSS, using your own album artwork; no App Store screenshots, branding or proprietary assets are bundled. Select themes in Settings → Appearance & display (desktop and mobile preferences are independent). Tap to inspect both cassette sides, swipe/drag to change tracks, or hold/use the tracks button to inspect an album (the queue remains the fallback for unmatched albums). The rack browses actual, independently paginated library albums; its details buttons and keyboard controls are alternatives to long press. The Artwork page shows the full cover. Reduced motion removes tilt, flip and loading transitions but retains slow playback-only reels; paused, hidden and off-screen players stop the reels. WebGL failure retains a non-3D cassette and all playback controls.
 - The Smartisan Music classic theme is credited to [DE105/SmartisanMusic-Revived](https://github.com/DE105/SmartisanMusic-Revived). The referenced Smartisan Music visual assets, trademarks, product names, and UI designs belong to their respective rights holders and are included here only for learning, research, and preservation.
 - Lyrics matching and local metadata handling ideas reference [guohuiyuan/go-music-dl](https://github.com/guohuiyuan/go-music-dl). Lark implements the source-file writeback flow independently.

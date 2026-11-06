@@ -45,11 +45,9 @@ export function SettingsSection({
           <CaretDown weight="bold" />
         </span>
       </button>
-      {open ? (
-        <div id={contentId} className="settings-section-body" role="region" aria-labelledby={headingId}>
-          {children}
-        </div>
-      ) : null}
+      <div id={contentId} className="settings-section-body" role="region" aria-labelledby={headingId} hidden={!open}>
+        {children}
+      </div>
     </div>
   );
 }

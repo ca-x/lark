@@ -13,7 +13,7 @@ test("only administrators can manage the library and open privileged settings", 
     assert.equal(resolveSettingsTab(tab, "user"), "account");
     assert.equal(resolveSettingsTab(tab, "admin"), tab);
   }
-  for (const tab of ["account", "playback", "services"]) {
+  for (const tab of ["account", "appearance", "playback", "lyrics", "offline", "services"]) {
     assert.equal(resolveSettingsTab(tab, "user"), tab);
   }
 });

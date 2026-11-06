@@ -176,6 +176,7 @@ import { SkeletonSongList } from "./components/Skeleton";
 import { EmptyState } from "./components/EmptyState";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsNavigation } from "./components/settings/SettingsNavigation";
+import { getSettingsCategories } from "./components/settings/settingsCategories";
 import { SettingsSearch } from "./components/settings/SettingsSearch";
 import { PluginSettings } from "./components/PluginSettings";
 import {
@@ -10797,20 +10798,24 @@ function SettingsPanel({
   const interfaceButtonScaleStyle = {
     "--interface-scale-progress": `${((interfaceScale.buttons - INTERFACE_SCALE_MIN) / (INTERFACE_SCALE_MAX - INTERFACE_SCALE_MIN)) * 100}%`,
   } as CSSProperties;
-  const tabs: { id: SettingsTab; label: string }[] = [
-    { id: "account", label: t("accountSettings") },
-    { id: "playback", label: t("playbackAppearanceSettings") },
-    ...(canManageLibrary(user.role) ? [{ id: "library" as const, label: t("mediaLibrarySettings") }] : []),
-    { id: "services", label: t("servicesConnectionsSettings") },
-    ...(user.role === "admin"
-      ? [
-          { id: "plugins" as const, label: t("pluginManagement") },
-          { id: "system" as const, label: t("systemSettings") },
-          { id: "users" as const, label: t("userManagement") },
-        ]
-      : []),
-  ];
+  const tabs = getSettingsCategories(t, user.role === "admin");
   const settingsActiveTab = resolveSettingsTab(activeTab, user.role);
+  const activeCategory = tabs.find((tab) => tab.id === settingsActiveTab)!;
+
+  function changeSettingsCategory(tab: SettingsTab) {
+    onTabChange(tab);
+    window.requestAnimationFrame(() => settingsRootRef.current?.scrollIntoView({ block: "start", behavior: "instant" }));
+  }
+
+  useEffect(() => {
+    const root = settingsRootRef.current;
+    if (!root) return;
+    const updateNavigation = () => { root.dataset.compactNavigation = root.clientWidth < 720 ? "true" : "false"; };
+    updateNavigation();
+    const observer = new ResizeObserver(updateNavigation);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     setNickname(user.nickname || user.username);
@@ -10822,7 +10827,7 @@ function SettingsPanel({
   }, [settings.web_font_family]);
 
   useEffect(() => {
-    if (settingsActiveTab !== "playback") return;
+    if (settingsActiveTab !== "appearance" && settingsActiveTab !== "lyrics") return;
     setFontsLoading(true);
     void api
       .fonts()
@@ -11048,7 +11053,7 @@ function SettingsPanel({
   return (
     <section className={`settings-page${pluginSurfaceOpen ? " plugin-runtime-page" : ""}`} ref={settingsRootRef}>
       {!pluginSurfaceOpen ? (
-        <>
+        <aside className="settings-sidebar" aria-label={t("settingsCategory")}>
           <SettingsSearch
             root={settingsRootRef}
             tabs={tabs}
@@ -11056,19 +11061,25 @@ function SettingsPanel({
             placeholder={t("searchSettingsPlaceholder")}
             emptyLabel={t("searchSettingsEmpty")}
             clearLabel={t("clearSettingsSearch")}
-            onTabChange={onTabChange}
+            onTabChange={changeSettingsCategory}
           />
           <SettingsNavigation
             activeTab={settingsActiveTab}
             tabs={tabs}
             label={t("settings")}
-            onTabChange={onTabChange}
+            categoryLabel={t("settingsCategory")}
+            onTabChange={changeSettingsCategory}
           />
-        </>
+        </aside>
       ) : null}
 
+      <div className="settings-content" id="settings-panel" role="tabpanel" aria-labelledby={pluginSurfaceOpen ? undefined : "settings-category-heading"} tabIndex={0}>
+      {!pluginSurfaceOpen ? <header className="settings-category-header">
+        <h2 id="settings-category-heading">{activeCategory.label}</h2>
+        <p>{activeCategory.description}</p>
+      </header> : null}
       {settingsActiveTab === "plugins" && user.role === "admin" ? (
-        <div className="settings-grid settings-tab-panel" role="tabpanel">
+        <div className="settings-grid settings-tab-panel">
           <PluginSettings
             t={t}
             theme={pluginHostTheme}
@@ -11079,8 +11090,7 @@ function SettingsPanel({
         </div>
       ) : null}
 
-      {(["account", "playback", "library", "services"] as SettingsTab[]).includes(settingsActiveTab) && (
-        <div className="settings-grid settings-tab-panel" data-active-category={settingsActiveTab} role="tabpanel">
+        <div className="settings-grid settings-tab-panel" data-active-category={settingsActiveTab} hidden={settingsActiveTab === "users" || settingsActiveTab === "plugins"}>
           <div className="profile-settings-card" data-settings-owner="account">
             <div className="profile-settings-head">
               <UserAvatar user={{ ...user, nickname, avatar_data_url: avatarDataURL }} />
@@ -11109,6 +11119,103 @@ function SettingsPanel({
             </label>
             <button onClick={() => onUpdateProfile(nickname, avatarDataURL)}>{t("save")}</button>
           </div>
+          <label className="settings-number-row settings-wide-row" data-settings-owner="appearance">
+            {t("language")}
+            <select
+              value={settings.language}
+              onChange={(e) =>
+                setSettings({ ...settings, language: e.target.value as Language })
+              }
+            >
+              <option value="zh-CN">简体中文</option>
+              <option value="en-US">English</option>
+            </select>
+          </label>
+          <div className="settings-wide-row theme-swatch-grid-wrap" data-settings-owner="appearance">
+            <div className="theme-swatch-grid-head">
+              <strong>{t("theme")}</strong>
+              <span>{t("themeHint")}</span>
+            </div>
+            <div className="theme-swatch-grid">
+              {[...darkThemes, ...lightThemes].map((theme) => (
+                <button
+                  key={theme.id}
+                  type="button"
+                  className={settings.theme === theme.id ? "theme-swatch active" : "theme-swatch"}
+                  onClick={() => setSettings({ ...settings, theme: theme.id })}
+                  aria-pressed={settings.theme === theme.id}
+                  data-theme-id={theme.id}
+                  title={t(theme.label)}
+                >
+                  <span className="theme-swatch-preview" />
+                  <span className="theme-swatch-label">
+                    <span className="theme-swatch-dot" data-mode={theme.mode} />
+                    {t(theme.label)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="font-settings-card interface-scale-card settings-wide-row" data-settings-owner="appearance">
+            <div>
+              <strong>{t("interfaceScale")}</strong>
+              <span>{t("interfaceScaleHint")}</span>
+            </div>
+            <div className="interface-scale-controls">
+              <label className="interface-scale-field" htmlFor={interfaceTextScaleID}>
+                <span className="interface-scale-label">
+                  <span>{t("interfaceTextSize")}</span>
+                  <strong>{interfaceScale.text}%</strong>
+                </span>
+                <input
+                  id={interfaceTextScaleID}
+                  type="range"
+                  min={INTERFACE_SCALE_MIN}
+                  max={INTERFACE_SCALE_MAX}
+                  step={INTERFACE_SCALE_STEP}
+                  value={interfaceScale.text}
+                  style={interfaceTextScaleStyle}
+                  onChange={(event) => setInterfaceScaleField("text", Number(event.target.value))}
+                />
+              </label>
+              <label className="interface-scale-field" htmlFor={interfaceButtonScaleID}>
+                <span className="interface-scale-label">
+                  <span>{t("interfaceButtonSize")}</span>
+                  <strong>{interfaceScale.buttons}%</strong>
+                </span>
+                <input
+                  id={interfaceButtonScaleID}
+                  type="range"
+                  min={INTERFACE_SCALE_MIN}
+                  max={INTERFACE_SCALE_MAX}
+                  step={INTERFACE_SCALE_STEP}
+                  value={interfaceScale.buttons}
+                  style={interfaceButtonScaleStyle}
+                  onChange={(event) => setInterfaceScaleField("buttons", Number(event.target.value))}
+                />
+              </label>
+            </div>
+            <div className="interface-scale-actions">
+              <label className="switch-row interface-scale-link">
+                <span>
+                  <span>{t("interfaceScaleLinked")}</span>
+                  <small>{t("interfaceScaleLinkedHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={interfaceScale.linked}
+                  onChange={(event) => onInterfaceScaleChange(linkInterfaceScale(interfaceScale, event.target.checked))}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={interfaceScaleDefault}
+                onClick={() => onInterfaceScaleChange(DEFAULT_INTERFACE_SCALE)}
+              >
+                {t("interfaceScaleReset")}
+              </button>
+            </div>
+          </div>
           <SettingsSection
             wideRow
             owner="playback"
@@ -11136,7 +11243,7 @@ function SettingsPanel({
             <>
               <SettingsSection
                 wideRow
-                owner="playback"
+                owner="appearance"
                 title={t("homePlayerStyle")}
                 description={t("homePlayerStyleHint")}
               >
@@ -11276,7 +11383,7 @@ function SettingsPanel({
               </SettingsSection>
               <SettingsSection
                 wideRow
-                owner="playback"
+                owner="appearance"
                 title={t("mineradioStageEffects")}
                 description={t("mineradioStageEffectsHint")}
               >
@@ -11297,11 +11404,11 @@ function SettingsPanel({
           {mobileViewport ? (
           <SettingsSection
             wideRow
-            owner="playback"
+            owner="appearance"
             title={t("mobileHomePlayerStyle")}
             description={t("mobileHomePlayerStyleHint")}
           >
-            <MobileThemePicker value={mobileHomePlayerStyle} onChange={onMobileHomePlayerStyleChange} t={t} />
+            {settingsActiveTab === "appearance" ? <MobileThemePicker value={mobileHomePlayerStyle} onChange={onMobileHomePlayerStyleChange} t={t} /> : null}
           </SettingsSection>
           ) : null}
           <SettingsSection
@@ -11321,7 +11428,7 @@ function SettingsPanel({
           </SettingsSection>
           <SettingsSection
             wideRow
-            owner="playback"
+            owner="appearance"
             title={t("artistAlbumDisplayStyle")}
             description={t("artistAlbumDisplayStyleHint")}
           >
@@ -11344,7 +11451,7 @@ function SettingsPanel({
           </SettingsSection>
           <SettingsSection
             wideRow
-            owner="playback"
+            owner="lyrics"
             title={t("lyricsDisplayStyle")}
             description={t("lyricsDisplayStyleHint")}
           >
@@ -11361,7 +11468,7 @@ function SettingsPanel({
               ))}
             </div>
           </SettingsSection>
-          <label className="switch-row settings-wide-row" data-settings-owner="playback">
+          <label className="switch-row settings-wide-row" data-settings-owner="lyrics">
             <span>
               <span>{t("lyricsDragSeek")}</span>
               <small>{t("lyricsDragSeekHint")}</small>
@@ -11384,7 +11491,7 @@ function SettingsPanel({
             />
           </label>
           <OfflineSettingsCard
-            owner="playback"
+            owner="offline"
             usage={offlineUsage}
             usageLabel={t("offlineCacheUsage")}
             description={t("offlineCacheUsageHint")}
@@ -11394,7 +11501,7 @@ function SettingsPanel({
             onRefresh={onRefreshOfflineUsage}
             onManage={onManageOfflineCache}
           />
-          <label className="switch-row settings-wide-row" data-settings-owner="playback">
+          <label className="switch-row settings-wide-row" data-settings-owner="offline">
             <span>
               <span>{t("offlineCacheAutoPlayed")}</span>
               <small>{t("offlineCacheAutoPlayedHint")}</small>
@@ -11627,10 +11734,9 @@ function SettingsPanel({
             />
           ) : null}
         </div>
-      )}
 
       {settingsActiveTab === "users" && (
-        <div className="settings-grid settings-tab-panel" role="tabpanel">
+        <div className="settings-grid settings-tab-panel">
           {user.role === "admin" ? (
             <>
               <label className="switch-row settings-wide-row">
@@ -11670,45 +11776,7 @@ function SettingsPanel({
         </div>
       )}
 
-      {(["playback", "library", "services", "system"] as SettingsTab[]).includes(settingsActiveTab) && (
-        <div className="settings-grid settings-tab-panel" data-active-category={settingsActiveTab} role="tabpanel">
-          <label data-settings-owner="playback">
-            {t("language")}
-            <select
-              value={settings.language}
-              onChange={(e) =>
-                setSettings({ ...settings, language: e.target.value as Language })
-              }
-            >
-              <option value="zh-CN">简体中文</option>
-              <option value="en-US">English</option>
-            </select>
-          </label>
-          <div className="settings-wide-row theme-swatch-grid-wrap" data-settings-owner="playback">
-            <div className="theme-swatch-grid-head">
-              <strong>{t("theme")}</strong>
-              <span>{t("themeHint")}</span>
-            </div>
-            <div className="theme-swatch-grid">
-              {[...darkThemes, ...lightThemes].map((theme) => (
-                <button
-                  key={theme.id}
-                  type="button"
-                  className={settings.theme === theme.id ? "theme-swatch active" : "theme-swatch"}
-                  onClick={() => setSettings({ ...settings, theme: theme.id })}
-                  aria-pressed={settings.theme === theme.id}
-                  data-theme-id={theme.id}
-                  title={t(theme.label)}
-                >
-                  <span className="theme-swatch-preview" />
-                  <span className="theme-swatch-label">
-                    <span className="theme-swatch-dot" data-mode={theme.mode} />
-                    {t(theme.label)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="settings-grid settings-tab-panel" data-active-category={settingsActiveTab} hidden={settingsActiveTab === "users" || settingsActiveTab === "plugins"}>
           {user.role === "admin" ? (
             <label className="switch-row settings-wide-row" data-settings-owner="system">
               <span>
@@ -11854,7 +11922,7 @@ function SettingsPanel({
             </label>
           ) : null}
           {user.role === "admin" ? (
-            <div className="font-settings-card settings-wide-row" data-settings-owner="playback">
+            <div className="font-settings-card settings-wide-row" data-settings-owner="lyrics">
               <div>
                 <strong>{t("lyricsSettings")}</strong>
                 <span>{t("lyricsDisplayStyleHint")}</span>
@@ -11912,66 +11980,6 @@ function SettingsPanel({
               </div>
             </div>
           ) : null}
-          <div className="font-settings-card interface-scale-card settings-wide-row" data-settings-owner="playback">
-            <div>
-              <strong>{t("interfaceScale")}</strong>
-              <span>{t("interfaceScaleHint")}</span>
-            </div>
-            <div className="interface-scale-controls">
-              <label className="interface-scale-field" htmlFor={interfaceTextScaleID}>
-                <span className="interface-scale-label">
-                  <span>{t("interfaceTextSize")}</span>
-                  <strong>{interfaceScale.text}%</strong>
-                </span>
-                <input
-                  id={interfaceTextScaleID}
-                  type="range"
-                  min={INTERFACE_SCALE_MIN}
-                  max={INTERFACE_SCALE_MAX}
-                  step={INTERFACE_SCALE_STEP}
-                  value={interfaceScale.text}
-                  style={interfaceTextScaleStyle}
-                  onChange={(event) => setInterfaceScaleField("text", Number(event.target.value))}
-                />
-              </label>
-              <label className="interface-scale-field" htmlFor={interfaceButtonScaleID}>
-                <span className="interface-scale-label">
-                  <span>{t("interfaceButtonSize")}</span>
-                  <strong>{interfaceScale.buttons}%</strong>
-                </span>
-                <input
-                  id={interfaceButtonScaleID}
-                  type="range"
-                  min={INTERFACE_SCALE_MIN}
-                  max={INTERFACE_SCALE_MAX}
-                  step={INTERFACE_SCALE_STEP}
-                  value={interfaceScale.buttons}
-                  style={interfaceButtonScaleStyle}
-                  onChange={(event) => setInterfaceScaleField("buttons", Number(event.target.value))}
-                />
-              </label>
-            </div>
-            <div className="interface-scale-actions">
-              <label className="switch-row interface-scale-link">
-                <span>
-                  <span>{t("interfaceScaleLinked")}</span>
-                  <small>{t("interfaceScaleLinkedHint")}</small>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={interfaceScale.linked}
-                  onChange={(event) => onInterfaceScaleChange(linkInterfaceScale(interfaceScale, event.target.checked))}
-                />
-              </label>
-              <button
-                type="button"
-                disabled={interfaceScaleDefault}
-                onClick={() => onInterfaceScaleChange(DEFAULT_INTERFACE_SCALE)}
-              >
-                {t("interfaceScaleReset")}
-              </button>
-            </div>
-          </div>
           {user.role === "admin" ? (
             <div className="feature-settings-card settings-wide-row" data-settings-owner="services">
               <label className="switch-row">
@@ -12120,7 +12128,7 @@ function SettingsPanel({
               </div>
             </div>
           ) : null}
-          <div className="font-settings-card settings-wide-row" data-settings-owner="playback">
+          <div className="font-settings-card settings-wide-row" data-settings-owner="appearance">
             <div>
               <strong>{t("webFontSettings")}</strong>
               <span>{t("webFontHint")}</span>
@@ -12273,7 +12281,7 @@ function SettingsPanel({
             {libraryDirError ? <div className="settings-empty error">{libraryDirError}</div> : null}
           </div> : null}
         </div>
-      )}
+      </div>
     </section>
   );
 }
