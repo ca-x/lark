@@ -143,6 +143,12 @@ docker compose up -d
 - 百灵提供 MCP SSE 接口给 AI 客户端使用，可用工具包括列出歌手和专辑、搜索歌曲、查看收藏、切换收藏、获取歌词和准备播放 URL。
 - 播放记录可以同步到 ListenBrainz 或 Last.fm，并支持配置提交阈值。
 
+### 使用 Songloft 和 MyGo 插件
+
+管理员可在「设置 → 插件」独立切换「启用Songloft插件」和「启用mygo插件」。Songloft 保留现有 QuickJS 引擎与 `.jsc` 支持；原生 MyGo 音乐源使用 MoeJS。MyGo 支持从 GitHub 的 `mygo-music-plugin` topic 发现插件、输入 `owner/repo` 或上传 ZIP；确认来源、SHA-256 和网络权限后才安装，新插件默认停用，需手动启用。
+
+登录用户可从音乐库浏览已启用的 MyGo 音乐源，保存自己的源配置，使用插件实际提供的搜索、播放、歌词、收藏和歌单操作。账号、存储和私有队列按用户及源来源隔离，不把远程歌曲写进共享本地歌曲表。本次支持流媒体音乐源，并非原生 MyGo 桌面宿主：不支持进程执行、浏览器窗口登录、远端播放及私网/LAN 网络。完整边界见[插件平台说明](docs/plugin-platform.md)与 [Songloft 能力矩阵](docs/songloft-plugin-capability-matrix.md)。
+
 ### 管理一个私有音乐服务
 
 - 媒体库设置、目录读取/检查/修改、扫描（含 Subsonic 入口）和上传仅向管理员开放，界面与 API 同时限制权限。普通用户仍可播放、浏览文件夹，并在「播放与外观」调整个人离线缓存偏好。

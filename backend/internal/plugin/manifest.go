@@ -38,6 +38,7 @@ type PluginManifest = Manifest
 const (
 	RenderEngineWebView = "webview"
 	RenderEngineWebF    = "webf"
+	RenderEngineLynx    = "lynx"
 )
 
 var (
@@ -79,7 +80,7 @@ func ValidateManifest(manifest *Manifest) error {
 		return err
 	}
 	if !IsValidRenderEngine(manifest.RenderEngine) {
-		return fmt.Errorf("renderEngine must be %q or %q (or omitted), got %q", RenderEngineWebView, RenderEngineWebF, manifest.RenderEngine)
+		return fmt.Errorf("renderEngine must be webview, webf or lynx (or omitted), got %q", manifest.RenderEngine)
 	}
 	if err := ValidateHashField("entryHash", manifest.EntryHash); err != nil {
 		return err
@@ -96,7 +97,7 @@ func ValidateManifest(manifest *Manifest) error {
 }
 
 func IsValidRenderEngine(value string) bool {
-	return value == "" || value == RenderEngineWebView || value == RenderEngineWebF
+	return value == "" || value == RenderEngineWebView || value == RenderEngineWebF || value == RenderEngineLynx
 }
 
 func EntryPathFromZipName(name string) string {

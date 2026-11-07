@@ -44,7 +44,7 @@ func TestSongLoftPluginTokenReadsLibraryAndEnforcesWritePermission(t *testing.T)
 	}
 	manager := plugin.NewManager(repository, t.TempDir(), t.TempDir())
 	t.Cleanup(func() { _ = manager.Close() })
-	server := New(client, service, "*", WithPluginManager(manager))
+	server := New(client, service, "*", WithPluginManager(manager), WithSongloftSongs(manager.SongsHost()))
 	token := manager.HostToken(installed.EntryPath)
 
 	response := performSongLoftRequest(server, http.MethodGet, "/api/v1/songs?limit=100000&offset=0", "", token)
@@ -108,9 +108,9 @@ func TestSongLoftLibraryMutationContractWritesRealTagsAndCreatesRemoteSongs(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	manager := plugin.NewManager(repository, t.TempDir(), t.TempDir(), larkhost.New(client, service, larkhost.Config{UserID: admin.ID, DataDir: t.TempDir(), MusicDir: libraryDir}))
+	manager := plugin.NewManager(repository, t.TempDir(), t.TempDir(), plugin.WithHost(larkhost.New(client, service, larkhost.Config{UserID: admin.ID, DataDir: t.TempDir(), MusicDir: libraryDir})))
 	t.Cleanup(func() { _ = manager.Close() })
-	server := New(client, service, "*", WithPluginManager(manager))
+	server := New(client, service, "*", WithPluginManager(manager), WithSongloftSongs(manager.SongsHost()))
 	token := manager.HostToken(installed.EntryPath)
 
 	tagsBody := `{"title":"New Title","artist":"New Artist","album":"New Album","year":2026,"genre":"Rock","language":"zh","style":"Live","track":"3/12"}`

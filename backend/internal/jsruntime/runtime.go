@@ -145,6 +145,8 @@ type wsConn struct {
 
 // JSEnv 代表一个 JS 运行时环境
 type JSEnv struct {
+	networkContext context.Context
+	cancelNetwork  context.CancelFunc
 	vm             *quickjs.VM
 	envID          string
 	pluginID       int64
@@ -251,7 +253,9 @@ func (m *JSEnvManager) CreateEnv(envID, initCode string, pluginID int64) error {
 	// 设置栈溢出检测阈值为合理值，防止 jsjiami 混淆代码死循环
 	SetMaxStackSize(vm)
 
+	networkContext, cancelNetwork := context.WithCancel(context.Background())
 	env := &JSEnv{
+		networkContext: networkContext, cancelNetwork: cancelNetwork,
 		vm:           vm,
 		envID:        envID,
 		pluginID:     pluginID,
@@ -262,6 +266,11 @@ func (m *JSEnvManager) CreateEnv(envID, initCode string, pluginID int64) error {
 		asyncSignal:  make(chan struct{}, 1),
 		hostEvents:   make(chan hostEvent, 512),
 	}
+	defer func() {
+		if m.envs[envID] != env {
+			cancelNetwork()
+		}
+	}()
 
 	// 注册 Go 桥接函数
 	if err := registerBridgeFunctions(vm, env); err != nil {
@@ -313,7 +322,9 @@ func (m *JSEnvManager) CreateEnvWithBytecode(envID, bootstrapCode string, byteco
 
 	SetMaxStackSize(vm)
 
+	networkContext, cancelNetwork := context.WithCancel(context.Background())
 	env := &JSEnv{
+		networkContext: networkContext, cancelNetwork: cancelNetwork,
 		vm:           vm,
 		envID:        envID,
 		pluginID:     pluginID,
@@ -324,6 +335,11 @@ func (m *JSEnvManager) CreateEnvWithBytecode(envID, bootstrapCode string, byteco
 		hostEvents:   make(chan hostEvent, 512),
 		// 字节码模式无源码可编译，sourceCode 留空
 	}
+	defer func() {
+		if m.envs[envID] != env {
+			cancelNetwork()
+		}
+	}()
 
 	// 注册 Go 桥接函数
 	if err := registerBridgeFunctions(vm, env); err != nil {
@@ -853,6 +869,14 @@ func (m *JSEnvManager) ExecuteJSAndWaitEvents(ctx context.Context, envID, code s
 }
 
 // DestroyEnv 销毁指定的 JS 运行时环境
+func (m *JSEnvManager) CancelRequests(envID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if env := m.envs[envID]; env != nil && env.cancelNetwork != nil {
+		env.cancelNetwork()
+	}
+}
+
 func (m *JSEnvManager) DestroyEnv(envID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -861,6 +885,7 @@ func (m *JSEnvManager) DestroyEnv(envID string) error {
 	if !exists {
 		return fmt.Errorf("env %s not found", envID)
 	}
+	env.cancelNetwork()
 
 	// 关闭该 env 下的所有 WebSocket 连接
 	env.wsConns.Range(func(key, value any) bool {
@@ -1505,7 +1530,7 @@ func registerBridgeFunctions(vm *quickjs.VM, env *JSEnv) error {
 		env.asyncInflight.Add(1)
 		go func() {
 			defer env.asyncInflight.Add(-1)
-			payload := doHTTPRequest(url, method, headersJSON, bodyHex)
+			payload := doHTTPRequestContext(env.networkContext, url, method, headersJSON, bodyHex)
 			result := asyncResult{
 				ID:   id,
 				Type: "fetch",
@@ -2021,6 +2046,10 @@ func applyBasicAuthFromURL(req *http.Request) {
 }
 
 func doHTTPRequest(url, method, headersJSON, bodyHex string) string {
+	return doHTTPRequestContext(context.Background(), url, method, headersJSON, bodyHex)
+}
+
+func doHTTPRequestContext(parent context.Context, url, method, headersJSON, bodyHex string) string {
 	slog.Debug("doHTTPRequest", "url", url, "method", method, "headers", redactHeaderJSONForLog(headersJSON))
 
 	// 解析并设置请求头
@@ -2049,7 +2078,7 @@ func doHTTPRequest(url, method, headersJSON, bodyHex string) string {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
 	var reqBody io.Reader

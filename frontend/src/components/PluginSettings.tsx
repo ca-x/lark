@@ -15,6 +15,9 @@ import type { createT } from "../i18n";
 import { api } from "../services/api";
 import type { SongloftHostCall, SongloftPlayerState } from "./PluginHost";
 import { PluginSurface } from "./PluginSurface";
+import { MygoPluginManager } from "./MygoPlugins";
+import type { PluginPlatform } from "../features/plugins/mygo";
+import { songloftIdentity } from "../features/plugins/songloftIdentity";
 
 type PluginView = "installed" | "marketplace" | "sources";
 
@@ -24,7 +27,7 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function PluginSettings({
+function SongloftPluginSettings({
   t,
   theme,
   playerState,
@@ -89,8 +92,8 @@ export function PluginSettings({
     };
   }, [refreshInstalled]);
 
-  const installedByEntryPath = useMemo(
-    () => new Map(plugins.map((plugin) => [plugin.entry_path, plugin])),
+  const installedByIdentity = useMemo(
+    () => new Map(plugins.map((plugin) => [songloftIdentity(plugin), plugin])),
     [plugins],
   );
 
@@ -296,10 +299,10 @@ export function PluginSettings({
           {warnings.map((warning) => <div key={warning} className="plugin-feedback warning"><WarningCircle aria-hidden="true" />{warning}</div>)}
           <div className="plugin-list">
             {marketplace.map((entry) => {
-              const installed = installedByEntryPath.get(entry.entry_path);
+              const installed = installedByIdentity.get(songloftIdentity(entry));
               const installing = busyKey === `market:${entry.entry_path}`;
               return (
-                <div className="plugin-row market" key={`${entry.entry_path}:${entry.version}`}>
+                <div className="plugin-row market" key={`${songloftIdentity(entry)}:${entry.version}`}>
                   <span className="plugin-row-icon"><PuzzlePiece aria-hidden="true" /></span>
                   <div className="plugin-row-copy">
                     <div className="plugin-row-title"><strong>{entry.name}</strong><code>{entry.version}</code></div>
@@ -353,4 +356,30 @@ export function PluginSettings({
       ) : null}
     </div>
   );
+}
+
+export function PluginSettings(props: Parameters<typeof SongloftPluginSettings>[0]) {
+  const [platform, setPlatform] = useState<PluginPlatform | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => { void api.pluginPlatform().then(setPlatform).catch((error) => setError(String(error))); }, []);
+  async function toggle(next: Partial<PluginPlatform>) {
+    setBusy(true); setError("");
+    try { setPlatform(await api.savePluginPlatform(next)); window.dispatchEvent(new Event("lark:plugins-changed")); }
+    catch (error) { setError(String(error)); setPlatform(await api.pluginPlatform().catch(() => null)); window.dispatchEvent(new Event("lark:plugins-changed")); }
+    finally { setBusy(false); }
+  }
+  return <div className="plugin-platform settings-wide-row" data-settings-owner="plugins">
+    <section className="mygo-panel">
+      <p>{props.t("pluginPlatformHint")}</p>
+      {platform ? <>
+        <label className="switch-row"><span>{props.t("enableSongloftPlugins")}</span><input type="checkbox" checked={platform.songloft} disabled={busy} onChange={(event) => void toggle({ songloft: event.target.checked })} /></label>
+        <label className="switch-row"><span>{props.t("enableMygoPlugins")}</span><input type="checkbox" checked={platform.mygo} disabled={busy} onChange={(event) => void toggle({ mygo: event.target.checked })} /></label>
+      </> : <p role="status">{props.t("loading")}</p>}
+      {error && <p className="plugin-feedback error" role="alert">{error}</p>}
+      {platform?.degraded && <p className="plugin-feedback error" role="alert">{platform.degraded}</p>}
+    </section>
+    <MygoPluginManager t={props.t} />
+    {platform?.songloft && <SongloftPluginSettings {...props} />}
+  </div>;
 }

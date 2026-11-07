@@ -44,6 +44,11 @@ func CompatibilityMatrix() []Capability {
 		{ID: "frontend.webview", Label: "WebView 插件页面", Status: CapabilityAvailable, Description: "插件可通过运行时路由提供 HTTP API 和静态资源。", Note: "页面在独立插件宿主中打开，不会注入主应用 DOM。"},
 		{ID: "frontend.webf", Label: "WebF 原生页面", Status: CapabilityPartial, Description: "SongLoft WebF 页面在浏览器宿主中使用兼容 fallback。", Note: "WebF 原生渲染器不可用，Web API、样式和 bridge 通过 Web fallback 提供。"},
 		{ID: "provider.lyrics", Label: "歌词提供者", Status: CapabilityAvailable, Description: "注册后由 Lark 歌词流程调用 /lyric-search。"},
+		{ID: "frontend.lynx", Label: "Lynx 页面", Status: CapabilityPartial, Description: "仅运行包内 static/index.html 与 .web.bundle 的 Web fallback，不提供原生 Lynx。"},
+		{ID: "tags", Label: "音频标签读写", Status: CapabilityUnavailable, Description: "尚未实现 Songloft tags.read / tags.write；请求这些权限的包会明确拒绝。"},
+		{ID: "net:insecure-tls", Label: "跳过 TLS 校验", Status: CapabilityUnavailable, Description: "不支持 net:insecure-tls；不会从 net 权限继承，也不会修改共享 HTTP transport。"},
+		{ID: "net.httpStream", Label: "分块网络流", Status: CapabilityUnavailable, Description: "尚未实现 Songloft httpStream 句柄协议；普通 fetch 不等同于此能力。"},
+		{ID: "playlists.replaceSongs", Label: "原子替换歌单", Status: CapabilityUnavailable, Description: "尚未实现 Songloft playlists.replaceSongs，不会以清空再添加替代事务。"},
 		{ID: "provider.covers", Label: "封面提供者", Status: CapabilityUnavailable, Description: "SongLoft 注册接口保留，但 Lark 当前没有自动封面 provider 接管流程。", Note: "插件仍可自行暴露 HTTP 页面；不会被 Lark 自动调用。"},
 	}
 }

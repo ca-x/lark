@@ -34,6 +34,9 @@ func (m *Manager) HostToken(entryPath string) string {
 }
 
 func (m *Manager) AuthenticateHostToken(ctx context.Context, token, permission string) (Plugin, error) {
+	if m.Suspended() {
+		return Plugin{}, ErrHostTokenPermissionDenied
+	}
 	payload, found := strings.CutPrefix(strings.TrimSpace(token), hostTokenPrefix)
 	if !found {
 		return Plugin{}, ErrInvalidHostToken

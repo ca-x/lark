@@ -2,3 +2,5 @@
 package upstream
 
 const UpstreamCommit = "825f70f603a773fc8c0ded555a0cbe753d2a0d52"
+
+const ReviewedCommit = "518953c4edcc87d73342bf03e0f7cb6b1207e654"

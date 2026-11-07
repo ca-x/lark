@@ -1,5 +1,6 @@
 import type { Album, Artist, Lyrics, RadioSource, RadioStation, Song, Theme } from "../types";
 import type { StreamMode } from "../types/app";
+import { mygoImageURL, mygoStreamURL } from "../features/plugins/mygo";
 import { ADAPTIVE_STREAM_QUALITY, COLLECTION_LOAD_TIMEOUT_MS, MAX_PLAYBACK_QUEUE_SIZE, themes, themeAliases } from "../constants";
 
 export function normalizeTheme(theme: string): Theme {
@@ -36,6 +37,7 @@ export function queueWithCurrent(base: Song[], current?: Song | null, limit = MA
 
 export function coverUrl(song?: Song | null) {
   if (!song) return undefined;
+  if (song.mygo) return mygoImageURL(song.mygo.plugin, song.mygo.image, song.mygo.identity);
   const version = song.cover_version ? `?v=${encodeURIComponent(String(song.cover_version))}` : "";
   return `/api/songs/${song.id}/cover${version}`;
 }
@@ -200,6 +202,7 @@ export function prefersLowBandwidthStream() {
 
 export function streamUrl(song?: Song | null, mode: StreamMode = "auto", start = 0, qualityKbps = ADAPTIVE_STREAM_QUALITY) {
   if (!song) return undefined;
+  if (song.mygo) return mygoStreamURL(song);
   const params = new URLSearchParams({
     mode: mode === "adaptive" ? "transcode" : "auto",
   });
@@ -212,6 +215,7 @@ export function streamUrl(song?: Song | null, mode: StreamMode = "auto", start =
 }
 
 export function defaultStreamMode(song?: Song | null): StreamMode {
+  if (song?.mygo) return "auto";
   if (!song) return prefersLowBandwidthStream() ? "adaptive" : "auto";
   const format = song.format.toLowerCase().replace(/^\./, "");
   if (prefersLowBandwidthStream()) return "adaptive";

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -23,6 +24,14 @@ import (
 const songLoftMaxLibraryPage = 100_000
 
 const songLoftPluginContextKey = "songloft_plugin"
+
+type songloftSongCreator interface {
+	Create(context.Context, string, []pluginhost.SongCreate) ([]pluginhost.Song, error)
+}
+
+func WithSongloftSongs(creator songloftSongCreator) Option {
+	return func(server *Server) { server.songloftSongs = creator }
+}
 
 type songLoftSong struct {
 	ID              int        `json:"id"`
@@ -220,7 +229,7 @@ func (s *Server) handleSongLoftRemoteSongs(c *echo.Context) error {
 	if err := c.Bind(&reqs); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
 	}
-	if s.pluginManager == nil || s.pluginManager.SongsHost() == nil {
+	if s.songloftSongs == nil {
 		return echo.NewHTTPError(http.StatusServiceUnavailable, "host capability unavailable")
 	}
 	entry := ""
@@ -231,7 +240,7 @@ func (s *Server) handleSongLoftRemoteSongs(c *echo.Context) error {
 	for i, req := range reqs {
 		inputs[i] = pluginhost.SongCreate{URL: req.URL, Title: req.Title, Artist: req.Artist, Album: req.Album, CoverURL: req.CoverURL, Duration: req.Duration, SourceData: req.SourceData, DedupKey: req.DedupKey, Lyric: req.Lyric, LyricSource: req.LyricSource, LyricRemoteURL: req.LyricRemoteURL, IsVideo: req.IsVideo}
 	}
-	created, err := s.pluginManager.SongsHost().Create(c.Request().Context(), entry, inputs)
+	created, err := s.songloftSongs.Create(c.Request().Context(), entry, inputs)
 	if err != nil {
 		return mapError(err)
 	}

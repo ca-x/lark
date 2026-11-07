@@ -99,7 +99,7 @@ func TestRegistryMergeUsesHighestSemverAndSkipsDisabledSources(t *testing.T) {
 		"https://off.example/registry.json": `{"plugins":["https://off.example/demo.json"]}`,
 		"https://off.example/demo.json":     pluginRegistryManifest("Demo", "demo-plugin", "9.0.0", "SongLoft", "https://off.example/demo.zip"),
 	}
-	service := NewRegistryService(registryClient(responses))
+	service := NewRegistryService(nil, registryClient(responses))
 	entries, warnings, err := service.FetchAndMergeMulti(t.Context(), []RegistryConfig{
 		{Name: "one", URL: "https://one.example/registry.json", Enabled: true},
 		{Name: "two", URL: "https://two.example/registry.json", Enabled: true},
@@ -120,7 +120,7 @@ func TestRegistryLimitsDepthCountAndBody(t *testing.T) {
 			url := registryDepthURL(depth)
 			responses[url] = `{"includes":["` + registryDepthURL(depth+1) + `"]}`
 		}
-		service := NewRegistryService(registryClient(responses))
+		service := NewRegistryService(nil, registryClient(responses))
 		_, warnings, err := service.FetchAndMerge(t.Context(), RegistryConfig{Name: "deep", URL: registryDepthURL(0), Enabled: true})
 		if err != nil || !containsWarning(warnings, ErrRegistryDepth.Error()) {
 			t.Fatalf("warnings=%v err=%v", warnings, err)
@@ -136,7 +136,7 @@ func TestRegistryLimitsDepthCountAndBody(t *testing.T) {
 			responses[urls[index]] = pluginRegistryManifest("Plugin", "plugin-"+indexString, "1.0.0", "Author", "https://downloads.example/plugin-"+indexString+".zip")
 		}
 		responses["https://plugins.example/registry.json"] = `{"plugins":["` + strings.Join(urls, `","`) + `"]}`
-		service := NewRegistryService(registryClient(responses))
+		service := NewRegistryService(nil, registryClient(responses))
 		entries, _, err := service.FetchAndMerge(t.Context(), RegistryConfig{Name: "many", URL: "https://plugins.example/registry.json", Enabled: true})
 		if err != nil || len(entries) != RegistryMaxPlugins {
 			t.Fatalf("entry count=%d err=%v", len(entries), err)
@@ -147,7 +147,7 @@ func TestRegistryLimitsDepthCountAndBody(t *testing.T) {
 		client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(bytes.NewReader(make([]byte, RegistryMaxBody+1))), Request: request}, nil
 		})}
-		service := NewRegistryService(client)
+		service := NewRegistryService(nil, client)
 		_, _, err := service.FetchAndMerge(t.Context(), RegistryConfig{Name: "large", URL: "https://large.example/registry.json", Enabled: true})
 		if err != nil {
 			t.Fatalf("source failures should be warnings, got %v", err)
@@ -166,7 +166,7 @@ func TestRegistryRejectsPrivateRedirect(t *testing.T) {
 		}
 		return &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": []string{"https://127.0.0.1/secret"}}, Body: io.NopCloser(strings.NewReader("")), Request: request}, nil
 	})}
-	service := NewRegistryService(client)
+	service := NewRegistryService(nil, client)
 	_, warnings, err := service.FetchAndMerge(t.Context(), RegistryConfig{Name: "redirect", URL: "https://redirect.example/registry.json", Enabled: true})
 	if err != nil || !containsWarning(warnings, ErrInvalidRegistryURL.Error()) {
 		t.Fatalf("warnings=%v err=%v", warnings, err)
@@ -188,7 +188,7 @@ func TestRegistryTokenNeverCrossesSourceHost(t *testing.T) {
 		}
 		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body)), Request: request}, nil
 	})}
-	service := NewRegistryService(client)
+	service := NewRegistryService(nil, client)
 	entries, warnings, err := service.FetchAndMerge(t.Context(), RegistryConfig{
 		Name: "private", URL: "https://private.example/registry.json", Enabled: true, Token: "source-secret",
 	})

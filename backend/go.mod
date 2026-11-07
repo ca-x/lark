@@ -5,6 +5,7 @@ go 1.27.0
 require (
 	connectrpc.com/connect v1.19.1
 	entgo.io/ent v0.14.6
+	github.com/MoeForge/moejs v0.1.0-alpha.11
 	github.com/ca-x/lark/protocol v0.0.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/dgraph-io/badger/v4 v4.9.1

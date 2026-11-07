@@ -144,6 +144,7 @@ type Manager struct {
 	playEvents      map[string]bool
 	hostTokenSecret []byte
 	closed          bool
+	suspended       bool
 }
 
 type Service struct {
@@ -158,10 +159,14 @@ type Service struct {
 	websocketSeq  uint64
 }
 
-// NewManager accepts optional *jsruntime.JSEnvManager and host.Host arguments.
-// Keeping them variadic lets embedders inject fakes without coupling the
-// package to a specific application wiring order.
-func NewManager(repo Repository, packageDir, dataDir string, args ...any) *Manager {
+type ManagerOption func(*Manager)
+
+func WithHost(value host.Host) ManagerOption { return func(manager *Manager) { manager.host = value } }
+func WithRuntime(value *jsruntime.JSEnvManager) ManagerOption {
+	return func(manager *Manager) { manager.runtime = value }
+}
+
+func NewManager(repo Repository, packageDir, dataDir string, options ...ManagerOption) *Manager {
 	m := &Manager{
 		repo: repo, packageDir: packageDir, dataDir: dataDir,
 		runtime: jsruntime.NewJSEnvManager(), services: make(map[string]*Service),
@@ -169,13 +174,8 @@ func NewManager(repo Repository, packageDir, dataDir string, args ...any) *Manag
 		playEvents:      make(map[string]bool),
 		hostTokenSecret: newHostTokenSecret(),
 	}
-	for _, arg := range args {
-		switch value := arg.(type) {
-		case *jsruntime.JSEnvManager:
-			m.runtime = value
-		case host.Host:
-			m.host = value
-		}
+	for _, option := range options {
+		option(m)
 	}
 	return m
 }
@@ -326,6 +326,9 @@ func (m *Manager) Delete(ctx context.Context, id int) error {
 }
 
 func (m *Manager) Start(ctx context.Context) error {
+	if m.Suspended() {
+		return nil
+	}
 	plugins, err := m.repo.List(ctx)
 	if err != nil {
 		return err
@@ -335,13 +338,17 @@ func (m *Manager) Start(ctx context.Context) error {
 			continue
 		}
 		if err := m.load(ctx, item); err != nil {
-			_ = m.repo.SetStatus(ctx, item.ID, StatusError)
+			if !m.Suspended() {
+				_ = m.repo.SetStatus(ctx, item.ID, StatusError)
+			}
 		}
 	}
 	return nil
 }
 
 func (m *Manager) Close() error {
+	m.loadMu.Lock()
+	defer m.loadMu.Unlock()
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()
@@ -372,7 +379,13 @@ func (m *Manager) Enable(ctx context.Context, id int) error {
 	if err := m.repo.SetStatus(ctx, id, StatusActive); err != nil {
 		return err
 	}
+	if m.Suspended() {
+		return nil
+	}
 	if err := m.load(ctx, item); err != nil {
+		if m.Suspended() {
+			return nil
+		}
 		_ = m.repo.SetStatus(ctx, id, StatusError)
 		return err
 	}
@@ -426,6 +439,10 @@ func (m *Manager) reload(ctx context.Context, entryPath string) error {
 
 func (m *Manager) EnsureLoaded(ctx context.Context, entryPath string) error {
 	m.mu.RLock()
+	if m.suspended || m.closed {
+		m.mu.RUnlock()
+		return errors.New("Songloft plugins are disabled")
+	}
 	_, loaded := m.services[entryPath]
 	m.mu.RUnlock()
 	if loaded {
@@ -446,9 +463,9 @@ func (m *Manager) load(ctx context.Context, item Plugin) error {
 	defer m.loadMu.Unlock()
 
 	m.mu.Lock()
-	if m.closed {
+	if m.closed || m.suspended {
 		m.mu.Unlock()
-		return errors.New("plugin manager is closed")
+		return errors.New("plugin manager is closed or suspended")
 	}
 	if _, exists := m.services[item.EntryPath]; exists {
 		m.mu.Unlock()
@@ -508,7 +525,7 @@ func (m *Manager) load(ctx context.Context, item Plugin) error {
 		return fmt.Errorf("plugin %s onInit: %w", item.EntryPath, err)
 	}
 	m.mu.Lock()
-	if m.closed {
+	if m.closed || m.suspended {
 		m.mu.Unlock()
 		service.cancelContext()
 		_ = m.runtime.DestroyEnv(envID)
@@ -575,10 +592,11 @@ func (m *Manager) stopService(ctx context.Context, service *Service) error {
 	if service == nil {
 		return nil
 	}
-	_, deinitErr := m.runtime.ExecuteJS(ctx, service.envID, "onDeinit()", 5_000)
 	service.cancelContext()
+	m.runtime.CancelRequests(service.envID)
 	service.closeNetwork()
 	service.closeWebSockets()
+	_, deinitErr := m.runtime.ExecuteJS(ctx, service.envID, "onDeinit()", 5_000)
 
 	var commandCleanupErr error
 	m.mu.RLock()

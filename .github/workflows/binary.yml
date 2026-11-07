@@ -118,11 +118,13 @@ jobs:
       - name: Package artifact
         shell: bash
         run: |
+          cp LICENSE NOTICE.md dist/
+          cp -R licenses dist/licenses
           cd dist
           if [ '${{ matrix.archive }}' = 'zip' ]; then
-            zip "lark-${{ matrix.platform }}.zip" "${{ matrix.binary }}"
+            zip -r "lark-${{ matrix.platform }}.zip" "${{ matrix.binary }}" LICENSE NOTICE.md licenses
           else
-            tar czf "lark-${{ matrix.platform }}.tar.gz" "${{ matrix.binary }}"
+            tar czf "lark-${{ matrix.platform }}.tar.gz" "${{ matrix.binary }}" LICENSE NOTICE.md licenses
           fi
 
       - name: Upload workflow artifact

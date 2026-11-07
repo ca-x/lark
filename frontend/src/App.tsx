@@ -179,6 +179,8 @@ import { SettingsNavigation } from "./components/settings/SettingsNavigation";
 import { getSettingsCategories } from "./components/settings/settingsCategories";
 import { SettingsSearch } from "./components/settings/SettingsSearch";
 import { PluginSettings } from "./components/PluginSettings";
+import { MygoLibrary } from "./components/MygoLibrary";
+import { mygoLyricsToLRC, notifyMygoLike, validMygoQueue, type MygoLike } from "./features/plugins/mygo";
 import {
   fromSongloftPlayMode,
   toSongloftPlayMode,
@@ -1529,10 +1531,37 @@ export default function App() {
 
   useEffect(() => {
     if (!auth?.user || !queueSyncReady || !current) return;
-    const ids = queue.map((song) => song.id).filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
+    if (current.mygo) {
+      void api.saveMygoQueue({ songs: queue.filter((song) => song.mygo).slice(0, 500), current: current.id }).catch(() => undefined);
+      return;
+    }
+    const ids = queue.map((song) => song.id).filter((id) => Number.isInteger(id) && id > 0).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
     if (!ids.length) return;
     void api.savePlaybackQueue(ids, current.id, playbackSessionSourceRef.current).catch(() => undefined);
   }, [auth?.user?.id, queueSyncReady, queue, current?.id]);
+
+  useEffect(() => {
+    const source = current?.mygo?.plugin;
+    if (!source) return;
+    let alive = true;
+    const check = () => { void Promise.all([api.pluginPlatform(), api.mygoPlugins()]).then(([platform, result]) => {
+      if (alive && currentRef.current?.mygo?.plugin === source && (!platform.mygo || !result.plugins.some((plugin) => plugin.manifest.id === source && plugin.identity === currentRef.current?.mygo?.identity && plugin.enabled))) { audioRef.current?.pause(); setPlaying(false); }
+    }).catch(() => undefined); };
+    window.addEventListener("lark:plugins-changed", check);
+    window.addEventListener("focus", check);
+    return () => { alive = false; window.removeEventListener("lark:plugins-changed", check); window.removeEventListener("focus", check); };
+  }, [current?.mygo?.plugin]);
+
+  useEffect(() => {
+    const receive = (event: Event) => {
+      const value = (event as CustomEvent<MygoLike>).detail;
+      const update = (song: Song) => song.mygo?.plugin === value.plugin && song.mygo.identity === value.identity && song.mygo.track === value.track ? { ...song, favorite: value.on } : song;
+      setCurrent((song) => song ? update(song) : song);
+      setQueue((songs) => songs.map(update));
+    };
+    window.addEventListener("lark:mygo-like", receive);
+    return () => window.removeEventListener("lark:mygo-like", receive);
+  }, []);
 
   useEffect(() => {
     const toneActive = Math.abs(bassGain) >= 0.1 || Math.abs(trebleGain) >= 0.1;
@@ -1753,11 +1782,12 @@ export default function App() {
     setLyricCandidates([]);
     setLyricCandidatesOpen(false);
     setLyricsLoading(true);
-    void api
-      .lyrics(current.id)
-      .then(setLyrics)
-      .catch(() => setLyrics(null))
-      .finally(() => setLyricsLoading(false));
+    let canceled = false;
+    const lyricRequest = current.mygo
+      ? api.mygoCall<Parameters<typeof mygoLyricsToLRC>[0]>(current.mygo.plugin, "lyrics", { id: current.mygo.track }, current.mygo.identity).then((value) => ({ song_id: current.id, source: "mygo", lyrics: mygoLyricsToLRC(value), fetched: true }))
+      : api.lyrics(current.id);
+    void lyricRequest.then((value) => { if (!canceled) setLyrics(value); }).catch(() => { if (!canceled) setLyrics(null); }).finally(() => { if (!canceled) setLyricsLoading(false); });
+    return () => { canceled = true; };
   }, [current?.id]);
   useEffect(() => {
     if (!current) return;
@@ -2265,6 +2295,7 @@ export default function App() {
   }
 
   async function cacheSongOffline(song: Song, options: { silent?: boolean } = {}) {
+    if (song.mygo) { if (!options.silent) showMessage(t("mygoUnavailable")); return false; }
     const quality = settings.transcode_quality_kbps || 192;
     const storedIndex = readOfflineSongIndex();
     if (offlineCachedSongIds(storedIndex).has(song.id) || offlineCachingIds.has(song.id)) {
@@ -2323,6 +2354,7 @@ export default function App() {
   }
 
   function maybeAutoCachePlayedSong(song: Song | null, currentProgress: number, currentDuration: number, completed = false) {
+    if (song?.mygo) return;
     if (!song || !autoCachePlayedRef.current || offlineModeRef.current || !networkReachableRef.current) return;
     if (currentRadioRef.current || currentNetworkTrackRef.current) return;
     if (
@@ -2542,6 +2574,11 @@ export default function App() {
       at: now,
       progress: currentProgress,
     };
+    if (current.mygo) {
+      const updated = { ...current, resume_position_seconds: completed ? 0 : currentProgress };
+      void api.saveMygoQueue({ songs: queueRef.current.filter((song) => song.mygo).slice(0, 500).map((song) => song.id === current.id ? updated : song), current: current.id }).catch(() => undefined);
+      return;
+    }
     if (!offlineModeRef.current && networkReachableRef.current) {
       void api
         .saveProgress(current.id, currentProgress, currentDuration, completed)
@@ -2812,6 +2849,21 @@ export default function App() {
         if (!restoredQueue.length && source) {
           restoredQueue = await songsForPlaybackSource(source, MAX_PLAYBACK_QUEUE_SIZE);
           restoredCurrent = restoredQueue.find((song) => song.id === restoreCurrentID) ?? restoredQueue[0] ?? null;
+        }
+      }
+    }
+    if (options.initializeQueue && auth?.user && persistentQueueEnabled) {
+      const privateQueue = await api.mygoQueue().catch(() => null);
+      if (validMygoQueue(privateQueue)) {
+        const [platform, installed] = await Promise.all([api.pluginPlatform().catch(() => null), api.mygoPlugins().catch(() => null)]);
+        if (platform?.mygo) {
+          const available = privateQueue.songs.filter((song) => installed?.plugins.some((plugin) => plugin.enabled && plugin.manifest.id === song.mygo?.plugin && plugin.identity === song.mygo.identity));
+          if (available.length) {
+            restoredQueue = available;
+            restoredCurrent = restoredQueue.find((song) => song.id === privateQueue.current) || restoredQueue[0];
+            restoredRadio = null;
+            setPlaybackSessionSource(null);
+          }
         }
       }
     }
@@ -3381,7 +3433,12 @@ export default function App() {
 
   function savePlaybackQueueSession(items: Song[], song: Song, source: PlaybackSourceInput | null) {
     if (!auth?.user) return;
-    const ids = items.map((item) => item.id).filter((id) => Number.isInteger(id)).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
+    if (song.mygo) {
+      void api.saveMygoQueue({ songs: items.filter((item) => item.mygo).slice(0, 500), current: song.id }).catch(() => undefined);
+      return;
+    }
+    void api.saveMygoQueue(null).catch(() => undefined);
+    const ids = items.map((item) => item.id).filter((id) => Number.isInteger(id) && id > 0).slice(0, MAX_PLAYBACK_QUEUE_SIZE);
     if (!ids.length) return;
     void api.savePlaybackQueue(ids, song.id, source).catch(() => undefined);
   }
@@ -3617,11 +3674,13 @@ export default function App() {
   function saveRadioPlaybackSession(station: RadioStation, items: RadioStation[]) {
     if (!auth?.user) return;
     const radioItems = uniqueRadioStations([station, ...items]);
+    void api.saveMygoQueue(null).catch(() => undefined);
     void api.savePlaybackRadioQueue(station, radioItems).catch(() => undefined);
   }
 
   function clearPersistentPlaybackSession() {
     if (!auth?.user) return;
+    void api.saveMygoQueue(null).catch(() => undefined);
     void api.clearPlaybackQueue().catch(() => undefined);
   }
 
@@ -3691,6 +3750,7 @@ export default function App() {
     list = songs,
     options: PlaySongOptions = {},
   ) {
+    if (song.mygo && remoteDLNAActive) { showMessage(t("mygoUnavailable")); return; }
     if (remoteDLNAActive && dlnaStatus?.device_id) {
       await playSongToDLNADevice(dlnaStatus.device_id, song, list, options);
       return;
@@ -3733,9 +3793,13 @@ export default function App() {
     playUISound("play");
     const nextSource = persistPlaybackSourceForPlay(options);
     savePlaybackQueueSession(nextQueue, song, nextSource);
-    prependRecentPlayed(song); // optimistic; instant home update
-    await api.markPlayed(song.id).catch(() => undefined);
-    scheduleRecentPlayedRefresh(); // coalesced server reconciliation
+    if (song.mygo) {
+      void api.mygoCall(song.mygo.plugin, "played", { id: song.mygo.track }, song.mygo.identity).catch(() => undefined);
+    } else {
+      prependRecentPlayed(song);
+      await api.markPlayed(song.id).catch(() => undefined);
+      scheduleRecentPlayedRefresh();
+    }
   }
 
   function playRadio(station: RadioStation, list?: RadioStation[]) {
@@ -4413,6 +4477,11 @@ export default function App() {
   }
 
   async function toggleFavorite(song: Song) {
+    if (song.mygo) {
+      try { await api.mygoCall(song.mygo.plugin, "like", { id: song.mygo.track, on: !song.favorite }, song.mygo.identity); notifyMygoLike({ ...song.mygo, on: !song.favorite }); playUISound(song.favorite ? "toggleOff" : "favorite"); }
+      catch (error) { showMessage(error instanceof Error ? error.message : String(error)); }
+      return;
+    }
     const updated = await api.favoriteSong(song.id);
     updateSongState(updated);
     playUISound(updated.favorite ? "favorite" : "toggleOff");
@@ -4748,6 +4817,7 @@ export default function App() {
   }
 
   async function addToPlaylist(song: Song) {
+    if (song.mygo) { showMessage(t("mygoLoadPlaylists")); return; }
     const latest = await api.playlists();
     setPlaylists(latest);
     if (latest.length === 0) {
@@ -8870,6 +8940,7 @@ function LibraryView({
           </>
         ) : null}
       </div>
+      <MygoLibrary t={t} onPlay={onPlay} />
       {canManage && activeTab === "manage" ? (
         <LibraryDirectoryManager
           directories={libraryDirectories}

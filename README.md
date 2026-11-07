@@ -142,6 +142,12 @@ Copy or download the current Strudel code, or open it at strudel.cc. MIDI export
 - Lark exposes an MCP SSE endpoint for AI clients, with tools for listing artists and albums, searching songs, reading favorites, toggling favorites, fetching lyrics, and preparing playback URLs.
 - Played tracks can be scrobbled to ListenBrainz or Last.fm with configurable thresholds.
 
+### Use Songloft And MyGo Plugins
+
+Administrators can independently toggle Songloft and MyGo in Settings → Plugins. Songloft keeps its existing QuickJS engine and `.jsc` support; native MyGo sources run in MoeJS. Discover MyGo sources through the `mygo-music-plugin` GitHub topic, paste an `owner/repo`, or upload a ZIP. Review the source, SHA-256 and network permissions before confirming; new installations remain disabled until explicitly enabled.
+
+Authenticated users browse enabled MyGo sources from the library, save their own source settings, and use the source's search, playback, lyrics, favorites and supported playlist actions. Accounts, storage and private queues are isolated per user and source origin; these tracks never enter the shared local song table. This is streaming-source compatibility, not a native MyGo desktop host: process execution, browser-based sign-in, remote playback and private/LAN network access are not supported. See [the plugin guide](docs/plugin-platform.md) and [Songloft capability matrix](docs/songloft-plugin-capability-matrix.md) for limits.
+
 ### Administer A Private Music Service
 
 - First-run setup creates the first admin account. Admins can also enable registration.

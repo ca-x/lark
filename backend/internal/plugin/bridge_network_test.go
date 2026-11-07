@@ -45,7 +45,7 @@ func TestManagerRunsSongLoftUDPAndTCPBridges(t *testing.T) {
 	defer client.Close()
 	pluginDataDir := t.TempDir()
 	adapter := larkhost.New(nil, nil, larkhost.Config{DataDir: pluginDataDir})
-	manager := NewManager(NewEntRepository(client), t.TempDir(), pluginDataDir, adapter)
+	manager := NewManager(NewEntRepository(client), t.TempDir(), pluginDataDir, WithHost(adapter))
 	t.Cleanup(func() { _ = manager.Close() })
 
 	port := listener.Addr().(*net.TCPAddr).Port
@@ -127,7 +127,7 @@ func TestManagerCleansUpSongLoftNetworkSocketsOnDisable(t *testing.T) {
 	defer client.Close()
 	pluginDataDir := t.TempDir()
 	adapter := larkhost.New(nil, nil, larkhost.Config{DataDir: pluginDataDir})
-	manager := NewManager(NewEntRepository(client), t.TempDir(), pluginDataDir, adapter)
+	manager := NewManager(NewEntRepository(client), t.TempDir(), pluginDataDir, WithHost(adapter))
 	t.Cleanup(func() { _ = manager.Close() })
 	manifest := validManifest("network-cleanup")
 	manifest.Permissions = []string{PermNet}

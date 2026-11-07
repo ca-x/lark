@@ -57,6 +57,10 @@ func (s *UpdateService) Install(ctx context.Context, entry RegistryEntry) (Plugi
 		return Plugin{}, err
 	}
 	if current, lookupErr := s.manager.repo.GetByEntryPath(ctx, entry.EntryPath); lookupErr == nil {
+		currentIdentity, nextIdentity := PluginIdentity(current.Author, current.UpdateURL), PluginIdentity(entry.Author, entry.UpdateURL)
+		if currentIdentity != "" && nextIdentity != "" && currentIdentity != nextIdentity {
+			return Plugin{}, errors.New("plugin identity conflicts with installed author/repository")
+		}
 		return s.manager.updatePackage(ctx, current, entry, data)
 	} else if !errors.Is(lookupErr, ErrPluginNotFound) {
 		return Plugin{}, lookupErr

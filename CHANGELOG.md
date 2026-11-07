@@ -5,6 +5,28 @@
 
 ---
 
+## 0.18.12：双生态插件平台
+
+发布日期 / Released: 2026-11-07
+
+- 新增「启用Songloft插件」「启用mygo插件」两个独立开关，停用后可恢复，保留已安装插件及配置；Songloft 继续兼容现有 QuickJS 与 `.jsc` 包。
+- 使用 MoeJS 运行原生 MyGo 流媒体音乐源，支持 GitHub topic 市场、仓库与 ZIP 安装，先预览来源及网络权限，再确认安装与手动启用。
+- 从音乐库浏览 MyGo 音乐源，使用插件提供的搜索、播放、歌词、收藏和歌单操作；用户账号、设置、存储与队列按用户和来源隔离，远程曲目不写入共享歌曲库。
+- 加强网络、重定向凭据与媒体取消保护；更新 Songloft 能力边界与第三方许可说明。需要原生进程、原生窗口登录、远端播放或私网访问的 MyGo 插件暂不支持。
+- 本次更新服务端及 Docker 镜像，不重新发布独立桌面客户端。
+
+## v0.18.12: Dual plugin ecosystems
+
+Released: 2026-11-07
+
+- Add independent, reversible Songloft and MyGo switches while retaining installed packages and settings; keep Songloft's QuickJS and `.jsc` compatibility.
+- Run native MyGo streaming sources with MoeJS; discover GitHub topic plugins or install repositories and ZIPs after reviewing their source and network permissions. New installations remain disabled until enabled.
+- Browse source-provided search, playback, lyrics, favorites and playlist actions from the library. Isolate accounts, settings, storage and queues per user and origin without inserting private tracks into the shared song library.
+- Harden networking, redirect credentials and media cancellation; document Songloft capability limits and bundled licenses. MyGo plugins requiring native processes, native browser sign-in, remote playback or private networks remain unsupported.
+- Update server binaries and Docker images only; no standalone desktop client republish.
+
+---
+
 ## 0.18.11：修复深色设置菜单文字
 
 发布日期 / Released: 2026-11-07

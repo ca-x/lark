@@ -23,6 +23,7 @@ export type Theme =
 export type Language = "zh-CN" | "en-US";
 
 export interface Song {
+  mygo?: { plugin: string; identity: string; track: string; image?: string };
   id: number;
   title: string;
   artist_id: number;

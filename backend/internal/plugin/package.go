@@ -145,6 +145,18 @@ func installPackage(ctx context.Context, root string, zipData []byte, limits pac
 	if _, ok := seen[manifest.Main]; !ok {
 		return nil, fmt.Errorf("%w: main %q not found", ErrUnsafePackage, manifest.Main)
 	}
+	if manifest.RenderEngine == RenderEngineLynx {
+		_, html := readEntryData(entries, "static/index.html")
+		webBundle := false
+		for _, entry := range entries {
+			if !entry.dir && strings.HasSuffix(entry.name, ".web.bundle") {
+				webBundle = true
+			}
+		}
+		if !html || !webBundle {
+			return nil, fmt.Errorf("Lynx requires packaged static/index.html and a .web.bundle fallback; native Lynx is unavailable")
+		}
+	}
 	entryHash, err := ComputeEntryHash(zipData, manifest.Main)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrManifestHashMismatch, err)

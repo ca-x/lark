@@ -1,5 +1,7 @@
 import type { Album, AlbumPage, Artist, ArtistPage, AuthStatus, Folder, FolderDirectory, FolderMetadataCorrectionInput, FolderMetadataCorrectionPreview, FolderMetadataCorrectionResult, HealthInfo, LyricCandidate, Lyrics, MetadataCandidate, MetadataWritebackResult, Playlist, PlaylistPage, PublicShare, ScanResult, ScanStatus, Settings, Share, ShareList, Song, SongPage, SongSort, SongReview, User, MCPTokenStatus, OfflineAudioStatus, SubsonicCredentialStatus, UISoundSettings, PlaybackHistorySettings, PlaybackHistoryEntry, UserPreferences, WebFont, LibrarySource, LibraryDirectory, LibraryStats, LibraryReviewSummary, NetworkSource, NetworkTrack, RadioSource, RadioStation, PlaybackQueueStatus, PlaybackSourceStatus, PlaybackSourceType, SmartPlaylist, ScrobblingSettings, DLNADevice, DLNAStatus, Plugin, PluginCapability, PluginRegistry, PluginRegistryEntry } from '../types'
 
+import type { MygoPlugin, MygoPreview, MygoCatalogEntry, PluginPlatform, MygoQueue, MygoPage } from '../features/plugins/mygo'
+
 function currentDeviceType() {
   if (typeof navigator === 'undefined') return 'pc'
   return /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'mobile' : 'pc'
@@ -247,6 +249,21 @@ export const api = {
   generateMcpToken: () => request<MCPTokenStatus>('/api/mcp/token/generate', { method: 'POST' }),
   deleteMcpToken: () => request<MCPTokenStatus>('/api/mcp/token', { method: 'DELETE' }),
   saveSettings: (settings: Settings) => request<Settings>('/api/settings', { method: 'PUT', body: JSON.stringify(settings) }),
+  pluginPlatform: () => request<PluginPlatform>('/api/plugin-platform'),
+  savePluginPlatform: (state: Partial<PluginPlatform>) => request<PluginPlatform>('/api/plugin-platform', { method: 'PATCH', body: JSON.stringify(state) }),
+  mygoPlugins: () => request<{ plugins: MygoPlugin[] }>('/api/mygo/plugins'),
+  mygoMarketplace: () => request<{ plugins: MygoCatalogEntry[]; cache: { updated_at: string; stale: boolean; truncated: boolean } }>('/api/mygo/marketplace'),
+  mygoPreview: (repository: string) => request<MygoPreview>('/api/mygo/preview', { method: 'POST', body: JSON.stringify({ repository }) }),
+  mygoUploadPreview: (file: File) => request<MygoPreview>('/api/mygo/upload-preview', { method: 'POST', body: file }),
+  mygoInstall: (token: string) => request<MygoPlugin>('/api/mygo/install', { method: 'POST', body: JSON.stringify({ token }) }),
+  mygoEnable: (id: string, enabled: boolean) => request<void>(`/api/mygo/plugins/${encodeURIComponent(id)}/enabled`, { method: 'PUT', body: JSON.stringify({ enabled }) }),
+  mygoDelete: (id: string) => request<void>(`/api/mygo/plugins/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  mygoSettings: (id: string, identity = '') => request<Record<string, string>>(`/api/mygo/plugins/${encodeURIComponent(id)}/settings?${new URLSearchParams({ identity })}`),
+  saveMygoSettings: (id: string, settings: Record<string, string>, identity = '') => request<void>(`/api/mygo/plugins/${encodeURIComponent(id)}/settings?${new URLSearchParams({ identity })}`, { method: 'PUT', body: JSON.stringify(settings) }),
+  mygoCall: <T = MygoPage>(id: string, method: string, params: unknown = {}, identity = '') => request<T>(`/api/mygo/plugins/${encodeURIComponent(id)}/call/${encodeURIComponent(method)}?${new URLSearchParams({ identity })}`, { method: 'POST', body: JSON.stringify(params) }),
+  mygoPrompt: (id: string, identity = '') => request<{ text?: string; qr?: string } | null>(`/api/mygo/plugins/${encodeURIComponent(id)}/prompt?${new URLSearchParams({ identity })}`),
+  mygoQueue: () => request<MygoQueue | null>('/api/mygo/queue'),
+  saveMygoQueue: (queue: MygoQueue | null) => request<void>('/api/mygo/queue', { method: 'PUT', body: JSON.stringify(queue) }),
   plugins: () => request<{ plugins: Plugin[] }>('/api/plugins'),
   pluginCapabilities: () => request<{ capabilities: PluginCapability[] }>('/api/plugins/capabilities'),
   uploadPlugin: (file: File) => request<Plugin>('/api/plugins/upload', { method: 'POST', body: file }),

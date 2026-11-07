@@ -24,7 +24,9 @@ import (
 	dlnapkg "lark/backend/internal/dlna"
 	"lark/backend/internal/library"
 	"lark/backend/internal/models"
+	"lark/backend/internal/mygo"
 	"lark/backend/internal/plugin"
+	"lark/backend/internal/pluginapp"
 	"lark/backend/pkg/version"
 
 	echo "github.com/labstack/echo/v5"
@@ -38,6 +40,10 @@ type Server struct {
 	dlna                   *dlnapkg.Service
 	pluginManager          *plugin.Manager
 	pluginRegistry         *plugin.RegistryService
+	songloftSongs          songloftSongCreator
+	pluginPlatform         *pluginapp.Service
+	mygo                   *mygo.Service
+	mygoCatalog            *mygo.Catalog
 	mcp                    http.Handler
 	ctx                    context.Context
 	cancel                 context.CancelFunc
@@ -465,6 +471,7 @@ func New(client *ent.Client, lib *library.Service, frontendOrigin string, opts .
 	e.GET("/api/debug/pprof/*", s.handlePprof, admin)
 	e.POST("/api/debug/pprof/symbol", s.handlePprof, admin)
 	s.registerPluginRoutes()
+	s.registerPluginPlatformRoutes()
 	s.registerDLNARoutes(auth)
 	s.registerFrontendRoutes()
 	return s

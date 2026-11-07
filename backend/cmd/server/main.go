@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -19,9 +20,12 @@ import (
 	"lark/backend/internal/dlna"
 	"lark/backend/internal/kv"
 	"lark/backend/internal/library"
+	"lark/backend/internal/mygo"
 	"lark/backend/internal/netease"
 	"lark/backend/internal/plugin"
 	"lark/backend/internal/plugin/larkhost"
+	"lark/backend/internal/pluginapp"
+	"lark/backend/internal/pluginruntime"
 	"lark/backend/internal/qqmusic"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -64,7 +68,7 @@ func main() {
 		log.Printf("has_lyrics backfill skipped: %v", err)
 	}
 	pluginRepo := plugin.NewEntRepository(client)
-	pluginRegistry := plugin.NewRegistryService(plugin.NewEntRegistryStore(client))
+	pluginRegistry := plugin.NewRegistryService(plugin.NewEntRegistryStore(client), nil)
 	cacheStore, err := openCacheStore(cfg, client)
 	if err != nil {
 		log.Fatal(err)
@@ -84,12 +88,31 @@ func main() {
 		DataDir: cfg.PluginsDataDir, MusicDir: cfg.LibraryDir,
 		HostURL: "http://127.0.0.1:" + cfg.Port,
 	})
-	pluginManager := plugin.NewManager(pluginRepo, cfg.PluginsDir, cfg.PluginsDataDir, pluginHost)
+	pluginManager := plugin.NewManager(pluginRepo, cfg.PluginsDir, cfg.PluginsDataDir, plugin.WithHost(pluginHost))
 	lib.SetLyricSearcher(pluginManager)
-	if err := pluginManager.Start(context.Background()); err != nil {
-		log.Printf("plugin manager startup skipped: %v", err)
+	pluginState := pluginapp.NewEntStore(client)
+	mygoService, err := mygo.New(context.Background(), pluginState, filepath.Join(cfg.PluginsDir, "mygo"))
+	if err != nil {
+		log.Fatalf("load mygo plugins: %v", err)
 	}
-	defer pluginManager.Close()
+	pluginPlatform := pluginapp.New(pluginState, plugin.Adapter{Manager: pluginManager}, mygoService)
+	if err := pluginPlatform.Start(context.Background()); err != nil {
+		log.Fatalf("start plugin platform: %v", err)
+	}
+	defer pluginPlatform.Close(context.Background())
+	mygoClient := pluginruntime.NewHTTPClient()
+	mygoClient.CheckRedirect = func(request *http.Request, via []*http.Request) error {
+		if err := pluginruntime.CheckRedirect(request, via); err != nil {
+			return err
+		}
+		host := request.URL.Hostname()
+		if host != "github.com" && host != "codeload.github.com" && host != "release-assets.githubusercontent.com" && host != "objects.githubusercontent.com" {
+			return errors.New("unexpected GitHub download redirect")
+		}
+		request.Header = make(http.Header)
+		return nil
+	}
+	defer mygoClient.CloseIdleConnections()
 	initialSettings, err := lib.GetSettings(context.Background())
 	if err != nil {
 		log.Fatalf("load dlna settings: %v", err)
@@ -109,7 +132,9 @@ func main() {
 		api.WithNoDLNAOption(cfg.NoDLNAOption),
 		api.WithDLNA(dlnaService),
 		api.WithPluginManager(pluginManager),
+		api.WithSongloftSongs(pluginHost.Songs()),
 		api.WithPluginRegistry(pluginRegistry),
+		api.WithPluginPlatform(pluginPlatform, mygoService, mygo.NewCatalog(mygoClient)),
 	)
 	serverErr := make(chan error, 1)
 	go func() {

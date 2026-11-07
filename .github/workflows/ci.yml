@@ -43,7 +43,9 @@ jobs:
 
       - name: Build frontend assets
         working-directory: frontend
-        run: pnpm build
+        run: |
+          pnpm test:mygo
+          pnpm build
 
 
       - name: Setup Go

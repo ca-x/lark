@@ -126,16 +126,8 @@ type RegistryService struct {
 	mu         sync.Mutex
 }
 
-func NewRegistryService(args ...any) *RegistryService {
-	s := &RegistryService{}
-	for _, arg := range args {
-		switch value := arg.(type) {
-		case *http.Client:
-			s.httpClient = value
-		case RegistryStore:
-			s.store = value
-		}
-	}
+func NewRegistryService(store RegistryStore, client *http.Client) *RegistryService {
+	s := &RegistryService{store: store, httpClient: client}
 	s.httpClient = clonePublicHTTPClient(s.httpClient, RegistryTimeout)
 	return s
 }
@@ -407,10 +399,7 @@ func sameRegistryHost(a, b string) bool {
 }
 
 func registryIdentity(entry RegistryEntry) string {
-	identity := strings.ToLower(strings.TrimSpace(entry.Author))
-	if identity == "" {
-		identity = strings.ToLower(strings.TrimSpace(entry.UpdateURL))
-	}
+	identity := PluginIdentity(entry.Author, entry.UpdateURL)
 	return strings.ToLower(strings.TrimSpace(entry.EntryPath)) + "\x00" + identity
 }
 

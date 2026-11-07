@@ -15,6 +15,7 @@ type PluginSurfaceProps = {
 export function PluginSurface({ plugin, t, theme, playerState, onHostCall, onClose }: PluginSurfaceProps) {
   const src = `/api/v1/jsplugin/${encodeURIComponent(plugin.entry_path)}/static/index.html?embed=1&theme=${theme}`;
   const webfFallback = plugin.render_engine === "webf";
+  const lynxFallback = plugin.render_engine === "lynx";
 
   return (
     <section className="plugin-surface" aria-label={plugin.name}>
@@ -23,6 +24,7 @@ export function PluginSurface({ plugin, t, theme, playerState, onHostCall, onClo
           <strong>{plugin.name}</strong>
           <code>{plugin.version}</code>
           {webfFallback ? <code className="plugin-render-engine">WebF → Web</code> : null}
+          {lynxFallback ? <code className="plugin-render-engine">Lynx → Web</code> : null}
           <span>{t("pluginSurfaceHint")}</span>
         </div>
         <div className="plugin-surface-actions">

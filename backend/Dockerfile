@@ -34,6 +34,8 @@ FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata ffmpeg
 WORKDIR /app
 COPY --from=build /out/lark-server /usr/local/bin/lark-server
+COPY LICENSE NOTICE.md /usr/share/licenses/lark/
+COPY licenses/ /usr/share/licenses/lark/licenses/
 RUN mkdir -p /app/data/music
 ENV LARK_PORT=8080 \
     LARK_DATA_DIR=/app/data \
