@@ -5,6 +5,12 @@ import { mygoSong, mygoStreamURL, mygoImageURL, mygoLyricsToLRC, validMygoQueue,
 import { songloftIdentity } from "./songloftIdentity.ts";
 import { pluginNavigation } from "./navigation.ts";
 
+test("Docker frontend builds receive the QR renderer license before bundling", () => {
+  const dockerfile = readFileSync(new URL("../../../../backend/Dockerfile", import.meta.url), "utf8");
+  assert.ok(dockerfile.indexOf("COPY licenses/qrcode-generator-LICENSE.txt /build/licenses/qrcode-generator-LICENSE.txt") < dockerfile.indexOf("RUN pnpm build"));
+  assert.match(dockerfile, /COPY licenses\/qrcode-generator-LICENSE\.txt \/build\/licenses\/qrcode-generator-LICENSE\.txt/);
+});
+
 test("marketplace installation identity only follows GitHub repository origins", () => {
   assert.equal(mygoRepositoryFromOrigin("https://github.com/Owner/Repo@v0.1.3"), "owner/repo");
   for (const origin of ["uploaded ZIP", "https://example.com/owner/repo", "http://github.com/owner/repo", "https://github.com/owner/repo/extra"]) assert.equal(mygoRepositoryFromOrigin(origin), undefined);
