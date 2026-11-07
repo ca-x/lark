@@ -83,7 +83,6 @@ body {
 
 :root[data-theme]:not([data-theme='smartisan-classic']) :is(
   .recent-tabs button.active,
-  .settings-tabs button.active,
   .collection-tabs button.active,
   .collection-tabs button:hover,
   .segmented-control:not(.player-style-picker) button.active,

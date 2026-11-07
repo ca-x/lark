@@ -5,6 +5,20 @@
 
 ---
 
+## 0.18.11：修复深色设置菜单文字
+
+发布日期 / Released: 2026-11-07
+
+- 修复部分深色主题中，设置分类选中后文字变黑、难以辨认的问题。
+
+## v0.18.11: Dark settings menu text fix
+
+Released: 2026-11-07
+
+- Fix unreadable black text on selected settings categories in some dark themes.
+
+---
+
 ## 0.18.10：重新整理设置界面
 
 发布日期 / Released: 2026-11-07

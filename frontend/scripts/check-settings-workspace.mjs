@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import { dirname, extname, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { themes } from "../src/constants.ts";
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), "../../backend/web/dist");
 const exec = promisify(execFile);
@@ -122,7 +123,50 @@ const checkLayout = async () => {
   assert.equal(result.pageOverflow, false, "No horizontal page scrolling");
   assert.equal(result.panels, 1, "One visible labeled settings panel");
 };
-try {
+const checkNavigationColors = async () => {
+  await browser("set", "media", "light", "reduced-motion");
+  for (const { id: theme } of themes) {
+    settings = { ...settings, theme };
+    await browser("set", "viewport", "1440", "900");
+    await openSettings();
+    await browser("wait", "--fn", `document.documentElement.dataset.theme === '${theme}'`);
+    for (const width of [1440, 1024, 390]) {
+      await browser("set", "viewport", String(width), "900");
+      await browser("mouse", "move", "0", "0");
+      const checkColors = async () => {
+        const colors = await evaluate(`(() => {
+          const selected = document.querySelector('.settings-navigation [aria-selected="true"]');
+          const picker = document.querySelector('.settings-category-picker select');
+          const compact = getComputedStyle(picker.parentElement).display !== 'none';
+          const element = compact ? picker : selected.querySelector('span');
+          const probe = document.createElement('span');
+          probe.style.color = ${JSON.stringify(theme === "smartisan-classic" && width > 720 ? "var(--smartisan-red)" : "var(--text)")};
+          element.parentElement.append(probe);
+          const result = {actual:getComputedStyle(element).color,expected:getComputedStyle(probe).color};
+          probe.remove();
+          return result;
+        })()`);
+        assert.equal(colors.actual, colors.expected, `${theme} ${width}px: selected settings text uses the surface foreground, not the accent-button foreground`);
+      };
+      try {
+        await selectCategory("account");
+        await checkColors();
+        await selectCategory("appearance");
+        await checkColors();
+        if (width === 1440 && ["deep-space", "apple-dark", "apple-light"].includes(theme)) {
+          await browser("screenshot", `${artifacts}/${theme}-navigation-colors.png`);
+        }
+      } catch (error) {
+        await browser("screenshot", `${artifacts}/${theme}-${width}-navigation-colors-failure.png`);
+        throw error;
+      }
+    }
+    console.log(`PASS ${theme}: selected settings text at desktop, tablet and phone widths`);
+  }
+  settings = { ...settings, theme: "apple-light" };
+  await browser("set", "media", "light", "no-preference");
+};
+const checkWorkspace = async () => {
   const viewports = process.argv.includes("--landscape-only") ? [[844, 390]] : [[360, 780], [390, 844], [768, 1024], [1024, 768], [1440, 600], [1440, 900], [1920, 1080], [844, 390]];
   for (const [width, height] of viewports) {
     await browser("set", "viewport", String(width), String(height));
@@ -205,6 +249,10 @@ try {
   await browser("fill", ".settings-search input", "diagnostics");
   assert.equal(await evaluate("document.querySelectorAll('.settings-search-results [role=option]').length"), 0);
   console.log(`PASS ordinary-user category and search permissions; screenshots: ${artifacts}`);
+};
+try {
+  await checkNavigationColors();
+  if (!process.argv.includes("--navigation-colors-only")) await checkWorkspace();
 } finally {
   await browser("close").catch(() => {});
   await new Promise((done) => server.close(done));
