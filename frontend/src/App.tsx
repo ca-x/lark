@@ -180,6 +180,8 @@ import { getSettingsCategories } from "./components/settings/settingsCategories"
 import { SettingsSearch } from "./components/settings/SettingsSearch";
 import { PluginSettings } from "./components/PluginSettings";
 import { MygoLibrary } from "./components/MygoLibrary";
+import { PluginTools } from "./components/PluginTools";
+import { usePluginNavigation } from "./hooks/usePluginNavigation";
 import { mygoLyricsToLRC, notifyMygoLike, validMygoQueue, type MygoLike } from "./features/plugins/mygo";
 import {
   fromSongloftPlayMode,
@@ -363,7 +365,7 @@ const TRANSCODE_QUALITY_PRESETS = [
 ] as const;
 
 function normalizeLibraryTab(value?: string | null): LibraryTab {
-  return value === "folders" || value === "network" || value === "radio" || value === "offline" || value === "manage" || value === "songs"
+  return value === "folders" || value === "network" || value === "radio" || value === "offline" || value === "manage" || value === "songs" || value === "sources" || value === "tools"
     ? value
     : defaultLibraryTab;
 }
@@ -5947,6 +5949,10 @@ export default function App() {
 
             {view === "library" && (
               <LibraryView
+                userId={auth.user.id}
+                pluginTheme={pluginHostTheme}
+                pluginPlayerState={pluginHostPlayerState}
+                onPluginHostCall={handlePluginHostCall}
                 searchRequest={mobileViewport && mobileSearchActive ? mobileSearchRequest : 0}
                 songs={songs}
                 folders={folders}
@@ -8707,6 +8713,10 @@ function CollectionCover({ collection }: { collection: Collection }) {
 }
 
 function LibraryView({
+  userId,
+  pluginTheme,
+  pluginPlayerState,
+  onPluginHostCall,
   searchRequest,
   songs,
   folders,
@@ -8752,6 +8762,10 @@ function LibraryView({
   onReviewToggle,
   onMetadataCorrected,
 }: {
+  userId: number;
+  pluginTheme: "light" | "dark";
+  pluginPlayerState: SongloftPlayerState;
+  onPluginHostCall: (call: SongloftHostCall) => Promise<unknown>;
   searchRequest: number;
   songs: Song[];
   folders: Folder[];
@@ -8807,18 +8821,21 @@ function LibraryView({
   }, [searchRequest]);
   const scanRunning = Boolean(scanStatus?.running);
   const canManage = canManageLibrary(userRole);
-  const activeTab = resolveLibraryTab(tab, userRole, mobileBasic);
+  const navigation = usePluginNavigation(userId, userRole === "admin");
+  const permittedTab = resolveLibraryTab(tab, userRole, mobileBasic);
+  const unavailable = (permittedTab === "sources" && !navigation.sources.length) || (permittedTab === "tools" && !navigation.tools.length);
+  const activeTab = unavailable ? "songs" : permittedTab;
   const setTab = (nextTab: LibraryTab) => {
     if (resolveLibraryTab(nextTab, userRole, mobileBasic) !== nextTab) return;
     setTabState(nextTab);
     rememberLibraryTab(nextTab);
   };
   useEffect(() => {
-    if (activeTab !== tab) {
+    if (navigation.ready && activeTab !== tab) {
       setTabState(activeTab);
       rememberLibraryTab(activeTab);
     }
-  }, [activeTab, tab]);
+  }, [activeTab, tab, navigation.ready]);
   useEffect(() => {
     if (!searchQuery.trim()) return;
     setTabState("songs");
@@ -8878,7 +8895,7 @@ function LibraryView({
               </button>
             </div>
           ) : null}
-          {canManage ? (
+          {canManage && activeTab !== "sources" && activeTab !== "tools" ? (
             <>
               <button className="desktop-only-action" onClick={onScan} disabled={scanRunning}>
                 <MagnifyingGlass /> {t("scan")}
@@ -8909,6 +8926,10 @@ function LibraryView({
         >
           {t("folderBrowser")} · {folders.length}
         </button>
+        {navigation.sources.length > 0 && <button className={activeTab === "sources" ? "active" : ""} onClick={() => setTab("sources")}>
+          {t("musicSources")}
+        </button>}
+        {navigation.tools.length > 0 && <button className={activeTab === "tools" ? "active" : ""} onClick={() => setTab("tools")}>{t("pluginTools")}</button>}
         {mobileBasic && canManage ? (
           <button
             className={activeTab === "manage" ? "active" : ""}
@@ -8940,8 +8961,7 @@ function LibraryView({
           </>
         ) : null}
       </div>
-      <MygoLibrary t={t} onPlay={onPlay} />
-      {canManage && activeTab === "manage" ? (
+      {activeTab === "sources" ? <MygoLibrary key={userId} t={t} onPlay={onPlay} /> : activeTab === "tools" ? <PluginTools plugins={navigation.tools} t={t} theme={pluginTheme} playerState={pluginPlayerState} onHostCall={onPluginHostCall} /> : canManage && activeTab === "manage" ? (
         <LibraryDirectoryManager
           directories={libraryDirectories}
           onDirectoriesChange={onLibraryDirectoriesChange}

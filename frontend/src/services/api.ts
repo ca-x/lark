@@ -260,7 +260,7 @@ export const api = {
   mygoDelete: (id: string) => request<void>(`/api/mygo/plugins/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   mygoSettings: (id: string, identity = '') => request<Record<string, string>>(`/api/mygo/plugins/${encodeURIComponent(id)}/settings?${new URLSearchParams({ identity })}`),
   saveMygoSettings: (id: string, settings: Record<string, string>, identity = '') => request<void>(`/api/mygo/plugins/${encodeURIComponent(id)}/settings?${new URLSearchParams({ identity })}`, { method: 'PUT', body: JSON.stringify(settings) }),
-  mygoCall: <T = MygoPage>(id: string, method: string, params: unknown = {}, identity = '') => request<T>(`/api/mygo/plugins/${encodeURIComponent(id)}/call/${encodeURIComponent(method)}?${new URLSearchParams({ identity })}`, { method: 'POST', body: JSON.stringify(params) }),
+  mygoCall: <T = MygoPage>(id: string, method: string, params: unknown = {}, identity = '', signal?: AbortSignal) => request<T>(`/api/mygo/plugins/${encodeURIComponent(id)}/call/${encodeURIComponent(method)}?${new URLSearchParams({ identity })}`, { method: 'POST', body: JSON.stringify(params), signal }),
   mygoPrompt: (id: string, identity = '') => request<{ text?: string; qr?: string } | null>(`/api/mygo/plugins/${encodeURIComponent(id)}/prompt?${new URLSearchParams({ identity })}`),
   mygoQueue: () => request<MygoQueue | null>('/api/mygo/queue'),
   saveMygoQueue: (queue: MygoQueue | null) => request<void>('/api/mygo/queue', { method: 'PUT', body: JSON.stringify(queue) }),

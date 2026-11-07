@@ -39,6 +39,24 @@ export interface MygoCatalogEntry { repository: string; name: string; descriptio
 export interface PluginPlatform { songloft: boolean; mygo: boolean; degraded?: string }
 export interface MygoQueue { songs: Song[]; current: number }
 
+export function mygoRepositoryFromOrigin(origin: string): string | undefined {
+  try {
+    const address = new URL(origin);
+    if (address.protocol !== "https:" || address.host.toLowerCase() !== "github.com") return;
+    const repository = address.pathname.replace(/^\/+|\/+$/g, "").split("@")[0];
+    if (/^[\w.-]+\/[\w.-]+$/.test(repository)) return repository.toLowerCase();
+  } catch { return; }
+}
+
+export function mygoErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  try {
+    const value = JSON.parse(message);
+    if (typeof value.message === "string") return value.message.replace(/^:\s*/, "");
+  } catch { return message; }
+  return message;
+}
+
 export function mygoSong(plugin: string, track: MygoTrack, identity: string): Song {
   let hash = 14695981039346656037n;
   for (const char of `${plugin}\0${identity}\0${track.id}`) hash = BigInt.asUintN(64, (hash ^ BigInt(char.codePointAt(0) ?? 0)) * 1099511628211n);

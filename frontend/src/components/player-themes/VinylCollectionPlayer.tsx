@@ -129,8 +129,10 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
       if (width <= 540) { player.style.setProperty("--vc-unit", "0.65px"); fitShelf(0.65); return; }
       const main = player.closest("main");
       const top = player.getBoundingClientRect().top + (main?.scrollTop ?? 0);
-      const dock = player.closest(".app-shell")?.querySelector("footer.player");
-      const availableHeight = window.innerHeight - Math.max(0, top) - (dock?.getBoundingClientRect().height ?? 0) - 20;
+      const mainStyle = main ? getComputedStyle(main) : null;
+      const contentBottom = main ? main.getBoundingClientRect().top + main.clientTop + main.clientHeight - (parseFloat(mainStyle?.paddingBottom || "0") || 0) : window.innerHeight;
+      const availableHeight = contentBottom - Math.max(0, top) - 2;
+      player.dataset.heightConstrained = String(availableHeight < 740);
       const fixed = player.offsetHeight - room.offsetHeight - shelf.offsetHeight;
       const deckExtra = (deck.parentElement?.offsetHeight ?? 0) - deck.offsetHeight;
       const sleeveExtra = (sleeve.parentElement?.offsetHeight ?? 0) - sleeve.offsetHeight;
@@ -155,6 +157,8 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
     };
     const observer = new ResizeObserver(scheduleFit);
     observer.observe(player);
+    const main = player.closest("main");
+    if (main) observer.observe(main);
     window.addEventListener("resize", scheduleFit);
     return () => {
       observer.disconnect();

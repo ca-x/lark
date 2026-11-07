@@ -11,6 +11,8 @@ Lark incorporates and adapts visual-effect implementation ideas and code from:
 
 - Vinyls by Sandheep (Sandy): https://vinyls.sandheep.xyz. The Vinyl room theme includes the reference deck, record, fixtures and tonearm SVG artwork retrieved on 2026-09-08. Source and extraction details are recorded in `frontend/src/components/player-themes/vinyl-collection/README.md`; these reference assets are not relicensed by this notice.
 
+QR Code Generator for JavaScript v2.0.4 by Kazuhiko Arase (MIT) renders MyGo sign-in QR payloads locally, without a third-party QR service. The full license is retained in `licenses/qrcode-generator-LICENSE.txt` and embedded at `/licenses/qrcode-generator.txt`.
+
 ## Songloft Apache-2.0 Notice
 
 Songloft

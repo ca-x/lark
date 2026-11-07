@@ -144,9 +144,11 @@ Copy or download the current Strudel code, or open it at strudel.cc. MIDI export
 
 ### Use Songloft And MyGo Plugins
 
+MyGo opens its marketplace by default: choose **Install**, review source and permissions, then enable explicitly under **Installed**. ZIP/repository installation remains under **Manual installation**. The library only shows **Music sources** when an enabled source offers streaming and browsing, and **Plugin tools** for administrators with active Songloft frontends; empty capability tabs stay hidden. Sign-in QR codes are generated locally and login can be canceled.
+
 Administrators can independently toggle Songloft and MyGo in Settings → Plugins. Songloft keeps its existing QuickJS engine and `.jsc` support; native MyGo sources run in MoeJS. Discover MyGo sources through the `mygo-music-plugin` GitHub topic, paste an `owner/repo`, or upload a ZIP. Review the source, SHA-256 and network permissions before confirming; new installations remain disabled until explicitly enabled.
 
-Authenticated users browse enabled MyGo sources from the library, save their own source settings, and use the source's search, playback, lyrics, favorites and supported playlist actions. Accounts, storage and private queues are isolated per user and source origin; these tracks never enter the shared local song table. This is streaming-source compatibility, not a native MyGo desktop host: process execution, browser-based sign-in, remote playback and private/LAN network access are not supported. See [the plugin guide](docs/plugin-platform.md) and [Songloft capability matrix](docs/songloft-plugin-capability-matrix.md) for limits.
+Authenticated users browse enabled MyGo sources from the library, save their own source settings, and use the source's search, playback, lyrics, favorites and supported playlist actions. Accounts, storage and private queues are isolated per user and source origin; these tracks never enter the shared local song table. This is streaming-source compatibility, not a native MyGo desktop host: process execution, native browser-window sign-in callbacks, remote playback and private/LAN network access are not supported. See [the plugin guide](docs/plugin-platform.md) and [Songloft capability matrix](docs/songloft-plugin-capability-matrix.md) for limits.
 
 ### Administer A Private Music Service
 

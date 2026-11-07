@@ -1,0 +1,17 @@
+.confirm-action-dialog { box-sizing: border-box; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.confirm-action-dialog::backdrop { background: rgb(0 0 0 / .6); }
+.confirm-action-dialog h3 { margin: 0; font-size: 20px; }
+.confirm-action-dialog p { margin: 16px 0 24px; line-height: 1.6; overflow-wrap: anywhere; }
+.confirm-action-buttons { display: flex; justify-content: end; gap: 12px; }
+.confirm-action-dialog button { min-height: 44px; padding: 10px 18px; border: 1px solid var(--line); border-radius: 10px; font: inherit; background: var(--panel2); color: var(--text); cursor: pointer; }
+.confirm-action-dialog button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.confirm-action-dialog button:disabled { opacity: .6; cursor: wait; }
+.confirm-action-dialog .confirm-action-destructive { background: #b42332; border-color: #b42332; color: #fff; }
+.confirm-action-dialog .confirm-action-error { color: var(--text); }
+.confirm-action-dialog[open] { animation: confirm-action-enter 160ms cubic-bezier(.16, 1, .3, 1); }
+.confirm-action-dialog[open]::backdrop { animation: confirm-backdrop-enter 160ms ease-out; }
+.confirm-action-dialog button { transition: transform 120ms ease-out; }
+.confirm-action-dialog button:not(:disabled):active { transform: scale(.97); }
+@keyframes confirm-action-enter { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes confirm-backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .confirm-action-dialog[open], .confirm-action-dialog[open]::backdrop { animation: none; } .confirm-action-dialog button { transition: none; } }

@@ -76,7 +76,7 @@ export type ThemeLabel =
 
 export type ThemeMode = "dark" | "light";
 export type SettingsTab = "account" | "appearance" | "playback" | "lyrics" | "offline" | "library" | "services" | "system" | "users" | "plugins";
-export type LibraryTab = "songs" | "offline" | "folders" | "network" | "radio" | "manage";
+export type LibraryTab = "songs" | "offline" | "folders" | "network" | "radio" | "manage" | "sources" | "tools";
 
 export type Collection = {
   type: "playlist" | "album" | "artist";

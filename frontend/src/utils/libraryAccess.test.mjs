@@ -51,6 +51,7 @@ function componentHost(name, overrides = {}) {
     rememberLibraryTab() {},
     canManageLibrary,
     resolveLibraryTab,
+    usePluginNavigation: () => ({ ready: true, sources: [], tools: [] }),
     ...overrides,
   };
   const visit = (node) => {
@@ -88,6 +89,20 @@ test("member library omits directory management, scan, upload and scan paths on 
     const serialized = JSON.stringify(tree);
     assert.doesNotMatch(serialized, /LibraryDirectoryManager|ScanProgress|desktop-only-action|libraryDirectories|"upload"/);
     assert.ok(nodes(tree).some((node) => node.type === "SongTable"));
+  }
+});
+
+test("plugin tabs only appear for usable capabilities and stale tabs fall back", () => {
+  for (const tab of ["sources", "tools"]) {
+    const hidden = componentHost("LibraryView", { storedLibraryTab: () => tab });
+    const tree = hidden(libraryProps({ userRole: "admin" }));
+    assert.ok(nodes(tree).some((node) => node.type === "SongTable"));
+    assert.ok(!nodes(tree).some((node) => node.type === "button" && ["musicSources", "pluginTools"].includes(node.props.children)));
+    const visible = componentHost("LibraryView", { storedLibraryTab: () => tab, usePluginNavigation: () => ({ ready: true, sources: [{}], tools: [{}] }) });
+    const visibleTree = visible(libraryProps({ userRole: "admin", mobileBasic: true }));
+    assert.ok(nodes(visibleTree).some((node) => node.type === (tab === "sources" ? "MygoLibrary" : "PluginTools")));
+    assert.ok(!nodes(visibleTree).some((node) => ["SongTable", "EmptyState", "PaginationControls"].includes(node.type)));
+    assert.doesNotMatch(JSON.stringify(visibleTree), /desktop-only-action/);
   }
 });
 

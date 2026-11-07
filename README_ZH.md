@@ -145,9 +145,11 @@ docker compose up -d
 
 ### 使用 Songloft 和 MyGo 插件
 
+MyGo 默认打开插件市场：点击「安装」，检查来源与权限后确认，再到「已安装」手动启用；ZIP/仓库入口收纳在「手动安装」。音乐库仅在有已启用的流媒体浏览源时显示「音乐源」，管理员有运行中的 Songloft 前端插件时显示「插件工具」，没有对应能力就不显示空页签。登录二维码在本地生成，支持取消登录。
+
 管理员可在「设置 → 插件」独立切换「启用Songloft插件」和「启用mygo插件」。Songloft 保留现有 QuickJS 引擎与 `.jsc` 支持；原生 MyGo 音乐源使用 MoeJS。MyGo 支持从 GitHub 的 `mygo-music-plugin` topic 发现插件、输入 `owner/repo` 或上传 ZIP；确认来源、SHA-256 和网络权限后才安装，新插件默认停用，需手动启用。
 
-登录用户可从音乐库浏览已启用的 MyGo 音乐源，保存自己的源配置，使用插件实际提供的搜索、播放、歌词、收藏和歌单操作。账号、存储和私有队列按用户及源来源隔离，不把远程歌曲写进共享本地歌曲表。本次支持流媒体音乐源，并非原生 MyGo 桌面宿主：不支持进程执行、浏览器窗口登录、远端播放及私网/LAN 网络。完整边界见[插件平台说明](docs/plugin-platform.md)与 [Songloft 能力矩阵](docs/songloft-plugin-capability-matrix.md)。
+登录用户可从音乐库浏览已启用的 MyGo 音乐源，保存自己的源配置，使用插件实际提供的搜索、播放、歌词、收藏和歌单操作。账号、存储和私有队列按用户及源来源隔离，不把远程歌曲写进共享本地歌曲表。本次支持流媒体音乐源，并非原生 MyGo 桌面宿主：不支持进程执行、原生浏览器窗口登录回调、远端播放及私网/LAN 网络。完整边界见[插件平台说明](docs/plugin-platform.md)与 [Songloft 能力矩阵](docs/songloft-plugin-capability-matrix.md)。
 
 ### 管理一个私有音乐服务
 

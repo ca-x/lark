@@ -1,8 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { mygoSong, mygoStreamURL, mygoImageURL, mygoLyricsToLRC, validMygoQueue, normalizeMygoPage, mygoPageTracks, appendMygoPage } from "./mygo.ts";
+import { mygoSong, mygoStreamURL, mygoImageURL, mygoLyricsToLRC, validMygoQueue, normalizeMygoPage, mygoPageTracks, appendMygoPage, mygoRepositoryFromOrigin, mygoErrorMessage } from "./mygo.ts";
 import { songloftIdentity } from "./songloftIdentity.ts";
+import { pluginNavigation } from "./navigation.ts";
+
+test("marketplace installation identity only follows GitHub repository origins", () => {
+  assert.equal(mygoRepositoryFromOrigin("https://github.com/Owner/Repo@v0.1.3"), "owner/repo");
+  for (const origin of ["uploaded ZIP", "https://example.com/owner/repo", "http://github.com/owner/repo", "https://github.com/owner/repo/extra"]) assert.equal(mygoRepositoryFromOrigin(origin), undefined);
+});
+
+test("plugin errors preserve useful structured messages without hiding plain errors", () => {
+  assert.equal(mygoErrorMessage(new Error('{"message":": login failed"}')), "login failed");
+  assert.equal(mygoErrorMessage(new Error("connection failed")), "connection failed");
+  assert.equal(mygoErrorMessage("null"), "null");
+});
+
+test("navigation uses enabled exports, frontend capability and administrator permission", () => {
+  const source = { enabled: true, exports: ["search", "stream"] };
+  const tool = { status: "active", has_frontend: true };
+  const platform = { mygo: true, songloft: true };
+  assert.equal(pluginNavigation(platform, [source], [tool], true).sources.length, 1);
+  assert.equal(pluginNavigation(platform, [source], [tool], true).tools.length, 1);
+  assert.equal(pluginNavigation(platform, [source], [tool], false).tools.length, 0);
+  assert.deepEqual(pluginNavigation({ mygo: false, songloft: false }, [source], [tool], true), { sources: [], tools: [] });
+  assert.deepEqual(pluginNavigation(platform, [{ ...source, enabled: false }, { ...source, exports: ["signIn"] }, { ...source, exports: ["stream"] }], [{ ...tool, status: "inactive" }, { ...tool, has_frontend: false }], true), { sources: [], tools: [] });
+});
 
 test("MyGo tracks use stable private identifiers and millisecond conversion", () => {
   const track = { id: "a/b?secret=x", name: "Song", duration: 12000, artists: [{ id: "a", name: "Artist" }] };

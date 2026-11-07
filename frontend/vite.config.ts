@@ -8,6 +8,11 @@ export default defineConfig({
     generateBundle() {
       this.emitFile({
         type: 'asset',
+        fileName: 'licenses/qrcode-generator.txt',
+        source: readFileSync(new URL('../licenses/qrcode-generator-LICENSE.txt', import.meta.url), 'utf8'),
+      })
+      this.emitFile({
+        type: 'asset',
         fileName: 'licenses/toaster.txt',
         source: readFileSync(new URL('./src/features/toaster/upstream/LICENSE', import.meta.url), 'utf8'),
       })

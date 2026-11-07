@@ -19,15 +19,48 @@ const browser = async (...args) => {
   return result.data;
 };
 const evaluate = async (source) => (await browser("eval", source)).result;
+const clickVisible = async (selector) => {
+  await evaluate(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'center'}); true`);
+  await browser("click", selector);
+};
 let role = "admin";
 let settings = { language: "zh-CN", theme: "apple-light", diagnostics_enabled: false, registration_enabled: false };
 let preferences = {};
 let sounds = { enabled: false, volume: 0.5 };
 let history = { separate_by_device: false };
 const writes = [];
+const pluginFlow = process.argv.includes("--plugin-flow-only");
+const sourceFixture = { manifest: { id: "netease", name: "网易云音乐", version: "0.1.3", playback: "stream", permissions: { network: ["music.163.com"] } }, identity: "github:sogud/mygo-music-netease", origin: "https://github.com/sogud/mygo-music-netease@v0.1.3", digest: "a".repeat(64), enabled: false, exports: ["home", "search", "stream", "signIn", "signOut"] };
+let mygoPlugins = [];
+let toolPlugins = [{ id: 1, name: "Fixture tool", description: "Frontend capability", version: "1.0.0", entry_path: "tool", status: "active", has_frontend: true, permissions: [], render_engine: "web" }];
+let canceledSignIns = 0;
+let failDelete = false;
+const pluginDeletes = [];
 const server = createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
   if (path.startsWith("/api/")) {
+    if (pluginFlow) {
+      let result;
+      if (path === "/api/plugin-platform") result = { mygo: true, songloft: true };
+      if (path === "/api/mygo/plugins") result = { plugins: mygoPlugins };
+      if (path === "/api/plugins") result = { plugins: toolPlugins };
+      if (path === "/api/mygo/marketplace") result = { plugins: [{ repository: "sogud/mygo-music-netease", name: "网易云音乐", description: "QR sign-in fixture", stars: 1 }], cache: { updated_at: new Date().toISOString() } };
+      if (path === "/api/mygo/preview") result = { ...sourceFixture, token: "reviewed-package" };
+      if (path === "/api/mygo/install") { mygoPlugins = [structuredClone(sourceFixture)]; result = mygoPlugins[0]; }
+      if (path === "/api/mygo/plugins/netease/enabled") { mygoPlugins[0].enabled = true; result = {}; }
+      if (path.endsWith("/call/signIn")) { response.on("close", () => { canceledSignIns++; }); return; }
+      if (path.endsWith("/prompt")) result = { qr: "https://music.163.com/login?codekey=fixture", text: "请扫码并确认登录" };
+      if (path.endsWith("/call/home")) result = { title: "Fixture source home", tracks: [] };
+      if (request.method === "DELETE") {
+        pluginDeletes.push(path);
+        if (failDelete) { response.writeHead(500, { "Content-Type": "application/json" }).end(JSON.stringify({ message: "Fixture delete failure" })); return; }
+        if (path === "/api/mygo/plugins/netease") mygoPlugins = [];
+        if (path === "/api/plugins/1") toolPlugins = [];
+        result = {};
+      }
+      if (path.includes("/static/index.html")) { response.writeHead(200, { "Content-Type": "text/html" }).end("<!doctype html><html><body>Fixture tool</body></html>"); return; }
+      if (result !== undefined) { response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(result)); return; }
+    }
     let payload;
     if (request.method === "PUT") {
       let body = "";
@@ -251,8 +284,103 @@ const checkWorkspace = async () => {
   console.log(`PASS ordinary-user category and search permissions; screenshots: ${artifacts}`);
 };
 try {
-  await checkNavigationColors();
-  if (!process.argv.includes("--navigation-colors-only")) await checkWorkspace();
+  if (pluginFlow) {
+    settings = { ...settings, theme: "spotify-dark" };
+    await browser("set", "viewport", "1440", "900");
+    await openSettings();
+    await selectCategory("plugins");
+    await browser("wait", "--fn", "!!document.querySelector('#mygo-panel-marketplace .mygo-cards button')");
+    assert.equal(await evaluate("document.querySelector('#mygo-tab-marketplace').getAttribute('aria-selected')"), "true");
+    assert.equal(await evaluate("document.querySelector('.mygo-manual-install').open"), false);
+    await browser("click", "#mygo-panel-marketplace .mygo-cards button");
+    await browser("wait", "--fn", "!!document.querySelector('dialog.mygo-preview[open]')");
+    assert.equal(mygoPlugins.length, 0, "Preview must not install or execute");
+    await browser("click", "dialog.mygo-preview button:last-child");
+    await browser("wait", "--fn", "document.querySelector('#mygo-tab-installed').getAttribute('aria-selected') === 'true'");
+    assert.equal(mygoPlugins[0].enabled, false, "Installation must not enable a source");
+    await browser("click", "#mygo-panel-installed .mygo-actions button:first-child");
+    await browser("wait", "--fn", "document.querySelector('#mygo-panel-installed .mygo-actions button').textContent.includes('停用')");
+    const openLibrary = async () => {
+      await evaluate("document.querySelector('.desktop-sidebar').scrollTop=0; true");
+      await browser("click", '.desktop-sidebar nav button[aria-label="曲库"]');
+      await browser("wait", "--fn", "!!document.querySelector('.library-view')");
+    };
+    const clickLibraryTab = async (text) => { await evaluate(`(() => {const button=[...document.querySelectorAll('.library-view button')].find(button=>button.textContent===${JSON.stringify(text)});button.click();return true;})()`); };
+    await openLibrary();
+    await browser("wait", "--fn", "document.querySelector('.library-view').textContent.includes('音乐源') && document.querySelector('.library-view').textContent.includes('插件工具')");
+    await clickLibraryTab("插件工具");
+    await browser("click", ".mygo-catalog button");
+    await browser("wait", "--fn", "!!document.querySelector('.plugin-surface iframe')");
+    assert.ok(await evaluate("document.querySelector('.plugin-surface iframe').src.includes('/api/v1/jsplugin/tool/static/index.html')"));
+    await clickLibraryTab("音乐源");
+    await browser("click", ".mygo-source-tabs button:first-child");
+    await browser("wait", "--fn", "document.querySelector('.mygo-panel').textContent.includes('Fixture source home')");
+    await evaluate("[...document.querySelectorAll('.mygo-source-tabs button')].find(button=>button.textContent==='登录音乐源').click(); true");
+    await browser("wait", "--fn", "!!document.querySelector('.mygo-signin-qr')");
+    assert.ok(await evaluate("document.querySelector('.mygo-signin-qr').src.startsWith('data:image/gif;base64,')"), "QR must be generated locally");
+    await browser("screenshot", `${artifacts}/mygo-qr-desktop.png`);
+    await browser("set", "viewport", "390", "844");
+    assert.ok(await evaluate("document.documentElement.scrollWidth <= innerWidth+1"));
+    await browser("screenshot", `${artifacts}/mygo-qr-phone.png`);
+    await browser("click", ".mygo-signin-prompt button");
+    await browser("wait", "--fn", "!document.querySelector('.mygo-signin-prompt')");
+    assert.ok(canceledSignIns >= 1, "Cancel must abort the login request");
+    await browser("set", "viewport", "1440", "900");
+    await openSettings(); await selectCategory("plugins");
+    await browser("click", "#mygo-tab-installed");
+    await clickVisible("#mygo-panel-installed .icon-danger");
+    await browser("wait", "--fn", "!!document.querySelector('dialog.confirm-action-dialog[open]')");
+    assert.ok(await evaluate("document.activeElement === document.querySelector('dialog.confirm-action-dialog button')"), "Cancel initially receives focus");
+    await browser("press", "Escape");
+    assert.equal(pluginDeletes.length, 0);
+    assert.ok(await evaluate("document.activeElement === document.querySelector('#mygo-panel-installed .icon-danger')"), "Cancel restores trigger focus");
+    await clickVisible("#mygo-panel-installed .icon-danger");
+    failDelete = true;
+    await browser("click", "dialog.confirm-action-dialog button:last-child");
+    await browser("wait", "--fn", "!!document.querySelector('dialog.confirm-action-dialog [role=alert]')");
+    failDelete = false;
+    await browser("click", "dialog.confirm-action-dialog button:last-child");
+    await browser("wait", "--fn", "!document.querySelector('dialog.confirm-action-dialog')");
+    await clickVisible('.plugin-settings button[aria-label="删除插件"]');
+    await browser("wait", "--fn", "!!document.querySelector('dialog.confirm-action-dialog[open]')");
+    await browser("click", "dialog.confirm-action-dialog button:last-child");
+    await browser("wait", "--fn", "!document.querySelector('dialog.confirm-action-dialog')");
+    await openLibrary();
+    await browser("wait", "--fn", "document.querySelector('.library-tabs button').classList.contains('active')");
+    assert.ok(await evaluate("![...document.querySelectorAll('.library-view button')].some(button=>['音乐源','插件工具'].includes(button.textContent))"), "No usable capability means no tab");
+    assert.equal(toolPlugins.length, 0);
+    assert.equal(mygoPlugins.length, 0);
+    console.log(`PASS marketplace install, permission preview, disabled default, capability tabs/tool page, local QR, phone layout, login cancellation, custom deletion/failure/retry/focus and stale-tab fallback; screenshots: ${artifacts}`);
+  } else if (process.argv.includes("--plugin-layout-only")) {
+    settings = { ...settings, theme: "spotify-dark" };
+    for (const [width, height] of [[2048, 1127], [1440, 900], [1024, 768], [390, 844]]) {
+      await browser("set", "viewport", String(width), String(height));
+      await openSettings();
+      await selectCategory("plugins");
+      await checkLayout();
+      const geometry = await evaluate(`(() => { const bounds = selector => document.querySelector(selector).getBoundingClientRect().toJSON(); return { viewport: innerHeight, shell: bounds('.app-shell'), main: bounds('.main'), player: bounds('footer.player'), scroll: document.documentElement.scrollHeight }; })()`);
+      console.log(JSON.stringify({ width, height, geometry }));
+      await browser("screenshot", `${artifacts}/${width}-${height}-plugins.png`);
+      assert.ok(Math.abs(geometry.shell.bottom - height) <= 1, "Shell must fit viewport");
+      if (width > 720) assert.ok(Math.abs(geometry.player.bottom - height) <= 1, "Player must remain flush with viewport bottom");
+      if (width >= 1440) assert.ok(geometry.scroll <= height + 1, "Decorative glow must not create document overflow");
+      if (width > 720) {
+        preferences = { home_player_style: "vinyl-collection" };
+        await browser("open", url);
+        await browser("wait", "--fn", "!!document.querySelector('.vinyl-collection-player')");
+        await browser("wait", "--fn", "parseFloat(document.querySelector('.vinyl-collection-player').style.getPropertyValue('--vc-unit')) > 0");
+        const home = await evaluate("({height:document.querySelector('.main').clientHeight,scroll:document.querySelector('.main').scrollHeight,documentScroll:document.scrollingElement.scrollHeight})");
+        console.log(JSON.stringify({ width, height, home }));
+        await browser("screenshot", `${artifacts}/${width}-${height}-vinyl.png`);
+        if (width >= 1440 && home.scroll > home.height + 1) console.log(await evaluate(`[...document.querySelectorAll('.main,.home-view,.home-player-hero,.vinyl-collection-player,.vc-listening-room,.vc-shelf,.vc-deck,.vc-sleeve-stage,.topbar')].map(el=>({class:el.className,rect:el.getBoundingClientRect().toJSON(),height:el.offsetHeight,scroll:el.scrollHeight,unit:el.style.getPropertyValue('--vc-unit'),padding:getComputedStyle(el).padding,margin:getComputedStyle(el).margin,border:getComputedStyle(el).borderWidth}))`));
+        if (width >= 1440) assert.ok(home.scroll <= home.height + 1, "Fitted vinyl scene must not cause a spurious scrollbar");
+        if (width >= 1440) assert.ok(home.documentScroll <= height + 1);
+      }
+    }
+  } else {
+    await checkNavigationColors();
+    if (!process.argv.includes("--navigation-colors-only")) await checkWorkspace();
+  }
 } finally {
   await browser("close").catch(() => {});
   await new Promise((done) => server.close(done));

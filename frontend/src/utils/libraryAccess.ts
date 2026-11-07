@@ -12,6 +12,7 @@ export function resolveSettingsTab(tab: SettingsTab, role: User["role"]): Settin
 
 export function resolveLibraryTab(tab: LibraryTab, role: User["role"], mobile: boolean): LibraryTab {
   if (tab === "manage" && !canManageLibrary(role)) return "songs";
-  if (mobile && tab !== "songs" && tab !== "folders" && tab !== "manage") return "songs";
+  if (tab === "tools" && !canManageLibrary(role)) return "songs";
+  if (mobile && tab !== "songs" && tab !== "folders" && tab !== "manage" && tab !== "sources" && tab !== "tools") return "songs";
   return tab;
 }

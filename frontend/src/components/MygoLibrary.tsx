@@ -5,6 +5,10 @@ import type { Song } from "../types";
 import { api } from "../services/api";
 import { appendMygoPage, mygoPageTracks, mygoImageURL, mygoSong, normalizeMygoPage, notifyMygoLike, type MygoLike, type MygoEntity, type MygoPage, type MygoPlugin, type MygoTrack } from "../features/plugins/mygo";
 import { MygoSourceSettings } from "./MygoPlugins";
+import { mygoErrorMessage } from "../features/plugins/mygo";
+import { MygoSignInPrompt } from "./MygoSignInPrompt";
+import { ConfirmActionDialog } from "./ConfirmActionDialog";
+import { pluginNavigation } from "../features/plugins/navigation";
 
 export function MygoLibrary({ t, onPlay }: { t: ReturnType<typeof createT>; onPlay: (song: Song, list: Song[]) => void | Promise<void> }) {
   const [plugins, setPlugins] = useState<MygoPlugin[]>([]);
@@ -13,12 +17,13 @@ export function MygoLibrary({ t, onPlay }: { t: ReturnType<typeof createT>; onPl
   const [error, setError] = useState("");
   useEffect(() => {
     let alive = true;
-    const refresh = () => { void Promise.all([api.pluginPlatform(), api.mygoPlugins()]).then(([platform, result]) => { if (alive) { setEnabled(platform.mygo); setPlugins((result.plugins || []).filter((plugin) => plugin.enabled)); setError(""); } }).catch((error) => { if (alive) setError(String(error)); }); };
+    let sequence = 0;
+    const refresh = () => { const request = ++sequence; void Promise.all([api.pluginPlatform(), api.mygoPlugins()]).then(([platform, result]) => { if (alive && request === sequence) { setEnabled(platform.mygo); setPlugins(pluginNavigation(platform, result.plugins || [], [], false).sources); setError(""); } }).catch((error) => { if (alive && request === sequence) setError(mygoErrorMessage(error)); }); };
     refresh(); window.addEventListener("lark:plugins-changed", refresh);
     return () => { alive = false; window.removeEventListener("lark:plugins-changed", refresh); };
   }, []);
   const active = plugins.find((plugin) => plugin.manifest.id === selected) || plugins[0];
-  if (!enabled && !error) return null;
+  if (!enabled && !error) return <section className="mygo-panel"><h3>{t("mygoSources")}</h3><p role="status">{t("mygoSourcesDisabled")}</p></section>;
   if (error || !active) return <section className="mygo-panel"><h3>{t("mygoSources")}</h3><p role={error ? "alert" : "status"}>{error || t("mygoEmpty")}</p></section>;
   return <MygoSourceBrowser key={`${active.manifest.id}:${active.identity}`} active={active} plugins={plugins} onSelect={setSelected} t={t} onPlay={onPlay} />;
 }
@@ -35,10 +40,13 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
   const [playlistName, setPlaylistName] = useState("");
   const [openedPlaylist, setOpenedPlaylist] = useState("");
   const [prompt, setPrompt] = useState<{ text?: string; qr?: string } | null>(null);
+  const [deletingPlaylist, setDeletingPlaylist] = useState("");
+  const signInRequest = useRef<AbortController | null>(null);
   const request = useRef<{ method: string; params: Record<string, unknown>; offset: number }>({ method: "home", params: {}, offset: 0 });
   const source = active.manifest.id;
   const can = (method: string) => active.exports.includes(method);
-  const call = <T = MygoPage,>(method: string, params: unknown = {}) => api.mygoCall<T>(source, method, params, active.identity);
+  const call = <T = MygoPage,>(method: string, params: unknown = {}, signal?: AbortSignal) => api.mygoCall<T>(source, method, params, active.identity, signal);
+  useEffect(() => () => signInRequest.current?.abort(), []);
 
   useEffect(() => {
     const receive = (event: Event) => {
@@ -53,7 +61,7 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
     if (busy || !source) return;
     setBusy(true); setError(""); setNotice("");
     try { await action(); }
-    catch (error) { setError(error instanceof Error ? error.message : String(error)); }
+    catch (error) { setError(mygoErrorMessage(error)); }
     finally { setBusy(false); }
   }
 
@@ -76,9 +84,18 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
 
   async function signIn() {
     await run(async () => {
-      const timer = window.setInterval(() => { void api.mygoPrompt(source, active.identity).then(setPrompt).catch(() => undefined); }, 1500);
-      try { const account = await call<{ name?: string }>("signIn"); setNotice(account?.name || t("done")); }
-      finally { window.clearInterval(timer); setPrompt(null); }
+      const controller = new AbortController();
+      signInRequest.current = controller;
+      setPrompt({ text: t("loading") });
+      let polling = false;
+      const timer = window.setInterval(() => {
+        if (polling || controller.signal.aborted) return;
+        polling = true;
+        void api.mygoPrompt(source, active.identity).then((value) => { if (!controller.signal.aborted) setPrompt(value || { text: t("loading") }); }).catch(() => undefined).finally(() => { polling = false; });
+      }, 1000);
+      try { const account = await call<{ name?: string }>("signIn", {}, controller.signal); setNotice(account?.name || t("done")); }
+      catch (error) { if (!controller.signal.aborted) throw error; }
+      finally { window.clearInterval(timer); signInRequest.current = null; setPrompt(null); }
     });
   }
 
@@ -126,10 +143,11 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
       {can("createPlaylist") && <form className="mygo-actions" onSubmit={(event) => { event.preventDefault(); void run(async () => { const playlist = await call<MygoEntity>("createPlaylist", { name: playlistName }); setPlaylists((old) => [...old, playlist]); setTarget(playlist.id); setPlaylistName(""); setNotice(t("done")); }); }}><label><span className="sr-only">{t("mygoPlaylistName")}</span><input placeholder={t("mygoPlaylistName")} value={playlistName} onChange={(event) => setPlaylistName(event.target.value)} /></label><button disabled={busy || !playlistName.trim()}>{t("mygoCreatePlaylist")}</button></form>}
       {playlists.length > 0 && <div className="mygo-actions"><label><span>{t("mygoPlaylistTarget")}</span><select value={target} onChange={(event) => setTarget(event.target.value)}><option value="" disabled>{t("mygoPlaylistTarget")}</option>{playlists.map((playlist) => <option key={playlist.id} value={playlist.id}>{playlist.name}</option>)}</select></label>
         {can("renamePlaylist") && <button disabled={busy || !target || !playlistName.trim()} onClick={() => void run(async () => { await call("renamePlaylist", { id: target, name: playlistName }); setPlaylists((old) => old.map((playlist) => playlist.id === target ? { ...playlist, name: playlistName } : playlist)); setNotice(t("done")); })}>{t("mygoRenamePlaylist")}</button>}
-        {can("deletePlaylist") && <button disabled={busy || !target} onClick={() => { if (window.confirm(t("mygoDeletePlaylist"))) void run(async () => { await call("deletePlaylist", { id: target }); setPlaylists((old) => old.filter((playlist) => playlist.id !== target)); setTarget(""); setNotice(t("done")); }); }}>{t("mygoDeletePlaylist")}</button>}
+        {can("deletePlaylist") && <button disabled={busy || !target} onClick={() => { setError(""); setDeletingPlaylist(target); }}>{t("mygoDeletePlaylist")}</button>}
       </div>}
       {busy && <p role="status">{t("loading")}</p>}{notice && <p role="status">{notice}</p>}
-      {prompt && <div role="status"><p>{prompt.text}</p>{prompt.qr && /^https?:\/\//.test(prompt.qr) && <a href={prompt.qr} target="_blank" rel="noreferrer">{t("mygoSignIn")}</a>}</div>}
+      {prompt && <MygoSignInPrompt prompt={prompt} t={t} onCancel={() => signInRequest.current?.abort()} />}
+      {deletingPlaylist && <ConfirmActionDialog title={t("mygoDeletePlaylist")} message={playlists.find((playlist) => playlist.id === deletingPlaylist)?.name || deletingPlaylist} cancelLabel={t("cancel")} confirmLabel={busy ? t("loading") : t("mygoDeletePlaylist")} busy={busy} error={error} onCancel={() => { setDeletingPlaylist(""); setError(""); }} onConfirm={() => void run(async () => { await call("deletePlaylist", { id: deletingPlaylist }); setPlaylists((old) => old.filter((playlist) => playlist.id !== deletingPlaylist)); setTarget(""); setDeletingPlaylist(""); setNotice(t("done")); })} />}
       {page.title && <h4>{page.title}</h4>}{tracks(mygoPageTracks(page))}{entities(page)}
       {(page.links || []).map((link) => <button key={link.page} disabled={busy} onClick={() => void load("browse", { page: link.page })}>{link.title}</button>)}
       {(page.sections || []).map((section, index) => <section key={index}><h4>{section.title}</h4>{tracks(mygoPageTracks(section))}{entities(section)}{(section.links || []).map((link) => <button key={link.page} disabled={busy} onClick={() => void load("browse", { page: link.page })}>{link.title}</button>)}{section.morePage && <button disabled={busy} onClick={() => void load("browse", { page: section.morePage })}>{t("nextPage")}</button>}</section>)}

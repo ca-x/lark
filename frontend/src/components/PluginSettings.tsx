@@ -18,6 +18,7 @@ import { PluginSurface } from "./PluginSurface";
 import { MygoPluginManager } from "./MygoPlugins";
 import type { PluginPlatform } from "../features/plugins/mygo";
 import { songloftIdentity } from "../features/plugins/songloftIdentity";
+import { ConfirmActionDialog } from "./ConfirmActionDialog";
 
 type PluginView = "installed" | "marketplace" | "sources";
 
@@ -52,6 +53,7 @@ function SongloftPluginSettings({
   const [busyKey, setBusyKey] = useState("");
   const [error, setError] = useState("");
   const [surfacePlugin, setSurfacePlugin] = useState<Plugin | null>(null);
+  const [deletingPlugin, setDeletingPlugin] = useState<Plugin | null>(null);
   const uploadRef = useRef<HTMLInputElement | null>(null);
   const surfaceTriggerRef = useRef<Plugin["id"] | null>(null);
 
@@ -103,6 +105,7 @@ function SongloftPluginSettings({
     setError("");
     try {
       await action();
+      window.dispatchEvent(new Event("lark:plugins-changed"));
       await refreshInstalled();
     } catch (nextError) {
       setError(errorMessage(nextError));
@@ -174,6 +177,7 @@ function SongloftPluginSettings({
 
   return (
     <div className="plugin-settings settings-wide-row" data-settings-owner="plugins">
+      {deletingPlugin && <ConfirmActionDialog title={t("deletePlugin")} message={`${deletingPlugin.name} — ${t("deletePluginConfirm")}`} cancelLabel={t("cancel")} confirmLabel={busyKey ? t("loading") : t("deletePlugin")} busy={Boolean(busyKey)} error={error} onCancel={() => { setDeletingPlugin(null); setError(""); }} onConfirm={() => { void runPluginAction(`delete:${deletingPlugin.id}`, async () => { await api.deletePlugin(deletingPlugin.id); setPlugins((current) => current.filter((plugin) => plugin.id !== deletingPlugin.id)); setDeletingPlugin(null); }); }} />}
       <div className="plugin-settings-head">
         <div>
           <strong>{t("pluginManagement")}</strong>
@@ -251,7 +255,7 @@ function SongloftPluginSettings({
                       <ArrowClockwise aria-hidden="true" />
                     </button>
                     <button type="button" className="plugin-icon-button danger" title={t("deletePlugin")} aria-label={t("deletePlugin")} disabled={Boolean(busyKey)} onClick={() => {
-                      if (window.confirm(t("deletePluginConfirm"))) void runPluginAction(`delete:${plugin.id}`, () => api.deletePlugin(plugin.id));
+                      setError(""); setDeletingPlugin(plugin);
                     }}>
                       <Trash aria-hidden="true" />
                     </button>

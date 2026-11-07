@@ -108,7 +108,7 @@ func (s *Session) installHost() error {
 				return moejs.String(hex.EncodeToString(sum[:])), nil
 			}),
 			"aesEcbEncrypt": moejs.NativeFunc(func(_ *moejs.Realm, _ moejs.Value, args []moejs.Value) (moejs.Value, error) {
-				plain, key := []byte(moejs.Arg(args, 0).String()), []byte(moejs.Arg(args, 1).String())
+				key, plain := []byte(moejs.Arg(args, 0).String()), []byte(moejs.Arg(args, 1).String())
 				cipher, err := aes.NewCipher(key)
 				if err != nil {
 					return moejs.Undefined(), err

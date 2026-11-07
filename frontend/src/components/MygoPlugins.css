@@ -27,6 +27,26 @@
 .mygo-preview dd { margin: 6px 0 0; line-height: 1.5; }
 .mygo-preview small { font-size: 14px; color: var(--mygo-muted); }
 .mygo-preview .mygo-primary { border-color: var(--accent); }
+.mygo-manager-tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.mygo-manager-tabs > button[aria-selected="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
+.mygo-manager-panel { display: grid; gap: 16px; min-width: 0; }
+.mygo-manager-panel[hidden] { display: none; }
+.mygo-manual-install summary { cursor: pointer; min-height: 44px; align-content: center; color: var(--mygo-muted); }
+.mygo-manual-install > form { padding-top: 12px; }
+.mygo-panel .mygo-primary { border-color: var(--accent); }
+.mygo-installed-badge { font-size: 12px; padding: 4px 8px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 14%, var(--panel)); color: var(--text); }
+.mygo-signin-prompt { box-sizing: border-box; width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; display: grid; justify-items: center; gap: 18px; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.mygo-signin-prompt:not([open]) { display: none; }
+.mygo-signin-prompt::backdrop { background: rgb(0 0 0 / .6); }
+.mygo-signin-prompt h3, .mygo-signin-prompt p { margin: 0; text-align: center; line-height: 1.6; }
+.mygo-signin-placeholder { width: min(240px, 100%); height: 240px; display: grid; place-items: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); }
+.mygo-signin-actions { width: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: end; gap: 16px; }
+.mygo-signin-actions a { color: var(--text); text-underline-offset: 4px; min-height: 44px; align-content: center; }
+.mygo-signin-actions button { min-height: 44px; padding: 10px 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); color: var(--text); font: inherit; cursor: pointer; }
+.mygo-signin-actions :is(a, button):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.mygo-signin-prompt[open] { animation: confirm-action-enter 160ms cubic-bezier(.16, 1, .3, 1); }
+@media (prefers-reduced-motion: reduce) { .mygo-signin-prompt[open] { animation: none; } }
+.mygo-signin-qr { display: block; width: min(240px, 100%); height: auto; background: white; border-radius: 8px; image-rendering: pixelated; }
 .mygo-source-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 3px; }
 .mygo-panel .mygo-source-tabs > button { flex: 0 0 auto; width: auto; }
 .mygo-tracks { display: grid; gap: 8px; list-style: none; padding: 0; margin: 0; }

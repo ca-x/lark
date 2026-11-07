@@ -162,14 +162,11 @@
 
 .vinyl-collection-player[data-input="keyboard"] * { transition-duration: 0ms !important; }
 
-@media (min-width: 769px) and (max-height: 850px) {
-  .vinyl-collection-player { --vc-shelf-space: 32px; padding-block: 12px; }
-  .vc-now-playing { min-height: 44px; }
-  .vc-shelf-record { top: 18px; }
-  .vc-listening-room { margin-top: 8px; }
-  .vc-shelf-navigation { margin-top: 10px; }
-
-}
+.vinyl-collection-player[data-height-constrained='true'] { --vc-shelf-space: 32px; padding-block: 12px; }
+.vinyl-collection-player[data-height-constrained='true'] .vc-now-playing { min-height: 44px; }
+.vinyl-collection-player[data-height-constrained='true'] .vc-shelf-record { top: 18px; }
+.vinyl-collection-player[data-height-constrained='true'] .vc-listening-room { margin-top: 8px; }
+.vinyl-collection-player[data-height-constrained='true'] .vc-shelf-navigation { margin-top: 10px; }
 
 .vc-catalog-status { color: var(--vc-muted); font-size: 12px; text-align: center; }
 .vc-catalog-status button { min-height: 36px; border: 1px solid var(--vc-rule); border-radius: 4px; background: transparent; padding: 6px 12px; }

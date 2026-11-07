@@ -57,6 +57,7 @@ function host(current = song(1, 1), { reducedMotion = false, albumsPage } = {}) 
       const deck = { offsetHeight: 300, parentElement: { offsetHeight: 420 } };
       const sleeve = { offsetHeight: 250, parentElement: { offsetHeight: 320 } };
       const player = {
+        dataset: {},
         clientWidth: 1252, offsetHeight: 800, closest: () => null, getBoundingClientRect: () => ({ top: 100 }),
         style: { getPropertyValue: (key) => values.get(key) ?? "", setProperty: (key, value) => { values.set(key, value); writes.push(value); } },
         querySelector: (selector) => ({ ".vc-listening-room": { offsetHeight: 420 }, ".vc-shelf": { offsetHeight: 160, querySelector: () => ({ offsetHeight: 104 }) }, ".vc-sleeve-stage": sleeve })[selector],

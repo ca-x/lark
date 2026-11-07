@@ -5,6 +5,28 @@
 
 ---
 
+## 0.18.13：插件体验与布局修复
+
+发布日期 / Released: 2026-11-07
+
+- MyGo 默认展示插件市场，支持直接安装、已安装识别及管理；手动安装折叠收纳，安装仍需确认来源与权限且默认停用。
+- 修复 MyGo AES 参数顺序导致的网易云扫码登录错误，新增本地二维码展示及登录取消；使用 `sogud/mygo-music-netease@v0.1.3` 原包验证模拟扫码登录流程与账号隔离。
+- 按启用插件的实际能力显示「音乐源」「插件工具」页签，没有对应能力不显示；保留管理员工具权限边界。
+- MyGo / Songloft 删除插件改用可键盘操作、支持深色与减少动态效果的应用确认框。
+- 修复插件设置导致底部播放器下方留白，以及黑胶收藏首页高度计算产生的多余滚动条；不隐藏正常内容滚动。
+- 仅更新服务端与 Docker，不重发桌面安装包。模拟登录测试不等于真实个人账号授权。
+
+## v0.18.13: Plugin experience and layout fixes
+
+Released: 2026-11-07
+
+- Open the MyGo marketplace first, install directly after source/permission review, identify installed packages, and keep manual installation collapsed. Installation remains disabled by default.
+- Fix key-first AES compatibility for NetEase sign-in; render QR codes locally and support cancellation. Test the original `sogud/mygo-music-netease@v0.1.3` package with a simulated login and isolated accounts.
+- Show Music sources and Plugin tools only for enabled, usable capabilities; preserve administrator-only frontend tools.
+- Replace MyGo/Songloft browser deletion prompts with accessible, theme-aware application dialogs and reduced-motion support.
+- Fix the blank band below the player in plugin settings and the unnecessary vinyl collection home scrollbar without clipping real content.
+- Server and Docker release only. Simulated sign-in does not imply real personal account authorization.
+
 ## 0.18.12：双生态插件平台
 
 发布日期 / Released: 2026-11-07
