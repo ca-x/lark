@@ -362,7 +362,7 @@ function SongloftPluginSettings({
   );
 }
 
-export function PluginSettings(props: Parameters<typeof SongloftPluginSettings>[0]) {
+export function PluginSettings(props: Parameters<typeof SongloftPluginSettings>[0] & { onOpenMygoSource: (id: string) => void }) {
   const [platform, setPlatform] = useState<PluginPlatform | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -383,7 +383,7 @@ export function PluginSettings(props: Parameters<typeof SongloftPluginSettings>[
       {error && <p className="plugin-feedback error" role="alert">{error}</p>}
       {platform?.degraded && <p className="plugin-feedback error" role="alert">{platform.degraded}</p>}
     </section>
-    <MygoPluginManager t={props.t} />
+    <MygoPluginManager t={props.t} platformEnabled={platform?.mygo ?? false} onOpenSource={props.onOpenMygoSource} />
     {platform?.songloft && <SongloftPluginSettings {...props} />}
   </div>;
 }

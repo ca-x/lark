@@ -246,7 +246,7 @@ func TestMediaRedirectCannotRefillCredentialsAcrossOrigins(t *testing.T) {
 }
 
 func TestPackageRejectsTraversalDuplicateAndNative(t *testing.T) {
-	for _, extra := range []map[string]string{{"../escape": "bad"}, {"plugin.json": `{"id":"demo","name":"Demo","permissions":{"process":true}}`}, {"plugin.json": `{"id":"demo","name":"Demo","playback":"remote","permissions":{}}`}, {"nested/plugin.json": `{}`}} {
+	for _, extra := range []map[string]string{{"../escape": "bad"}, {"plugin.json": `{"id":"demo","name":"Demo","permissions":{"process":true}}`}, {"plugin.json": `{"id":"demo","name":"Demo","playback":"remote","permissions":{}}`}} {
 		if _, err := ReadPackage(testPackage(t, `export function home(){}`, extra)); err == nil {
 			t.Fatalf("unsafe package accepted: %v", extra)
 		}

@@ -34,19 +34,26 @@ func ReadPackage(data []byte) (Package, error) {
 		return result, errors.New("too many package files")
 	}
 	root := ""
-	found := false
+	manifestDepth := -1
+	manifests := 0
 	for _, file := range archive.File {
 		if path.Base(file.Name) != "plugin.json" || file.FileInfo().IsDir() {
 			continue
 		}
-		if found {
-			return result, errors.New("ambiguous plugin.json")
+		depth := strings.Count(file.Name, "/")
+		if manifestDepth < 0 || depth < manifestDepth {
+			manifestDepth = depth
+			manifests = 1
+			root = strings.TrimSuffix(file.Name, "plugin.json")
+		} else if depth == manifestDepth {
+			manifests++
 		}
-		found = true
-		root = strings.TrimSuffix(file.Name, "plugin.json")
 	}
-	if !found {
+	if manifests == 0 {
 		return result, errors.New("mygo plugin.json not found")
+	}
+	if manifests > 1 {
+		return result, errors.New("ambiguous plugin.json")
 	}
 	result.Files = map[string][]byte{}
 	total := int64(0)

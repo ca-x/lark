@@ -32,6 +32,7 @@ const writes = [];
 const pluginFlow = process.argv.includes("--plugin-flow-only");
 const sourceFixture = { manifest: { id: "netease", name: "网易云音乐", version: "0.1.3", playback: "stream", permissions: { network: ["music.163.com"] } }, identity: "github:sogud/mygo-music-netease", origin: "https://github.com/sogud/mygo-music-netease@v0.1.3", digest: "a".repeat(64), enabled: false, exports: ["home", "search", "stream", "signIn", "signOut"] };
 let mygoPlugins = [];
+let pluginPlatform = { mygo: false, songloft: true };
 let toolPlugins = [{ id: 1, name: "Fixture tool", description: "Frontend capability", version: "1.0.0", entry_path: "tool", status: "active", has_frontend: true, permissions: [], render_engine: "web" }];
 let canceledSignIns = 0;
 let failDelete = false;
@@ -41,7 +42,14 @@ const server = createServer(async (request, response) => {
   if (path.startsWith("/api/")) {
     if (pluginFlow) {
       let result;
-      if (path === "/api/plugin-platform") result = { mygo: true, songloft: true };
+      if (path === "/api/plugin-platform") {
+        if (request.method === "PATCH") {
+          let body = "";
+          for await (const chunk of request) body += chunk;
+          pluginPlatform = { ...pluginPlatform, ...JSON.parse(body) };
+        }
+        result = pluginPlatform;
+      }
       if (path === "/api/mygo/plugins") result = { plugins: mygoPlugins };
       if (path === "/api/plugins") result = { plugins: toolPlugins };
       if (path === "/api/mygo/marketplace") result = { plugins: [{ repository: "sogud/mygo-music-netease", name: "网易云音乐", description: "QR sign-in fixture", stars: 1 }], cache: { updated_at: new Date().toISOString() } };
@@ -298,8 +306,28 @@ try {
     await browser("click", "dialog.mygo-preview button:last-child");
     await browser("wait", "--fn", "document.querySelector('#mygo-tab-installed').getAttribute('aria-selected') === 'true'");
     assert.equal(mygoPlugins[0].enabled, false, "Installation must not enable a source");
-    await browser("click", "#mygo-panel-installed .mygo-actions button:first-child");
-    await browser("wait", "--fn", "document.querySelector('#mygo-panel-installed .mygo-actions button').textContent.includes('停用')");
+    assert.ok(await evaluate("document.querySelector('#mygo-panel-installed .mygo-open-source').disabled"), "Disabled sources must not open");
+    await browser("click", "#mygo-panel-installed .mygo-actions button:nth-child(2)");
+    await browser("wait", "--fn", "document.querySelector('#mygo-panel-installed .mygo-actions button:nth-child(2)').textContent.includes('停用')");
+    assert.ok(await evaluate("document.querySelector('#mygo-panel-installed .mygo-open-source').disabled"), "An enabled plugin must not bypass the ecosystem switch");
+    await clickVisible(".plugin-platform .switch-row:nth-of-type(2) input");
+    await browser("wait", "--fn", "!document.querySelector('#mygo-panel-installed .mygo-open-source').disabled");
+    assert.ok(await evaluate("!!document.querySelector('#mygo-panel-installed .mygo-open-source')"), "Enabled installed sources need a direct entry to their interface");
+    mygoPlugins.unshift({ ...structuredClone(sourceFixture), manifest: { ...sourceFixture.manifest, id: "other-source", name: "Other source" }, identity: "fixture:other", enabled: true });
+    await clickVisible("#mygo-panel-installed .mygo-open-source");
+    await browser("wait", "--fn", "!!document.querySelector('.mygo-source-tabs')");
+    assert.equal(await evaluate("document.querySelector('.mygo-repository select').value"), "netease");
+    await browser("wait", "--fn", "document.querySelector('.mygo-panel').textContent.includes('Fixture source home')");
+    mygoPlugins = mygoPlugins.filter((plugin) => plugin.manifest.id !== "other-source");
+    await evaluate("window.dispatchEvent(new Event('lark:plugins-changed')); true");
+    await browser("set", "viewport", "390", "844");
+    await openSettings(); await selectCategory("plugins");
+    await browser("click", "#mygo-tab-installed");
+    await clickVisible("#mygo-panel-installed .mygo-open-source");
+    await browser("wait", "--fn", "!!document.querySelector('.mygo-source-tabs')");
+    assert.equal(await evaluate("document.querySelector('.mygo-repository select').value"), "netease");
+    await browser("screenshot", `${artifacts}/mygo-source-entry-phone.png`);
+    await browser("set", "viewport", "1440", "900");
     const openLibrary = async () => {
       await evaluate("document.querySelector('.desktop-sidebar').scrollTop=0; true");
       await browser("click", '.desktop-sidebar nav button[aria-label="曲库"]');
@@ -350,7 +378,7 @@ try {
     assert.ok(await evaluate("![...document.querySelectorAll('.library-view button')].some(button=>['音乐源','插件工具'].includes(button.textContent))"), "No usable capability means no tab");
     assert.equal(toolPlugins.length, 0);
     assert.equal(mygoPlugins.length, 0);
-    console.log(`PASS marketplace install, permission preview, disabled default, capability tabs/tool page, local QR, phone layout, login cancellation, custom deletion/failure/retry/focus and stale-tab fallback; screenshots: ${artifacts}`);
+    console.log(`PASS marketplace install, permission preview, disabled default, ecosystem switch gating, installed-source direct entry, capability tabs/tool page, local QR, phone layout, login cancellation, custom deletion/failure/retry/focus and stale-tab fallback; screenshots: ${artifacts}`);
   } else if (process.argv.includes("--plugin-layout-only")) {
     settings = { ...settings, theme: "spotify-dark" };
     for (const [width, height] of [[2048, 1127], [1440, 900], [1024, 768], [390, 844]]) {

@@ -5,6 +5,24 @@
 
 ---
 
+## 0.18.14：音乐源入口与插件兼容修复
+
+发布日期 / Released: 2026-11-08
+
+- 已安装 MyGo 插件新增「打开音乐源」，直达所选源；卡片说明总开关、单插件停用或缺少界面的原因，不再让用户猜入口在哪里。
+- 进入和切换音乐源时自动加载首页，无需再手动点击一次「主页」。
+- 修复仓库同时包含根清单、构建产物或测试清单时无法安装的问题；仍拒绝同层歧义清单、危险路径、原生能力和超限包。
+- 逐项检查市场快照中的 50 个仓库，37 个可安装启用，13 个受原生能力或体积限制；公开每项结果，不将安装成功等同于完整账号和播放兼容。仅更新服务端与 Docker。
+
+## v0.18.14: Music source entry and package compatibility fixes
+
+Released: 2026-11-08
+
+- Add Open music source to installed MyGo cards, opening the selected source; explain disabled ecosystem/plugin switches and missing source interfaces.
+- Load the homepage automatically when opening or switching a music source.
+- Accept a canonical root manifest alongside nested build/test manifests while still rejecting ambiguous peers, unsafe paths, native capabilities and oversized packages.
+- Check all 50 repositories in the marketplace snapshot: 37 install and enable, while 13 require unsupported native capabilities or exceed package limits. Publish per-plugin findings without claiming complete account or playback compatibility. Server and Docker only.
+
 ## 0.18.13：插件体验与布局修复
 
 发布日期 / Released: 2026-11-07

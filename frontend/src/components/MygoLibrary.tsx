@@ -10,10 +10,10 @@ import { MygoSignInPrompt } from "./MygoSignInPrompt";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { pluginNavigation } from "../features/plugins/navigation";
 
-export function MygoLibrary({ t, onPlay }: { t: ReturnType<typeof createT>; onPlay: (song: Song, list: Song[]) => void | Promise<void> }) {
+export function MygoLibrary({ t, onPlay, initialSourceId = "" }: { t: ReturnType<typeof createT>; onPlay: (song: Song, list: Song[]) => void | Promise<void>; initialSourceId?: string }) {
   const [plugins, setPlugins] = useState<MygoPlugin[]>([]);
   const [enabled, setEnabled] = useState(false);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(initialSourceId);
   const [error, setError] = useState("");
   useEffect(() => {
     let alive = true;
@@ -47,6 +47,7 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
   const can = (method: string) => active.exports.includes(method);
   const call = <T = MygoPage,>(method: string, params: unknown = {}, signal?: AbortSignal) => api.mygoCall<T>(source, method, params, active.identity, signal);
   useEffect(() => () => signInRequest.current?.abort(), []);
+  useEffect(() => { if (active.exports.includes("home")) void load("home"); }, [active.identity]);
 
   useEffect(() => {
     const receive = (event: Event) => {

@@ -1105,6 +1105,7 @@ export default function App() {
   }>({ output: "local", state: "paused" });
   const [playMode, setPlayMode] = useState<PlayMode>("sequence");
   const [view, setView] = useState<View>("home");
+  const [mygoSourceId, setMygoSourceId] = useState("");
   const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>(storedInterfaceMode);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("account");
   const [query, setQuery] = useState("");
@@ -5954,6 +5955,7 @@ export default function App() {
                 pluginPlayerState={pluginHostPlayerState}
                 onPluginHostCall={handlePluginHostCall}
                 searchRequest={mobileViewport && mobileSearchActive ? mobileSearchRequest : 0}
+                mygoSourceId={mygoSourceId}
                 songs={songs}
                 folders={folders}
                 networkSources={networkSources}
@@ -6292,6 +6294,7 @@ export default function App() {
                 onTabChange={setSettingsTab}
                 onOpenAlbums={() => setView("albums")}
                 onOpenPlaylists={() => setView("playlists")}
+                onOpenMygoSource={(id) => { setMygoSourceId(id); setQuery(""); setMobileSearchActive(false); rememberLibraryTab("sources"); setView("library"); }}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
                 pluginHostTheme={pluginHostTheme}
                 pluginHostPlayerState={pluginHostPlayerState}
@@ -8718,6 +8721,7 @@ function LibraryView({
   pluginPlayerState,
   onPluginHostCall,
   searchRequest,
+  mygoSourceId,
   songs,
   folders,
   networkSources,
@@ -8767,6 +8771,7 @@ function LibraryView({
   pluginPlayerState: SongloftPlayerState;
   onPluginHostCall: (call: SongloftHostCall) => Promise<unknown>;
   searchRequest: number;
+  mygoSourceId: string;
   songs: Song[];
   folders: Folder[];
   networkSources: NetworkSource[];
@@ -8961,7 +8966,7 @@ function LibraryView({
           </>
         ) : null}
       </div>
-      {activeTab === "sources" ? <MygoLibrary key={userId} t={t} onPlay={onPlay} /> : activeTab === "tools" ? <PluginTools plugins={navigation.tools} t={t} theme={pluginTheme} playerState={pluginPlayerState} onHostCall={onPluginHostCall} /> : canManage && activeTab === "manage" ? (
+      {activeTab === "sources" ? <MygoLibrary key={userId} t={t} onPlay={onPlay} initialSourceId={mygoSourceId} /> : activeTab === "tools" ? <PluginTools plugins={navigation.tools} t={t} theme={pluginTheme} playerState={pluginPlayerState} onHostCall={onPluginHostCall} /> : canManage && activeTab === "manage" ? (
         <LibraryDirectoryManager
           directories={libraryDirectories}
           onDirectoriesChange={onLibraryDirectoriesChange}
@@ -10795,6 +10800,7 @@ function SettingsPanel({
   onTabChange,
   onOpenAlbums,
   onOpenPlaylists,
+  onOpenMygoSource,
   onUpdateProfile,
   pluginHostTheme,
   pluginHostPlayerState,
@@ -10843,6 +10849,7 @@ function SettingsPanel({
   onTabChange: (tab: SettingsTab) => void;
   onOpenAlbums: () => void;
   onOpenPlaylists: () => void;
+  onOpenMygoSource: (id: string) => void;
   onUpdateProfile: (nickname: string, avatarDataURL: string) => void;
   pluginHostTheme: "light" | "dark";
   pluginHostPlayerState: SongloftPlayerState;
@@ -11176,6 +11183,7 @@ function SettingsPanel({
             theme={pluginHostTheme}
             playerState={pluginHostPlayerState}
             onHostCall={onPluginHostCall}
+            onOpenMygoSource={onOpenMygoSource}
             onSurfaceChange={setPluginSurfaceOpen}
           />
         </div>

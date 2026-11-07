@@ -4,6 +4,7 @@ import type { createT } from "../i18n";
 import type { MygoCatalogEntry, MygoPlugin, MygoPreview } from "../features/plugins/mygo";
 import { mygoErrorMessage, mygoRepositoryFromOrigin } from "../features/plugins/mygo";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
+import { hasMygoSourceUI } from "../features/plugins/navigation";
 import "./MygoPlugins.css";
 
 type Translator = ReturnType<typeof createT>;
@@ -48,7 +49,7 @@ function InstallPreview({ preview, t, busy, error, onCancel, onInstall }: { prev
   </dialog>;
 }
 
-export function MygoPluginManager({ t }: { t: Translator }) {
+export function MygoPluginManager({ t, platformEnabled, onOpenSource }: { t: Translator; platformEnabled: boolean; onOpenSource: (id: string) => void }) {
   const [plugins, setPlugins] = useState<MygoPlugin[]>([]);
   const [catalog, setCatalog] = useState<MygoCatalogEntry[]>([]);
   const [catalogStatus, setCatalogStatus] = useState("");
@@ -131,7 +132,8 @@ export function MygoPluginManager({ t }: { t: Translator }) {
     <div className="mygo-cards">{plugins.map((plugin) => <article key={`${plugin.manifest.id}:${plugin.identity}`}>
       <div className="mygo-plugin-heading"><strong>{plugin.manifest.name}</strong><small>{plugin.manifest.version} · {plugin.enabled ? t("enabled") : t("disabled")}</small></div>
       <small className="mygo-origin">{plugin.origin}</small>
-      <div className="mygo-actions"><button disabled={busy} onClick={() => void run(() => api.mygoEnable(plugin.manifest.id, !plugin.enabled))}>{plugin.enabled ? t("disablePlugin") : t("enablePlugin")}</button><button disabled={busy} className="icon-danger" onClick={() => { setError(""); setDeleting(plugin); }}>{t("deletePlugin")}</button></div>
+      <p>{t(!hasMygoSourceUI(plugin) ? "mygoNoSourceUI" : !platformEnabled ? "mygoEnablePlatformHint" : !plugin.enabled ? "mygoEnableSourceHint" : "mygoSourceEntryHint")}</p>
+      <div className="mygo-actions">{hasMygoSourceUI(plugin) && <button type="button" className="mygo-primary mygo-open-source" disabled={busy || !platformEnabled || !plugin.enabled} onClick={() => onOpenSource(plugin.manifest.id)}>{t("mygoOpenSource")}</button>}<button disabled={busy} onClick={() => void run(() => api.mygoEnable(plugin.manifest.id, !plugin.enabled))}>{plugin.enabled ? t("disablePlugin") : t("enablePlugin")}</button><button disabled={busy} className="icon-danger" onClick={() => { setError(""); setDeleting(plugin); }}>{t("deletePlugin")}</button></div>
       <MygoSourceSettings key={plugin.identity} plugin={plugin} t={t} />
     </article>)}</div>
     </div>

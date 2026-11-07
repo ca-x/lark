@@ -3,7 +3,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { mygoSong, mygoStreamURL, mygoImageURL, mygoLyricsToLRC, validMygoQueue, normalizeMygoPage, mygoPageTracks, appendMygoPage, mygoRepositoryFromOrigin, mygoErrorMessage } from "./mygo.ts";
 import { songloftIdentity } from "./songloftIdentity.ts";
-import { pluginNavigation } from "./navigation.ts";
+import { hasMygoSourceUI, pluginNavigation } from "./navigation.ts";
+
+test("installed source entry and library navigation use the same capabilities", () => {
+  assert.equal(hasMygoSourceUI({ exports: ["stream", "search"] }), true);
+  assert.equal(hasMygoSourceUI({ exports: ["stream", "home"] }), true);
+  for (const exports of [[], ["stream"], ["signIn"], ["lyrics"], ["search"]]) {
+    assert.equal(hasMygoSourceUI({ exports }), false);
+  }
+});
 
 test("Docker frontend builds receive the QR renderer license before bundling", () => {
   const dockerfile = readFileSync(new URL("../../../../backend/Dockerfile", import.meta.url), "utf8");
