@@ -68,6 +68,29 @@ func TestManifestCompatibility(t *testing.T) {
 	}
 }
 
+func TestSongloftCalendarVersions(t *testing.T) {
+	for _, version := range []string{"2026.10.17.0", "2026.11.6.1"} {
+		manifest := validManifest("calendar-plugin")
+		manifest.Version = version
+		if err := ValidateManifest(manifest); err != nil {
+			t.Fatalf("official calendar version %s: %v", version, err)
+		}
+	}
+	for _, version := range []string{"2026.10.17.0oops", "2026.10.17.0.1", "2026.10.17.-1"} {
+		manifest := validManifest("calendar-plugin")
+		manifest.Version = version
+		if err := ValidateManifest(manifest); err == nil {
+			t.Fatalf("invalid version accepted: %s", version)
+		}
+	}
+	if CompareSemver("2026.10.17.1", "2026.10.17.0") <= 0 || CompareSemver("2026.10.17.0", "2026.10.17.1") >= 0 {
+		t.Fatal("fourth version component must participate in update ordering")
+	}
+	if CompareSemver("1.0.0-rc.1", "1.0.0") >= 0 {
+		t.Fatal("prerelease ordering changed")
+	}
+}
+
 func TestPermissionCompatibility(t *testing.T) {
 	if err := ValidatePermissions([]string{PermStorage, "songs.*", "playlists.*", "fs.*"}); err != nil {
 		t.Fatalf("ValidatePermissions: %v", err)

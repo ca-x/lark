@@ -48,6 +48,9 @@
 @media (prefers-reduced-motion: reduce) { .mygo-signin-prompt[open] { animation: none; } }
 .mygo-signin-qr { display: block; width: min(240px, 100%); height: auto; background: white; border-radius: 8px; image-rendering: pixelated; }
 .mygo-source-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 3px; }
+.mygo-account-status { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; border-block: 1px solid var(--line); }
+.mygo-account-status > span { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.mygo-account-status > p { flex-basis: 100%; margin: 0; }
 .mygo-panel .mygo-source-tabs > button { flex: 0 0 auto; width: auto; }
 .mygo-tracks { display: grid; gap: 8px; list-style: none; padding: 0; margin: 0; }
 .mygo-tracks li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); padding: 10px 0; }

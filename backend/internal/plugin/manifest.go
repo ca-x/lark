@@ -42,8 +42,9 @@ const (
 )
 
 var (
-	entryPathRegexp = regexp.MustCompile("^[a-z][a-z0-9-]*$")
-	semverRegexp    = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$`)
+	entryPathRegexp       = regexp.MustCompile("^[a-z][a-z0-9-]*$")
+	calendarVersionRegexp = regexp.MustCompile(`^(0|[1-9][0-9]*)(?:\.(0|[1-9][0-9]*)){3}$`)
+	semverRegexp          = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$`)
 )
 
 func ParseManifest(data []byte) (*Manifest, error) {
@@ -61,8 +62,8 @@ func ValidateManifest(manifest *Manifest) error {
 	if len(manifest.Name) < 2 || len(manifest.Name) > 50 {
 		return fmt.Errorf("name must be 2-50 characters, got %d", len(manifest.Name))
 	}
-	if !semverRegexp.MatchString(manifest.Version) {
-		return fmt.Errorf("version must be valid semver, got %q", manifest.Version)
+	if !semverRegexp.MatchString(manifest.Version) && !calendarVersionRegexp.MatchString(manifest.Version) {
+		return fmt.Errorf("version must be valid semver or a four-part numeric version, got %q", manifest.Version)
 	}
 	if !entryPathRegexp.MatchString(manifest.EntryPath) {
 		return fmt.Errorf("entryPath must match ^[a-z][a-z0-9-]*$, got %q", manifest.EntryPath)

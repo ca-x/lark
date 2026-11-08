@@ -420,27 +420,22 @@ func appendUnique(values []string, additions ...string) []string {
 }
 
 func CompareSemver(a, b string) int {
-	parse := func(value string) (major, minor, patch int, pre []string) {
+	parse := func(value string) (numbers [4]int, pre []string) {
 		parts := strings.SplitN(strings.TrimSpace(value), "+", 2)[0]
 		base := strings.SplitN(parts, "-", 2)
 		nums := strings.Split(base[0], ".")
-		if len(nums) > 0 {
-			fmt.Sscanf(nums[0], "%d", &major)
-		}
-		if len(nums) > 1 {
-			fmt.Sscanf(nums[1], "%d", &minor)
-		}
-		if len(nums) > 2 {
-			fmt.Sscanf(nums[2], "%d", &patch)
+		for index := range min(len(nums), len(numbers)) {
+			fmt.Sscanf(nums[index], "%d", &numbers[index])
 		}
 		if len(base) == 2 {
 			pre = strings.Split(base[1], ".")
 		}
 		return
 	}
-	am, an, ap, apre := parse(a)
-	bm, bn, bp, bpre := parse(b)
-	for _, pair := range [][2]int{{am, bm}, {an, bn}, {ap, bp}} {
+	aNumbers, apre := parse(a)
+	bNumbers, bpre := parse(b)
+	for index := range aNumbers {
+		pair := [2]int{aNumbers[index], bNumbers[index]}
 		if pair[0] != pair[1] {
 			if pair[0] > pair[1] {
 				return 1

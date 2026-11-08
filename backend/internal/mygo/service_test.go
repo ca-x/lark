@@ -54,10 +54,10 @@ func testPackage(t *testing.T, source string, extra map[string]string) []byte {
 	return buffer.Bytes()
 }
 
-func installedService(t *testing.T, source string) *Service {
+func installedService(t *testing.T, source string, options ...Option) *Service {
 	t.Helper()
 	store := &memoryStore{values: map[string][]byte{}}
-	service, err := New(t.Context(), store, t.TempDir())
+	service, err := New(t.Context(), store, t.TempDir(), options...)
 	if err != nil {
 		t.Fatal(err)
 	}

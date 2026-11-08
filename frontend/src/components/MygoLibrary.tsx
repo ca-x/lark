@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { createT } from "../i18n";
 import type { Song } from "../types";
 import { api } from "../services/api";
-import { appendMygoPage, mygoPageTracks, mygoImageURL, mygoSong, normalizeMygoPage, notifyMygoLike, type MygoLike, type MygoEntity, type MygoPage, type MygoPlugin, type MygoTrack } from "../features/plugins/mygo";
+import { appendMygoPage, mygoPageTracks, mygoImageURL, mygoSong, normalizeMygoPage, notifyMygoLike, type MygoAccount, type MygoLike, type MygoEntity, type MygoPage, type MygoPlugin, type MygoTrack } from "../features/plugins/mygo";
 import { MygoSourceSettings } from "./MygoPlugins";
 import { mygoErrorMessage } from "../features/plugins/mygo";
 import { MygoSignInPrompt } from "./MygoSignInPrompt";
@@ -34,6 +34,10 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [account, setAccount] = useState<MygoAccount | null>(null);
+  const [accountLoading, setAccountLoading] = useState(active.exports.includes("account"));
+  const [accountError, setAccountError] = useState("");
+  const accountRequest = useRef(0);
   const [liked, setLiked] = useState<Record<string, boolean>>({});
   const [playlists, setPlaylists] = useState<MygoEntity[]>([]);
   const [target, setTarget] = useState("");
@@ -47,6 +51,14 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
   const can = (method: string) => active.exports.includes(method);
   const call = <T = MygoPage,>(method: string, params: unknown = {}, signal?: AbortSignal) => api.mygoCall<T>(source, method, params, active.identity, signal);
   useEffect(() => () => signInRequest.current?.abort(), []);
+  useEffect(() => {
+    if (!active.exports.includes("account")) return;
+    const controller = new AbortController();
+    const refresh = () => { if (!signInRequest.current) void refreshAccount(controller.signal); };
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => { controller.abort(); window.removeEventListener("focus", refresh); };
+  }, [active.identity]);
   useEffect(() => { if (active.exports.includes("home")) void load("home"); }, [active.identity]);
 
   useEffect(() => {
@@ -59,11 +71,25 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
   }, [source, active.identity]);
 
   async function run(action: () => Promise<unknown>) {
-    if (busy || !source) return;
+    if (busy || !source) return false;
     setBusy(true); setError(""); setNotice("");
-    try { await action(); }
-    catch (error) { setError(mygoErrorMessage(error)); }
+    try { await action(); return true; }
+    catch (error) { setError(mygoErrorMessage(error)); return false; }
     finally { setBusy(false); }
+  }
+
+  async function refreshAccount(signal?: AbortSignal) {
+    if (!can("account")) return;
+    const request = ++accountRequest.current;
+    setAccountLoading(true); setAccountError("");
+    try {
+      const value = await call<MygoAccount | null>("account", {}, signal);
+      if (!signal?.aborted && request === accountRequest.current) setAccount(value);
+    } catch (error) {
+      if (!signal?.aborted && request === accountRequest.current) setAccountError(mygoErrorMessage(error));
+    } finally {
+      if (!signal?.aborted && request === accountRequest.current) setAccountLoading(false);
+    }
   }
 
   async function load(method: string, params: Record<string, unknown> = {}, append = false) {
@@ -84,7 +110,8 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
   }
 
   async function signIn() {
-    await run(async () => {
+    let signedIn = false;
+    const completed = await run(async () => {
       const controller = new AbortController();
       signInRequest.current = controller;
       setPrompt({ text: t("loading") });
@@ -94,10 +121,32 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
         polling = true;
         void api.mygoPrompt(source, active.identity).then((value) => { if (!controller.signal.aborted) setPrompt(value || { text: t("loading") }); }).catch(() => undefined).finally(() => { polling = false; });
       }, 1000);
-      try { const account = await call<{ name?: string }>("signIn", {}, controller.signal); setNotice(account?.name || t("done")); }
+      try {
+        const profile = await call<MygoAccount | null>("signIn", {}, controller.signal);
+        if (!controller.signal.aborted) {
+          signedIn = true;
+          setPrompt(null);
+          accountRequest.current++;
+          setAccount(profile || null); setPage({}); setLiked({}); setPlaylists([]); setTarget("");
+          setNotice(profile?.name || t("done"));
+          await refreshAccount(controller.signal);
+        }
+      }
       catch (error) { if (!controller.signal.aborted) throw error; }
       finally { window.clearInterval(timer); signInRequest.current = null; setPrompt(null); }
     });
+    if (completed && signedIn && can("home")) await load("home");
+  }
+
+  async function signOut() {
+    const completed = await run(async () => {
+      await call("signOut");
+      accountRequest.current++;
+      setAccount(null); setAccountError(""); setPage({}); setLiked({}); setPlaylists([]); setTarget("");
+      setNotice(t("done"));
+      await refreshAccount();
+    });
+    if (completed && can("home")) await load("home");
   }
 
   async function like(track: MygoTrack) {
@@ -131,14 +180,19 @@ function MygoSourceBrowser({ active, plugins, onSelect, t, onPlay }: { active: M
         {plugins.map((plugin) => <option key={plugin.manifest.id} value={plugin.manifest.id}>{plugin.manifest.name}</option>)}
       </select></label>
       <MygoSourceSettings key={source} plugin={active} t={t} />
+      {can("account") && <div className="mygo-account-status" data-state={accountLoading ? "loading" : accountError ? "unknown" : account ? "signed-in" : "signed-out"}>
+        <span role="status">{accountLoading ? t("mygoAccountChecking") : accountError ? t("mygoAccountUnknown") : account ? `${t("mygoAccountSignedIn")} · ${account.name || account.id}` : t("mygoAccountSignedOut")}</span>
+        <button type="button" disabled={busy || accountLoading} onClick={() => void refreshAccount()}>{t("mygoAccountRefresh")}</button>
+        {accountError && <p role="alert" className="plugin-feedback error">{accountError}</p>}
+      </div>}
       <nav className="mygo-source-tabs" aria-label={t("mygoSources")}>
         {can("home") && <button disabled={busy} onClick={() => void load("home")}>{t("mygoHome")}</button>}
         {can("liked") && <button disabled={busy} onClick={() => void load("liked", { offset: 0 })}>{t("mygoLiked")}</button>}
         {can("playlists") && <button disabled={busy} onClick={() => void load("playlists")}>{t("mygoLoadPlaylists")}</button>}
         {(active.manifest.navigation || []).filter((nav) => nav.page && can("browse")).map((nav) => <button key={nav.page} disabled={busy} onClick={() => void load("browse", { page: nav.page })}>{nav.title}</button>)}
         {(active.manifest.navigation || []).filter((nav) => nav.builtin && !["home", "liked", "playlists"].includes(nav.builtin) && can(nav.builtin)).map((nav) => <button key={nav.builtin} disabled={busy} onClick={() => void load(nav.builtin!, { offset: 0 })}>{nav.title || nav.builtin}</button>)}
-        {can("signIn") && <button disabled={busy} onClick={() => void signIn()}>{t("mygoSignIn")}</button>}
-        {can("signOut") && <button disabled={busy} onClick={() => void run(async () => { await call("signOut"); setNotice(t("done")); })}>{t("mygoSignOut")}</button>}
+        {can("signIn") && (!can("account") || !account || accountError) && <button disabled={busy || accountLoading} onClick={() => void signIn()}>{t("mygoSignIn")}</button>}
+        {can("signOut") && (!can("account") || account) && <button disabled={busy} onClick={() => void signOut()}>{t("mygoSignOut")}</button>}
       </nav>
       {can("search") && <form className="mygo-actions" onSubmit={(event) => { event.preventDefault(); void load("search", { query, kind: "tracks", offset: 0 }); }}><label><span className="sr-only">{t("search")}</span><input value={query} placeholder={t("search")} onChange={(event) => setQuery(event.target.value)} /></label><button disabled={busy || !query.trim()}>{t("search")}</button></form>}
       {can("createPlaylist") && <form className="mygo-actions" onSubmit={(event) => { event.preventDefault(); void run(async () => { const playlist = await call<MygoEntity>("createPlaylist", { name: playlistName }); setPlaylists((old) => [...old, playlist]); setTarget(playlist.id); setPlaylistName(""); setNotice(t("done")); }); }}><label><span className="sr-only">{t("mygoPlaylistName")}</span><input placeholder={t("mygoPlaylistName")} value={playlistName} onChange={(event) => setPlaylistName(event.target.value)} /></label><button disabled={busy || !playlistName.trim()}>{t("mygoCreatePlaylist")}</button></form>}

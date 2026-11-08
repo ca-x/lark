@@ -13,9 +13,18 @@ import (
 )
 
 func TestRealNeteasePackageSignIn(t *testing.T) {
-	fixture := os.Getenv("LARK_MYGO_NETEASE_FIXTURE")
+	testRealNeteaseSignInAndPlayback(t, "LARK_MYGO_NETEASE_FIXTURE", "0.1.3")
+}
+
+func TestRealNeteaseV016SignInAndPlayback(t *testing.T) {
+	testRealNeteaseSignInAndPlayback(t, "LARK_MYGO_NETEASE_V016_FIXTURE", "0.1.6")
+}
+
+func testRealNeteaseSignInAndPlayback(t *testing.T, environment, version string) {
+	t.Helper()
+	fixture := os.Getenv(environment)
 	if fixture == "" {
-		t.Skip("set LARK_MYGO_NETEASE_FIXTURE to sogud/mygo-music-netease v0.1.3 ZIP")
+		t.Skipf("set %s to the original sogud/mygo-music-netease v%s ZIP", environment, version)
 	}
 	contents, err := os.ReadFile(fixture)
 	if err != nil {
@@ -42,6 +51,8 @@ func TestRealNeteasePackageSignIn(t *testing.T) {
 					t.Error("login cookie was not forwarded")
 				}
 				body = `{"code":200,"profile":{"userId":123,"nickname":"Fixture account","avatarUrl":"https://music.163.com/avatar.jpg"}}`
+			case "interfacepc.music.163.com/eapi/song/enhance/player/url/v1":
+				body = `{"code":200,"data":[{"id":123,"code":200,"url":"https://m801.music.126.net/normal.mp3","type":"mp3","level":"exhigh"},{"id":456,"code":200,"url":"https://m802.music.126.net/cloud.mp3","type":"mp3","level":"exhigh"}]}`
 			default:
 				t.Errorf("unexpected plugin request: %s", request.URL)
 				body = `{"code":500}`
@@ -53,12 +64,12 @@ func TestRealNeteasePackageSignIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = service.Close(context.Background()) })
-	preview, err := service.Preview(t.Context(), contents, "https://github.com/sogud/mygo-music-netease@v0.1.3")
+	preview, err := service.Preview(t.Context(), contents, "https://github.com/sogud/mygo-music-netease@v"+version)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.Manifest.ID != "netease" || preview.Manifest.Version != "0.1.3" {
-		t.Fatal("fixture must be the requested NetEase v0.1.3 package")
+	if preview.Manifest.ID != "netease" || preview.Manifest.Version != version {
+		t.Fatalf("fixture must be the requested NetEase v%s package", version)
 	}
 	installed, err := service.Install(t.Context(), preview.Token)
 	if err != nil {
@@ -102,6 +113,17 @@ func TestRealNeteasePackageSignIn(t *testing.T) {
 			}
 			if !qrSeen || polls.Load() != 1 {
 				t.Fatal("QR prompt/poll sequence incomplete")
+			}
+			for _, track := range []string{"123", "456"} {
+				media, err := service.Stream(t.Context(), 1, "netease", track, "high")
+				if err != nil {
+					t.Fatal("signed-in playback through the NetEase CDN failed:", err)
+				}
+				if !strings.Contains(media.URL, ".music.126.net/") || media.Headers.Get("Referer") != "https://music.163.com/" {
+					media.Release()
+					t.Fatal("playback URL or source headers lost")
+				}
+				media.Release()
 			}
 			account, err := service.Call(t.Context(), 2, "netease", "account", nil)
 			if err != nil || string(account) != "null" {

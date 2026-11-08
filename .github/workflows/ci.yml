@@ -45,6 +45,7 @@ jobs:
         working-directory: frontend
         run: |
           pnpm test:mygo
+          pnpm test:songloft
           pnpm build
 
 

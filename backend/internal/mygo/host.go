@@ -160,7 +160,7 @@ func (s *Session) Headers(address *url.URL, kind string) (http.Header, error) {
 	if err := pluginruntime.ValidateURL(address); err != nil {
 		return nil, err
 	}
-	if !s.reaches(address.Hostname()) {
+	if kind != "audio" && !s.reaches(address.Hostname()) {
 		return nil, errors.New("media host is outside network permission")
 	}
 	s.dataMu.Lock()

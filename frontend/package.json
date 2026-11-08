@@ -1,10 +1,11 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.18.14",
+  "version": "0.18.15",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
+    "test:songloft": "node --experimental-strip-types --test src/components/PluginHost.test.mjs src/features/plugins/songloftSong.test.mjs src/features/plugins/songloftPlayerMode.test.mjs",
     "test:mygo": "node --experimental-strip-types --test src/features/plugins/mygo.test.mjs",
     "test:plugin-workspace": "node scripts/check-settings-workspace.mjs --plugin-flow-only && node scripts/check-settings-workspace.mjs --plugin-layout-only",
     "dev": "vite",

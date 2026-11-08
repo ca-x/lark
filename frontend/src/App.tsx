@@ -183,6 +183,7 @@ import { MygoLibrary } from "./components/MygoLibrary";
 import { PluginTools } from "./components/PluginTools";
 import { usePluginNavigation } from "./hooks/usePluginNavigation";
 import { mygoLyricsToLRC, notifyMygoLike, validMygoQueue, type MygoLike } from "./features/plugins/mygo";
+import { toSongloftSong } from "./features/plugins/songloftSong";
 import {
   fromSongloftPlayMode,
   toSongloftPlayMode,
@@ -1815,6 +1816,7 @@ export default function App() {
       : radio
         ? `radio:${radio.id || radio.url}`
         : `network:${networkTrack?.source_id}:${networkTrack?.id}`;
+    if (audio.error) audio.load();
     pendingAutoplayRef.current = true;
     resumeEqualizer();
     void audio.play().then(() => {
@@ -1839,11 +1841,12 @@ export default function App() {
             : "";
       if (activeKey !== requestedKey) return;
       const name = error instanceof DOMException ? error.name : "";
-      if (name === "AbortError" || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (audio.error && !pendingAutoplayRef.current) return;
+      if (name === "AbortError" || (!audio.error && audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)) {
         pendingAutoplayRef.current = true;
         return;
       }
-      if (
+      if (audio.error?.code !== 3 && audio.error?.code !== 4 &&
         shouldPreservePlaybackIntentOnMediaError(
           playingRef.current || pendingAutoplayRef.current,
           document.visibilityState,
@@ -1854,8 +1857,9 @@ export default function App() {
         return;
       }
       pendingAutoplayRef.current = false;
+      setBuffering(false);
       setPlaying(false);
-      showMessage(t("playbackFailed"));
+      showMessage(t(currentRef.current?.mygo ? "mygoPlaybackFailed" : "playbackFailed"));
     });
   }, [resumeEqualizer, t]);
 
@@ -2661,15 +2665,17 @@ export default function App() {
     setBuffering(true);
     if (
       !shouldHandleStallAsNetworkIssue(document.visibilityState) ||
+      currentRef.current?.mygo ||
       streamModeRef.current === "adaptive" ||
       stallDowngradeTimerRef.current != null
     )
       return;
     const stalledAt = media.currentTime || 0;
+    const stalledSongId = currentRef.current?.id;
     stallDowngradeTimerRef.current = window.setTimeout(() => {
       stallDowngradeTimerRef.current = null;
       const audio = audioRef.current;
-      if (!audio || !currentRef.current || streamModeRef.current === "adaptive") return;
+      if (!audio || !currentRef.current || currentRef.current.id !== stalledSongId || currentRef.current.mygo || streamModeRef.current === "adaptive") return;
       const barelyMoved = Math.abs((audio.currentTime || 0) - stalledAt) < 0.25;
       const lowBuffer = bufferedAhead(audio) < 2.5;
       if (
@@ -3758,6 +3764,7 @@ export default function App() {
       await playSongToDLNADevice(dlnaStatus.device_id, song, list, options);
       return;
     }
+    clearStallDowngradeTimer();
     const sameSong = current?.id === song.id;
     if (current && !sameSong) {
       syncPlaybackProgress(false);
@@ -3782,6 +3789,7 @@ export default function App() {
     setQueue(nextQueue);
     setDuration((value) => value || song.duration_seconds || 0);
     if (sameSong && audioRef.current) {
+      if (audioRef.current.error) audioRef.current.load();
       audioRef.current.currentTime = 0;
       setProgress(0);
       const mediaDuration = audioRef.current.duration;
@@ -5367,9 +5375,9 @@ export default function App() {
   const pluginHostTheme = themes.find((theme) => theme.id === settings.theme)?.mode ?? "dark";
   const songloftPlayMode = toSongloftPlayMode(playMode);
   const pluginHostPlayerState: SongloftPlayerState = {
-    queue,
+    queue: queue.map(toSongloftSong),
     current_index: current ? queue.findIndex((song) => song.id === current.id) : -1,
-    current_song: current,
+    current_song: current ? toSongloftSong(current) : null,
     is_playing: remoteDLNAPlaying || playing,
     current_time: progress,
     duration: duration || current?.duration_seconds || 0,
@@ -5401,9 +5409,29 @@ export default function App() {
       throw new Error("getCookies is not available on the web platform");
     }
     if (ns === "favorite" && method === "refresh") {
-      const songID = numberParam("songId");
-      const refreshed = await api.song(songID);
-      updateSongState(refreshed);
+      const session = favoriteSessionRef.current;
+      if (params.songId == null || params.isFavorited == null) {
+        const favorites = await api.songsPage("", 1, FAVORITES_FETCH_LIMIT, true);
+        const favoriteItems = [...favorites.items];
+        for (let page = 2; favoriteItems.length < favorites.total; page++) {
+          const next = await api.songsPage("", page, FAVORITES_FETCH_LIMIT, true);
+          if (!next.items.length) throw new Error("favorite refresh returned an incomplete page");
+          favoriteItems.push(...next.items);
+          if (session !== favoriteSessionRef.current) return null;
+        }
+        if (session !== favoriteSessionRef.current) return null;
+        const favoriteIDs = new Set(favoriteItems.map(song => song.id));
+        const visibleSongs = uniqueSongs([...songs, ...queue, ...recentPlayedSongs, ...recentAddedSongs, ...dailyMix, ...(collection?.songs || []), ...(current ? [current] : [])]);
+        const refreshed = visibleSongs.filter(song => song.id > 0 && !song.mygo).map(song => ({ ...song, favorite: favoriteIDs.has(song.id) }));
+        applyUpdatedSongs(refreshed);
+        setFavoriteSongs(favoriteItems);
+      } else {
+        const songID = numberParam("songId");
+        if (!Number.isInteger(songID) || songID <= 0 || typeof params.isFavorited !== "boolean") throw new Error("invalid favorite state");
+        const refreshed = await api.song(songID);
+        if (session !== favoriteSessionRef.current) return null;
+        updateSongState(refreshed);
+      }
       return null;
     }
     if (ns !== "player") throw new Error(`unknown namespace: ${ns}`);
@@ -6759,7 +6787,7 @@ export default function App() {
           onPause={() => syncPlaybackProgress(false)}
           onError={(event) => {
             clearStallDowngradeTimer();
-            if (
+            if (event.currentTarget.error?.code !== 3 && event.currentTarget.error?.code !== 4 &&
               shouldPreservePlaybackIntentOnMediaError(
                 playingRef.current || pendingAutoplayRef.current,
                 document.visibilityState,
@@ -6768,7 +6796,7 @@ export default function App() {
               preservePlaybackIntentAfterMediaError(event.currentTarget);
               return;
             }
-            if (streamMode === "adaptive") {
+            if (streamMode === "adaptive" && !currentRef.current?.mygo) {
               const mediaTime = event.currentTarget.currentTime || 0;
               const resumeAt =
                 mediaTime > 0.05
@@ -6784,12 +6812,13 @@ export default function App() {
             }
             pendingAutoplayRef.current = false;
             event.currentTarget.pause();
+            setBuffering(false);
             setPlaying(false);
             setRadioDownloadKbps(0);
             radioDownloadSampleRef.current = { at: 0, ahead: 0 };
             setStreamOffset(0);
             setProgress(0);
-            showMessage(t("playbackFailed"));
+            showMessage(t(currentRef.current?.mygo ? "mygoPlaybackFailed" : "playbackFailed"));
           }}
           onEnded={() => next(1, true)}
         />

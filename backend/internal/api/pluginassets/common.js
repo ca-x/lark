@@ -720,6 +720,15 @@
         return invokeHost('cookies', 'get', { origin: origin });
     }
 
+    var favorite = {
+        refresh: function(songId, isFavorited) {
+            if (songId === undefined || songId === null || isFavorited === undefined || isFavorited === null) {
+                return invokeHost('favorite', 'refresh');
+            }
+            return invokeHost('favorite', 'refresh', { songId: songId, isFavorited: isFavorited });
+        }
+    };
+
     window.SongloftPlugin = {
         getAuthToken: getAuthToken,
         apiGet: apiGet,
@@ -749,7 +758,9 @@
         applyShims: function() {},
         host: host,
         player: player,
-        getCookies: getCookies
+        getCookies: getCookies,
+        favorite: favorite,
+        invokeHost: invokeHost
     };
 
     // 供 webf-shims.js 复用的内部句柄（**非公开 API**，插件请勿依赖）。

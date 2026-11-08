@@ -30,11 +30,23 @@ let sounds = { enabled: false, volume: 0.5 };
 let history = { separate_by_device: false };
 const writes = [];
 const pluginFlow = process.argv.includes("--plugin-flow-only");
-const sourceFixture = { manifest: { id: "netease", name: "网易云音乐", version: "0.1.3", playback: "stream", permissions: { network: ["music.163.com"] } }, identity: "github:sogud/mygo-music-netease", origin: "https://github.com/sogud/mygo-music-netease@v0.1.3", digest: "a".repeat(64), enabled: false, exports: ["home", "search", "stream", "signIn", "signOut"] };
+const sourceFixture = { manifest: { id: "netease", name: "网易云音乐", version: "0.1.3", playback: "stream", permissions: { network: ["music.163.com"] } }, identity: "github:sogud/mygo-music-netease", origin: "https://github.com/sogud/mygo-music-netease@v0.1.3", digest: "a".repeat(64), enabled: false, exports: ["account", "home", "search", "stream", "signIn", "signOut"] };
 let mygoPlugins = [];
 let pluginPlatform = { mygo: false, songloft: true };
 let toolPlugins = [{ id: 1, name: "Fixture tool", description: "Frontend capability", version: "1.0.0", entry_path: "tool", status: "active", has_frontend: true, permissions: [], render_engine: "web" }];
 let canceledSignIns = 0;
+let sourceAccount = null;
+let pendingSourceSignIn = null;
+let sourceTracks = [];
+let streamRequests = 0;
+let streamFailure = true;
+let failAccount = false;
+const toolSongs = [1, 2, 3].map(id => ({ id, title: `Tool fixture ${id}`, artist: "Fixture", album: "Fixture", duration_seconds: 2, favorite: false, source_type: "local", path: `fixture-${id}.wav`, file_name: `fixture-${id}.wav`, format: "wav", mime: "audio/wav" }));
+const sourceAudio = Buffer.alloc(44 + 32000);
+sourceAudio.write("RIFF", 0); sourceAudio.writeUInt32LE(sourceAudio.length - 8, 4); sourceAudio.write("WAVEfmt ", 8);
+sourceAudio.writeUInt32LE(16, 16); sourceAudio.writeUInt16LE(1, 20); sourceAudio.writeUInt16LE(1, 22);
+sourceAudio.writeUInt32LE(8000, 24); sourceAudio.writeUInt32LE(16000, 28); sourceAudio.writeUInt16LE(2, 32); sourceAudio.writeUInt16LE(16, 34);
+sourceAudio.write("data", 36); sourceAudio.writeUInt32LE(32000, 40);
 let failDelete = false;
 const pluginDeletes = [];
 const server = createServer(async (request, response) => {
@@ -56,17 +68,33 @@ const server = createServer(async (request, response) => {
       if (path === "/api/mygo/preview") result = { ...sourceFixture, token: "reviewed-package" };
       if (path === "/api/mygo/install") { mygoPlugins = [structuredClone(sourceFixture)]; result = mygoPlugins[0]; }
       if (path === "/api/mygo/plugins/netease/enabled") { mygoPlugins[0].enabled = true; result = {}; }
-      if (path.endsWith("/call/signIn")) { response.on("close", () => { canceledSignIns++; }); return; }
+      if (path.endsWith("/call/signIn")) { pendingSourceSignIn = response; response.on("close", () => { canceledSignIns++; }); return; }
+      if (path.endsWith("/call/account")) {
+        if (failAccount) { response.writeHead(503, { "Content-Type": "application/json" }).end(JSON.stringify({ message: "Fixture account check unavailable" })); return; }
+        result = sourceAccount;
+      }
+      if (path.endsWith("/call/signOut")) { sourceAccount = null; result = null; }
       if (path.endsWith("/prompt")) result = { qr: "https://music.163.com/login?codekey=fixture", text: "请扫码并确认登录" };
-      if (path.endsWith("/call/home")) result = { title: "Fixture source home", tracks: [] };
-      if (request.method === "DELETE") {
+      if (path.endsWith("/call/home")) result = { title: "Fixture source home", tracks: sourceTracks };
+      if (path === "/api/mygo/plugins/netease/stream") {
+        streamRequests++;
+        if (streamFailure) { response.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ message: "unavailable: fixture track cannot be played" })); return; }
+        const range = request.headers.range?.match(/^bytes=(\d+)-(\d*)$/);
+        const start = range ? Number(range[1]) : 0;
+        const end = range?.[2] ? Math.min(Number(range[2]), sourceAudio.length - 1) : sourceAudio.length - 1;
+        response.writeHead(range ? 206 : 200, { "Content-Type": "audio/wav", "Accept-Ranges": "bytes", "Content-Length": end - start + 1, ...(range ? { "Content-Range": `bytes ${start}-${end}/${sourceAudio.length}` } : {}) }).end(sourceAudio.subarray(start, end + 1)); return;
+      }
+      if (request.method === "DELETE" && /^\/api\/(mygo\/)?plugins\//.test(path)) {
         pluginDeletes.push(path);
         if (failDelete) { response.writeHead(500, { "Content-Type": "application/json" }).end(JSON.stringify({ message: "Fixture delete failure" })); return; }
         if (path === "/api/mygo/plugins/netease") mygoPlugins = [];
         if (path === "/api/plugins/1") toolPlugins = [];
         result = {};
       }
-      if (path.includes("/static/index.html")) { response.writeHead(200, { "Content-Type": "text/html" }).end("<!doctype html><html><body>Fixture tool</body></html>"); return; }
+      if (path === "/api/v1/jsplugin-assets/common.js") { response.writeHead(200, { "Content-Type": "text/javascript" }).end(await readFile(new URL("../../backend/internal/api/pluginassets/common.js", import.meta.url))); return; }
+      if (path.includes("/static/index.html")) { response.writeHead(200, { "Content-Type": "text/html" }).end('<!doctype html><html><body>Fixture tool<script src="/api/v1/jsplugin-assets/common.js"></script><script>window.states=[];SongloftPlugin.player.onStateChange(state=>window.states.push(state));</script></body></html>'); return; }
+      if (/^\/api\/songs\/\d+$/.test(path)) result = toolSongs.find(song => song.id === Number(path.split("/").at(-1)));
+      if (/^\/api\/songs\/\d+\/stream$/.test(path)) { response.writeHead(200, { "Content-Type": "audio/wav", "Content-Length": sourceAudio.length }).end(sourceAudio); return; }
       if (result !== undefined) { response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(result)); return; }
     }
     let payload;
@@ -92,7 +120,7 @@ const server = createServer(async (request, response) => {
       "/api/playback/queue": { queue: { song_ids: [], current_id: 0 } },
       "/api/library/stats": { songs: 0, albums: 0, artists: 0, playlists: 0 },
       "/api/library/review-summary": { incomplete_songs: 0 },
-      "/api/songs/page": { items: [], total: 0, page: 1, limit: 100 },
+      "/api/songs/page": { items: pluginFlow && new URL(request.url, "http://localhost").searchParams.get("favorites") === "true" ? toolSongs.filter(song => song.favorite) : [], total: pluginFlow ? toolSongs.filter(song => song.favorite).length : 0, page: 1, limit: 100 },
       "/api/albums/page": { items: [], total: 0, page: 1, limit: 100 },
       "/api/artists/page": { items: [], total: 0, page: 1, limit: 100 },
       "/api/playlists/page": { items: [], total: 0, page: 1, limit: 100 },
@@ -318,6 +346,8 @@ try {
     await browser("wait", "--fn", "!!document.querySelector('.mygo-source-tabs')");
     assert.equal(await evaluate("document.querySelector('.mygo-repository select').value"), "netease");
     await browser("wait", "--fn", "document.querySelector('.mygo-panel').textContent.includes('Fixture source home')");
+    assert.ok(await evaluate("!!document.querySelector('.mygo-account-status')"), "Sources must display persistent account status");
+    await browser("wait", "--fn", "document.querySelector('.mygo-account-status').textContent.includes('未登录')");
     mygoPlugins = mygoPlugins.filter((plugin) => plugin.manifest.id !== "other-source");
     await evaluate("window.dispatchEvent(new Event('lark:plugins-changed')); true");
     await browser("set", "viewport", "390", "844");
@@ -340,6 +370,23 @@ try {
     await browser("click", ".mygo-catalog button");
     await browser("wait", "--fn", "!!document.querySelector('.plugin-surface iframe')");
     assert.ok(await evaluate("document.querySelector('.plugin-surface iframe').src.includes('/api/v1/jsplugin/tool/static/index.html')"));
+    await browser("wait", "--fn", "!!document.querySelector('.plugin-surface iframe').contentWindow.SongloftPlugin");
+    const inTool = async expression => evaluate(`(async () => { const tool = document.querySelector('.plugin-surface iframe').contentWindow; const sdk = tool.SongloftPlugin; return ${expression}; })()`);
+    assert.equal(await inTool("typeof sdk.invokeHost"), "function");
+    assert.equal(await inTool("typeof sdk.favorite?.refresh"), "function");
+    await browser("click", ".plugin-surface-title");
+    await inTool("sdk.player.setQueue([1,2,3],0)");
+    await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.some(state=>state.current_time>0.05)");
+    await inTool("sdk.player.pause()");
+    await inTool("sdk.player.reorderQueue(1,2)");
+    await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.at(-1)?.queue[1]?.id===3");
+    toolSongs[0].favorite = true;
+    await inTool("sdk.favorite.refresh(1,true)");
+    await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.at(-1)?.current_song?.favorite===true");
+    toolSongs[0].favorite = false;
+    await inTool("sdk.favorite.refresh()");
+    await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.at(-1)?.current_song?.favorite===false");
+    await inTool("sdk.player.clearQueue()");
     await clickLibraryTab("音乐源");
     await browser("click", ".mygo-source-tabs button:first-child");
     await browser("wait", "--fn", "document.querySelector('.mygo-panel').textContent.includes('Fixture source home')");
@@ -354,6 +401,41 @@ try {
     await browser("wait", "--fn", "!document.querySelector('.mygo-signin-prompt')");
     assert.ok(canceledSignIns >= 1, "Cancel must abort the login request");
     await browser("set", "viewport", "1440", "900");
+    await evaluate("[...document.querySelectorAll('.mygo-source-tabs button')].find(button=>button.textContent==='登录音乐源').click(); true");
+    await browser("wait", "--fn", "!!document.querySelector('.mygo-signin-qr')");
+    sourceAccount = { id: "fixture-listener", name: "Fixture signed-in listener" };
+    pendingSourceSignIn.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(sourceAccount));
+    await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'signed-in'");
+    assert.ok(await evaluate("document.querySelector('.mygo-account-status').textContent.includes('Fixture signed-in listener')"));
+    await openSettings(); await selectCategory("plugins");
+    await browser("click", "#mygo-tab-installed");
+    await clickVisible("#mygo-panel-installed .mygo-open-source");
+    await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'signed-in'");
+    failAccount = true;
+    await browser("click", ".mygo-account-status button");
+    await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'unknown'");
+    assert.ok(await evaluate("!document.querySelector('.mygo-account-status').textContent.includes('未登录')"), "Account lookup failure must not falsely report signed out");
+    failAccount = false;
+    await browser("click", ".mygo-account-status button");
+    await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'signed-in'");
+    sourceTracks = [{ id: "playback-fixture", name: "Playback fixture", duration: 2000, artists: [] }];
+    await browser("click", ".mygo-source-tabs button:first-child");
+    await browser("wait", "--fn", "!!document.querySelector('.mygo-tracks li') && !document.querySelector('.mygo-tracks button').disabled");
+    await clickVisible(".mygo-tracks li button:first-child");
+    await browser("wait", "--fn", "!!document.querySelector('audio').error");
+    assert.ok(streamRequests > 0, "Browser playback must request the plugin audio endpoint");
+    await browser("wait", "--fn", "!document.querySelector('.player').textContent.includes('正在缓冲') && !!document.querySelector('.player button[aria-label=\"播放\"]')");
+    assert.ok(await evaluate("document.body.textContent.includes('音乐源播放失败')"), "Terminal source errors must be visible instead of buffering forever");
+    const failedStreamRequests = streamRequests;
+    streamFailure = false;
+    await browser("click", '.player .transport .play[aria-label="播放"]');
+    await browser("wait", "--fn", "!document.querySelector('audio').error && document.querySelector('audio').currentTime > 0.05 && !document.querySelector('audio').paused");
+    assert.ok(streamRequests > failedStreamRequests, "Retrying with the footer play button must reload the failed media request");
+    await browser("screenshot", `${artifacts}/mygo-signed-in-playback.png`);
+    await evaluate("document.querySelector('audio').pause(); true");
+    await evaluate("[...document.querySelectorAll('.mygo-source-tabs button')].find(button=>button.textContent==='退出音乐源').click(); true");
+    await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'signed-out'");
+    sourceTracks = [];
     await openSettings(); await selectCategory("plugins");
     await browser("click", "#mygo-tab-installed");
     await clickVisible("#mygo-panel-installed .icon-danger");

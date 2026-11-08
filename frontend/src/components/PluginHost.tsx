@@ -170,7 +170,7 @@ export function PluginHost({
     if (frameState === "ready") pushPluginContext();
   }, [frameState, theme]);
 
-  const stateSignature = `${playerState.current_index}|${playerState.current_song ? JSON.stringify(playerState.current_song) : ""}|${playerState.is_playing}|${playerState.play_mode}|${playerState.queue.length}|${playerState.volume}`;
+  const stateSignature = JSON.stringify(playerState);
   useEffect(() => {
     if (frameState === "ready") {
       pushPlayerState();

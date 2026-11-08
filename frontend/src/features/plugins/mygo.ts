@@ -11,6 +11,7 @@ export interface MygoTrack {
   unavailable?: boolean;
 }
 export interface MygoEntity { id: string; name: string; imageUrl?: string; tracks?: MygoTrack[] }
+export interface MygoAccount { id: string; name: string; imageUrl?: string }
 export interface MygoPage {
   title?: string;
   tracks?: MygoTrack[];

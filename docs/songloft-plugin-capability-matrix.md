@@ -13,7 +13,9 @@ API 保持 SongLoft 兼容；宿主能力是否可用由权限和下表共同决
 | 歌曲 | `list`、`getById`、`search` | `songs.read` | 可用 |
 | 歌曲写入 | `create`、`update`、`delete` | `songs.write` | 按 Lark 服务能力开放 |
 | 歌曲下载/整理 | `download`、`organize*` | `songs.write` | 没有等价宿主服务时返回 `host_capability_unavailable` |
-| 歌单 | 读取、创建、更新、删除、加歌、移除、排序 | `playlists.read/write` | 可用 |
+| 普通歌单 | 读取、创建、更新、删除、加歌、移除、排序 | `playlists.read/write` | 可用；ID 为 Lark 普通歌单 ID |
+| 内置收藏歌单 | Songloft 固定 ID 1 的「收藏」 | `playlists.read/write` | 尚无兼容映射；不能把 Lark 普通歌单 ID 1 当作收藏，依赖此约定的插件收藏操作暂不兼容 |
+| 电台导入 | `/api/v1/songs/radio`、`type:radio` 歌单 | `songs.write`、`playlists.write` | 未实现；安装/初始化成功不代表电台导入可用 |
 | 插件通信 | `songloft.comm` | `inter-plugin` | 可用；目标插件必须启用并声明权限 |
 | 子环境 | `songloft.jsenv` | `jsenv` | 可用；受 QuickJS 生命周期约束 |
 | 文件 | 插件目录 | `fs` | 可用；由宿主文件适配器执行路径校验 |
@@ -27,7 +29,22 @@ API 保持 SongLoft 兼容；宿主能力是否可用由权限和下表共同决
 | 注册 provider | 歌词 | 无 | 可用，Lark 歌词流程调用 `/lyric-search` |
 | 注册 provider | 封面 | 无 | 接口保留，Lark 当前不自动调用 |
 
-## 注册式能力与界面
+## 浏览器宿主桥
+
+- 公开 `SongloftPlugin.invokeHost`、`player` 与 `favorite.refresh(songId?, isFavorited?)`；收藏通知只刷新当前用户在主应用中的缓存，不替代插件应执行的持久化写入。
+- 带参收藏刷新读取服务端权威歌曲状态；无参刷新按页读取完整收藏并更新已显示曲目的红心。不会把插件传来的布尔值当作已成功写入的证据。
+- 播放订阅推送进度、时长、源歌单和完整队列变化，包括同长度队列重排；歌曲包含 `duration`、`file_path`、`file_size` 与本地封面 URL 等上游字段。
+- Web 不支持原生 Cookie store 读取，与上游 Web 平台的限制一致；不向插件伪造第三方登录状态。
+
+## 原包检查（2026-11-08）
+
+对照 Songloft `2b7c11daea37a0f612e69c81638adc96f4fa06a1` 检查宿主接口。最新上游空闲驱逐后的播放事件唤醒修复不适用于 Lark：Lark 没有该空闲驱逐路径。
+
+原始包安装、启用、静态入口检查通过：Subsonic `2.2.3`、Navidrome `2026.11.6.0`、Lyrics `2026.10.17.0`、Stats `2026.9.8`、Radio `2026.7.5`、Library Plus `0.2.16`、Now Playing `1.0.31`。其中修复前 Lyrics、Navidrome 的四段日期版本被严格 SemVer 校验拒绝；现同时支持严格 SemVer 和四段数字版本，更新比较计入第四段。
+
+设置 `LARK_REAL_PLUGIN_DIR` 指向上述 `*.jsplugin.zip` 目录，可运行 `TestRealSongLoftPluginMatrix`；Subsonic 原包另有真实宿主代理 + 模拟源的 Range 播放集成测试，Library Plus 验证读取本地曲库，Lyrics 验证 provider 注册，Stats 验证播放事件订阅。浏览器使用实际 `common.js` 验证宿主 SDK、播放进度推送、同长度队列重排及两种收藏缓存刷新。未验证私人 Navidrome 账号、真实第三方登录、个人设备或所有插件操作；内置收藏 ID 与电台导入缺口仍如上表所述。
+
+## 注册能力语义
 
 `permissions` 只表示插件可以请求哪些桥接 API，不表示插件已经提供某项
 业务服务。歌词/封面/播放事件通过 `registerProvider` 或事件注册在运行时
