@@ -102,11 +102,12 @@ type OrganizeResult struct {
 }
 
 type Playlist struct {
-	ID          int    `json:"id"`
-	Type        string `json:"type"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	CoverURL    string `json:"cover_url,omitempty"`
+	Labels      []string `json:"labels,omitempty"`
+	ID          int      `json:"id"`
+	Type        string   `json:"type"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	CoverURL    string   `json:"cover_url,omitempty"`
 }
 
 type PlaylistCreate struct {

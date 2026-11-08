@@ -4449,6 +4449,7 @@ type PlaylistMutation struct {
 	typ           string
 	id            *int
 	name          *string
+	source_type   *string
 	description   *string
 	cover_theme   *string
 	cover_url     *string
@@ -4598,6 +4599,42 @@ func (m *PlaylistMutation) OldName(ctx context.Context) (v string, err error) {
 // ResetName resets all changes to the "name" field.
 func (m *PlaylistMutation) ResetName() {
 	m.name = nil
+}
+
+// SetSourceType sets the "source_type" field.
+func (m *PlaylistMutation) SetSourceType(s string) {
+	m.source_type = &s
+}
+
+// SourceType returns the value of the "source_type" field in the mutation.
+func (m *PlaylistMutation) SourceType() (r string, exists bool) {
+	v := m.source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceType returns the old "source_type" field's value of the Playlist entity.
+// If the Playlist object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlaylistMutation) OldSourceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceType: %w", err)
+	}
+	return oldValue.SourceType, nil
+}
+
+// ResetSourceType resets all changes to the "source_type" field.
+func (m *PlaylistMutation) ResetSourceType() {
+	m.source_type = nil
 }
 
 // SetDescription sets the "description" field.
@@ -4943,9 +4980,12 @@ func (m *PlaylistMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlaylistMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.name != nil {
 		fields = append(fields, playlist.FieldName)
+	}
+	if m.source_type != nil {
+		fields = append(fields, playlist.FieldSourceType)
 	}
 	if m.description != nil {
 		fields = append(fields, playlist.FieldDescription)
@@ -4975,6 +5015,8 @@ func (m *PlaylistMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case playlist.FieldName:
 		return m.Name()
+	case playlist.FieldSourceType:
+		return m.SourceType()
 	case playlist.FieldDescription:
 		return m.Description()
 	case playlist.FieldCoverTheme:
@@ -4998,6 +5040,8 @@ func (m *PlaylistMutation) OldField(ctx context.Context, name string) (ent.Value
 	switch name {
 	case playlist.FieldName:
 		return m.OldName(ctx)
+	case playlist.FieldSourceType:
+		return m.OldSourceType(ctx)
 	case playlist.FieldDescription:
 		return m.OldDescription(ctx)
 	case playlist.FieldCoverTheme:
@@ -5025,6 +5069,13 @@ func (m *PlaylistMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetName(v)
+		return nil
+	case playlist.FieldSourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceType(v)
 		return nil
 	case playlist.FieldDescription:
 		v, ok := value.(string)
@@ -5119,6 +5170,9 @@ func (m *PlaylistMutation) ResetField(name string) error {
 	switch name {
 	case playlist.FieldName:
 		m.ResetName()
+		return nil
+	case playlist.FieldSourceType:
+		m.ResetSourceType()
 		return nil
 	case playlist.FieldDescription:
 		m.ResetDescription()

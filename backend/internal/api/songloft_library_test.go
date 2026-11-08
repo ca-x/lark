@@ -165,7 +165,11 @@ func TestSongLoftLibraryMutationContractWritesRealTagsAndCreatesRemoteSongs(t *t
 	if response.Code != http.StatusOK {
 		t.Fatalf("playlist add status=%d body=%s", response.Code, response.Body.String())
 	}
-	items, err := service.PlaylistSongs(t.Context(), admin.ID, playlist.ID, 0)
+	nativePlaylistID, err := larkhost.NativePlaylistID(playlist.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := service.PlaylistSongs(t.Context(), admin.ID, nativePlaylistID, 0)
 	if err != nil || len(items) != 1 || items[0].ID != imported.Songs[0].ID {
 		t.Fatalf("playlist songs=%+v err=%v", items, err)
 	}

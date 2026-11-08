@@ -13,7 +13,9 @@
 - 音乐源持续展示账号与登录状态，查询失败可重试；登录、退出与返回页面后刷新，不再仅显示一次登录成功提示。
 - 音频终止错误会停止缓冲并提示，底部播放按钮可重载失败资源；MyGo 曲目不再进入本地歌曲的转码救援。
 - 补齐 Songloft 浏览器 SDK 的 `favorite.refresh` / `invokeHost`、播放进度与队列重排推送及歌曲字段；修复四段数字版本的安装校验与更新比较。
-- 网易云 v0.1.3 / v0.1.6 原包配合模拟 HTTP 验证登录后 CDN；7 个 Songloft 原包安装启用及 Subsonic Range 集成回归通过。不等于真实个人账号/私人服务器全功能验证；Songloft 内置收藏 ID 和电台导入仍有兼容边界，见能力矩阵。仅更新服务端与 Docker。
+- 修复 Songloft 内置收藏 ID 误指向普通歌单的问题，HTTP/JS 桥与播放器统一兼容映射，按用户持久化收藏；数据库原歌单 ID 和成员不变。升级后请刷新插件并重新选择歌单，旧版电台普通歌单需在插件中新建电台歌单，不猜测改写私有存储。
+- 实现 Songloft 电台批量导入、URL 去重与 Range 播放代理，持久化普通/电台歌单类型，报告重复、缺失和类型不符的跳过数量。
+- 网易云 v0.1.3 / v0.1.6 原包配合模拟 HTTP 验证登录后 CDN；8 个 Songloft 原包、Miot 收藏实际增删、Radio 导入与 Subsonic/Radio Range 回归通过。不等于真实个人账号、私人服务器或音箱设备全功能验证。仅更新服务端与 Docker。
 
 ## v0.18.15: NetEase playback and plugin host compatibility fixes
 
@@ -23,7 +25,9 @@ Released: 2026-11-08
 - Show persistent source account/sign-in status, refresh after login/logout/return, and allow retry after lookup failures.
 - Clear buffering on terminal media errors, reload failed resources from footer play, and exclude MyGo tracks from local transcoding rescue.
 - Add Songloft browser SDK favorite refresh/generic host calls, progress and queue-reorder notifications, upstream song fields, and four-part numeric package-version validation/update ordering.
-- Test original NetEase v0.1.3/v0.1.6 packages with simulated login/CDN HTTP, seven original Songloft packages, and Subsonic Range integration. This is not real personal-account/private-server authorization; built-in Songloft favorite IDs and radio imports remain documented compatibility limits. Server and Docker only.
+- Map Songloft built-in favorites to per-user favorites rather than ordinary playlist 1, sharing identity handling across HTTP/JS and player sources. Native playlist IDs/members remain intact. Reload plugins and reselect cached playlists after upgrading; recreate legacy radio playlists inside the radio plugin without rewriting opaque plugin storage.
+- Add radio batch import, URL deduplication and Range audio proxying; persist playlist types and report skipped duplicates, missing songs and incompatible types.
+- Test original NetEase v0.1.3/v0.1.6 with simulated login/CDN HTTP, eight original Songloft packages, Miot favorite mutations, Radio imports, and Subsonic/Radio Range playback. This does not authorize real personal accounts, private servers or speaker devices. Server and Docker only.
 
 ## 0.18.14：音乐源入口与插件兼容修复
 

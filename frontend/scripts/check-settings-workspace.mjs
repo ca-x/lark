@@ -76,6 +76,10 @@ const server = createServer(async (request, response) => {
       if (path.endsWith("/call/signOut")) { sourceAccount = null; result = null; }
       if (path.endsWith("/prompt")) result = { qr: "https://music.163.com/login?codekey=fixture", text: "请扫码并确认登录" };
       if (path.endsWith("/call/home")) result = { title: "Fixture source home", tracks: sourceTracks };
+      if (path === "/api/v1/playlists/1") result = { id: 1, type: "normal", name: "收藏" };
+      if (path === "/api/v1/playlists/1000000001") result = { id: 1000000001, type: "normal", name: "Ordinary fixture" };
+      if (path === "/api/v1/playlists/1/songs") result = { items: toolSongs.filter(song => song.favorite) };
+      if (path === "/api/v1/playlists/2") { response.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({message:"legacy playlist ID; reload playlists"})); return; }
       if (path === "/api/mygo/plugins/netease/stream") {
         streamRequests++;
         if (streamFailure) { response.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ message: "unavailable: fixture track cannot be played" })); return; }
@@ -375,14 +379,20 @@ try {
     assert.equal(await inTool("typeof sdk.invokeHost"), "function");
     assert.equal(await inTool("typeof sdk.favorite?.refresh"), "function");
     await browser("click", ".plugin-surface-title");
-    await inTool("sdk.player.setQueue([1,2,3],0)");
+    await inTool("sdk.player.setQueue([1,2,3],{startIndex:0,sourcePlaylistId:1000000001})");
     await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.some(state=>state.current_time>0.05)");
     await inTool("sdk.player.pause()");
+    assert.equal((await inTool("sdk.player.getState()")).source_playlist_id, 1000000001);
+    assert.ok(writes.some(write => write.path === "/api/playback/queue" && write.payload.source?.type === "playlist" && write.payload.source.source_id === 1), "Compatibility playlist IDs must persist as native source IDs");
+    assert.match(await inTool("sdk.player.setQueue([1],{sourcePlaylistId:2}).then(()=>'',error=>error.message)"), /legacy playlist ID/);
     await inTool("sdk.player.reorderQueue(1,2)");
     await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.at(-1)?.queue[1]?.id===3");
     toolSongs[0].favorite = true;
     await inTool("sdk.favorite.refresh(1,true)");
     await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.at(-1)?.current_song?.favorite===true");
+    await inTool("sdk.player.playPlaylistById(1)");
+    await inTool("sdk.player.pause()");
+    assert.equal((await inTool("sdk.player.getState()")).source_playlist_id, null, "Favorites must never resume from native ordinary playlist 1");
     toolSongs[0].favorite = false;
     await inTool("sdk.favorite.refresh()");
     await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.at(-1)?.current_song?.favorite===false");

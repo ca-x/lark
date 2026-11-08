@@ -13,9 +13,9 @@ API 保持 SongLoft 兼容；宿主能力是否可用由权限和下表共同决
 | 歌曲 | `list`、`getById`、`search` | `songs.read` | 可用 |
 | 歌曲写入 | `create`、`update`、`delete` | `songs.write` | 按 Lark 服务能力开放 |
 | 歌曲下载/整理 | `download`、`organize*` | `songs.write` | 没有等价宿主服务时返回 `host_capability_unavailable` |
-| 普通歌单 | 读取、创建、更新、删除、加歌、移除、排序 | `playlists.read/write` | 可用；ID 为 Lark 普通歌单 ID |
-| 内置收藏歌单 | Songloft 固定 ID 1 的「收藏」 | `playlists.read/write` | 尚无兼容映射；不能把 Lark 普通歌单 ID 1 当作收藏，依赖此约定的插件收藏操作暂不兼容 |
-| 电台导入 | `/api/v1/songs/radio`、`type:radio` 歌单 | `songs.write`、`playlists.write` | 未实现；安装/初始化成功不代表电台导入可用 |
+| 普通歌单 | 读取、创建、更新、删除、加歌、移除、排序 | `playlists.read/write` | 使用独立兼容 ID，与数据库原始 ID 隔离；普通歌单只接受非电台歌曲 |
+| 内置收藏歌单 | Songloft 固定 ID 1 的「收藏」 | `playlists.read/write` | 映射当前用户的真实收藏，幂等增删；不会改动数据库普通歌单 1；重命名、删除、重排返回明确的能力错误 |
+| 电台导入 | `/api/v1/songs/radio`、`type:radio` 歌单 | `songs.write`、`playlists.write` | 支持 HTTP(S) 电台批量导入、URL 去重与现有音频代理；类型持久化，电台歌单仅接受电台，重复/缺失/类型不符计入 skipped |
 | 插件通信 | `songloft.comm` | `inter-plugin` | 可用；目标插件必须启用并声明权限 |
 | 子环境 | `songloft.jsenv` | `jsenv` | 可用；受 QuickJS 生命周期约束 |
 | 文件 | 插件目录 | `fs` | 可用；由宿主文件适配器执行路径校验 |
@@ -40,9 +40,18 @@ API 保持 SongLoft 兼容；宿主能力是否可用由权限和下表共同决
 
 对照 Songloft `2b7c11daea37a0f612e69c81638adc96f4fa06a1` 检查宿主接口。最新上游空闲驱逐后的播放事件唤醒修复不适用于 Lark：Lark 没有该空闲驱逐路径。
 
-原始包安装、启用、静态入口检查通过：Subsonic `2.2.3`、Navidrome `2026.11.6.0`、Lyrics `2026.10.17.0`、Stats `2026.9.8`、Radio `2026.7.5`、Library Plus `0.2.16`、Now Playing `1.0.31`。其中修复前 Lyrics、Navidrome 的四段日期版本被严格 SemVer 校验拒绝；现同时支持严格 SemVer 和四段数字版本，更新比较计入第四段。
+8 个原始包安装、启用、静态入口检查通过：Subsonic `2.2.3`、Navidrome `2026.11.6.0`、Lyrics `2026.10.17.0`、Stats `2026.9.8`、Radio `2026.7.5`、Miot `2026.11.6.0`、Library Plus `0.2.16`、Now Playing `1.0.31`。其中修复前 Lyrics、Navidrome 的四段日期版本被严格 SemVer 校验拒绝；现同时支持严格 SemVer 和四段数字版本，更新比较计入第四段。
 
-设置 `LARK_REAL_PLUGIN_DIR` 指向上述 `*.jsplugin.zip` 目录，可运行 `TestRealSongLoftPluginMatrix`；Subsonic 原包另有真实宿主代理 + 模拟源的 Range 播放集成测试，Library Plus 验证读取本地曲库，Lyrics 验证 provider 注册，Stats 验证播放事件订阅。浏览器使用实际 `common.js` 验证宿主 SDK、播放进度推送、同长度队列重排及两种收藏缓存刷新。未验证私人 Navidrome 账号、真实第三方登录、个人设备或所有插件操作；内置收藏 ID 与电台导入缺口仍如上表所述。
+设置 `LARK_REAL_PLUGIN_DIR` 指向上述 `*.jsplugin.zip` 目录，可运行 `TestRealSongLoftPluginMatrix`；Subsonic 原包另有真实宿主代理 + 模拟源的 Range 播放集成测试，Library Plus 验证读取本地曲库，Lyrics 验证 provider 注册，Stats 验证播放事件订阅。Miot 原包实际调用收藏状态/重复增删，断言业务 success 与真实持久化；Radio 原包检查类型筛选、所选歌单保存/重载，并通过宿主 HTTP 导入、去重、加歌与 Range 音频代理。浏览器使用实际 `common.js` 验证 SDK、进度/队列推送、收藏缓存刷新与普通歌单/收藏的播放来源隔离。未验证私人 Navidrome 账号、真实第三方登录、个人音箱设备或所有插件操作。
+
+## 歌单 ID 与升级
+
+- HTTP `/api/v1/playlists` 与后端 `songloft.playlists` 共用映射：`1` 是当前用户「收藏」（`type:normal`、`labels:[built_in]`）；普通歌单是 `1_000_000_000 + 数据库 ID`。主应用和数据库仍使用原始 ID，已有歌单、成员与用户收藏不重编号、不清空。
+- SDK 队列来源与歌单播放使用同一映射；普通歌单保存为原始来源，收藏保存为独立队列而不是数据库普通歌单 1，避免恢复时串歌单。
+- 升级后请刷新插件并重新选择歌单；插件缓存的旧原始 ID（例如 Radio 默认的 `2`）不再可用。不会猜测或重写插件的任意私有存储，也不会把旧普通歌单 1 的成员自动并入收藏。
+- 旧版创建的「电台歌单」曾被存成普通类型；请在电台插件中新建电台歌单并重新选择，原普通歌单完整保留。原生负数临时歌单仍由插件自己管理。
+- ID 必须处于 JavaScript 安全整数范围。低位旧 ID 或与已有超大数据库 ID 发生歧义的请求明确失败，要求重新选择，不静默定位到另一歌单。
+- `source_type` 为新增数据库列，旧歌单默认 `normal`；迁移回归验证旧 ID、成员和歌曲元数据保留。
 
 ## 注册能力语义
 

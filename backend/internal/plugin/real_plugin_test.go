@@ -43,7 +43,7 @@ func TestRealSongLoftPluginMatrix(t *testing.T) {
 	}
 
 	client := enttest.Open(t, "sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
-	defer client.Close()
+	t.Cleanup(func() { _ = client.Close() })
 	archiveDir := t.TempDir()
 	dataDir := t.TempDir()
 	manager := NewManager(NewEntRepository(client), archiveDir, dataDir)
@@ -106,6 +106,9 @@ func TestRealSongLoftPluginMatrix(t *testing.T) {
 			}
 			if manifest.EntryPath == "library-plus" {
 				assertRealLibraryPlusReadsLibrary(t, ctx, client, manager, manifest.EntryPath)
+			}
+			if manifest.EntryPath == "miot" {
+				assertRealMiotFavorites(t, ctx, client, manager)
 			}
 		})
 	}

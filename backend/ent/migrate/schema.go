@@ -221,6 +221,7 @@ var (
 	PlaylistsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString},
+		{Name: "source_type", Type: field.TypeString, Default: "normal"},
 		{Name: "description", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "cover_theme", Type: field.TypeString, Default: "deep-space"},
 		{Name: "cover_url", Type: field.TypeString, Default: ""},
@@ -237,7 +238,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "playlists_users_playlists",
-				Columns:    []*schema.Column{PlaylistsColumns[8]},
+				Columns:    []*schema.Column{PlaylistsColumns[9]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -246,7 +247,7 @@ var (
 			{
 				Name:    "playlist_updated_at_user_playlists",
 				Unique:  false,
-				Columns: []*schema.Column{PlaylistsColumns[7], PlaylistsColumns[8]},
+				Columns: []*schema.Column{PlaylistsColumns[8], PlaylistsColumns[9]},
 			},
 		},
 	}

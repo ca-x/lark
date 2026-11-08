@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"lark/backend/ent"
-	"lark/backend/ent/playlist"
 	"lark/backend/ent/song"
 	"lark/backend/ent/user"
 	"lark/backend/internal/library"
 	"lark/backend/internal/plugin"
 	pluginhost "lark/backend/internal/plugin/host"
+	"lark/backend/internal/plugin/larkhost"
 	"lark/backend/pkg/version"
 
 	echo "github.com/labstack/echo/v5"
@@ -83,6 +83,7 @@ func (s *Server) registerSongLoftLibraryRoutes() {
 	s.echo.PUT("/api/v1/songs/:id/tags", s.handleSongLoftUpdateTags, writeSongs)
 	s.echo.PUT("/api/v1/songs/:id/lyrics", s.handleSongLoftUpdateLyrics, writeSongs)
 	s.echo.POST("/api/v1/songs/remote", s.handleSongLoftRemoteSongs, writeSongs)
+	s.echo.POST("/api/v1/songs/radio", s.handleSongLoftRadioSongs, writeSongs)
 	s.echo.POST("/api/v1/playlists", s.handleSongLoftCreatePlaylist, writePlaylists)
 	s.echo.GET("/api/v1/playlists", s.handleSongLoftPlaylists, readPlaylists)
 	s.echo.GET("/api/v1/playlists/:id", s.handleSongLoftPlaylist, readPlaylists)
@@ -92,7 +93,7 @@ func (s *Server) registerSongLoftLibraryRoutes() {
 	s.echo.GET("/api/v1/songs/:id/lyric", s.handleLyrics, readSongs)
 	s.echo.GET("/api/v1/playlists/:id/songs", s.handleSongloftPlaylistSongs, readPlaylists)
 	s.echo.POST("/api/v1/playlists/:id/songs", s.handleSongloftAddPlaylistSongs, writePlaylists)
-	s.echo.DELETE("/api/v1/playlists/:id/songs/:song", s.handleRemoveSongFromPlaylist, writePlaylists)
+	s.echo.DELETE("/api/v1/playlists/:id/songs/:song", s.handleSongLoftRemovePlaylistSong, writePlaylists)
 }
 
 func (s *Server) handleSongLoftSongIDs(c *echo.Context) error {
@@ -257,8 +258,7 @@ func (s *Server) handleSongLoftCreatePlaylist(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
 	}
-	userID := currentUserID(c)
-	item, err := s.lib.CreatePlaylist(c.Request().Context(), userID, req.Name, req.Description, "deep-space")
+	item, err := s.songloftPlaylists(c).Create(c.Request().Context(), pluginhost.PlaylistCreate{Name: req.Name, Type: req.Type, Description: req.Description, CoverURL: req.CoverURL})
 	if err != nil {
 		return mapError(err)
 	}
@@ -266,7 +266,7 @@ func (s *Server) handleSongLoftCreatePlaylist(c *echo.Context) error {
 }
 
 func (s *Server) handleSongLoftPlaylists(c *echo.Context) error {
-	items, err := s.lib.Playlists(c.Request().Context(), currentUserID(c), queryInt(c, "limit", 0))
+	items, err := s.songloftPlaylists(c).List(c.Request().Context())
 	if err != nil {
 		return mapError(err)
 	}
@@ -278,7 +278,7 @@ func (s *Server) handleSongLoftPlaylist(c *echo.Context) error {
 	if err != nil || id <= 0 {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid playlist id")
 	}
-	item, err := s.client.Playlist.Query().Where(playlist.ID(id), playlist.HasOwnerWith(user.ID(currentUserID(c)))).Only(c.Request().Context())
+	item, err := s.songloftPlaylists(c).Get(c.Request().Context(), id)
 	if err != nil {
 		return mapError(err)
 	}
@@ -299,23 +299,7 @@ func (s *Server) handleSongLoftUpdatePlaylist(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
 	}
-	update := s.client.Playlist.Update().Where(playlist.ID(id), playlist.HasOwnerWith(user.ID(currentUserID(c))))
-	if req.Name != nil {
-		update.SetName(*req.Name)
-	}
-	if req.Description != nil {
-		update.SetDescription(*req.Description)
-	}
-	if req.CoverTheme != nil {
-		update.SetCoverTheme(*req.CoverTheme)
-	}
-	if req.CoverURL != nil {
-		update.SetCoverURL(*req.CoverURL)
-	}
-	if _, err := update.Save(c.Request().Context()); err != nil {
-		return mapError(err)
-	}
-	item, err := s.client.Playlist.Query().Where(playlist.ID(id), playlist.HasOwnerWith(user.ID(currentUserID(c)))).Only(c.Request().Context())
+	item, err := s.songloftPlaylists(c).Update(c.Request().Context(), id, pluginhost.PlaylistUpdate{Name: req.Name, Description: req.Description, CoverURL: req.CoverURL})
 	if err != nil {
 		return mapError(err)
 	}
@@ -327,7 +311,30 @@ func (s *Server) handleSongLoftDeletePlaylist(c *echo.Context) error {
 	if err != nil || id <= 0 {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid playlist id")
 	}
-	if _, err := s.client.Playlist.Delete().Where(playlist.ID(id), playlist.HasOwnerWith(user.ID(currentUserID(c)))).Exec(c.Request().Context()); err != nil {
+	if err := s.songloftPlaylists(c).Delete(c.Request().Context(), id); err != nil {
+		return mapError(err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (s *Server) songloftPlaylists(c *echo.Context) pluginhost.PlaylistHost {
+	return larkhost.New(s.client, s.lib, larkhost.Config{UserID: currentUserID(c)}).Playlists()
+}
+
+func songloftPlaylistQuery(c *echo.Context) pluginhost.PlaylistSongQuery {
+	return pluginhost.PlaylistSongQuery{Page: pluginhost.Page{Limit: max(queryInt(c, "limit", 0), 0), Offset: max(queryInt(c, "offset", 0), 0)}}
+}
+
+func (s *Server) handleSongLoftRemovePlaylistSong(c *echo.Context) error {
+	playlistID, err := paramInt(c, "id")
+	if err != nil {
+		return err
+	}
+	songID, err := paramInt(c, "song")
+	if err != nil {
+		return err
+	}
+	if err := s.songloftPlaylists(c).RemoveSongs(c.Request().Context(), playlistID, []int{songID}); err != nil {
 		return mapError(err)
 	}
 	return c.NoContent(http.StatusNoContent)

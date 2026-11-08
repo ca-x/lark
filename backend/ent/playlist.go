@@ -20,6 +20,8 @@ type Playlist struct {
 	ID int `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
+	// SourceType holds the value of the "source_type" field.
+	SourceType string `json:"source_type,omitempty"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description,omitempty"`
 	// CoverTheme holds the value of the "cover_theme" field.
@@ -79,7 +81,7 @@ func (*Playlist) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case playlist.FieldID:
 			values[i] = new(sql.NullInt64)
-		case playlist.FieldName, playlist.FieldDescription, playlist.FieldCoverTheme, playlist.FieldCoverURL:
+		case playlist.FieldName, playlist.FieldSourceType, playlist.FieldDescription, playlist.FieldCoverTheme, playlist.FieldCoverURL:
 			values[i] = new(sql.NullString)
 		case playlist.FieldCreatedAt, playlist.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -111,6 +113,12 @@ func (_m *Playlist) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case playlist.FieldSourceType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field source_type", values[i])
+			} else if value.Valid {
+				_m.SourceType = value.String
 			}
 		case playlist.FieldDescription:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -203,6 +211,9 @@ func (_m *Playlist) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("source_type=")
+	builder.WriteString(_m.SourceType)
 	builder.WriteString(", ")
 	builder.WriteString("description=")
 	builder.WriteString(_m.Description)

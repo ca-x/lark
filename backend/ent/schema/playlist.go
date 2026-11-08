@@ -14,6 +14,7 @@ type Playlist struct{ ent.Schema }
 func (Playlist) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name").NotEmpty(),
+		field.String("source_type").Default("normal"),
 		field.Text("description").Default(""),
 		field.String("cover_theme").Default("deep-space"),
 		field.String("cover_url").Default(""),

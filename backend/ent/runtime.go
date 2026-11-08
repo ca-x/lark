@@ -187,28 +187,32 @@ func init() {
 	playlistDescName := playlistFields[0].Descriptor()
 	// playlist.NameValidator is a validator for the "name" field. It is called by the builders before save.
 	playlist.NameValidator = playlistDescName.Validators[0].(func(string) error)
+	// playlistDescSourceType is the schema descriptor for source_type field.
+	playlistDescSourceType := playlistFields[1].Descriptor()
+	// playlist.DefaultSourceType holds the default value on creation for the source_type field.
+	playlist.DefaultSourceType = playlistDescSourceType.Default.(string)
 	// playlistDescDescription is the schema descriptor for description field.
-	playlistDescDescription := playlistFields[1].Descriptor()
+	playlistDescDescription := playlistFields[2].Descriptor()
 	// playlist.DefaultDescription holds the default value on creation for the description field.
 	playlist.DefaultDescription = playlistDescDescription.Default.(string)
 	// playlistDescCoverTheme is the schema descriptor for cover_theme field.
-	playlistDescCoverTheme := playlistFields[2].Descriptor()
+	playlistDescCoverTheme := playlistFields[3].Descriptor()
 	// playlist.DefaultCoverTheme holds the default value on creation for the cover_theme field.
 	playlist.DefaultCoverTheme = playlistDescCoverTheme.Default.(string)
 	// playlistDescCoverURL is the schema descriptor for cover_url field.
-	playlistDescCoverURL := playlistFields[3].Descriptor()
+	playlistDescCoverURL := playlistFields[4].Descriptor()
 	// playlist.DefaultCoverURL holds the default value on creation for the cover_url field.
 	playlist.DefaultCoverURL = playlistDescCoverURL.Default.(string)
 	// playlistDescFavorite is the schema descriptor for favorite field.
-	playlistDescFavorite := playlistFields[4].Descriptor()
+	playlistDescFavorite := playlistFields[5].Descriptor()
 	// playlist.DefaultFavorite holds the default value on creation for the favorite field.
 	playlist.DefaultFavorite = playlistDescFavorite.Default.(bool)
 	// playlistDescCreatedAt is the schema descriptor for created_at field.
-	playlistDescCreatedAt := playlistFields[5].Descriptor()
+	playlistDescCreatedAt := playlistFields[6].Descriptor()
 	// playlist.DefaultCreatedAt holds the default value on creation for the created_at field.
 	playlist.DefaultCreatedAt = playlistDescCreatedAt.Default.(func() time.Time)
 	// playlistDescUpdatedAt is the schema descriptor for updated_at field.
-	playlistDescUpdatedAt := playlistFields[6].Descriptor()
+	playlistDescUpdatedAt := playlistFields[7].Descriptor()
 	// playlist.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	playlist.DefaultUpdatedAt = playlistDescUpdatedAt.Default.(func() time.Time)
 	// playlist.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

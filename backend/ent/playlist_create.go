@@ -28,6 +28,20 @@ func (_c *PlaylistCreate) SetName(v string) *PlaylistCreate {
 	return _c
 }
 
+// SetSourceType sets the "source_type" field.
+func (_c *PlaylistCreate) SetSourceType(v string) *PlaylistCreate {
+	_c.mutation.SetSourceType(v)
+	return _c
+}
+
+// SetNillableSourceType sets the "source_type" field if the given value is not nil.
+func (_c *PlaylistCreate) SetNillableSourceType(v *string) *PlaylistCreate {
+	if v != nil {
+		_c.SetSourceType(*v)
+	}
+	return _c
+}
+
 // SetDescription sets the "description" field.
 func (_c *PlaylistCreate) SetDescription(v string) *PlaylistCreate {
 	_c.mutation.SetDescription(v)
@@ -181,6 +195,10 @@ func (_c *PlaylistCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *PlaylistCreate) defaults() {
+	if _, ok := _c.mutation.SourceType(); !ok {
+		v := playlist.DefaultSourceType
+		_c.mutation.SetSourceType(v)
+	}
 	if _, ok := _c.mutation.Description(); !ok {
 		v := playlist.DefaultDescription
 		_c.mutation.SetDescription(v)
@@ -216,6 +234,9 @@ func (_c *PlaylistCreate) check() error {
 		if err := playlist.NameValidator(v); err != nil {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Playlist.name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.SourceType(); !ok {
+		return &ValidationError{Name: "source_type", err: errors.New(`ent: missing required field "Playlist.source_type"`)}
 	}
 	if _, ok := _c.mutation.Description(); !ok {
 		return &ValidationError{Name: "description", err: errors.New(`ent: missing required field "Playlist.description"`)}
@@ -264,6 +285,10 @@ func (_c *PlaylistCreate) createSpec() (*Playlist, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(playlist.FieldName, field.TypeString, value)
 		_node.Name = value
+	}
+	if value, ok := _c.mutation.SourceType(); ok {
+		_spec.SetField(playlist.FieldSourceType, field.TypeString, value)
+		_node.SourceType = value
 	}
 	if value, ok := _c.mutation.Description(); ok {
 		_spec.SetField(playlist.FieldDescription, field.TypeString, value)

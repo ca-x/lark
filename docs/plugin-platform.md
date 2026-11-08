@@ -44,7 +44,7 @@ ZIP 有路径、条目、源码与解压总量限制，VM 有时间/内存/存�
 ## 来源与验证
 
 - MyGo 契约 reviewed commit：`cb5e4cc49f8d4774d3a57b993e5b53c89b5a8f73`。
-- Songloft reviewed commit：`2b7c11daea37a0f612e69c81638adc96f4fa06a1`，原始派生基线保留为 `825f70f603a773fc8c0ded555a0cbe753d2a0d52`；7 个原始包检查范围与内置收藏/电台导入缺口见能力矩阵。
+- Songloft reviewed commit：`2b7c11daea37a0f612e69c81638adc96f4fa06a1`，原始派生基线保留为 `825f70f603a773fc8c0ded555a0cbe753d2a0d52`；8 个原始包检查范围、收藏映射、电台导入与升级后重新选择歌单的要求见能力矩阵。
 - 测试包含官方 demo、两用户隔离、恶意包、取消、网络与 Range。真实 Li Zhi 插件逻辑配合模拟 HTTP 的测试需设置本机 fixture 路径选择执行，不随源码再分发未授权上游；模拟测试不等于真实第三方账号登录或所有市场插件兼容。
 - 网易云回归使用 `sogud/mygo-music-netease@v0.1.3` 的原始 ZIP（commit `bfaed424da72f3c776c42e2643b328f2a210c5ac`，AGPL-3.0），设置 `LARK_MYGO_NETEASE_FIXTURE=/path/to/netease-0.1.3.zip` 后运行 `go test ./internal/mygo -run TestRealNeteasePackageSignIn`。实际插件代码配合模拟 HTTP 验证 key-first AES、二维码提示、轮询、含 Expires 的多条 Set-Cookie、账号隔离及退出；不随仓库内置插件代码，也不声称已授权真实个人账号或所有付费曲目可播放。
 - 第三方许可见根目录 `NOTICE.md`、`licenses/` 和测试 fixture 的来源说明；服务端压缩包与 Docker 镜像携带许可文本。

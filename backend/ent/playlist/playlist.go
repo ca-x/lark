@@ -16,6 +16,8 @@ const (
 	FieldID = "id"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldSourceType holds the string denoting the source_type field in the database.
+	FieldSourceType = "source_type"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
 	// FieldCoverTheme holds the string denoting the cover_theme field in the database.
@@ -52,6 +54,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldName,
+	FieldSourceType,
 	FieldDescription,
 	FieldCoverTheme,
 	FieldCoverURL,
@@ -90,6 +93,8 @@ func ValidColumn(column string) bool {
 var (
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultSourceType holds the default value on creation for the "source_type" field.
+	DefaultSourceType string
 	// DefaultDescription holds the default value on creation for the "description" field.
 	DefaultDescription string
 	// DefaultCoverTheme holds the default value on creation for the "cover_theme" field.
@@ -117,6 +122,11 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// BySourceType orders the results by the source_type field.
+func BySourceType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceType, opts...).ToFunc()
 }
 
 // ByDescription orders the results by the description field.

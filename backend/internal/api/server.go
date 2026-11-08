@@ -26,6 +26,8 @@ import (
 	"lark/backend/internal/models"
 	"lark/backend/internal/mygo"
 	"lark/backend/internal/plugin"
+	pluginhost "lark/backend/internal/plugin/host"
+	"lark/backend/internal/plugin/larkhost"
 	"lark/backend/internal/pluginapp"
 	"lark/backend/pkg/version"
 
@@ -2260,7 +2262,7 @@ func (s *Server) handleSongloftPlaylistSongs(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	items, err := s.lib.PlaylistSongs(c.Request().Context(), currentUserID(c), id, queryInt(c, "limit", 0))
+	items, err := s.songloftPlaylists(c).Songs(c.Request().Context(), id, songloftPlaylistQuery(c))
 	if err != nil {
 		return mapError(err)
 	}
@@ -2291,11 +2293,11 @@ func (s *Server) handleSongloftAddPlaylistSongs(c *echo.Context) error {
 			return echo.NewHTTPError(http.StatusBadRequest, "song_ids must contain positive integers")
 		}
 	}
-	added, err := s.lib.AddSongsToPlaylist(c.Request().Context(), currentUserID(c), playlistID, request.SongIDs)
+	added, err := s.songloftPlaylists(c).AddSongs(c.Request().Context(), playlistID, request.SongIDs)
 	if err != nil {
 		return mapError(err)
 	}
-	return c.JSON(http.StatusOK, map[string]any{"added": added})
+	return c.JSON(http.StatusOK, added)
 }
 func (s *Server) handleAddSongToPlaylist(c *echo.Context) error {
 	pid, err := paramInt(c, "id")
@@ -2678,6 +2680,16 @@ func sanitizePublicShareErrors(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func mapError(err error) error {
+	if errors.Is(err, larkhost.ErrInvalidPlaylistID) {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if hostError, ok := errors.AsType[*pluginhost.Error](err); ok {
+		status := http.StatusBadRequest
+		if hostError.Code == pluginhost.CodeCapabilityUnavailable {
+			status = http.StatusNotImplemented
+		}
+		return echo.NewHTTPError(status, hostError.Error())
+	}
 	if errors.Is(err, library.ErrInvalidShareRequest) {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}

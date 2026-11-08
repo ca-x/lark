@@ -184,6 +184,7 @@ import { PluginTools } from "./components/PluginTools";
 import { usePluginNavigation } from "./hooks/usePluginNavigation";
 import { mygoLyricsToLRC, notifyMygoLike, validMygoQueue, type MygoLike } from "./features/plugins/mygo";
 import { toSongloftSong } from "./features/plugins/songloftSong";
+import { toSongloftPlaylistID, songloftPlaylistSource } from "./features/plugins/songloftPlaylist";
 import {
   fromSongloftPlayMode,
   toSongloftPlayMode,
@@ -5384,7 +5385,7 @@ export default function App() {
     volume: Math.round(volume * 100),
     play_mode: songloftPlayMode,
     source_playlist_id: playbackSessionSourceRef.current?.type === "playlist"
-      ? playbackSessionSourceRef.current.source_id
+      ? toSongloftPlaylistID(playbackSessionSourceRef.current.source_id)
       : null,
   };
 
@@ -5444,12 +5445,11 @@ export default function App() {
         if (!resolved.length) throw new Error("no valid songs resolved");
         const rawIndex = typeof params.startIndex === "number" ? Math.trunc(params.startIndex) : 0;
         const startIndex = Math.max(0, Math.min(resolved.length - 1, rawIndex));
-        const sourcePlaylistID = typeof params.sourcePlaylistId === "number" && Number.isInteger(params.sourcePlaylistId)
+        const sourcePlaylistID = typeof params.sourcePlaylistId === "number" && Number.isSafeInteger(params.sourcePlaylistId)
           ? params.sourcePlaylistId
           : 0;
-        await playSong(resolved[startIndex], resolved, sourcePlaylistID > 0
-          ? { source: { type: "playlist", source_id: sourcePlaylistID } }
-          : {});
+        if (sourcePlaylistID > 0) await api.songloftPlaylist(sourcePlaylistID);
+        await playSong(resolved[startIndex], resolved, sourcePlaylistID > 0 ? songloftPlaylistSource(sourcePlaylistID) : {});
         return null;
       }
       case "addToQueue": {
@@ -5544,10 +5544,12 @@ export default function App() {
         return null;
       }
       case "playPlaylistById": {
-        const playlistID = Math.trunc(numberParam("playlistId"));
-        const items = await api.playlistSongs(playlistID, MAX_PLAYBACK_QUEUE_SIZE);
+        const playlistID = numberParam("playlistId");
+        if (!Number.isSafeInteger(playlistID)) throw new Error("invalid playlist ID");
+        const page = await api.songloftPlaylistSongs(playlistID, MAX_PLAYBACK_QUEUE_SIZE);
+        const items = await songsForPlaybackQueueIDs(page.items.map(song => song.id));
         if (!items.length) throw new Error("playlist has no songs");
-        await playSong(items[0], items, { source: { type: "playlist", source_id: playlistID } });
+        await playSong(items[0], items, songloftPlaylistSource(playlistID));
         return null;
       }
       default:

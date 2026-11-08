@@ -57,14 +57,16 @@ func (h *Host) userID(ctx context.Context) (int, error) {
 	return id, err
 }
 
-func (h *Host) Songs() pluginhost.SongHost         { return (*songHost)(h) }
-func (h *Host) Playlists() pluginhost.PlaylistHost { return (*playlistHost)(h) }
-func (h *Host) Storage() pluginhost.StorageHost    { return nil }
-func (h *Host) Files() pluginhost.FileHost         { return (*fileHost)(h) }
-func (h *Host) Commands() pluginhost.CommandHost   { return (*commandHost)(h) }
-func (h *Host) Network() pluginhost.NetworkHost    { return (*networkHost)(h) }
-func (h *Host) Auth() pluginhost.AuthHost          { return (*authHost)(h) }
-func (h *Host) Events() pluginhost.EventHost       { return nil }
+func (h *Host) Songs() pluginhost.SongHost { return (*songHost)(h) }
+func (h *Host) Playlists() pluginhost.PlaylistHost {
+	return &compatibilityPlaylists{host: h, raw: (*playlistHost)(h)}
+}
+func (h *Host) Storage() pluginhost.StorageHost  { return nil }
+func (h *Host) Files() pluginhost.FileHost       { return (*fileHost)(h) }
+func (h *Host) Commands() pluginhost.CommandHost { return (*commandHost)(h) }
+func (h *Host) Network() pluginhost.NetworkHost  { return (*networkHost)(h) }
+func (h *Host) Auth() pluginhost.AuthHost        { return (*authHost)(h) }
+func (h *Host) Events() pluginhost.EventHost     { return nil }
 
 type songHost Host
 
@@ -358,22 +360,28 @@ func (h *playlistHost) Search(ctx context.Context, term string, page pluginhost.
 }
 
 func (h *playlistHost) Create(ctx context.Context, input pluginhost.PlaylistCreate) (pluginhost.Playlist, error) {
+	if input.Type != "" && input.Type != "normal" && input.Type != "radio" {
+		return pluginhost.Playlist{}, pluginhost.CapabilityUnavailable("playlist type " + input.Type)
+	}
 	userID, err := (*Host)(h).userID(ctx)
 	if err != nil {
 		return pluginhost.Playlist{}, err
 	}
-	item, err := h.library.CreatePlaylist(ctx, userID, input.Name, input.Description, "deep-space")
+	playlistType := input.Type
+	if playlistType == "" {
+		playlistType = "normal"
+	}
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return pluginhost.Playlist{}, fmt.Errorf("playlist name is required")
+	}
+	item, err := h.client.Playlist.Create().SetName(name).SetDescription(input.Description).
+		SetCoverTheme("deep-space").SetCoverURL(strings.TrimSpace(input.CoverURL)).SetSourceType(playlistType).SetOwnerID(userID).Save(ctx)
 	if err != nil {
 		return pluginhost.Playlist{}, err
 	}
-	if input.CoverURL != "" {
-		updated, updateErr := h.client.Playlist.UpdateOneID(item.ID).SetCoverURL(strings.TrimSpace(input.CoverURL)).Save(ctx)
-		if updateErr != nil {
-			return pluginhost.Playlist{}, updateErr
-		}
-		return mapEntPlaylist(updated), nil
-	}
-	return mapPlaylist(item), nil
+	h.library.PluginCatalogChanged(ctx, userID)
+	return mapEntPlaylist(item), nil
 }
 
 func (h *playlistHost) Update(ctx context.Context, id int, input pluginhost.PlaylistUpdate) (pluginhost.Playlist, error) {
@@ -439,6 +447,10 @@ func (h *playlistHost) AddSongs(ctx context.Context, id int, songIDs []int) (plu
 	if err != nil {
 		return pluginhost.AddSongsResult{}, err
 	}
+	list, err := h.Get(ctx, id)
+	if err != nil {
+		return pluginhost.AddSongsResult{}, err
+	}
 	existing, err := h.library.PlaylistSongs(ctx, userID, id, 0)
 	if err != nil {
 		return pluginhost.AddSongsResult{}, err
@@ -451,6 +463,18 @@ func (h *playlistHost) AddSongs(ctx context.Context, id int, songIDs []int) (plu
 	position := len(existing)
 	for _, songID := range songIDs {
 		if seen[songID] {
+			result.Skipped++
+			continue
+		}
+		track, lookupErr := h.client.Song.Get(ctx, songID)
+		if lookupErr != nil {
+			if !ent.IsNotFound(lookupErr) {
+				return result, lookupErr
+			}
+			result.Skipped++
+			continue
+		}
+		if (list.Type == "radio") != (track.SourceType == "radio") {
 			result.Skipped++
 			continue
 		}
@@ -645,11 +669,11 @@ func mapPlaylists(items []models.Playlist) []pluginhost.Playlist {
 }
 
 func mapEntPlaylist(item *ent.Playlist) pluginhost.Playlist {
-	return pluginhost.Playlist{ID: item.ID, Type: "normal", Name: item.Name, Description: item.Description, CoverURL: item.CoverURL}
+	return pluginhost.Playlist{ID: item.ID, Type: item.SourceType, Name: item.Name, Description: item.Description, CoverURL: item.CoverURL}
 }
 
 func mapPlaylist(item models.Playlist) pluginhost.Playlist {
-	return pluginhost.Playlist{ID: item.ID, Type: "normal", Name: item.Name, Description: item.Description, CoverURL: item.CoverURL}
+	return pluginhost.Playlist{ID: item.ID, Type: item.Type, Name: item.Name, Description: item.Description, CoverURL: item.CoverURL}
 }
 
 var _ pluginhost.Host = (*Host)(nil)

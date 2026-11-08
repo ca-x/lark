@@ -44,6 +44,20 @@ func (_u *PlaylistUpdate) SetNillableName(v *string) *PlaylistUpdate {
 	return _u
 }
 
+// SetSourceType sets the "source_type" field.
+func (_u *PlaylistUpdate) SetSourceType(v string) *PlaylistUpdate {
+	_u.mutation.SetSourceType(v)
+	return _u
+}
+
+// SetNillableSourceType sets the "source_type" field if the given value is not nil.
+func (_u *PlaylistUpdate) SetNillableSourceType(v *string) *PlaylistUpdate {
+	if v != nil {
+		_u.SetSourceType(*v)
+	}
+	return _u
+}
+
 // SetDescription sets the "description" field.
 func (_u *PlaylistUpdate) SetDescription(v string) *PlaylistUpdate {
 	_u.mutation.SetDescription(v)
@@ -247,6 +261,9 @@ func (_u *PlaylistUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(playlist.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.SourceType(); ok {
+		_spec.SetField(playlist.FieldSourceType, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(playlist.FieldDescription, field.TypeString, value)
 	}
@@ -369,6 +386,20 @@ func (_u *PlaylistUpdateOne) SetName(v string) *PlaylistUpdateOne {
 func (_u *PlaylistUpdateOne) SetNillableName(v *string) *PlaylistUpdateOne {
 	if v != nil {
 		_u.SetName(*v)
+	}
+	return _u
+}
+
+// SetSourceType sets the "source_type" field.
+func (_u *PlaylistUpdateOne) SetSourceType(v string) *PlaylistUpdateOne {
+	_u.mutation.SetSourceType(v)
+	return _u
+}
+
+// SetNillableSourceType sets the "source_type" field if the given value is not nil.
+func (_u *PlaylistUpdateOne) SetNillableSourceType(v *string) *PlaylistUpdateOne {
+	if v != nil {
+		_u.SetSourceType(*v)
 	}
 	return _u
 }
@@ -605,6 +636,9 @@ func (_u *PlaylistUpdateOne) sqlSave(ctx context.Context) (_node *Playlist, err 
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(playlist.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourceType(); ok {
+		_spec.SetField(playlist.FieldSourceType, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(playlist.FieldDescription, field.TypeString, value)

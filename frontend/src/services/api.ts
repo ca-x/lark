@@ -207,6 +207,8 @@ export const api = {
   playlistsPage: (page = 1, limit = 100) => request<PlaylistPage>(`/api/playlists/page?page=${page}&limit=${limit}`),
   createPlaylist: (name: string, description = '', cover_theme = 'deep-space') => request<Playlist>('/api/playlists', { method: 'POST', body: JSON.stringify({ name, description, cover_theme }) }),
   playlistSongs: (id: number, limit = 0, signal?: AbortSignal) => request<Song[]>(`/api/playlists/${id}/songs${limit > 0 ? `?limit=${limit}` : ''}`, { signal }),
+  songloftPlaylist: (id: number) => request<{ id: number; type: string }>(`/api/v1/playlists/${id}`),
+  songloftPlaylistSongs: (id: number, limit: number) => request<{ items: { id: number }[] }>(`/api/v1/playlists/${id}/songs?limit=${limit}`),
   addToPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'POST' }),
   removeFromPlaylist: (playlistId: number, songId: number) => request<void>(`/api/playlists/${playlistId}/songs/${songId}`, { method: 'DELETE' }),
 

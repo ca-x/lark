@@ -68,7 +68,7 @@ func TestAdditivePluginSchemaMigrationPreservesLegacyLibrary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if legacyPlaylist.Name != "Legacy list" || legacyPlaylist.CoverURL != "" || len(legacyPlaylist.Edges.Songs) != 1 || legacyPlaylist.Edges.Songs[0].ID != 7 {
+	if legacyPlaylist.Name != "Legacy list" || legacyPlaylist.SourceType != "normal" || legacyPlaylist.CoverURL != "" || len(legacyPlaylist.Edges.Songs) != 1 || legacyPlaylist.Edges.Songs[0].ID != 7 {
 		t.Fatalf("legacy playlist changed after migration: %+v", legacyPlaylist)
 	}
 }

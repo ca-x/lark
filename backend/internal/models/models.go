@@ -181,6 +181,7 @@ type UserPreferences struct {
 }
 
 type Playlist struct {
+	Type        string    `json:"type"`
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
