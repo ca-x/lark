@@ -215,7 +215,7 @@ func (s *Service) PlaybackHistory(ctx context.Context, userID, limit int) ([]mod
 			DeviceType:      history.DeviceType,
 		})
 	}
-	return out, nil
+	return s.mergeSourcePlaybackHistory(ctx, userID, deviceScope, limit, out)
 }
 
 func (s *Service) cleanupPlaybackHistory(ctx context.Context, userID int) error {

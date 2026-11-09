@@ -5,6 +5,24 @@
 
 ---
 
+## 0.18.18：音乐源导航、搜索与播放历史
+
+发布日期 / Released: 2026-11-09
+
+- 播放栏、歌曲菜单和播放历史可返回歌曲所属的音乐源，专辑与歌手入口按插件实际能力打开；停用、移除或更换来源时明确提示，不跳到其他来源。
+- 曲库搜索保留本地结果，并按音乐源分组显示搜索结果，支持独立重试与手动加载下一页。
+- 音乐源歌曲加入持久化播放历史和最近播放，保留来源与续播进度，遵循现有设备隔离及保留天数设置。
+- 唱片播放室和磁带主题按当前音源展示专辑与封面，不再混用本地专辑架；插件未提供专辑能力时不补造。仅更新服务端二进制与 Docker。
+
+## v0.18.18: Music source navigation, search and playback history
+
+Released: 2026-11-09
+
+- Return to a track’s music source from the player, song menus and playback history, opening album or artist details only when supported; disabled, removed or replaced sources show a notice instead of switching origins.
+- Keep local library search results and add results grouped by music source, with independent retries and manual pagination.
+- Persist source tracks in playback history and recently played, retaining source identity and resume progress while respecting device isolation and retention settings.
+- Keep source albums and artwork separate from local shelves in the vinyl listening room and cassette themes; do not invent missing album capabilities. Server binaries and Docker only.
+
 ## 0.18.17：音乐源歌单播放入口
 
 发布日期 / Released: 2026-11-09

@@ -26,7 +26,7 @@ export interface Song {
   type?: string;
   url?: string;
   cover_url?: string;
-  mygo?: { plugin: string; identity: string; track: string; image?: string };
+  mygo?: { plugin: string; identity: string; track: string; image?: string; sourceName?: string; album?: string; artists?: { id: string; name: string }[] };
   id: number;
   title: string;
   artist_id: number;

@@ -1,9 +1,10 @@
 import type { Album, AlbumPage, Song } from "../../types";
 
 export type RewindLibrary = {
+  scope?: string;
   albums: Album[];
   cover: (album: Album) => string | undefined;
-  loadSongs: (album: Album) => Promise<Song[]>;
+  loadSongs: (album: Album, signal?: AbortSignal) => Promise<Song[]>;
   loadAlbums: (page: number, signal: AbortSignal) => Promise<AlbumPage>;
   playAlbum: (album: Album) => void;
   playSong: (song: Song, songs: Song[]) => void;

@@ -39,6 +39,8 @@ export interface MygoPreview { token: string; manifest: MygoManifest; digest: st
 export interface MygoCatalogEntry { repository: string; name: string; description: string; url: string; stars: number }
 export interface PluginPlatform { songloft: boolean; mygo: boolean; degraded?: string }
 export interface MygoQueue { songs: Song[]; current: number }
+export interface MygoDestination { source: string; identity: string; method: string; params: Record<string, unknown> }
+export interface MygoNavigation extends MygoDestination { sequence: number }
 
 export function mygoRepositoryFromOrigin(origin: string): string | undefined {
   try {
@@ -58,18 +60,40 @@ export function mygoErrorMessage(error: unknown): string {
   return message;
 }
 
-export function mygoSong(plugin: string, track: MygoTrack, identity: string): Song {
+export function mygoEntityID(plugin: string, identity: string, entity: string): number {
   let hash = 14695981039346656037n;
-  for (const char of `${plugin}\0${identity}\0${track.id}`) hash = BigInt.asUintN(64, (hash ^ BigInt(char.codePointAt(0) ?? 0)) * 1099511628211n);
+  for (const char of `${plugin}\0${identity}\0${entity}`) hash = BigInt.asUintN(64, (hash ^ BigInt(char.codePointAt(0) ?? 0)) * 1099511628211n);
+  return -1 - Number(hash % 4503599627370495n);
+}
+
+export function mygoSong(plugin: string, track: MygoTrack, identity: string, sourceName?: string): Song {
   return {
-    id: -1 - Number(hash % 4503599627370495n), title: track.name,
+    id: mygoEntityID(plugin, identity, track.id), title: track.name,
     artist_id: 0, artist: track.artists?.map((artist) => artist.name).join(" / ") || "",
     album_id: 0, album: track.album?.name || "", path: "", file_name: track.name,
     format: "mygo", mime: "audio/mpeg", size_bytes: 0, duration_seconds: Math.max(0, track.duration || 0) / 1000,
     sample_rate: 0, bit_rate: 0, bit_depth: 0, year: 0, netease_id: "",
     favorite: track.liked || false, play_count: 0, resume_position_seconds: 0,
-    has_lyrics: true, lyrics_source: "mygo", mygo: { plugin, identity, track: track.id, image: track.album?.imageUrl },
+    has_lyrics: true, lyrics_source: "mygo", mygo: { plugin, identity, track: track.id, image: track.album?.imageUrl, sourceName, album: track.album?.id, artists: track.artists },
   };
+}
+
+export function mygoSongDestination(song: Song, kind: "source" | "album" | "artist" = "source"): MygoDestination | undefined {
+  if (!song.mygo) return;
+  const { plugin: source, identity, album, artists } = song.mygo;
+  const id = kind === "album" ? album : kind === "artist" ? artists?.[0]?.id : undefined;
+  return { source, identity, method: id ? kind : "home", params: id ? { id } : {} };
+}
+
+export function resolveMygoDestination(plugin: MygoPlugin, destination: MygoDestination): { method: string; params: Record<string, unknown> } | undefined {
+  if (!plugin.enabled || plugin.manifest.id !== destination.source || plugin.identity !== destination.identity) return;
+  if (plugin.exports.includes(destination.method)) return { method: destination.method, params: destination.params };
+  if (plugin.exports.includes("home")) return { method: "home", params: {} };
+}
+
+export function requestMygoNavigation(song: Song, kind: "source" | "album" | "artist" = "source") {
+  const destination = mygoSongDestination(song, kind);
+  if (destination) window.dispatchEvent(new CustomEvent<MygoDestination>("lark:mygo-navigate", { detail: destination }));
 }
 
 export function mygoStreamURL(song: Song): string | undefined {

@@ -163,6 +163,8 @@ import { MobileBottomNav } from "./components/mobile/MobileBottomNav";
 import { MobileHomeSurface } from "./components/mobile/MobileHomeSurface";
 import { MobileMiniPlayer } from "./components/mobile/MobileMiniPlayer";
 import { MobilePlayerDock } from "./components/mobile/MobilePlayerDock";
+import { MygoSearchResults } from "./components/MygoSearchResults";
+import { useSourceThemeLibrary } from "./hooks/useSourceThemeLibrary";
 import { MobileSoundPanel } from "./components/mobile/MobileSoundPanel";
 import { AlbumSlidePlayer, CassetteDeck, GramophonePlayer, IpodPlayer, MineradioStagePlayer, MobileArtPlayer, NeuralCathedralPlayer, PaperShaderLayer, PrismPlayer, RunningKittenTurntable, SingularityPlayer, SmartisanTurntable, SoftStaticPlayer, VinylCollectionPlayer, VinylTurntable, WalkmanPlayer } from "./components/player-themes";
 import { isRewindTheme, REWIND_THEMES } from "./components/player-themes/types";
@@ -182,7 +184,7 @@ import { PluginSettings } from "./components/PluginSettings";
 import { MygoLibrary } from "./components/MygoLibrary";
 import { PluginTools } from "./components/PluginTools";
 import { usePluginNavigation } from "./hooks/usePluginNavigation";
-import { mygoLyricsToLRC, notifyMygoLike, validMygoQueue, type MygoLike } from "./features/plugins/mygo";
+import { mygoLyricsToLRC, notifyMygoLike, requestMygoNavigation, validMygoQueue, type MygoLike, type MygoDestination, type MygoNavigation } from "./features/plugins/mygo";
 import { toSongloftSong } from "./features/plugins/songloftSong";
 import { toSongloftPlaylistID, songloftPlaylistSource } from "./features/plugins/songloftPlaylist";
 import {
@@ -1108,6 +1110,10 @@ export default function App() {
   const [playMode, setPlayMode] = useState<PlayMode>("sequence");
   const [view, setView] = useState<View>("home");
   const [mygoSourceId, setMygoSourceId] = useState("");
+  const [mygoNavigation, setMygoNavigation] = useState<MygoNavigation | null>(null);
+  const sourcePlayRequest = useRef(0);
+  const sourceHistoryWrite = useRef(Promise.resolve());
+  const sourceTheme = useSourceThemeLibrary(current, (song, songs) => void playSong(song, songs));
   const [interfaceMode, setInterfaceMode] = useState<InterfaceMode>(storedInterfaceMode);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("account");
   const [query, setQuery] = useState("");
@@ -1690,7 +1696,16 @@ export default function App() {
   useEffect(() => {
     setHistoryLoaded(false);
     setHistoryEntries([]);
+    setMygoNavigation(null);
+    setMygoSourceId("");
+    sourcePlayRequest.current += 1;
   }, [auth?.user?.id]);
+
+  useEffect(() => {
+    const navigate = (event: Event) => openMygoDestination((event as CustomEvent<MygoDestination>).detail);
+    window.addEventListener("lark:mygo-navigate", navigate);
+    return () => window.removeEventListener("lark:mygo-navigate", navigate);
+  }, []);
 
   useEffect(() => {
     if (
@@ -2451,6 +2466,7 @@ export default function App() {
   }
 
   async function logout() {
+    sourcePlayRequest.current += 1;
     setAuthLoading(true);
     shellAlbumPageRequestRef.current += 1;
     favoriteSessionRef.current += 1;
@@ -2585,6 +2601,7 @@ export default function App() {
     if (current.mygo) {
       const updated = { ...current, resume_position_seconds: completed ? 0 : currentProgress };
       void api.saveMygoQueue({ songs: queueRef.current.filter((song) => song.mygo).slice(0, 500).map((song) => song.id === current.id ? updated : song), current: current.id }).catch(() => undefined);
+      void recordSourceHistory({ song: updated, progress_seconds: currentProgress, duration_seconds: currentDuration, completed }).catch(() => undefined);
       return;
     }
     if (!offlineModeRef.current && networkReachableRef.current) {
@@ -3503,6 +3520,7 @@ export default function App() {
     list = songs,
     options: PlaySongOptions = {},
   ) {
+    sourcePlayRequest.current += 1;
     if (!deviceID || !settings.dlna_cast_enabled) {
       setDLNAError(t("dlnaCastDisabled"));
       setDLNAPanelOpen(true);
@@ -3566,6 +3584,7 @@ export default function App() {
   }
 
   async function playCurrentToDLNA(device: DLNADevice) {
+    sourcePlayRequest.current += 1;
     if (!current) {
       setDLNAError(t("dlnaSelectSongFirst"));
       return;
@@ -3689,6 +3708,7 @@ export default function App() {
   }
 
   function clearPersistentPlaybackSession() {
+    sourcePlayRequest.current += 1;
     if (!auth?.user) return;
     void api.saveMygoQueue(null).catch(() => undefined);
     void api.clearPlaybackQueue().catch(() => undefined);
@@ -3728,6 +3748,11 @@ export default function App() {
   }
 
   async function resumePlayback(song: Song) {
+    if (song.mygo) {
+      const items = queue.filter((item) => item.mygo?.plugin === song.mygo!.plugin && item.mygo?.identity === song.mygo!.identity);
+      await playSong(song, items.some((item) => item.id === song.id) ? items : [song], { startMode: "resume" });
+      return;
+    }
     const status = await api.playbackQueue().catch(() => null);
     if (await playFromPlaybackQueueStatus(song, status)) return;
     const source = status?.queue?.source;
@@ -3760,7 +3785,18 @@ export default function App() {
     list = songs,
     options: PlaySongOptions = {},
   ) {
+    const request = ++sourcePlayRequest.current;
     if (song.mygo && remoteDLNAActive) { showMessage(t("mygoUnavailable")); return; }
+    if (song.mygo) {
+      try {
+        const [platform, installed] = await Promise.all([api.pluginPlatform(), api.mygoPlugins()]);
+        if (request !== sourcePlayRequest.current) return;
+        if (!platform.mygo || !installed.plugins.some((plugin) => plugin.enabled && plugin.manifest.id === song.mygo!.plugin && plugin.identity === song.mygo!.identity && plugin.exports.includes("stream"))) {
+          showMessage(t("mygoSourceUnavailable"));
+          return;
+        }
+      } catch { if (request === sourcePlayRequest.current) showMessage(t("mygoSourceUnavailable")); return; }
+    }
     if (remoteDLNAActive && dlnaStatus?.device_id) {
       await playSongToDLNADevice(dlnaStatus.device_id, song, list, options);
       return;
@@ -3807,6 +3843,8 @@ export default function App() {
     savePlaybackQueueSession(nextQueue, song, nextSource);
     if (song.mygo) {
       void api.mygoCall(song.mygo.plugin, "played", { id: song.mygo.track }, song.mygo.identity).catch(() => undefined);
+      prependRecentPlayed(song);
+      void recordSourceHistory({ song, duration_seconds: song.duration_seconds }).then(() => scheduleRecentPlayedRefresh()).catch(() => showMessage(t("mygoHistorySaveFailed")));
     } else {
       prependRecentPlayed(song);
       await api.markPlayed(song.id).catch(() => undefined);
@@ -3816,6 +3854,7 @@ export default function App() {
 
   function playRadio(station: RadioStation, list?: RadioStation[]) {
     if (!station?.url) return;
+    sourcePlayRequest.current += 1;
     if (sleepTimerModeRef.current !== "time") clearSleepTimer();
     setPlaybackSessionSource(null);
     if (current) syncPlaybackProgress(false);
@@ -3865,6 +3904,7 @@ export default function App() {
 
   function playNetworkTrack(track: NetworkTrack) {
     if (!track?.stream_url) return;
+    sourcePlayRequest.current += 1;
     if (sleepTimerModeRef.current !== "time") clearSleepTimer();
     setPlaybackSessionSource(null);
     if (current) syncPlaybackProgress(false);
@@ -4045,6 +4085,10 @@ export default function App() {
       return;
     }
     if (ended && mode === "repeat-one") {
+      if (active.mygo) {
+        void playSong(active, activeQueue, { keepPlaybackSource: true });
+        return;
+      }
       if (remoteDLNAActive && dlnaStatus?.device_id) {
         void playSongToDLNADevice(dlnaStatus.device_id, active, activeQueue, { keepPlaybackSource: true });
         return;
@@ -5036,6 +5080,7 @@ export default function App() {
   }
 
   async function openSongAlbum(song: Song, backTo: Collection | null = null) {
+    if (song.mygo) { requestMygoNavigation(song, "album"); return; }
     if (!song.album_id) return;
     const cached = albums.find((item) => item.id === song.album_id);
     if (cached) {
@@ -5044,6 +5089,31 @@ export default function App() {
     }
     const item = await api.album(song.album_id);
     await openAlbum(item, backTo);
+  }
+
+  function openMygoDestination(destination: MygoDestination) {
+    setMygoSourceId(destination.source);
+    setMygoNavigation((previous) => ({ ...destination, sequence: (previous?.sequence ?? 0) + 1 }));
+    setQuery("");
+    setMobileSearchActive(false);
+    setLyricsFullScreen(false);
+    setMobilePlayerExpanded(false);
+    rememberLibraryTab("sources");
+    setView("library");
+  }
+
+  function recordSourceHistory(entry: Parameters<typeof api.recordMygoHistory>[0]) {
+    const session = favoriteSessionRef.current;
+    const write = sourceHistoryWrite.current.catch(() => undefined).then(() => {
+      if (session === favoriteSessionRef.current) return api.recordMygoHistory(entry);
+    });
+    sourceHistoryWrite.current = write;
+    return write;
+  }
+
+  function openSongArtist(song: Song) {
+    if (song.mygo) { requestMygoNavigation(song, "artist"); return; }
+    void openArtistById(song.artist_id, song.artist);
   }
 
   async function openArtistById(id: number, fallbackName = "") {
@@ -5752,7 +5822,7 @@ export default function App() {
             }}
             onOpenArtist={(song) => {
               setLyricsFullScreen(false);
-              void openArtistById(song.artist_id, song.artist);
+              openSongArtist(song);
             }}
             onOpenAlbum={(song) => {
               setLyricsFullScreen(false);
@@ -5946,7 +6016,7 @@ export default function App() {
                 offlineCache={offlineCacheControls}
                 onShareSong={settings.sharing_enabled ? (song) => openShareDialog("song", song.id, song.title) : undefined}
                 onOpenAlbum={(song) => void openSongAlbum(song)}
-                onOpenArtist={(song) => void openArtistById(song.artist_id, song.artist)}
+                onOpenArtist={openSongArtist}
               />
             )}
 
@@ -5986,6 +6056,8 @@ export default function App() {
                 onPluginHostCall={handlePluginHostCall}
                 searchRequest={mobileViewport && mobileSearchActive ? mobileSearchRequest : 0}
                 mygoSourceId={mygoSourceId}
+                mygoNavigation={mygoNavigation}
+                onOpenMygoDestination={openMygoDestination}
                 songs={songs}
                 folders={folders}
                 networkSources={networkSources}
@@ -6008,7 +6080,7 @@ export default function App() {
                   void openSongAlbum(song);
                 }}
                 onOpenArtist={(song) =>
-                  void openArtistById(song.artist_id, song.artist)
+                  openSongArtist(song)
                 }
                 onEditMetadata={auth.user.role === "admin" ? openSongMetadataEditor : undefined}
                 onScan={() => void scan()}
@@ -6126,7 +6198,7 @@ export default function App() {
                   void openSongAlbum(song, collection.type === "artist" ? collection : null);
                 }}
                 onOpenArtist={(song) =>
-                  void openArtistById(song.artist_id, song.artist)
+                  openSongArtist(song)
                 }
                 onOpenAlbumCard={(album) =>
                   void openAlbum(album, collection.type === "artist" ? collection : null)
@@ -6324,7 +6396,7 @@ export default function App() {
                 onTabChange={setSettingsTab}
                 onOpenAlbums={() => setView("albums")}
                 onOpenPlaylists={() => setView("playlists")}
-                onOpenMygoSource={(id) => { setMygoSourceId(id); setQuery(""); setMobileSearchActive(false); rememberLibraryTab("sources"); setView("library"); }}
+                onOpenMygoSource={(id) => { setMygoNavigation(null); setMygoSourceId(id); setQuery(""); setMobileSearchActive(false); rememberLibraryTab("sources"); setView("library"); }}
                 onUpdateProfile={(nickname, avatar) => void updateProfile(nickname, avatar)}
                 pluginHostTheme={pluginHostTheme}
                 pluginHostPlayerState={pluginHostPlayerState}
@@ -6434,6 +6506,9 @@ export default function App() {
           onNext={mobilePlaybackActive ? () => next(1) : undefined}
         />
         {mobileViewport && mobilePlayerExpanded && !lyricsFullScreen ? <MobilePlayerDock
+          key={current?.mygo ? `${current.mygo.plugin}:${current.mygo.identity}:${current.mygo.album || current.mygo.track}` : "local"}
+          onOpenSource={current?.mygo ? () => requestMygoNavigation(current) : undefined}
+          sourceLabel={t("mygoOpenSource")}
           mediaKey={current ? `song:${current.id}` : currentNetworkTrack ? `network:${currentNetworkTrack.source_id}:${currentNetworkTrack.id}` : currentRadio ? `radio:${currentRadio.url}` : `song:${mobileDisplaySong?.id ?? 0}`}
           theme={mobileHomePlayerStyle}
           cover={currentArtwork || coverUrl(mobileDisplaySong)}
@@ -6447,7 +6522,7 @@ export default function App() {
           playMode={playMode}
           playModeLabel={playModeLabel}
           labels={mobilePlayerLabels}
-          rewindLibrary={isRewindTheme(mobileHomePlayerStyle) ? { albums, cover: albumCoverUrl, loadAlbums: (page, signal) => api.albumsPage(page, 48, 0, signal, false), loadSongs: (album) => api.albumSongs(album.id, MAX_PLAYBACK_QUEUE_SIZE), playAlbum: (album) => void playAlbum(album), playSong: (song, songs) => void playSong(song, songs) } : undefined}
+          rewindLibrary={isRewindTheme(mobileHomePlayerStyle) ? sourceTheme ?? { albums, cover: albumCoverUrl, loadAlbums: (page, signal) => api.albumsPage(page, 48, 0, signal, false), loadSongs: (album) => api.albumSongs(album.id, MAX_PLAYBACK_QUEUE_SIZE), playAlbum: (album) => void playAlbum(album), playSong: (song, songs) => void playSong(song, songs) } : undefined}
           onToggle={toggleMobilePlayback}
           onPrevious={mobilePlaybackActive ? () => next(-1) : undefined}
           onNext={mobilePlaybackActive ? () => next(1) : undefined}
@@ -6505,14 +6580,14 @@ export default function App() {
             )}
           </button>
           <div>
-            <strong>{nowTitle}</strong>
+            <strong>{current?.mygo ? <button className="now-meta-link" onClick={() => requestMygoNavigation(current)} title={t("mygoOpenSource")}>{nowTitle}</button> : nowTitle}</strong>
             <span>
               {current ? (
                 <>
-                  {current.artist_id ? (
+                  {current.artist_id || current.mygo ? (
                     <button
                       className="now-meta-link"
-                      onClick={() => void openArtistById(current.artist_id, current.artist)}
+                      onClick={() => openSongArtist(current)}
                     >
                       {current.artist}
                     </button>
@@ -6520,10 +6595,10 @@ export default function App() {
                     current.artist
                   )}
                   {" · "}
-                  {currentAlbum ? (
+                  {currentAlbum || current.mygo ? (
                     <button
                       className="now-meta-link"
-                      onClick={() => void openAlbum(currentAlbum)}
+                      onClick={() => void openSongAlbum(current)}
                     >
                       {current.album}
                     </button>
@@ -6532,6 +6607,7 @@ export default function App() {
                   )}
                   {" · "}
                   {formatQuality(current)}
+                  {current.mygo ? <> · <button className="now-meta-link" onClick={() => requestMygoNavigation(current)} title={t("mygoOpenSource")}>{current.mygo.sourceName || current.mygo.plugin}</button></> : null}
                 </>
               ) : currentRadio ? (
                 <span className="radio-now-meta"><i />LIVE{nowSubtitle ? ` · ${nowSubtitle}` : ""}</span>
@@ -7166,6 +7242,9 @@ function HomeView({
   const featuredPlaylists = playlists.slice(0, 3);
   const resumeCandidate = resumePosition(recentPlayedSongs[0]) ? recentPlayedSongs[0] : null;
   const displaySong = current ?? heroSong ?? resumeCandidate ?? recentAddedSongs[0] ?? dailySource[0] ?? songs[0];
+  const themeSong = homePlayerStyle === "vinyl-collection" ? current ?? recentPlayedSongs[0] ?? displaySong : displaySong;
+  const sourceTheme = useSourceThemeLibrary(themeSong, onPlay);
+  const themeScope = themeSong?.mygo ? `${themeSong.mygo.plugin}:${themeSong.mygo.identity}:${themeSong.mygo.album || themeSong.mygo.track}` : "local";
   const canResumeDisplaySong = Boolean(displaySong && resumePosition(displaySong) > 0);
   const heroActive = Boolean(current);
   const heroCanResume = !heroActive && Boolean(resumeCandidate);
@@ -7223,6 +7302,9 @@ function HomeView({
     return (
       <section className="home-view desktop-home-view rewind-desktop" data-home-player-style={homePlayerStyle}>
         <MobileArtPlayer
+          key={themeScope}
+          onOpenSource={displaySong?.mygo ? () => requestMygoNavigation(displaySong) : undefined}
+          sourceLabel={t("mygoOpenSource")}
           mediaKey={`song:${displaySong?.id ?? 0}`}
           variant={homePlayerStyle}
           cover={coverUrl(displaySong)}
@@ -7236,7 +7318,7 @@ function HomeView({
           playMode={playMode}
           playModeLabel={playModeLabel}
           labels={{ ...playerThemeLabels, flipTape: t("flipTape"), tapeHint: t("tapeHint"), queue: t("queue"), lyrics: t("lyrics"), favorite: t("favorites"), menu: t("mobilePlayerMenu"), soundEffects: t("mobileSoundEffects"), sleepTimer: t("sleepTimer"), cassette: t("cassette"), artwork: t("artwork"), tapeRack: t("tapeRack"), albumTracks: t("albumTracks"), albumBack: t("toasterBack"), expandTapes: t("expandTapes"), collapseTapes: t("collapseTapes"), loadingTracks: t("loadingTracks"), failedTracks: t("failedTracks"), emptyTapes: t("emptyTapes"), noAlbumTracks: t("noAlbumTracks"), retry: t("retry"), loading: t("loading"), loadMore: t("loadMore"), failedTapes: t("failedTapes") }}
-          rewindLibrary={{ albums, cover: albumCoverUrl, loadAlbums: (page, signal) => api.albumsPage(page, 48, 0, signal, false), loadSongs: (album) => api.albumSongs(album.id, MAX_PLAYBACK_QUEUE_SIZE), playAlbum: onPlayAlbum, playSong: onPlay }}
+          rewindLibrary={sourceTheme ?? { albums, cover: albumCoverUrl, loadAlbums: (page, signal) => api.albumsPage(page, 48, 0, signal, false), loadSongs: (album) => api.albumSongs(album.id, MAX_PLAYBACK_QUEUE_SIZE), playAlbum: onPlayAlbum, playSong: onPlay }}
           onToggle={heroActive ? onTogglePlayback : displaySong ? () => onResume(displaySong) : undefined}
           onPrevious={heroActive ? onPrevious : undefined}
           onNext={heroActive ? onNext : undefined}
@@ -7263,9 +7345,12 @@ function HomeView({
       <section className="home-view desktop-home-view" data-home-player-style={homePlayerStyle}>
         <section className="vinyl-collection-hero">
           <VinylCollectionPlayer
+            key={themeScope}
+            sourceLibrary={sourceTheme}
+            onOpenSource={themeSong?.mygo ? () => requestMygoNavigation(themeSong) : undefined}
             albums={albums}
             current={current}
-            displaySong={recentPlayedSongs[0] ?? displaySong}
+            displaySong={themeSong}
             playing={heroPlaying}
             progress={heroActive ? progress : 0}
             duration={heroActive ? duration : 0}
@@ -7557,12 +7642,12 @@ function HomeView({
               <button
                 type="button"
                 className="hero-meta-link"
-                onClick={() => onOpenArtist(displaySong.artist_id, displaySong.artist)}
+                onClick={() => displaySong.mygo ? requestMygoNavigation(displaySong, "artist") : onOpenArtist(displaySong.artist_id, displaySong.artist)}
               >
                 {displaySong.artist}
               </button>
               <span aria-hidden="true"> · </span>
-              {heroAlbum ? (
+              {displaySong.mygo ? <button type="button" className="hero-meta-link" onClick={() => requestMygoNavigation(displaySong, "album")}>{displaySong.album || displaySong.mygo.sourceName || t("mygoOpenSource")}</button> : heroAlbum ? (
                 <button
                   type="button"
                   className="hero-meta-link"
@@ -8652,17 +8737,18 @@ function HistoryView({
                             {song.title}
                           </button>
                           <div className="history-entry-links">
-                            {song.artist_id ? (
+                            {song.artist_id || song.mygo ? (
                               <button className="artist-link" onClick={() => onOpenArtist(song)}>{song.artist}</button>
                             ) : (
                               <span>{song.artist}</span>
                             )}
                             <span aria-hidden="true">·</span>
-                            {song.album_id ? (
+                            {song.album_id || song.mygo ? (
                               <button className="artist-link" onClick={() => onOpenAlbum(song)}>{song.album}</button>
                             ) : (
                               <span>{song.album}</span>
                             )}
+                            {song.mygo ? <><span aria-hidden="true">·</span><button className="artist-link" onClick={() => requestMygoNavigation(song)}>{song.mygo.sourceName || song.mygo.plugin}</button></> : null}
                           </div>
                           <small>
                             {[
@@ -8753,6 +8839,8 @@ function LibraryView({
   onPluginHostCall,
   searchRequest,
   mygoSourceId,
+  mygoNavigation,
+  onOpenMygoDestination,
   songs,
   folders,
   networkSources,
@@ -8803,6 +8891,8 @@ function LibraryView({
   onPluginHostCall: (call: SongloftHostCall) => Promise<unknown>;
   searchRequest: number;
   mygoSourceId: string;
+  mygoNavigation: MygoNavigation | null;
+  onOpenMygoDestination: (destination: MygoDestination) => void;
   songs: Song[];
   folders: Folder[];
   networkSources: NetworkSource[];
@@ -8859,13 +8949,18 @@ function LibraryView({
   const canManage = canManageLibrary(userRole);
   const navigation = usePluginNavigation(userId, userRole === "admin");
   const permittedTab = resolveLibraryTab(tab, userRole, mobileBasic);
-  const unavailable = (permittedTab === "sources" && !navigation.sources.length) || (permittedTab === "tools" && !navigation.tools.length);
+  const unavailable = (permittedTab === "sources" && !navigation.sources.length && !mygoNavigation) || (permittedTab === "tools" && !navigation.tools.length);
   const activeTab = unavailable ? "songs" : permittedTab;
   const setTab = (nextTab: LibraryTab) => {
     if (resolveLibraryTab(nextTab, userRole, mobileBasic) !== nextTab) return;
     setTabState(nextTab);
     rememberLibraryTab(nextTab);
   };
+  useLayoutEffect(() => {
+    if (!mygoNavigation) return;
+    setTabState("sources");
+    rememberLibraryTab("sources");
+  }, [mygoNavigation?.sequence]);
   useEffect(() => {
     if (navigation.ready && activeTab !== tab) {
       setTabState(activeTab);
@@ -8997,7 +9092,7 @@ function LibraryView({
           </>
         ) : null}
       </div>
-      {activeTab === "sources" ? <MygoLibrary key={userId} t={t} onPlay={onPlay} initialSourceId={mygoSourceId} /> : activeTab === "tools" ? <PluginTools plugins={navigation.tools} t={t} theme={pluginTheme} playerState={pluginPlayerState} onHostCall={onPluginHostCall} /> : canManage && activeTab === "manage" ? (
+      {activeTab === "sources" ? <MygoLibrary key={userId} t={t} onPlay={onPlay} initialSourceId={mygoSourceId} navigation={mygoNavigation} /> : activeTab === "tools" ? <PluginTools plugins={navigation.tools} t={t} theme={pluginTheme} playerState={pluginPlayerState} onHostCall={onPluginHostCall} /> : canManage && activeTab === "manage" ? (
         <LibraryDirectoryManager
           directories={libraryDirectories}
           onDirectoriesChange={onLibraryDirectoriesChange}
@@ -9093,9 +9188,12 @@ function LibraryView({
           <span>{t("libraryReviewCompleteHint")}</span>
           <button type="button" onClick={onReviewToggle}>{t("showAllSongs")}</button>
         </div>
+      ) : searchQuery.trim() ? (
+        <div className="empty" role="status">{t("noSongs")}</div>
       ) : (
         <EmptyLibrary t={t} mobileBasic={mobileBasic} canManage={canManage} onScan={onScan} onUpload={onUpload} scanStatus={scanStatus} />
       )}
+      {activeTab === "songs" && searchQuery.trim() ? <MygoSearchResults sources={navigation.sources} query={searchQuery} t={t} onPlay={onPlay} onOpenSource={(source) => onOpenMygoDestination({ source: source.manifest.id, identity: source.identity, method: "search", params: { query: searchQuery.trim(), kind: "tracks", offset: 0 } })} /> : null}
     </section>
   );
 }
@@ -12535,14 +12633,14 @@ const SongRow = memo(function SongRow({
             {song.metadata_issues.map((issue) => t(issue === "missing_title" ? "missingTitle" : issue === "missing_artist" ? "missingArtist" : "missingAlbum")).join(" · ")}
           </button>
         ) : <small className="song-metadata-issues">{song.metadata_issues.map((issue) => t(issue === "missing_title" ? "missingTitle" : issue === "missing_artist" ? "missingArtist" : "missingAlbum")).join(" · ")}</small>) : null}
-        {canOpenArtist && song.artist_id ? (
+        {canOpenArtist && (song.artist_id || song.mygo) ? (
           <button className="artist-link" onClick={() => onOpenArtist(song)} title={song.artist}>{song.artist}</button>
         ) : (
           <small>{song.artist}</small>
         )}
       </div>
       <div className="song-album" title={song.album}>
-        {canOpenAlbum && song.album_id ? (
+        {canOpenAlbum && (song.album_id || song.mygo) ? (
           <button className="artist-link" onClick={() => onOpenAlbum(song)}>{song.album}</button>
         ) : (
           song.album
@@ -12799,8 +12897,9 @@ function SongTable({
         <Heart weight={moreMenuSong.favorite ? "fill" : "regular"} />
         <span>{t(moreMenuSong.favorite ? "removeFavorite" : "addFavorite")}</span>
       </button>
-      {onOpenAlbum && moreMenuSong.album_id ? <button role="menuitem" onClick={() => { onOpenAlbum(moreMenuSong); setMoreMenuSongId(null); }}><Disc /><span>{t("mobileGoToAlbum")}</span></button> : null}
-      {onOpenArtist && moreMenuSong.artist_id ? <button role="menuitem" onClick={() => { onOpenArtist(moreMenuSong); setMoreMenuSongId(null); }}><UserCircle /><span>{t("mobileGoToArtist")}</span></button> : null}
+      {moreMenuSong.mygo ? <button role="menuitem" onClick={() => { requestMygoNavigation(moreMenuSong); setMoreMenuSongId(null); }}><MusicNotes /><span>{t("mygoOpenSource")}</span></button> : null}
+      {onOpenAlbum && (moreMenuSong.album_id || moreMenuSong.mygo) ? <button role="menuitem" onClick={() => { onOpenAlbum(moreMenuSong); setMoreMenuSongId(null); }}><Disc /><span>{t("mobileGoToAlbum")}</span></button> : null}
+      {onOpenArtist && (moreMenuSong.artist_id || moreMenuSong.mygo) ? <button role="menuitem" onClick={() => { onOpenArtist(moreMenuSong); setMoreMenuSongId(null); }}><UserCircle /><span>{t("mobileGoToArtist")}</span></button> : null}
       {onInsertNext ? (
         <button role="menuitem" onClick={() => { onInsertNext(moreMenuSong); setMoreMenuSongId(null); }}>
           <SkipForward />

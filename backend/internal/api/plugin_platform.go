@@ -22,6 +22,7 @@ func WithPluginPlatform(platform *pluginapp.Service, service *mygo.Service, cata
 		server.pluginPlatform = platform
 		server.mygo = service
 		server.mygoCatalog = catalog
+		server.lib.SetSourcePlaybackHistory(service)
 	}
 }
 
@@ -57,6 +58,7 @@ func (s *Server) registerPluginPlatformRoutes() {
 		return c.JSON(http.StatusOK, s.pluginPlatform.State())
 	}, s.requireAdmin)
 	s.echo.GET("/api/mygo/plugins", func(c *echo.Context) error { return c.JSON(http.StatusOK, map[string]any{"plugins": s.mygo.List()}) }, s.requireAuth)
+	s.echo.POST("/api/mygo/history", s.handleMygoHistory, s.requireAuth)
 	s.echo.GET("/api/mygo/queue", func(c *echo.Context) error {
 		contents, err := s.mygo.Queue(c.Request().Context(), currentUserID(c))
 		if err != nil {

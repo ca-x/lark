@@ -158,6 +158,8 @@ Authenticated users browse enabled MyGo sources from the library, save their own
 
 Accounts, storage and private queues are isolated per user and source origin; these tracks never enter the shared local song table. This is streaming-source compatibility, not a native MyGo desktop host: process execution, native browser-window sign-in callbacks, remote playback and private/LAN network access are not supported. See [the plugin guide](docs/plugin-platform.md) and [Songloft capability matrix](docs/songloft-plugin-capability-matrix.md) for limits.
 
+Source tracks also appear in persistent playback history and recently played, with device/retention settings and resume progress preserved. The player, song menus and history link back to the exact source; album and artist pages use only exports the source provides. Library searches show local results alongside independently loaded source groups. Vinyl-room and cassette album browsers remain source-specific and never substitute local albums for a source track.
+
 ### Administer A Private Music Service
 
 - First-run setup creates the first admin account. Admins can also enable registration.

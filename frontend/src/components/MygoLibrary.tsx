@@ -9,12 +9,16 @@ import { mygoErrorMessage } from "../features/plugins/mygo";
 import { MygoSignInPrompt } from "./MygoSignInPrompt";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { pluginNavigation } from "../features/plugins/navigation";
+import { resolveMygoDestination, type MygoNavigation } from "../features/plugins/mygo";
 
-export function MygoLibrary({ t, onPlay, initialSourceId = "" }: { t: ReturnType<typeof createT>; onPlay: (song: Song, list: Song[]) => void | Promise<void>; initialSourceId?: string }) {
+export function MygoLibrary({ t, onPlay, initialSourceId = "", navigation }: { t: ReturnType<typeof createT>; onPlay: (song: Song, list: Song[]) => void | Promise<void>; initialSourceId?: string; navigation?: MygoNavigation | null }) {
   const [plugins, setPlugins] = useState<MygoPlugin[]>([]);
   const [enabled, setEnabled] = useState(false);
   const [selected, setSelected] = useState(initialSourceId);
+  const [manualNavigation, setManualNavigation] = useState<number | undefined>();
+  const intent = navigation?.sequence === manualNavigation ? undefined : navigation;
   const [error, setError] = useState("");
+  useEffect(() => { if (navigation) setSelected(navigation.source); }, [navigation?.sequence]);
   useEffect(() => {
     let alive = true;
     let sequence = 0;
@@ -22,17 +26,18 @@ export function MygoLibrary({ t, onPlay, initialSourceId = "" }: { t: ReturnType
     refresh(); window.addEventListener("lark:plugins-changed", refresh);
     return () => { alive = false; window.removeEventListener("lark:plugins-changed", refresh); };
   }, []);
-  const active = plugins.find((plugin) => plugin.manifest.id === selected) || plugins[0];
+  const selectedSource = intent?.source || selected;
+  const active = plugins.find((plugin) => plugin.manifest.id === selectedSource) || (!selectedSource ? plugins[0] : undefined);
   if (!enabled && !error) return <section className="mygo-panel"><h3>{t("mygoSources")}</h3><p role="status">{t("mygoSourcesDisabled")}</p></section>;
-  if (error || !active) return <section className="mygo-panel"><h3>{t("mygoSources")}</h3><p role={error ? "alert" : "status"}>{error || t("mygoEmpty")}</p></section>;
+  if (error || !plugins.length) return <section className="mygo-panel"><h3>{t("mygoSources")}</h3><p role={error ? "alert" : "status"}>{error || (navigation ? t("mygoSourceUnavailable") : t("mygoEmpty"))}</p></section>;
   return <section className="mygo-panel mygo-library" aria-label={t("mygoSources")}>
     <header className="mygo-library-heading"><div><h3>{t("mygoSources")}</h3><p>{t("mygoBrowseHint")}</p></div></header>
     <nav className="mygo-source-picker" aria-label={t("mygoSources")}>
-      {plugins.map((plugin) => <button type="button" key={plugin.manifest.id} data-source={plugin.manifest.id} aria-current={plugin.manifest.id === active.manifest.id ? "true" : undefined} onClick={() => setSelected(plugin.manifest.id)}>
-        <MusicNotes aria-hidden="true" /><span>{plugin.manifest.name}</span>{plugin.manifest.id === active.manifest.id && <Check className="mygo-source-check" aria-hidden="true" />}
+      {plugins.map((plugin) => <button type="button" key={plugin.manifest.id} data-source={plugin.manifest.id} aria-current={plugin.manifest.id === active?.manifest.id ? "true" : undefined} onClick={() => { setSelected(plugin.manifest.id); setManualNavigation(navigation?.sequence); }}>
+        <MusicNotes aria-hidden="true" /><span>{plugin.manifest.name}</span>{plugin.manifest.id === active?.manifest.id && <Check className="mygo-source-check" aria-hidden="true" />}
       </button>)}
     </nav>
-    <MygoSourceBrowser key={`${active.manifest.id}:${active.identity}`} active={active} t={t} onPlay={onPlay} />
+    {active && (!intent || intent.source !== selectedSource || intent.identity === active.identity) ? <MygoSourceBrowser key={`${active.manifest.id}:${active.identity}:${intent?.sequence ?? "manual"}`} active={active} t={t} onPlay={onPlay} navigation={intent?.source === selectedSource ? intent : undefined} /> : <p role="alert">{t("mygoSourceUnavailable")}</p>}
   </section>;
 }
 
@@ -43,7 +48,7 @@ function MygoArtwork({ src, className = "" }: { src?: string; className?: string
   </span>;
 }
 
-function MygoSourceBrowser({ active, t, onPlay }: { active: MygoPlugin; t: ReturnType<typeof createT>; onPlay: (song: Song, list: Song[]) => void | Promise<void> }) {
+function MygoSourceBrowser({ active, t, onPlay, navigation }: { active: MygoPlugin; t: ReturnType<typeof createT>; onPlay: (song: Song, list: Song[]) => void | Promise<void>; navigation?: MygoNavigation }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState<MygoPage>({});
   const [busy, setBusy] = useState(false);
@@ -61,11 +66,12 @@ function MygoSourceBrowser({ active, t, onPlay }: { active: MygoPlugin; t: Retur
   const [prompt, setPrompt] = useState<{ text?: string; qr?: string } | null>(null);
   const [deletingPlaylist, setDeletingPlaylist] = useState("");
   const signInRequest = useRef<AbortController | null>(null);
+  const pageRequest = useRef<AbortController | null>(null);
   const request = useRef<{ method: string; params: Record<string, unknown>; offset: number }>({ method: "home", params: {}, offset: 0 });
   const source = active.manifest.id;
   const can = (method: string) => active.exports.includes(method);
   const call = <T = MygoPage,>(method: string, params: unknown = {}, signal?: AbortSignal) => api.mygoCall<T>(source, method, params, active.identity, signal);
-  useEffect(() => () => signInRequest.current?.abort(), []);
+  useEffect(() => () => { signInRequest.current?.abort(); pageRequest.current?.abort(); }, []);
   useEffect(() => {
     if (!active.exports.includes("account")) return;
     const controller = new AbortController();
@@ -74,7 +80,11 @@ function MygoSourceBrowser({ active, t, onPlay }: { active: MygoPlugin; t: Retur
     window.addEventListener("focus", refresh);
     return () => { controller.abort(); window.removeEventListener("focus", refresh); };
   }, [active.identity]);
-  useEffect(() => { if (active.exports.includes("home")) void load("home"); }, [active.identity]);
+  useEffect(() => {
+    const destination = navigation ? resolveMygoDestination(active, navigation) : active.exports.includes("home") ? { method: "home", params: {} } : undefined;
+    if (destination) void load(destination.method, destination.params);
+    else setError(t("mygoSourceUnavailable"));
+  }, [active.identity, navigation?.sequence]);
 
   useEffect(() => {
     const receive = (event: Event) => {
@@ -109,11 +119,16 @@ function MygoSourceBrowser({ active, t, onPlay }: { active: MygoPlugin; t: Retur
 
   async function load(method: string, params: Record<string, unknown> = {}, append = false) {
     await run(async () => {
-      const value = await call<MygoPage | MygoEntity[]>(method, params);
+      pageRequest.current?.abort();
+      const controller = new AbortController();
+      pageRequest.current = controller;
+      const value = await call<MygoPage | MygoEntity[]>(method, params, controller.signal);
+      if (controller.signal.aborted) return;
       const result = normalizeMygoPage(method, value);
       const items = [...mygoPageTracks(result), ...(result.sections || []).flatMap(mygoPageTracks)];
       if (can("isLiked") && items.length) {
-        const flags = await call<Record<string, boolean>>("isLiked", { ids: items.map((track) => track.id) });
+        const flags = await call<Record<string, boolean>>("isLiked", { ids: items.map((track) => track.id) }, controller.signal);
+        if (controller.signal.aborted) return;
         setLiked((old) => ({ ...old, ...flags }));
       } else if (method === "liked") setLiked((old) => ({ ...old, ...Object.fromEntries(items.map((track) => [track.id, true])) }));
       const count = mygoPageTracks(result).length + (result.albums?.length || 0) + (result.artists?.length || 0) + (result.playlists?.length || 0) + (result.shows?.length || 0) + (result.stations?.length || 0);
@@ -172,7 +187,7 @@ function MygoSourceBrowser({ active, t, onPlay }: { active: MygoPlugin; t: Retur
   const allTracks = [...mygoPageTracks(page), ...(page.sections || []).flatMap(mygoPageTracks)].filter((track) => !track.unavailable);
   async function play(trackId?: string) {
     await run(async () => {
-      const songs = allTracks.map((item) => mygoSong(source, { ...item, liked: liked[item.id] ?? item.liked }, active.identity));
+      const songs = allTracks.map((item) => mygoSong(source, { ...item, liked: liked[item.id] ?? item.liked }, active.identity, active.manifest.name));
       const song = trackId === undefined ? songs[0] : songs.find((item) => item.mygo?.track === trackId);
       if (song) await onPlay(song, songs);
     });

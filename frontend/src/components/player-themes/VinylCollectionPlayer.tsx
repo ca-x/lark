@@ -10,6 +10,7 @@ import { createAnimationActivity } from "./animationActivity";
 import { useDiscScratchSeek } from "./useDiscScratchSeek";
 import { useCoverFallback } from "./useCoverFallback";
 import type { PlayerThemePlayMode } from "./types";
+import type { RewindLibrary } from "./rewindLibrary";
 import { vinylShelfLayout, vinylShelfPose } from "./vinylShelfLayout";
 import deckImage from "./vinyl-collection/deck.svg";
 import fixturesImage from "./vinyl-collection/fixtures.svg";
@@ -18,6 +19,8 @@ import recordImage from "./vinyl-collection/record.svg";
 
 type Props = {
   albums: Album[];
+  sourceLibrary?: RewindLibrary;
+  onOpenSource?: () => void;
   current: Song | null;
   displaySong?: Song;
   playing: boolean;
@@ -38,7 +41,7 @@ type Props = {
 
 type TrackResult = { albumId: number; status: "ready" | "error"; songs: Song[] };
 
-export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySong, playing, progress, duration, volume, playMode, playModeLabel, t, onPlay, onToggle, onPrevious, onNext, onSeek, onVolume, onCyclePlayMode }: Props) {
+export function VinylCollectionPlayer({ albums: cachedAlbums, sourceLibrary, onOpenSource, current, displaySong, playing, progress, duration, volume, playMode, playModeLabel, t, onPlay, onToggle, onPrevious, onNext, onSeek, onVolume, onCyclePlayMode }: Props) {
   const [browse, setBrowse] = useState({ favorites: false, favoriteArtists: false, page: 1 });
   const { favorites, favoriteArtists, page: catalogPage } = browse;
   const filtered = favorites || favoriteArtists;
@@ -48,18 +51,20 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
   const [catalogBusy, setCatalogBusy] = useState(true);
   const [catalogFailed, setCatalogFailed] = useState(false);
   const [catalogRetry, setCatalogRetry] = useState(0);
-  const catalogAlbums = catalog?.items ?? (filtered ? [] : cachedAlbums);
-  const shelfBusy = catalogBusy || (!catalog && !catalogFailed);
+  const catalogAlbums = sourceLibrary ? sourceLibrary.albums : catalog?.items ?? (filtered ? [] : cachedAlbums);
+  const shelfBusy = !sourceLibrary && (catalogBusy || (!catalog && !catalogFailed));
+  const albumCover = (album?: Album) => album && sourceLibrary ? sourceLibrary.cover(album) : albumCoverUrl(album);
   // The active or most recently played album may be outside the loaded shelf pages.
   const highlightedSong = current ?? displaySong;
   const highlightedAlbum = useMemo<Album | undefined>(() => {
+    if (sourceLibrary) return sourceLibrary.albums[0];
     if (!highlightedSong?.album_id) return undefined;
     return catalogAlbums.find((album) => album.id === highlightedSong.album_id) ?? {
       id: highlightedSong.album_id, title: highlightedSong.album, artist: highlightedSong.artist,
       artist_id: highlightedSong.artist_id, album_artist: highlightedSong.artist, year: highlightedSong.year,
       favorite: false, song_count: 0,
     };
-  }, [catalogAlbums, highlightedSong]);
+  }, [catalogAlbums, highlightedSong, sourceLibrary]);
   const [selection, setSelection] = useState<{ trackId?: number; albumId?: number; album?: Album }>(
     { trackId: current?.id, albumId: current?.album_id },
   );
@@ -104,7 +109,7 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
   const shelfDrag = useRef<{ id: number; x: number; index: number; moved: boolean; step: number } | null>(null);
   const suppressShelfClick = useRef(false);
   const wheelTime = useRef(0);
-  const selectedLoaded = Boolean(current && selected?.id === current.album_id);
+  const selectedLoaded = Boolean(current && selected && (sourceLibrary || selected.id === current.album_id));
   const active = playing && Boolean(current);
   const scratch = useDiscScratchSeek({ duration, progress, onSeek: current ? onSeek : undefined, scratchCycleSeconds: 12, trackKey: current?.id });
   const trackTime = Math.max(0, Math.min(scratch.progress, duration || 0));
@@ -168,6 +173,7 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
   }, []);
 
   useEffect(() => {
+    if (sourceLibrary) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), COLLECTION_LOAD_TIMEOUT_MS);
     let cancelled = false;
@@ -186,26 +192,27 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
       if (!cancelled) setCatalogBusy(false);
     });
     return () => { cancelled = true; controller.abort(); window.clearTimeout(timer); };
-  }, [catalogPage, catalogRetry, favorites, favoriteArtists, filterKey]);
+  }, [catalogPage, catalogRetry, favorites, favoriteArtists, filterKey, sourceLibrary]);
 
   useEffect(() => {
-    if (catalog && !catalogBusy && !catalogFailed && catalog.page === catalogPage && catalog.hasMore && selectedIndex >= albums.length - 5) {
+    if (!sourceLibrary && catalog && !catalogBusy && !catalogFailed && catalog.page === catalogPage && catalog.hasMore && selectedIndex >= albums.length - 5) {
       setBrowse((value) => ({ ...value, page: value.page + 1 }));
     }
-  }, [catalog, catalogBusy, catalogFailed, catalogPage, albums.length, selectedIndex]);
+  }, [catalog, catalogBusy, catalogFailed, catalogPage, albums.length, selectedIndex, sourceLibrary]);
 
   useEffect(() => {
     if (!selected) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), COLLECTION_LOAD_TIMEOUT_MS);
     let cancelled = false;
-    api.albumSongs(selected.id, MAX_PLAYBACK_QUEUE_SIZE, controller.signal).then((songs) => {
+    const load = sourceLibrary ? sourceLibrary.loadSongs(selected, controller.signal) : api.albumSongs(selected.id, MAX_PLAYBACK_QUEUE_SIZE, controller.signal);
+    load.then((songs) => {
       if (!cancelled) setResult({ albumId: selected.id, songs, status: "ready" });
     }).catch(() => {
       if (!cancelled) setResult({ albumId: selected.id, songs: [], status: "error" });
     }).finally(() => window.clearTimeout(timer));
     return () => { cancelled = true; controller.abort(); window.clearTimeout(timer); };
-  }, [selected?.id, retry]);
+  }, [selected?.id, retry, sourceLibrary?.scope]);
 
   useLayoutEffect(() => {
     const list = trackListRef.current;
@@ -312,13 +319,13 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
       onPointerDownCapture={(event) => { event.currentTarget.dataset.input = "pointer"; }}>
       <header className="vc-heading">
         <span>{t("homePlayerVinylCollection")}</span>
-        <div className="vc-collection-tools">
+        {sourceLibrary ? <button type="button" className="vc-source-link" onClick={onOpenSource}>{highlightedSong?.mygo?.sourceName || t("mygoOpenSource")}</button> : <div className="vc-collection-tools">
           <div className="vc-filters" role="group" aria-label={t("vinylFilterCollection")}>
             <button type="button" aria-label={t("vinylFavoriteAlbums")} title={t("vinylFavoriteAlbums")} aria-pressed={favorites} onClick={() => changeFilters({ favorites: !favorites, favoriteArtists })}><Heart weight={favorites ? "fill" : "regular"} aria-hidden="true" /><span>{t("album")}</span></button>
             <button type="button" aria-label={t("vinylFavoriteArtists")} title={t("vinylFavoriteArtists")} aria-pressed={favoriteArtists} onClick={() => changeFilters({ favorites, favoriteArtists: !favoriteArtists })}><UserSound weight={favoriteArtists ? "fill" : "regular"} aria-hidden="true" /><span>{t("artist")}</span></button>
           </div>
           <span className="vc-count" role="status">{catalog?.total ?? "—"} {t("album")}</span>
-        </div>
+        </div>}
       </header>
       <div className="vc-listening-room">
         <div className="vc-deck-column">
@@ -328,7 +335,7 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
               aria-label={`${active ? t("pause") : t("play")} · ${t("vinylScratchHint")}`} disabled={!canToggle} onLostPointerCapture={scratch.scratchProps.onPointerCancel} onClick={toggleDeck}>
               <span className="vc-rotor" ref={rotorRef}>
                 <img src={recordImage} alt="" draggable={false} />
-                <span className="vc-disc-label"><Cover src={current ? albumCoverUrl(highlightedAlbum) ?? coverUrl(current) : undefined} /><span className="vc-label-hole" /></span>
+                <span className="vc-disc-label"><Cover src={current ? albumCover(highlightedAlbum) ?? coverUrl(current) : undefined} /><span className="vc-label-hole" /></span>
               </span>
             </button>
             <img className="vc-deck-layer vc-fixtures" src={fixturesImage} alt="" draggable={false} />
@@ -368,10 +375,10 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
               onPointerUp={(event) => finishRecordDrag(event, true)} onPointerCancel={(event) => finishRecordDrag(event, false)}
               onLostPointerCapture={(event) => finishRecordDrag(event, false)}
               onClick={(event) => { if (suppressDiscClick.current && event.detail !== 0) { suppressDiscClick.current = false; return; } playRecord(); }}>
-              <img src={recordImage} alt="" draggable={false} /><span className="vc-disc-label"><Cover src={albumCoverUrl(selected)} /><span className="vc-label-hole" /></span>
+              <img src={recordImage} alt="" draggable={false} /><span className="vc-disc-label"><Cover src={albumCover(selected)} /><span className="vc-label-hole" /></span>
             </button>
             <div className="vc-sleeve" data-flipped={flipped} data-album-id={selected?.id}>
-              <div className="vc-sleeve-front" aria-hidden={flipped} inert={flipped}><Cover src={albumCoverUrl(selected)} /><div className="vc-sleeve-caption"><strong>{selected?.title || t("brand")}</strong><span>{selected?.artist || t("vinylReady")}</span></div></div>
+              <div className="vc-sleeve-front" aria-hidden={flipped} inert={flipped}><Cover src={albumCover(selected) ?? (sourceLibrary ? coverUrl(highlightedSong) : undefined)} /><div className="vc-sleeve-caption"><strong>{selected?.title || highlightedSong?.album || t("brand")}</strong><span>{selected?.artist || highlightedSong?.artist || t("vinylReady")}</span></div></div>
               <div className="vc-sleeve-back" aria-hidden={!flipped} inert={!flipped}>
                 <header><strong>{selected?.title || t("album")}</strong><span>{selected?.artist}</span></header>
                 <div className="vc-track-list" ref={trackListRef} aria-busy={loading}>
@@ -406,7 +413,7 @@ export function VinylCollectionPlayer({ albums: cachedAlbums, current, displaySo
           {albums.slice(shelfLayout.start, shelfLayout.end).map((album) => {
             const offset = albums.indexOf(album) - selectedIndex;
             const { x, z, angle } = vinylShelfPose(offset);
-            return <button key={album.id} type="button" className="vc-shelf-record" aria-label={`${album.title} · ${album.artist}`} title={`${album.title} · ${album.artist}`} aria-pressed={offset === 0} tabIndex={offset === 0 ? 0 : -1} onClick={() => { selectAlbum(album.id); setFlipped(false); }} style={{ transform: `translateX(${x}%) translateY(${offset === 0 ? -8 : 0}px) translateZ(${z}px) rotateY(${angle}deg)`, zIndex: 20 - Math.abs(offset) }}><Cover src={albumCoverUrl(album)} /><span>{album.title}</span></button>;
+            return <button key={album.id} type="button" className="vc-shelf-record" aria-label={`${album.title} · ${album.artist}`} title={`${album.title} · ${album.artist}`} aria-pressed={offset === 0} tabIndex={offset === 0 ? 0 : -1} onClick={() => { selectAlbum(album.id); setFlipped(false); }} style={{ transform: `translateX(${x}%) translateY(${offset === 0 ? -8 : 0}px) translateZ(${z}px) rotateY(${angle}deg)`, zIndex: 20 - Math.abs(offset) }}><Cover src={albumCover(album)} /><span>{album.title}</span></button>;
           })}
           </div>
         </div>

@@ -100,6 +100,7 @@ type Service struct {
 	// favorite/playlist toggles don't lose a version bump.
 	userVersionMu   sync.Mutex
 	metadataWriteMu sync.RWMutex
+	sourceHistory   SourcePlaybackHistory
 
 	// countCache holds materialized GROUP BY aggregates that change only on scan/import.
 	// Each entry is guarded by a mutex + timestamp so callers can read the cached map
@@ -1089,7 +1090,11 @@ func (s *Service) RecentPlayedSongs(ctx context.Context, userID, limit int) ([]m
 			break
 		}
 	}
-	return s.applySongUserStateWithDevice(ctx, userID, mapSongs(items), deviceScope)
+	local, err := s.applySongUserStateWithDevice(ctx, userID, mapSongs(items), deviceScope)
+	if err != nil {
+		return nil, err
+	}
+	return s.mergeSourceRecentPlayed(ctx, userID, deviceScope, limit, local, histories)
 }
 
 func (s *Service) LibraryStats(ctx context.Context, userID int) (models.LibraryStats, error) {

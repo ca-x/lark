@@ -24,6 +24,8 @@ export function MobilePlayerDock({
   onSeek,
   onVolume,
   onBack,
+  onOpenSource,
+  sourceLabel,
   onFavorite,
   onSoundEffects,
   onCast,
@@ -59,6 +61,8 @@ export function MobilePlayerDock({
   onSeek: (seconds: number) => void;
   onVolume: (value: number) => void;
   onBack?: () => void;
+  onOpenSource?: () => void;
+  sourceLabel?: string;
   onFavorite?: () => void;
   onSoundEffects?: () => void;
   onCast?: () => void;
@@ -96,6 +100,8 @@ export function MobilePlayerDock({
       onSeek={onSeek}
       onVolume={onVolume}
       onBack={onBack}
+      onOpenSource={onOpenSource}
+      sourceLabel={sourceLabel}
       onFavorite={onFavorite}
       onSoundEffects={onSoundEffects}
       onCast={onCast}

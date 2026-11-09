@@ -4,6 +4,13 @@ import test from "node:test";
 
 const player = readFileSync(new URL("../player-themes/MobileArtPlayer.tsx", import.meta.url), "utf8");
 const keyboard = readFileSync(new URL("../../hooks/useKeyboardAware.ts", import.meta.url), "utf8");
+const home = readFileSync(new URL("./MobileHomeSurface.tsx", import.meta.url), "utf8");
+
+test("mobile recent and resume artwork resolve source identities instead of treating every track as local", () => {
+  assert.match(home, /src=\{coverUrl\(song\)\}/);
+  assert.match(home, /externalNowPlaying\?\.cover \|\| coverUrl\(displaySong\)/);
+  assert.doesNotMatch(home, /\/api\/songs\/\$\{/);
+});
 
 test("mobile dialog semantics belong to the visible gesture and scroll surface", () => {
   const phone = player.match(/<div\b[^>]*className="mobile-art-phone"[^>]*>/)?.[0];

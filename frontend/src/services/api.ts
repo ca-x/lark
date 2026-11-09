@@ -265,6 +265,7 @@ export const api = {
   mygoCall: <T = MygoPage>(id: string, method: string, params: unknown = {}, identity = '', signal?: AbortSignal) => request<T>(`/api/mygo/plugins/${encodeURIComponent(id)}/call/${encodeURIComponent(method)}?${new URLSearchParams({ identity })}`, { method: 'POST', body: JSON.stringify(params), signal }),
   mygoPrompt: (id: string, identity = '') => request<{ text?: string; qr?: string } | null>(`/api/mygo/plugins/${encodeURIComponent(id)}/prompt?${new URLSearchParams({ identity })}`),
   mygoQueue: () => request<MygoQueue | null>('/api/mygo/queue'),
+  recordMygoHistory: (entry: { song: Song; progress_seconds?: number; duration_seconds?: number; completed?: boolean }) => request<void>('/api/mygo/history', { method: 'POST', body: JSON.stringify(entry) }),
   saveMygoQueue: (queue: MygoQueue | null) => request<void>('/api/mygo/queue', { method: 'PUT', body: JSON.stringify(queue) }),
   plugins: () => request<{ plugins: Plugin[] }>('/api/plugins'),
   pluginCapabilities: () => request<{ capabilities: PluginCapability[] }>('/api/plugins/capabilities'),

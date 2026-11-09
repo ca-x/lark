@@ -4,6 +4,7 @@ import type { RewindLibrary } from "./rewindLibrary";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from "react";
 import {
   CaretDown,
+  ArrowSquareOut,
   ChatText,
   HeartStraight,
   MusicNotes,
@@ -90,6 +91,8 @@ export function MobileArtPlayer({
   onSeek,
   onVolume,
   onBack,
+  onOpenSource,
+  sourceLabel,
   onFavorite,
   onSoundEffects,
   onCast,
@@ -125,6 +128,8 @@ export function MobileArtPlayer({
   onSeek?: (seconds: number) => void;
   onVolume?: (value: number) => void;
   onBack?: () => void;
+  onOpenSource?: () => void;
+  sourceLabel?: string;
   onFavorite?: () => void;
   onSoundEffects?: () => void;
   onCast?: () => void;
@@ -267,18 +272,19 @@ export function MobileArtPlayer({
         <div className="mobile-art-bg" aria-hidden="true" />
         {!isMaterialTheme(variant) && !isRewindTheme(variant) ? <PaperShaderLayer variant={`mobile-${variant}`} playing={playing} cover={coverState.displayUrl} compact /> : null}
         {isRewindTheme(variant) && !onBack ? <div className="rewind-chassis-label"><strong>LARK</strong><span>STEREO CASSETTE DECK <b> / </b> 90</span></div> : null}
+        {onOpenSource && !onBack ? <button type="button" className="mobile-art-topbar-icon" aria-label={sourceLabel} title={sourceLabel} onClick={onOpenSource}><ArrowSquareOut /></button> : null}
         {onBack ? (
           <div className="mobile-art-topbar">
             <button type="button" className="mobile-art-topbar-icon" data-autofocus aria-label={text.back} onClick={onBack}>
               <CaretDown weight="bold" />
             </button>
             <span>{text.nowPlaying}</span>
-            <span className="mobile-art-topbar-spacer" aria-hidden="true" />
+            {onOpenSource ? <button type="button" className="mobile-art-topbar-icon" aria-label={sourceLabel} title={sourceLabel} onClick={onOpenSource}><ArrowSquareOut /></button> : <span className="mobile-art-topbar-spacer" aria-hidden="true" />}
           </div>
         ) : null}
 
         {isRewindTheme(variant) ? (
-          <RewindDeck variant={variant} mediaKey={mediaKey} cover={coverState.displayUrl} title={title} artist={artist} album={album} playing={playing} progress={displayPct} labels={text} library={rewindLibrary} onCoverError={coverState.onCoverError} onPrevious={onPrevious} onNext={onNext} onQueue={onQueue} />
+          <RewindDeck key={rewindLibrary?.scope || "local"} variant={variant} mediaKey={mediaKey} cover={coverState.displayUrl} title={title} artist={artist} album={album} playing={playing} progress={displayPct} labels={text} library={rewindLibrary} onCoverError={coverState.onCoverError} onPrevious={onPrevious} onNext={onNext} onQueue={onQueue} />
         ) : isMaterialTheme(variant) ? (
           <MobilePlayerArtwork variant={variant} cover={coverState.displayUrl} fallbackLabel={fallbackLabel} playing={playing} progress={pct} onCoverError={coverState.onCoverError} />
         ) : variant === "neon-console" ? (

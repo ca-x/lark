@@ -45,19 +45,58 @@ let sourcePlaylistCalls = 0;
 let streamRequests = 0;
 let streamFailure = true;
 let failAccount = false;
+let sourceIntegrationFixture = false;
+let sourceQueue = null;
+const sourceHistory = [];
+const sourceCalls = [];
+const pluginRequests = [];
 const toolSongs = [1, 2, 3].map(id => ({ id, title: `Tool fixture ${id}`, artist: "Fixture", album: "Fixture", duration_seconds: 2, favorite: false, source_type: "local", path: `fixture-${id}.wav`, file_name: `fixture-${id}.wav`, format: "wav", mime: "audio/wav" }));
+const localCatalogSong = { ...toolSongs[0], title: "Playback local fixture", artist_id: 31, artist: "Local catalog artist", album_id: 41, album: "Local catalog album" };
+const localCatalogAlbum = { id: 41, title: localCatalogSong.album, artist: localCatalogSong.artist, album_artist: localCatalogSong.artist, artist_id: 31, year: 2026, song_count: 1, favorite: false };
 const sourceAudio = Buffer.alloc(44 + 32000);
 sourceAudio.write("RIFF", 0); sourceAudio.writeUInt32LE(sourceAudio.length - 8, 4); sourceAudio.write("WAVEfmt ", 8);
 sourceAudio.writeUInt32LE(16, 16); sourceAudio.writeUInt16LE(1, 20); sourceAudio.writeUInt16LE(1, 22);
 sourceAudio.writeUInt32LE(8000, 24); sourceAudio.writeUInt32LE(16000, 28); sourceAudio.writeUInt16LE(2, 32); sourceAudio.writeUInt16LE(16, 34);
 sourceAudio.write("data", 36); sourceAudio.writeUInt32LE(32000, 40);
+const sourceIntegrationAudio = Buffer.alloc(44 + 30 * 16000);
+sourceAudio.copy(sourceIntegrationAudio, 0, 0, 44);
+sourceIntegrationAudio.writeUInt32LE(sourceIntegrationAudio.length - 8, 4);
+sourceIntegrationAudio.writeUInt32LE(sourceIntegrationAudio.length - 44, 40);
 let failDelete = false;
 const pluginDeletes = [];
 const server = createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
   if (path.startsWith("/api/")) {
     if (pluginFlow) {
+      pluginRequests.push({ path, method: request.method });
       let result;
+      if (path === "/api/mygo/history" && request.method === "POST") {
+        let body = "";
+        for await (const chunk of request) body += chunk;
+        const payload = JSON.parse(body);
+        writes.push({ path, payload });
+        const previous = sourceHistory.findIndex(entry => entry.song.id === payload.song.id);
+        const timestamp = new Date().toISOString();
+        const entry = { id: previous >= 0 ? sourceHistory[previous].id : 1000 + sourceHistory.length, ...payload, played_at: timestamp, updated_at: timestamp, progress_seconds: payload.progress_seconds || 0, duration_seconds: payload.duration_seconds || payload.song.duration_seconds, completed: payload.completed || false, device_type: "desktop" };
+        if (previous >= 0) sourceHistory.splice(previous, 1);
+        sourceHistory.unshift(entry);
+        result = {};
+      }
+      if (path === "/api/mygo/queue" && request.method === "GET") result = sourceQueue;
+      if (path === "/api/playback/history") result = [...sourceHistory, ...(sourceIntegrationFixture ? [{ id: 1, song: localCatalogSong, played_at: new Date().toISOString(), updated_at: new Date().toISOString(), progress_seconds: 0, duration_seconds: 2, completed: false, device_type: "desktop" }] : [])];
+      if (path === "/api/songs/recent-played") result = [...sourceHistory.map(entry => entry.song), ...(sourceIntegrationFixture ? [localCatalogSong] : [])];
+      if (/\/call\/(search|album|artist)$/.test(path)) {
+        let body = "";
+        for await (const chunk of request) body += chunk;
+        const params = JSON.parse(body);
+        const method = path.split("/").at(-1);
+        sourceCalls.push({ method, params, identity: new URL(request.url, "http://localhost").searchParams.get("identity") });
+        result = { title: `Fixture source ${method}`, tracks: sourceTracks.slice(0, 1), more: false };
+      }
+      if (sourceIntegrationFixture && path === "/api/songs") result = [localCatalogSong];
+      if (sourceIntegrationFixture && path === "/api/songs/page") result = { items: [localCatalogSong], total: 1, offset: 0, page: 1, limit: Number(new URL(request.url, "http://localhost").searchParams.get("limit")) || 100 };
+      if (sourceIntegrationFixture && path === "/api/albums/page") result = { items: [localCatalogAlbum], total: 1, offset: 0, page: 1, limit: Number(new URL(request.url, "http://localhost").searchParams.get("limit")) || 100 };
+      if (sourceIntegrationFixture && path === "/api/albums/41/songs") result = [localCatalogSong];
       if (path === "/api/plugin-platform") {
         if (request.method === "PATCH") {
           let body = "";
@@ -96,9 +135,10 @@ const server = createServer(async (request, response) => {
         streamRequests++;
         if (streamFailure) { response.writeHead(400, { "Content-Type": "application/json" }).end(JSON.stringify({ message: "unavailable: fixture track cannot be played" })); return; }
         const range = request.headers.range?.match(/^bytes=(\d+)-(\d*)$/);
+        const audio = sourceIntegrationFixture ? sourceIntegrationAudio : sourceAudio;
         const start = range ? Number(range[1]) : 0;
-        const end = range?.[2] ? Math.min(Number(range[2]), sourceAudio.length - 1) : sourceAudio.length - 1;
-        response.writeHead(range ? 206 : 200, { "Content-Type": "audio/wav", "Accept-Ranges": "bytes", "Content-Length": end - start + 1, ...(range ? { "Content-Range": `bytes ${start}-${end}/${sourceAudio.length}` } : {}) }).end(sourceAudio.subarray(start, end + 1)); return;
+        const end = range?.[2] ? Math.min(Number(range[2]), audio.length - 1) : audio.length - 1;
+        response.writeHead(range ? 206 : 200, { "Content-Type": "audio/wav", "Accept-Ranges": "bytes", "Content-Length": end - start + 1, ...(range ? { "Content-Range": `bytes ${start}-${end}/${audio.length}` } : {}) }).end(audio.subarray(start, end + 1)); return;
       }
       if (request.method === "DELETE" && /^\/api\/(mygo\/)?plugins\//.test(path)) {
         pluginDeletes.push(path);
@@ -123,6 +163,7 @@ const server = createServer(async (request, response) => {
       if (path === "/api/me/preferences") preferences = payload;
       if (path === "/api/me/ui-sounds") sounds = payload;
       if (path === "/api/me/playback-history") history = payload;
+      if (path === "/api/mygo/queue") sourceQueue = payload;
     }
     const responses = {
       "/api/auth/status": { initialized: true, user: { id: 1, username: "settings-review", role } },
@@ -549,6 +590,150 @@ try {
     await clickVisible(".mygo-collection-button:first-child");
     await browser("wait", "--fn", "!!document.querySelector('.mygo-play-all')?.disabled");
     sourcePlaylistPage = null;
+    sourceIntegrationFixture = true;
+    sourceTracks = sourceTracks.map((track, index) => index === 0 ? { ...track, duration: 30000 } : track);
+    const pauseSourcePlayback = async () => {
+      await browser("wait", "--fn", "!!document.querySelector('.player .transport .play[aria-label=\"暂停\"]')");
+      await browser("click", '.player .transport .play[aria-label="暂停"]');
+      await browser("wait", "--fn", "document.querySelector('audio').paused");
+    };
+    mygoPlugins[0].exports.push("album", "artist");
+    await evaluate("window.dispatchEvent(new Event('lark:plugins-changed')); true");
+    await browser("click", ".mygo-source-tabs button:first-child");
+    await browser("wait", "--fn", "document.querySelector('.mygo-source-content h4')?.textContent==='Fixture source home' && !!document.querySelector('.mygo-tracks li button:not(:disabled)')");
+    await clickVisible(".mygo-tracks li button:first-child");
+    await browser("wait", "--fn", "document.querySelector('.player .now strong')?.textContent==='Playback fixture' && document.querySelector('audio').currentTime > .05");
+    await pauseSourcePlayback();
+    const integrationRequests = pluginRequests.length;
+    const latestSourceSong = () => sourceQueue?.songs?.find(song => song.id === sourceQueue.current);
+    assert.equal(latestSourceSong().mygo.album, "album");
+    assert.equal(latestSourceSong().mygo.artists[0].id, "artist");
+    assert.equal(latestSourceSong().mygo.sourceName, sourceFixture.manifest.name);
+    for (const [method, position, id] of [["album", 2, "album"], ["artist", 1, "artist"]]) {
+      const before = sourceCalls.length;
+      await clickVisible(`.player .now > div > span button:nth-of-type(${position})`);
+      await browser("wait", "--fn", `document.querySelector('.mygo-source-content h4')?.textContent==='Fixture source ${method}'`);
+      const call = sourceCalls.slice(before).find(call => call.method === method);
+      assert.deepEqual(call?.params, { id }, `Footer ${method} must use the source entity identifier`);
+      assert.equal(call?.identity, sourceFixture.identity);
+      assert.ok(await evaluate("!!document.querySelector('.library-view .mygo-source-browser')"), "Source links must also work while LibraryView is already mounted");
+    }
+    await clickVisible(".player .now strong button");
+    await browser("wait", "--fn", "document.querySelector('.mygo-source-content h4')?.textContent==='Fixture source home'");
+    console.log("PASS source footer title/album/artist navigation within mounted LibraryView and original source metadata");
+
+    await clickVisible(".library-tabs button:first-child");
+    await browser("fill", ".song-search-combobox input", "Playback");
+    await browser("press", "Escape");
+    await browser("press", "Enter");
+    await browser("wait", "--fn", "!!document.querySelector('.mygo-search-track') && document.querySelector('.library-view').textContent.includes('Playback local fixture')");
+    assert.ok(sourceCalls.some(call => call.method === "search" && call.params.query === "Playback" && call.params.kind === "tracks" && call.params.offset === 0 && call.identity === sourceFixture.identity));
+    for (const [width, height] of [[1440, 900], [320, 740]]) {
+      await browser("set", "viewport", String(width), String(height));
+      assert.ok(await evaluate("document.documentElement.scrollWidth <= innerWidth+1"), `${width}: mixed local/source search must not overflow`);
+      assert.ok(await evaluate("[...document.querySelectorAll('.mygo-search-results button')].every(button=>button.getBoundingClientRect().height >= 44)"));
+      await browser("screenshot", `${artifacts}/mygo-unified-search-${width}.png`);
+    }
+    await browser("set", "viewport", "1440", "900");
+    await clickVisible(".mygo-search-source-link");
+    await browser("wait", "--fn", "document.querySelector('.mygo-source-content h4')?.textContent==='Fixture source search'");
+    await clickVisible(".library-tabs button:first-child");
+    await browser("fill", ".song-search-combobox input", "Playback");
+    await browser("press", "Escape");
+    await browser("press", "Enter");
+    await browser("wait", "--fn", "!!document.querySelector('.mygo-search-track')");
+    await clickVisible(".mygo-search-track");
+    await browser("wait", "--fn", "document.querySelector('audio').currentTime > .05 && !document.querySelector('audio').paused");
+    await pauseSourcePlayback();
+    await browser("wait", "--fn", "fetch('/api/playback/history').then(response=>response.json()).then(entries=>entries.some(entry=>entry.song.mygo?.track==='playback-fixture'))");
+    assert.ok(writes.some(write => write.path === "/api/mygo/history" && write.payload.song.mygo?.sourceName === sourceFixture.manifest.name), "Source playback must persist identity-bearing history metadata");
+    await clickVisible('.desktop-sidebar nav button[aria-label="历史"]');
+    await browser("wait", "--fn", "!!document.querySelector('.history-title-button') && document.querySelector('.history-view').textContent.includes('Playback local fixture')");
+    await evaluate("(() => {const button=[...document.querySelectorAll('.history-title-button')].find(button=>button.textContent==='Playback fixture');button.scrollIntoView({block:'center'});button.click();return true;})()");
+    await browser("wait", "--fn", "document.querySelector('audio').currentTime > .05 && !document.querySelector('audio').paused");
+    await pauseSourcePlayback();
+    assert.equal(latestSourceSong().mygo.track, "playback-fixture", "History resume must restore the MyGo source instead of reading a negative local ID");
+    assert.ok(await evaluate("[...document.querySelectorAll('.history-entry-links')].some(element=>element.textContent.includes('网易云音乐'))"));
+    console.log("PASS mixed local/source search, source-result navigation, history writes and source-aware history resume");
+
+    for (const style of ["vinyl-collection", "rewind-classic"]) {
+      await browser("set", "viewport", "1440", "900");
+      preferences = { ...preferences, home_player_style: style, mobile_home_player_style: "rewind-classic" };
+      const before = sourceCalls.length;
+      await browser("open", url);
+      const themeSelector = style === "vinyl-collection" ? ".vinyl-collection-player" : ".rewind-listening-room";
+      try {
+        await browser("wait", "--fn", `!!document.querySelector(${JSON.stringify(themeSelector)})`);
+      } catch (error) {
+        console.log(JSON.stringify({ style, preferences, sourceQueue, requests: pluginRequests.slice(-20) }));
+        console.log(await browser("snapshot", "-i"));
+        await browser("screenshot", `${artifacts}/mygo-${style}-restore-failure.png`);
+        throw error;
+      }
+      await clickVisible('.desktop-sidebar nav button[aria-label="历史"]');
+      await browser("wait", "--fn", "[...document.querySelectorAll('.history-title-button')].some(button=>button.textContent==='Playback fixture')");
+      await evaluate("[...document.querySelectorAll('.history-title-button')].find(button=>button.textContent==='Playback fixture').click(); true");
+      await browser("wait", "--fn", "document.querySelector('.player .now strong')?.textContent==='Playback fixture' && document.querySelector('audio').currentTime > .05 && !document.querySelector('audio').paused");
+      await pauseSourcePlayback();
+      await clickVisible('.desktop-sidebar nav button[aria-label="首页"]');
+      await browser("wait", "--fn", `!!document.querySelector(${JSON.stringify(themeSelector)})`);
+      if (style === "vinyl-collection") {
+        await browser("wait", "--fn", "document.querySelector('.vc-shelf-record')?.textContent==='Fixture album' && !!document.querySelector('.vc-track-list button')");
+        await clickVisible(".vc-sleeve-actions button:first-child");
+        await browser("wait", "--fn", "document.querySelector('.vc-sleeve')?.dataset.flipped==='true' && !document.querySelector('.vc-sleeve').getAnimations({subtree:true}).some(animation=>animation.playState==='running')");
+        await clickVisible(".vc-track-list button:first-child");
+      } else {
+        await browser("wait", "--fn", "!!document.querySelector('.rewind-current-details')");
+        await clickVisible(".rewind-current-details");
+        await browser("wait", "--fn", "!!document.querySelector('.rewind-album-tracks button')");
+        await clickVisible(".rewind-album-tracks button:first-child");
+      }
+      try {
+        await browser("wait", "--fn", "document.querySelector('audio').currentTime > .05 && !document.querySelector('audio').paused");
+      } catch (error) {
+        console.log(JSON.stringify({ style, calls: sourceCalls.slice(before), sourceQueue, state: await evaluate("({current:document.querySelector('.now strong')?.textContent, control:document.querySelector('.transport .play')?.getAttribute('aria-label'), audio:{src:document.querySelector('audio').currentSrc,time:document.querySelector('audio').currentTime,paused:document.querySelector('audio').paused,ended:document.querySelector('audio').ended,error:document.querySelector('audio').error?.message}})") }));
+        await browser("screenshot", `${artifacts}/mygo-${style}-playback-failure.png`);
+        throw error;
+      }
+      await pauseSourcePlayback();
+      assert.ok(sourceCalls.slice(before).some(call => call.method === "album"), `${style}: album tracks must come from the source capability`);
+      assert.ok(sourceQueue.songs.every(song => song.mygo?.plugin === "netease" && song.mygo?.identity === sourceFixture.identity));
+      assert.ok(await evaluate(`!document.querySelector(${JSON.stringify(themeSelector)}).textContent.includes('Local catalog album')`), `${style}: local albums must not leak into a source collection`);
+      await browser("screenshot", `${artifacts}/mygo-${style}-1440.png`);
+      await browser("set", "viewport", "320", "740");
+      await browser("wait", "--fn", "!!document.querySelector('.mobile-home-view')");
+      assert.ok(await evaluate("![...document.querySelectorAll('.mobile-home-view img')].some(image=>/\\/api\\/songs\\/-\\d+\\/cover/.test(image.getAttribute('src')||''))"), "Mobile recent/resume artwork must use the source image endpoint instead of native negative-ID covers");
+      await clickVisible(".mobile-mini-main");
+      await browser("wait", "--fn", "!!document.querySelector('[role=dialog] .rewind-listening-room')");
+      await browser("wait", "--fn", "!!document.querySelector('.rewind-current-details')");
+      assert.ok(await evaluate("document.documentElement.scrollWidth <= innerWidth+1"), `${style}/320: source playback must not overflow`);
+      await clickVisible(".rewind-page-switch button:last-child");
+      await browser("wait", "--fn", "document.querySelector('.rewind-rack-tape')?.getAttribute('aria-label')==='Fixture album · Fixture artist'");
+      assert.ok(await evaluate("!document.querySelector('[role=dialog] .rewind-listening-room').textContent.includes('Local catalog album')"));
+      await browser("screenshot", `${artifacts}/mygo-${style}-mobile-320.png`);
+      await clickVisible(".mobile-art-phone [data-autofocus]");
+      await browser("set", "viewport", "1440", "900");
+      mygoPlugins[0].exports = mygoPlugins[0].exports.filter(method => method !== "album");
+      await evaluate("window.dispatchEvent(new Event('lark:plugins-changed')); true");
+      if (style === "vinyl-collection") await browser("wait", "--fn", "!!document.querySelector('.vc-shelf-empty') && !document.querySelector('.vc-shelf-record')");
+      else {
+        await browser("wait", "--fn", "!document.querySelector('.rewind-current-details')");
+        await clickVisible(".rewind-page-switch button:last-child");
+        await browser("wait", "--fn", "!!document.querySelector('.rewind-empty') && !document.querySelector('.rewind-rack-tape')");
+      }
+      assert.ok(await evaluate(`!document.querySelector(${JSON.stringify(themeSelector)}).textContent.includes('Local catalog album')`), `${style}: missing source album capability must stay empty, not invent a local fallback`);
+      mygoPlugins[0].exports.push("album");
+      await evaluate("window.dispatchEvent(new Event('lark:plugins-changed')); true");
+    }
+    assert.ok(pluginRequests.slice(integrationRequests).some(request => request.path === "/api/albums/page"), "Isolation fixtures must expose a real local catalog to catch accidental fallback");
+    assert.equal(pluginRequests.slice(integrationRequests).filter(request => /^\/api\/(songs|albums|artists)\/-\d+(?:\/|$)/.test(request.path)).length, 0, "Source IDs must never be fetched through native song/album/artist endpoints");
+    assert.equal(pluginRequests.slice(integrationRequests).filter(request => request.path === "/api/albums/41/songs").length, 0, "Source-themed collections must not fetch native local album tracks");
+    sourceIntegrationFixture = false;
+    preferences = {};
+    await openLibrary();
+    await clickLibraryTab("音乐源");
+    await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'signed-in'");
+    console.log("PASS vinyl-collection and rewind source-only collections, missing-capability empty state, 1440px desktop and 320px mobile rewind isolation");
     await browser("click", ".mygo-sign-out");
     await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'signed-out'");
     sourceTracks = [];

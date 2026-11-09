@@ -48,6 +48,7 @@
 .vinyl-collection-player :is(button,input,[tabindex]):focus-visible { outline: 2px solid var(--vc-accent); outline-offset: 4px; }
 .vc-heading { width: min(100%, var(--vc-content-width)); margin-inline: auto; display: flex; justify-content: space-between; gap: 16px; color: var(--vc-muted); font-size: 12px; }
 .vc-heading > span:first-child { color: var(--vc-ink); font-weight: 600; }
+.vc-source-link { min-height: 44px; min-width: 44px; max-width: 100%; padding: 8px 12px; overflow: hidden; border: 1px solid var(--vc-rule); border-radius: 10px; background: transparent; text-overflow: ellipsis; white-space: nowrap; }
 .vc-listening-room { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 3fr); align-items: start; gap: calc(56 * var(--vc-unit)); max-width: var(--vc-content-width); margin: 26px auto 4px; }
 .vc-deck-column { min-width: 0; }
 .vc-deck { position: relative; aspect-ratio: 504 / 410; width: 100%; max-width: var(--vc-deck-width); margin: 0 auto; }

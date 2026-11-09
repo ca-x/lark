@@ -78,6 +78,7 @@ function renderHome(overrides = {}) {
     coverUrl: () => "/cover.webp",
     albumCoverUrl: () => "/album-cover.webp",
     resumePosition: () => 0,
+    useSourceThemeLibrary: (song) => song?.mygo ? { scope: song.mygo.identity, albums: [] } : undefined,
     isRewindTheme: (value) => ["rewind-classic", "rewind-studio", "rewind-crystal"].includes(value),
   };
   const visit = (node) => {
@@ -95,6 +96,15 @@ function renderHome(overrides = {}) {
     t: (key) => key, ...overrides,
   });
 }
+
+test("vinyl-room source scope follows the displayed recent track instead of an unrelated local hero", () => {
+  const recent = { id: -10, album_id: 0, title: "Source track", album: "Source album", mygo: { plugin: "source", identity: "original", track: "track" } };
+  const tree = renderHome({ current: null, homePlayerStyle: "vinyl-collection", recentPlayedSongs: [recent], heroSong: { id: 5, title: "Local hero", album_id: 2 } });
+  const player = find(tree, (node) => node.type === "VinylCollectionPlayer");
+  assert.equal(player.props.displaySong, recent);
+  assert.equal(player.props.sourceLibrary.scope, "original");
+  assert.equal(typeof player.props.onOpenSource, "function");
+});
 
 test("new theme names follow the selected interface language", () => {
   const source = readFileSync(new URL("../../i18n.ts", import.meta.url), "utf8");

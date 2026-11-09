@@ -84,6 +84,25 @@ test("playing an album outside loaded pages keeps its sleeve and tracks after pa
   assert.ok(h.requests.includes(99));
 });
 
+test("source playback never fetches or displays a local album shelf or local album tracks", async () => {
+  const remote = { ...song(-41, 0), title: "Remote song", album: "Remote album", mygo: { plugin: "source", identity: "original", track: "remote" } };
+  const sourceAlbum = { ...album(-41), title: "Remote album" };
+  let loads = 0;
+  const sourceLibrary = { albums: [sourceAlbum], cover: () => "signed-source-cover", loadSongs: async () => { loads++; return [remote]; } };
+  const h = host(remote);
+  const tree = await h.settle({ sourceLibrary });
+  assert.equal(selection(tree), "Remote album");
+  assert.deepEqual(h.catalogRequests, []);
+  assert.deepEqual(h.requests, []);
+  assert.equal(loads, 1);
+  assert.deepEqual(shelfAlbums(tree), ["Remote album · Artist -41"]);
+  const empty = host(remote);
+  const emptyTree = await empty.settle({ sourceLibrary: { ...sourceLibrary, albums: [] } });
+  assert.deepEqual(shelfAlbums(emptyTree), []);
+  assert.deepEqual(empty.catalogRequests, []);
+  assert.deepEqual(empty.requests, []);
+});
+
 test("a recently played album arriving after mount replaces the initial shelf selection", async () => {
   const h = host(null);
   assert.equal(selection(await h.settle()), "Album 1");

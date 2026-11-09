@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"encoding/json/jsontext"
+	"time"
+)
 
 type Song struct {
 	ID              int        `json:"id"`
@@ -44,6 +47,8 @@ type Song struct {
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 	MetadataIssues  []string   `json:"metadata_issues,omitempty"`
+
+	MyGo jsontext.Value `json:"mygo,omitempty"`
 }
 
 type LibraryReviewSummary struct {

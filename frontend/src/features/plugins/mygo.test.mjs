@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { mygoSong, mygoStreamURL, mygoImageURL, mygoLyricsToLRC, validMygoQueue, normalizeMygoPage, mygoPageTracks, appendMygoPage, mygoRepositoryFromOrigin, mygoErrorMessage } from "./mygo.ts";
+import { mygoSong, mygoSongDestination, resolveMygoDestination, mygoStreamURL, mygoImageURL, mygoLyricsToLRC, validMygoQueue, normalizeMygoPage, mygoPageTracks, appendMygoPage, mygoRepositoryFromOrigin, mygoErrorMessage } from "./mygo.ts";
 import { songloftIdentity } from "./songloftIdentity.ts";
 import { hasMygoSourceUI, pluginNavigation } from "./navigation.ts";
 
@@ -62,6 +62,23 @@ test("native array pages preserve track, show and station navigation", () => {
   for (const [method, key] of [["recent", "tracks"], ["stationNext", "tracks"], ["shows", "shows"], ["stations", "stations"], ["savedAlbums", "albums"], ["playlists", "playlists"]]) {
     assert.deepEqual(normalizeMygoPage(method, entries), { [key]: entries });
   }
+});
+
+test("source destinations retain identity and only open exported album/artist pages", () => {
+  const track = { id: "track", name: "Song", duration: 1000, album: { id: "album", name: "Album" }, artists: [{ id: "artist", name: "Artist" }] };
+  const song = mygoSong("demo", track, "origin-a", "Demo source");
+  assert.equal(song.mygo.sourceName, "Demo source");
+  const restored = JSON.parse(JSON.stringify(song));
+  assert.deepEqual(mygoSongDestination(restored, "album"), { source: "demo", identity: "origin-a", method: "album", params: { id: "album" } });
+  assert.deepEqual(mygoSongDestination(restored, "artist"), { source: "demo", identity: "origin-a", method: "artist", params: { id: "artist" } });
+  const plugin = { manifest: { id: "demo" }, identity: "origin-a", exports: ["home", "album"], enabled: true };
+  assert.equal(resolveMygoDestination(plugin, mygoSongDestination(song, "album")).method, "album");
+  assert.deepEqual(resolveMygoDestination(plugin, mygoSongDestination(song, "artist")), { method: "home", params: {} });
+  assert.equal(resolveMygoDestination({ ...plugin, identity: "replacement" }, mygoSongDestination(song)), undefined);
+  assert.equal(resolveMygoDestination({ ...plugin, enabled: false }, mygoSongDestination(song)), undefined);
+  assert.equal(resolveMygoDestination({ ...plugin, exports: ["stream"] }, mygoSongDestination(song)), undefined);
+  assert.equal(mygoSongDestination({ id: 1 }), undefined);
+  assert.equal(mygoSongDestination({ ...song, mygo: { plugin: "demo", identity: "origin-a", track: "track" } }, "album").method, "home");
 });
 
 test("pagination preserves episodes and every collection without masking tracks", () => {

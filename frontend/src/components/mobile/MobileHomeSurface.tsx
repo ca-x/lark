@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowRight, CaretRight, Disc, MicrophoneStage, MusicNotes, Pause, Play, Playlist as PlaylistIcon, Radio, Waveform } from "@phosphor-icons/react";
 import type { createT } from "../../i18n";
 import type { Album, Artist, LibraryStats, MobileHomePlayerStyle, Playlist, Song } from "../../types";
+import { coverUrl } from "../../utils/app";
 
 function ListeningCover({ src, kind = "album" }: { src?: string; kind?: "album" | "artist" | "playlist" }) {
   const [failedSrc, setFailedSrc] = useState("");
@@ -61,7 +62,7 @@ export function MobileHomeSurface({
           <span className="listening-daily-play"><Play weight="fill" /> {t("listenNow")}</span>
         </span>
         <span className="listening-daily-art" aria-hidden="true">
-          {daily.slice(0, 3).reverse().map(song => <ListeningCover key={song.id} src={`/api/songs/${song.id}/cover`} />)}
+          {daily.slice(0, 3).reverse().map(song => <ListeningCover key={song.id} src={coverUrl(song)} />)}
         </span>
       </button>
     ) : !loading && !hasMusic ? (
@@ -72,7 +73,7 @@ export function MobileHomeSurface({
     ) : null}
 
     {resumable && resumeTitle ? <button type="button" className="listening-resume" onClick={current || externalNowPlaying ? onTogglePlayback : () => displaySong && onResume(displaySong)}>
-      <ListeningCover src={externalNowPlaying?.cover || (displaySong ? `/api/songs/${displaySong.id}/cover` : undefined)} />
+      <ListeningCover src={externalNowPlaying?.cover || coverUrl(displaySong)} />
       <span><small>{current || externalNowPlaying ? t("nowPlaying") : t("mobileContinueListening")}</small><strong>{resumeTitle}</strong></span>
       {playing && (current || externalNowPlaying) ? <Pause weight="fill" /> : <Play weight="fill" />}
     </button> : null}
@@ -106,7 +107,7 @@ export function MobileHomeSurface({
       <div className="listening-tracks">
         {loading ? Array.from({ length: 3 }, (_, i) => <div className="listening-skeleton" key={i} />) : recent.length ? recent.slice(0, 5).map(song => (
           <button type="button" className={current?.id === song.id ? "active" : ""} key={song.id} onClick={() => current?.id === song.id ? onTogglePlayback() : onPlay(song, recent)} aria-label={`${current?.id === song.id && playing ? t("pause") : t("play")}: ${song.title}`}>
-            <ListeningCover src={`/api/songs/${song.id}/cover`} /><span><strong>{song.title}</strong><small>{song.artist} · {song.album}</small></span>
+            <ListeningCover src={coverUrl(song)} /><span><strong>{song.title}</strong><small>{song.artist} · {song.album}</small></span>
             {current?.id === song.id && playing ? <Waveform /> : <Play />}
           </button>
         )) : <p className="listening-empty-inline">{t("mobileNoRecentPlays")}</p>}
