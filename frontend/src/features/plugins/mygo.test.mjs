@@ -19,6 +19,13 @@ test("Docker frontend builds receive the QR renderer license before bundling", (
   assert.match(dockerfile, /COPY licenses\/qrcode-generator-LICENSE\.txt \/build\/licenses\/qrcode-generator-LICENSE\.txt/);
 });
 
+test("Docker frontend builds receive the Dockerfile used by bundled regression tests", () => {
+  const dockerfile = readFileSync(new URL("../../../../backend/Dockerfile", import.meta.url), "utf8");
+  const copy = "COPY backend/Dockerfile /build/backend/Dockerfile";
+  assert.ok(dockerfile.includes(copy));
+  assert.ok(dockerfile.indexOf(copy) < dockerfile.indexOf("RUN pnpm build"));
+});
+
 test("marketplace installation identity only follows GitHub repository origins", () => {
   assert.equal(mygoRepositoryFromOrigin("https://github.com/Owner/Repo@v0.1.3"), "owner/repo");
   for (const origin of ["uploaded ZIP", "https://example.com/owner/repo", "http://github.com/owner/repo", "https://github.com/owner/repo/extra"]) assert.equal(mygoRepositoryFromOrigin(origin), undefined);

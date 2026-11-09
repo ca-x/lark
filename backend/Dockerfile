@@ -8,6 +8,7 @@ COPY assets/brand/lark-issue-9.png /build/assets/brand/lark-issue-9.png
 COPY desktop/resources/ /build/desktop/resources/
 COPY backend/internal/api/server.go /build/backend/internal/api/server.go
 COPY backend/internal/library/catalog.go /build/backend/internal/library/catalog.go
+COPY backend/Dockerfile /build/backend/Dockerfile
 RUN pnpm build
 
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS build
