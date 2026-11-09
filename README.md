@@ -2,6 +2,8 @@
 
 [中文说明](README_ZH.md)
 
+[![Listed on Awesome MyGo](https://awesomemygo.dev/badge.svg)](https://awesomemygo.dev/apps/lark-music)
+
 Lark is a self-hosted web music player for people who keep their own music library. Point it at music on a NAS, home server, desktop, or container volume, then use a browser to scan, browse, fix, play, cache, and share that collection.
 
 It is designed for large local libraries first: FLAC/WAV/Hi-Res albums, CUE sheets, uneven tags, missing lyrics, album art problems, and folders collected over time. It also covers the listening habits around that library: mobile playback, browser-side offline cache, radio, DLNA devices, Subsonic-compatible clients, ListenBrainz/Last.fm scrobbling, and public share links.
