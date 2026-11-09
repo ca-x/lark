@@ -78,6 +78,8 @@ export function mygoStreamURL(song: Song): string | undefined {
 }
 
 export function mygoImageURL(plugin: string, address?: string, identity = ""): string | undefined {
+  const endpoint = `/api/mygo/plugins/${encodeURIComponent(plugin)}/image?`;
+  if (address?.startsWith(endpoint)) return address;
   return address ? `/api/mygo/plugins/${encodeURIComponent(plugin)}/image?${new URLSearchParams({ url: address, identity })}` : undefined;
 }
 

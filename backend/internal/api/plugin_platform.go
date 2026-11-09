@@ -236,7 +236,7 @@ func (s *Server) handleMygoStream(c *echo.Context) error {
 }
 
 func (s *Server) handleMygoImage(c *echo.Context) error {
-	token, err := s.mygo.NewMediaFrom(c.Request().Context(), currentUserID(c), c.Param("id"), c.QueryParam("identity"), c.QueryParam("url"), "image")
+	token, err := s.mygo.NewImageFrom(c.Request().Context(), currentUserID(c), c.Param("id"), c.QueryParam("identity"), c.QueryParam("url"), c.QueryParam("proof"))
 	if err != nil {
 		return mygoHTTPError(err)
 	}

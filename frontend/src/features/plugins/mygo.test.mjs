@@ -80,6 +80,16 @@ test("timed MyGo lyrics normalize milliseconds without requesting global songs",
   assert.equal(mygoLyricsToLRC({ lrc: "[00:01.00]original" }), "[00:01.00]original");
 });
 
+test("authenticated artwork references survive rows, queue persistence and player covers", () => {
+  const image = "/api/mygo/plugins/netease/image?identity=source&url=https%3A%2F%2Fp1.music.126.net%2Fcover.jpg&proof=signature";
+  const track = { id: "one", name: "Song", duration: 1000, album: { id: "album", name: "Album", imageUrl: image } };
+  assert.equal(mygoImageURL("netease", image, "source"), image);
+  const restored = JSON.parse(JSON.stringify(mygoSong("netease", track, "source")));
+  assert.equal(mygoImageURL(restored.mygo.plugin, restored.mygo.image, restored.mygo.identity), image);
+  assert.ok(mygoImageURL("other", image, "source").startsWith("/api/mygo/plugins/other/image?url="));
+  assert.equal(mygoImageURL("netease"), undefined);
+});
+
 test("Songloft marketplace keeps different authors separate and normalizes aliases", () => {
   assert.equal(songloftIdentity({ entry_path: "demo", author: "Alice <mail@example.test> (maintainer)" }), songloftIdentity({ entry_path: "demo", author: "ALICE" }));
   assert.notEqual(songloftIdentity({ entry_path: "demo", author: "Alice" }), songloftIdentity({ entry_path: "demo", author: "Bob" }));

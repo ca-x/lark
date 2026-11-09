@@ -30,6 +30,7 @@ let sounds = { enabled: false, volume: 0.5 };
 let history = { separate_by_device: false };
 const writes = [];
 const pluginFlow = process.argv.includes("--plugin-flow-only");
+const sourceArtwork = process.env.LARK_MYGO_ARTWORK_FIXTURE ? await readFile(process.env.LARK_MYGO_ARTWORK_FIXTURE) : Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aP1cAAAAASUVORK5CYII=", "base64");
 const sourceFixture = { manifest: { id: "netease", name: "网易云音乐", version: "0.1.3", playback: "stream", permissions: { network: ["music.163.com"] } }, identity: "github:sogud/mygo-music-netease", origin: "https://github.com/sogud/mygo-music-netease@v0.1.3", digest: "a".repeat(64), enabled: false, exports: ["account", "home", "search", "stream", "signIn", "signOut"] };
 let mygoPlugins = [];
 let pluginPlatform = { mygo: false, songloft: true };
@@ -38,6 +39,7 @@ let canceledSignIns = 0;
 let sourceAccount = null;
 let pendingSourceSignIn = null;
 let sourceTracks = [];
+let sourceCollections = [];
 let streamRequests = 0;
 let streamFailure = true;
 let failAccount = false;
@@ -75,7 +77,12 @@ const server = createServer(async (request, response) => {
       }
       if (path.endsWith("/call/signOut")) { sourceAccount = null; result = null; }
       if (path.endsWith("/prompt")) result = { qr: "https://music.163.com/login?codekey=fixture", text: "请扫码并确认登录" };
-      if (path.endsWith("/call/home")) result = { title: "Fixture source home", tracks: sourceTracks };
+      if (path.endsWith("/call/home")) result = { title: "Fixture source home", tracks: sourceTracks, playlists: sourceCollections };
+      if (path.endsWith("/call/playlist")) result = { title: "Fixture playlist", tracks: sourceTracks };
+      if (path.endsWith("/image")) {
+        const broken = new URL(request.url, "http://localhost").searchParams.get("url")?.includes("broken");
+        response.writeHead(broken ? 502 : 200, { "Content-Type": process.env.LARK_MYGO_ARTWORK_FIXTURE ? "image/jpeg" : "image/png" }).end(broken ? "unavailable" : sourceArtwork); return;
+      }
       if (path === "/api/v1/playlists/1") result = { id: 1, type: "normal", name: "收藏" };
       if (path === "/api/v1/playlists/1000000001") result = { id: 1000000001, type: "normal", name: "Ordinary fixture" };
       if (path === "/api/v1/playlists/1/songs") result = { items: toolSongs.filter(song => song.favorite) };
@@ -348,10 +355,20 @@ try {
     mygoPlugins.unshift({ ...structuredClone(sourceFixture), manifest: { ...sourceFixture.manifest, id: "other-source", name: "Other source" }, identity: "fixture:other", enabled: true });
     await clickVisible("#mygo-panel-installed .mygo-open-source");
     await browser("wait", "--fn", "!!document.querySelector('.mygo-source-tabs')");
-    assert.equal(await evaluate("document.querySelector('.mygo-repository select').value"), "netease");
+    assert.equal(await evaluate("document.querySelector('.mygo-source-picker [aria-current=true]').dataset.source"), "netease");
+    assert.equal(await evaluate("document.querySelectorAll('.mygo-source-picker button').length"), 2);
+    assert.equal(await evaluate("document.querySelectorAll('.mygo-source-picker select, .mygo-source-picker input').length"), 0);
     await browser("wait", "--fn", "document.querySelector('.mygo-panel').textContent.includes('Fixture source home')");
     assert.ok(await evaluate("!!document.querySelector('.mygo-account-status')"), "Sources must display persistent account status");
     await browser("wait", "--fn", "document.querySelector('.mygo-account-status').textContent.includes('未登录')");
+    await browser("fill", ".mygo-source-search input", "source-private query");
+    await browser("click", '.mygo-source-picker button[data-source="other-source"]');
+    await browser("wait", "--fn", "document.querySelector('.mygo-source-heading h3').textContent==='Other source'");
+    assert.equal(await evaluate("document.querySelector('.mygo-source-search input').value"), "");
+    assert.ok(await evaluate("document.activeElement === document.querySelector('.mygo-source-picker [data-source=\"other-source\"]')"), "Switching sources must retain navigation focus");
+    await browser("press", "Tab");
+    await browser("press", "Enter");
+    await browser("wait", "--fn", "document.querySelector('.mygo-source-heading h3').textContent==='网易云音乐'");
     mygoPlugins = mygoPlugins.filter((plugin) => plugin.manifest.id !== "other-source");
     await evaluate("window.dispatchEvent(new Event('lark:plugins-changed')); true");
     await browser("set", "viewport", "390", "844");
@@ -359,7 +376,7 @@ try {
     await browser("click", "#mygo-tab-installed");
     await clickVisible("#mygo-panel-installed .mygo-open-source");
     await browser("wait", "--fn", "!!document.querySelector('.mygo-source-tabs')");
-    assert.equal(await evaluate("document.querySelector('.mygo-repository select').value"), "netease");
+    assert.equal(await evaluate("document.querySelector('.mygo-source-picker [aria-current=true]').dataset.source"), "netease");
     await browser("screenshot", `${artifacts}/mygo-source-entry-phone.png`);
     await browser("set", "viewport", "1440", "900");
     const openLibrary = async () => {
@@ -400,7 +417,7 @@ try {
     await clickLibraryTab("音乐源");
     await browser("click", ".mygo-source-tabs button:first-child");
     await browser("wait", "--fn", "document.querySelector('.mygo-panel').textContent.includes('Fixture source home')");
-    await evaluate("[...document.querySelectorAll('.mygo-source-tabs button')].find(button=>button.textContent==='登录音乐源').click(); true");
+    await browser("click", ".mygo-sign-in");
     await browser("wait", "--fn", "!!document.querySelector('.mygo-signin-qr')");
     assert.ok(await evaluate("document.querySelector('.mygo-signin-qr').src.startsWith('data:image/gif;base64,')"), "QR must be generated locally");
     await browser("screenshot", `${artifacts}/mygo-qr-desktop.png`);
@@ -411,7 +428,7 @@ try {
     await browser("wait", "--fn", "!document.querySelector('.mygo-signin-prompt')");
     assert.ok(canceledSignIns >= 1, "Cancel must abort the login request");
     await browser("set", "viewport", "1440", "900");
-    await evaluate("[...document.querySelectorAll('.mygo-source-tabs button')].find(button=>button.textContent==='登录音乐源').click(); true");
+    await browser("click", ".mygo-sign-in");
     await browser("wait", "--fn", "!!document.querySelector('.mygo-signin-qr')");
     sourceAccount = { id: "fixture-listener", name: "Fixture signed-in listener" };
     pendingSourceSignIn.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(sourceAccount));
@@ -428,9 +445,42 @@ try {
     failAccount = false;
     await browser("click", ".mygo-account-status button");
     await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'signed-in'");
-    sourceTracks = [{ id: "playback-fixture", name: "Playback fixture", duration: 2000, artists: [] }];
+    sourceTracks = [
+      { id: "playback-fixture", name: "Playback fixture", duration: 2000, artists: [{ id: "artist", name: "Fixture artist" }], album: { id: "album", name: "Fixture album", imageUrl: "/api/mygo/plugins/netease/image?url=https%3A%2F%2Fpublic-cdn.example%2Fcover.jpg&identity=fixture&proof=fixture" } },
+      { id: "missing-artwork", name: "A long track title that should truncate without pushing the playback controls outside the viewport", duration: 2000, artists: [] },
+      { id: "broken-artwork", name: "Broken artwork fallback", duration: 2000, album: { id: "broken", name: "Broken", imageUrl: "https://public-cdn.example/broken.jpg" } },
+    ];
+    mygoPlugins[0].exports.push("playlist", "liked", "playlists", "createPlaylist");
+    sourceCollections = [
+      { id: "collection", name: "Fixture playlist with artwork", imageUrl: sourceTracks[0].album.imageUrl },
+      { id: "collection-empty", name: "Playlist without artwork" },
+    ];
+    await evaluate("window.dispatchEvent(new Event('lark:plugins-changed')); true");
     await browser("click", ".mygo-source-tabs button:first-child");
     await browser("wait", "--fn", "!!document.querySelector('.mygo-tracks li') && !document.querySelector('.mygo-tracks button').disabled");
+    await browser("wait", "--fn", "document.querySelector('.mygo-tracks img')?.naturalWidth > 0 && document.querySelectorAll('.mygo-tracks .mygo-artwork > svg').length===2");
+    assert.ok(await evaluate("!document.querySelector('.mygo-tracks img').src.includes('url=%2Fapi')"), "Signed artwork references must not be double-proxied");
+    assert.ok(await evaluate("!document.querySelector('.mygo-playlist-tools').open"), "Secondary playlist actions must be collapsed by default");
+    await browser("wait", "--fn", "document.querySelector('.mygo-collections img')?.naturalWidth > 0");
+    await clickVisible(".mygo-collection-button:first-child");
+    await browser("wait", "--fn", "document.querySelector('.mygo-source-content h4').textContent==='Fixture playlist'");
+    await browser("click", ".mygo-source-tabs button:first-child");
+    await browser("wait", "--fn", "document.querySelector('.mygo-source-content h4').textContent==='Fixture source home'");
+    assert.equal(await evaluate("document.querySelector('.mygo-source-tabs [aria-current=page]').textContent"), "首页");
+    for (const theme of ["spotify-dark", "apple-light"]) {
+      await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)}; true`);
+      for (const [width, height] of [[1440, 900], [1024, 768], [768, 1024], [390, 844], [320, 740]]) {
+        await browser("set", "viewport", String(width), String(height));
+        assert.ok(await evaluate("document.documentElement.scrollWidth <= innerWidth+1"), `${theme}/${width}: sources must not overflow the viewport`);
+        assert.ok(await evaluate("[...document.querySelectorAll('.mygo-track-actions button')].every(button=>button.getBoundingClientRect().width >= 44)"));
+        assert.ok(await evaluate("document.querySelector('.mygo-source-search input').getBoundingClientRect().width > document.querySelector('.mygo-source-search button').getBoundingClientRect().width"), "The search field must retain usable width on phones");
+        await browser("screenshot", `${artifacts}/mygo-sources-${theme}-${width}.png`);
+      }
+    }
+    await browser("set", "media", "dark", "reduced-motion");
+    assert.ok(await evaluate("parseFloat(getComputedStyle(document.querySelector('.mygo-source-picker button')).transitionDuration) < .001"));
+    await browser("set", "media", "dark", "no-preference");
+    await browser("set", "viewport", "1440", "900");
     await clickVisible(".mygo-tracks li button:first-child");
     await browser("wait", "--fn", "!!document.querySelector('audio').error");
     assert.ok(streamRequests > 0, "Browser playback must request the plugin audio endpoint");
@@ -440,12 +490,14 @@ try {
     streamFailure = false;
     await browser("click", '.player .transport .play[aria-label="播放"]');
     await browser("wait", "--fn", "!document.querySelector('audio').error && document.querySelector('audio').currentTime > 0.05 && !document.querySelector('audio').paused");
+    await browser("wait", "--fn", "document.querySelector('.player').style.getPropertyValue('--cover-url').includes('/api/mygo/plugins/netease/image?')");
     assert.ok(streamRequests > failedStreamRequests, "Retrying with the footer play button must reload the failed media request");
     await browser("screenshot", `${artifacts}/mygo-signed-in-playback.png`);
     await evaluate("document.querySelector('audio').pause(); true");
-    await evaluate("[...document.querySelectorAll('.mygo-source-tabs button')].find(button=>button.textContent==='退出音乐源').click(); true");
+    await browser("click", ".mygo-sign-out");
     await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'signed-out'");
     sourceTracks = [];
+    sourceCollections = [];
     await openSettings(); await selectCategory("plugins");
     await browser("click", "#mygo-tab-installed");
     await clickVisible("#mygo-panel-installed .icon-danger");

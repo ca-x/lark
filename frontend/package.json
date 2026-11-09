@@ -1,7 +1,7 @@
 {
   "name": "lark-frontend",
   "private": true,
-  "version": "0.18.15",
+  "version": "0.18.16",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {

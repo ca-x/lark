@@ -157,10 +157,14 @@ func (s *Session) webOptions() webapi.Options {
 }
 
 func (s *Session) Headers(address *url.URL, kind string) (http.Header, error) {
+	return s.mediaHeaders(address, kind, false)
+}
+
+func (s *Session) mediaHeaders(address *url.URL, kind string, artwork bool) (http.Header, error) {
 	if err := pluginruntime.ValidateURL(address); err != nil {
 		return nil, err
 	}
-	if kind != "audio" && !s.reaches(address.Hostname()) {
+	if kind != "audio" && !artwork && !s.reaches(address.Hostname()) {
 		return nil, errors.New("media host is outside network permission")
 	}
 	s.dataMu.Lock()

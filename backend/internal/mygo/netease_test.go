@@ -5,6 +5,7 @@ import (
 	"encoding/json/v2"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -53,6 +54,10 @@ func testRealNeteaseSignInAndPlayback(t *testing.T, environment, version string)
 				body = `{"code":200,"profile":{"userId":123,"nickname":"Fixture account","avatarUrl":"https://music.163.com/avatar.jpg"}}`
 			case "interfacepc.music.163.com/eapi/song/enhance/player/url/v1":
 				body = `{"code":200,"data":[{"id":123,"code":200,"url":"https://m801.music.126.net/normal.mp3","type":"mp3","level":"exhigh"},{"id":456,"code":200,"url":"https://m802.music.126.net/cloud.mp3","type":"mp3","level":"exhigh"}]}`
+			case "music.163.com/api/cloudsearch/pc":
+				body = `{"code":200,"result":{"songs":[{"id":123}],"songCount":1}}`
+			case "interfacepc.music.163.com/eapi/v3/song/detail":
+				body = `{"code":200,"songs":[{"id":123,"name":"CDN artwork fixture","dt":2000,"al":{"id":10,"name":"Album","picUrl":"https://p1.music.126.net/cover.jpg"},"ar":[{"id":20,"name":"Artist"}]}]}`
 			default:
 				t.Errorf("unexpected plugin request: %s", request.URL)
 				body = `{"code":500}`
@@ -114,6 +119,38 @@ func testRealNeteaseSignInAndPlayback(t *testing.T, environment, version string)
 			if !qrSeen || polls.Load() != 1 {
 				t.Fatal("QR prompt/poll sequence incomplete")
 			}
+			result, err := service.Call(t.Context(), 1, "netease", "search", []byte(`{"query":"fixture"}`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var page struct {
+				Tracks []struct {
+					Album struct {
+						ImageURL string `json:"imageUrl"`
+					} `json:"album"`
+				} `json:"tracks"`
+			}
+			if err := json.Unmarshal(result, &page); err != nil || len(page.Tracks) != 1 {
+				t.Fatal("original plugin search fixture failed", string(result), err)
+			}
+			image, err := url.Parse(page.Tracks[0].Album.ImageURL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			query := image.Query()
+			token, err := service.NewImageFrom(t.Context(), 1, "netease", query.Get("identity"), query.Get("url"), query.Get("proof"))
+			if err != nil {
+				t.Fatal("original plugin artwork CDN denied", err)
+			}
+			media, err := service.Media(t.Context(), 1, token)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if media.URL != "https://p1.music.126.net/cover.jpg" {
+				t.Fatal("artwork URL lost", media.URL)
+			}
+			media.Release()
+			service.ForgetMedia(token)
 			for _, track := range []string{"123", "456"} {
 				media, err := service.Stream(t.Context(), 1, "netease", track, "high")
 				if err != nil {

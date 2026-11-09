@@ -49,6 +49,7 @@ type media struct {
 	kind    string
 	expires time.Time
 	headers map[string]string
+	artwork bool
 }
 
 type Service struct {
@@ -62,6 +63,7 @@ type Service struct {
 	enabled       bool
 	closed        bool
 	clientFactory func() *http.Client
+	artworkKey    []byte
 }
 
 type Option func(*Service)
@@ -76,6 +78,17 @@ func New(ctx context.Context, store pluginapp.Store, dir string, options ...Opti
 	for _, option := range options {
 		option(service)
 	}
+	key, err := store.Get(ctx, "mygo-artwork-key-v1")
+	if err != nil {
+		return nil, err
+	}
+	if len(key) == 0 {
+		key = []byte(rand.Text())
+		if err := store.Put(ctx, "mygo-artwork-key-v1", key); err != nil {
+			return nil, err
+		}
+	}
+	service.artworkKey = key
 	contents, err := store.Get(ctx, "mygo-installed-v1")
 	if err != nil {
 		return nil, err
@@ -241,7 +254,21 @@ func (s *Service) CallFrom(ctx context.Context, user int, id, identity, method s
 	if err != nil {
 		return nil, err
 	}
-	return session.Call(ctx, method, params)
+	result, err := session.Call(ctx, method, params)
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	if session.closed.Load() || s.sessions[scope{user, id}] != session {
+		s.mu.Unlock()
+		return nil, ErrDisabled
+	}
+	item, err := s.itemLocked(id)
+	s.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	return s.artworkReferences(user, item, result)
 }
 
 func (s *Service) checkIdentityLocked(id, identity string) error {
@@ -510,10 +537,10 @@ func (s *Service) NewMedia(ctx context.Context, user int, id, address, kind stri
 }
 
 func (s *Service) NewMediaFrom(ctx context.Context, user int, id, identity, address, kind string) (string, error) {
-	return s.newMedia(ctx, user, id, identity, address, kind, nil)
+	return s.newMedia(ctx, user, id, identity, address, kind, nil, "")
 }
 
-func (s *Service) newMedia(ctx context.Context, user int, id, identity, address, kind string, headers map[string]string) (string, error) {
+func (s *Service) newMedia(ctx context.Context, user int, id, identity, address, kind string, headers map[string]string, proof string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.checkIdentityLocked(id, identity); err != nil {
@@ -523,6 +550,11 @@ func (s *Service) newMedia(ctx context.Context, user int, id, identity, address,
 	if err != nil {
 		return "", err
 	}
+	item, _ := s.itemLocked(id)
+	artwork := kind == "image" && proof != "" && s.validArtworkProof(user, item, address, proof)
+	if proof != "" && !artwork {
+		return "", errors.New("invalid artwork reference")
+	}
 	parsed, err := url.Parse(address)
 	if err != nil {
 		return "", err
@@ -531,7 +563,7 @@ func (s *Service) newMedia(ctx context.Context, user int, id, identity, address,
 		if parsed.Host != "" || !strings.HasPrefix(parsed.Path, "/package/") || !safeName(strings.TrimPrefix(parsed.Path, "/package/")) {
 			return "", errors.New("file URL is outside package")
 		}
-	} else if _, err := session.Headers(parsed, kind); err != nil {
+	} else if _, err := session.mediaHeaders(parsed, kind, artwork); err != nil {
 		return "", err
 	}
 	for token, value := range s.media {
@@ -542,9 +574,8 @@ func (s *Service) newMedia(ctx context.Context, user int, id, identity, address,
 	if len(s.media) >= 2000 {
 		return "", errors.New("too many media handles")
 	}
-	item, _ := s.itemLocked(id)
 	token := randomToken()
-	s.media[token] = media{owner: scope{user, id}, digest: item.Digest, url: address, kind: kind, headers: maps.Clone(headers), expires: time.Now().Add(30 * time.Minute)}
+	s.media[token] = media{owner: scope{user, id}, digest: item.Digest, url: address, kind: kind, headers: maps.Clone(headers), artwork: artwork, expires: time.Now().Add(30 * time.Minute)}
 	return token, nil
 }
 
@@ -589,7 +620,7 @@ func (s *Service) Media(ctx context.Context, user int, token string) (Media, err
 		}
 		return Media{Data: contents, Name: name, Context: session.ctx, Release: session.leaseMedia()}, nil
 	}
-	headers, err := session.Headers(parsed, value.kind)
+	headers, err := session.mediaHeaders(parsed, value.kind, value.artwork)
 	if err != nil {
 		return Media{}, err
 	}
@@ -603,7 +634,7 @@ func (s *Service) Media(ctx context.Context, user int, token string) (Media, err
 		if parsed.Scheme == "https" && target.Scheme != "https" {
 			return nil, errors.New("HTTPS downgrade is unavailable")
 		}
-		fresh, err := session.Headers(target, value.kind)
+		fresh, err := session.mediaHeaders(target, value.kind, value.artwork)
 		if err != nil {
 			return nil, err
 		}
@@ -639,7 +670,7 @@ func (s *Service) StreamFrom(ctx context.Context, user int, id, identity, track,
 	if err := json.Unmarshal(contents, &stream); err != nil {
 		return Media{}, err
 	}
-	token, err := s.newMedia(ctx, user, id, identity, stream.URL, "audio", stream.Headers)
+	token, err := s.newMedia(ctx, user, id, identity, stream.URL, "audio", stream.Headers, "")
 	if err != nil {
 		return Media{}, err
 	}
