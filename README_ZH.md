@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+[![Listed on Awesome MyGo](https://awesomemygo.dev/badge.svg)](https://awesomemygo.dev/apps/lark-music)
+
 百灵是一个面向个人音乐库的自托管 Web 音乐播放器。把 NAS、家用服务器、桌面机器或容器卷里的音乐目录交给它，就可以在浏览器里扫描、浏览、修正、播放、离线缓存和分享自己的曲库。
 
 它优先照顾本地大曲库：FLAC/WAV/Hi-Res 专辑、CUE 整轨、老格式、混乱 Tag、缺失歌词、错误封面，以及多年攒下来的目录结构。围绕听歌这件事，它也提供移动端播放、浏览器离线缓存、在线电台、DLNA 设备投放、Subsonic 兼容客户端、ListenBrainz/Last.fm 同步和公开分享链接。
