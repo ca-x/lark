@@ -170,12 +170,20 @@ function MygoSourceBrowser({ active, t, onPlay }: { active: MygoPlugin; t: Retur
   }
 
   const allTracks = [...mygoPageTracks(page), ...(page.sections || []).flatMap(mygoPageTracks)].filter((track) => !track.unavailable);
+  async function play(trackId?: string) {
+    await run(async () => {
+      const songs = allTracks.map((item) => mygoSong(source, { ...item, liked: liked[item.id] ?? item.liked }, active.identity));
+      const song = trackId === undefined ? songs[0] : songs.find((item) => item.mygo?.track === trackId);
+      if (song) await onPlay(song, songs);
+    });
+  }
+
   function tracks(items: MygoTrack[]) {
     return <ul className="mygo-tracks">{items.map((track, index) => <li key={`${track.id}:${index}`}>
       <MygoArtwork key={track.album?.imageUrl || "empty"} src={mygoImageURL(source, track.album?.imageUrl, active.identity)} />
       <div className="mygo-track-title"><strong>{track.name}</strong><small>{track.artists?.length ? `${track.artists.map((artist) => artist.name).join(" / ")} · ` : ""}{Math.floor((track.duration || 0) / 60000)}:{String(Math.floor((track.duration || 0) / 1000) % 60).padStart(2, "0")}</small></div>
       <div className="mygo-track-actions">
-        <button disabled={busy || track.unavailable} aria-label={`${t("play")} ${track.name}`} onClick={() => void run(async () => { const songs = allTracks.map((item) => mygoSong(source, { ...item, liked: liked[item.id] ?? item.liked }, active.identity)); const song = songs.find((item) => item.mygo?.track === track.id); if (song) await onPlay(song, songs); })}><Play aria-hidden="true" /></button>
+        <button disabled={busy || track.unavailable} aria-label={`${t("play")} ${track.name}`} onClick={() => void play(track.id)}><Play aria-hidden="true" /></button>
         <button disabled={busy || !can("like")} title={!can("like") ? t("mygoUnavailable") : undefined} aria-label={(liked[track.id] ?? track.liked) ? t("mygoUnfavorite") : t("mygoFavorite")} aria-pressed={liked[track.id] ?? track.liked ?? false} onClick={() => void like(track)}><Heart weight={(liked[track.id] ?? track.liked) ? "fill" : "regular"} aria-hidden="true" /></button>
         {can("addToPlaylist") && <button disabled={busy || !target} title={t("mygoPlaylistTarget")} aria-label={t("addToPlaylist")} onClick={() => void run(async () => { await call("addToPlaylist", { id: target, trackIds: [track.id] }); setNotice(t("done")); })}><Plus aria-hidden="true" /></button>}
         {openedPlaylist && can("removeFromPlaylist") && <button disabled={busy} onClick={() => void run(async () => { await call("removeFromPlaylist", { id: openedPlaylist, trackIds: [track.id] }); setPage((old) => ({ ...old, tracks: old.tracks?.filter((item) => item.id !== track.id) })); setNotice(t("done")); })}>{t("mygoRemoveTrack")}</button>}
@@ -223,7 +231,11 @@ function MygoSourceBrowser({ active, t, onPlay }: { active: MygoPlugin; t: Retur
       {prompt && <MygoSignInPrompt prompt={prompt} t={t} onCancel={() => signInRequest.current?.abort()} />}
       {deletingPlaylist && <ConfirmActionDialog title={t("mygoDeletePlaylist")} message={playlists.find((playlist) => playlist.id === deletingPlaylist)?.name || deletingPlaylist} cancelLabel={t("cancel")} confirmLabel={busy ? t("loading") : t("mygoDeletePlaylist")} busy={busy} error={error} onCancel={() => { setDeletingPlaylist(""); setError(""); }} onConfirm={() => void run(async () => { await call("deletePlaylist", { id: deletingPlaylist }); setPlaylists((old) => old.filter((playlist) => playlist.id !== deletingPlaylist)); setTarget(""); setDeletingPlaylist(""); setNotice(t("done")); })} />}
       <div className="mygo-source-content" aria-busy={busy}>
-      {page.title && <h4>{page.title}</h4>}{tracks(mygoPageTracks(page))}{entities(page)}
+      {(page.title || openedPlaylist) && <div className="mygo-page-heading">
+        {page.title && <h4>{page.title}</h4>}
+        {openedPlaylist && <button type="button" className="mygo-play-all mygo-primary" disabled={busy || !allTracks.length} onClick={() => void play()}><Play weight="fill" aria-hidden="true" />{page.more ? t("mygoPlayLoaded") : t("playAll")}</button>}
+      </div>}
+      {tracks(mygoPageTracks(page))}{entities(page)}
       {(page.links || []).map((link) => <button key={link.page} disabled={busy} onClick={() => void load("browse", { page: link.page })}>{link.title}</button>)}
       {(page.sections || []).map((section, index) => <section key={index}><h4>{section.title}</h4>{tracks(mygoPageTracks(section))}{entities(section)}{(section.links || []).map((link) => <button key={link.page} disabled={busy} onClick={() => void load("browse", { page: link.page })}>{link.title}</button>)}{section.morePage && <button disabled={busy} onClick={() => void load("browse", { page: section.morePage })}>{t("nextPage")}</button>}</section>)}
       {page.more && <button disabled={busy} onClick={() => void load(request.current.method, { ...request.current.params, offset: request.current.offset }, true)}>{t("nextPage")}</button>}

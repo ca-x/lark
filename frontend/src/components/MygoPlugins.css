@@ -92,6 +92,10 @@
 .mygo-playlist-tools > div { display: grid; gap: 14px; padding-block: 12px; }
 .mygo-source-content, .mygo-source-content > section { display: grid; gap: 20px; min-width: 0; }
 .mygo-source-content h4 { margin: 0; font-size: 17px; line-height: 1.5; overflow-wrap: anywhere; }
+.mygo-page-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.mygo-page-heading > h4 { flex: 1 1 180px; min-width: 0; }
+.mygo-panel .mygo-play-all { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
+.mygo-play-all > svg { width: 18px; height: 18px; flex-shrink: 0; }
 .mygo-source-content :is(ul, div):empty { display: none; }
 .mygo-artwork { display: grid; place-items: center; overflow: hidden; width: 44px; height: 44px; border-radius: 8px; background: var(--panel2); color: var(--mygo-muted); }
 .mygo-artwork > img { display: block; width: 100%; height: 100%; object-fit: cover; }

@@ -37,6 +37,7 @@
 | 插件元数据中的图片 CDN | 仅经用户／来源／包绑定的完整 URL 签名授权；支持大小模板与当前图片请求头规则，不放开任意 URL |
 | `file:///package/…` 音频 | 支持安全包内文件与 HTTP Range，不映射服务器任意文件 |
 | 主页、搜索、分页、歌词、收藏、歌单 | 基于实际 exports；有 create/rename/delete/add/remove 时提供对应操作 |
+| 音乐源歌单播放 | 歌单详情提供「全部播放」，按插件返回顺序从首个可播放曲目开始；有后续分页时显示「播放已加载」，不会自动抓取剩余页面，空歌单或全部不可播放时禁用 |
 | show/station、builtin navigation、section links | 基础浏览入口，依赖源的导出与返回结构 |
 | 原生进程、webSignIn、waitForRedirect、openURL、removeDataDir、remote playback | 不支持，调用明确报错；需要 process 或 remote playback 的包在预览时拒绝 |
 | host.language / host.t | 暂固定 zh-CN / 返回原始键，不加载插件 locales；不承诺完整本地化 |

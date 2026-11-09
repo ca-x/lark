@@ -5,6 +5,22 @@
 
 ---
 
+## 0.18.17：音乐源歌单播放入口
+
+发布日期 / Released: 2026-11-09
+
+- 音乐源歌单详情新增「全部播放」，使用插件返回的歌曲加入主播放器队列，从首个可播放曲目开始，跳过不可播放项。
+- 歌单仍有分页时显示「播放已加载」，不自动抓取剩余页面；手动加载下一页后可一起播放，空歌单或全部不可播放时禁用按钮。
+- 播放入口适配深浅主题和窄屏布局，保留歌曲封面与音乐源身份；仅更新服务端二进制与 Docker。
+
+## v0.18.17: Music source playlist playback
+
+Released: 2026-11-09
+
+- Add Play all to music source playlist details, queueing plugin-returned tracks in the main player from the first playable track and skipping unavailable entries.
+- Show Play loaded tracks when more pages remain, without fetching them automatically; manually loaded pages join the queue, and empty or entirely unavailable playlists disable playback.
+- Adapt the playback control to light/dark themes and narrow screens while preserving artwork and source identity; server binaries and Docker only.
+
 ## 0.18.15：网易云播放与插件宿主兼容修复
 
 发布日期 / Released: 2026-11-08

@@ -40,6 +40,8 @@ let sourceAccount = null;
 let pendingSourceSignIn = null;
 let sourceTracks = [];
 let sourceCollections = [];
+let sourcePlaylistPage = null;
+let sourcePlaylistCalls = 0;
 let streamRequests = 0;
 let streamFailure = true;
 let failAccount = false;
@@ -78,7 +80,10 @@ const server = createServer(async (request, response) => {
       if (path.endsWith("/call/signOut")) { sourceAccount = null; result = null; }
       if (path.endsWith("/prompt")) result = { qr: "https://music.163.com/login?codekey=fixture", text: "请扫码并确认登录" };
       if (path.endsWith("/call/home")) result = { title: "Fixture source home", tracks: sourceTracks, playlists: sourceCollections };
-      if (path.endsWith("/call/playlist")) result = { title: "Fixture playlist", tracks: sourceTracks };
+      if (path.endsWith("/call/playlist")) {
+        sourcePlaylistCalls++;
+        result = sourcePlaylistPage || { title: "Fixture playlist", tracks: sourceTracks };
+      }
       if (path.endsWith("/image")) {
         const broken = new URL(request.url, "http://localhost").searchParams.get("url")?.includes("broken");
         response.writeHead(broken ? 502 : 200, { "Content-Type": process.env.LARK_MYGO_ARTWORK_FIXTURE ? "image/jpeg" : "image/png" }).end(broken ? "unavailable" : sourceArtwork); return;
@@ -464,9 +469,11 @@ try {
     await browser("wait", "--fn", "document.querySelector('.mygo-collections img')?.naturalWidth > 0");
     await clickVisible(".mygo-collection-button:first-child");
     await browser("wait", "--fn", "document.querySelector('.mygo-source-content h4').textContent==='Fixture playlist'");
+    assert.equal(await evaluate("document.querySelector('.mygo-play-all').textContent"), "全部播放");
     await browser("click", ".mygo-source-tabs button:first-child");
     await browser("wait", "--fn", "document.querySelector('.mygo-source-content h4').textContent==='Fixture source home'");
     assert.equal(await evaluate("document.querySelector('.mygo-source-tabs [aria-current=page]').textContent"), "首页");
+    assert.equal(await evaluate("document.querySelector('.mygo-play-all')"), null, "Playlist playback must not appear on source home");
     for (const theme of ["spotify-dark", "apple-light"]) {
       await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)}; true`);
       for (const [width, height] of [[1440, 900], [1024, 768], [768, 1024], [390, 844], [320, 740]]) {
@@ -494,6 +501,54 @@ try {
     assert.ok(streamRequests > failedStreamRequests, "Retrying with the footer play button must reload the failed media request");
     await browser("screenshot", `${artifacts}/mygo-signed-in-playback.png`);
     await evaluate("document.querySelector('audio').pause(); true");
+    streamFailure = true;
+    const playlistTracks = sourceTracks.map(track => ({ ...track, id: `playlist-${track.id}` }));
+    sourcePlaylistPage = {
+      title: "A long source playlist title that must wrap without squeezing playback controls",
+      tracks: [{ id: "unavailable", name: "Unavailable track", duration: 2000, unavailable: true }, ...playlistTracks],
+      more: true,
+    };
+    await clickVisible(".mygo-collection-button:first-child");
+    await browser("wait", "--fn", "document.querySelector('.mygo-play-all')?.textContent === '播放已加载' && !document.querySelector('.mygo-play-all').disabled");
+    const playlistCallsBeforePlay = sourcePlaylistCalls;
+    const writesBeforePlay = writes.length;
+    await browser("click", ".mygo-play-all");
+    await browser("wait", "--fn", "!!document.querySelector('audio').error");
+    const savedSourceQueue = () => writes.slice(writesBeforePlay).filter(write => write.path === "/api/mygo/queue" && write.payload?.songs).at(-1)?.payload;
+    assert.deepEqual(savedSourceQueue().songs.map(song => song.mygo.track), playlistTracks.map(track => track.id), "Play loaded must preserve order and skip unavailable tracks");
+    assert.equal(savedSourceQueue().current, savedSourceQueue().songs[0].id, "Playlist playback must start at the first playable track");
+    assert.ok(savedSourceQueue().songs.every(song => song.mygo.plugin === "netease" && song.mygo.identity === sourceFixture.identity), "Batch playback must preserve source identity");
+    assert.equal(savedSourceQueue().songs[0].mygo.image, sourceTracks[0].album.imageUrl, "Batch playback must preserve signed artwork");
+    assert.equal(sourcePlaylistCalls, playlistCallsBeforePlay, "Playback must not fetch missing playlist pages");
+    for (const theme of ["spotify-dark", "apple-light"]) {
+      await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)}; true`);
+      for (const [width, height] of [[1440, 900], [768, 1024], [390, 844], [320, 740], [844, 390]]) {
+        await browser("set", "viewport", String(width), String(height));
+        assert.ok(await evaluate("document.documentElement.scrollWidth <= innerWidth+1"), `${theme}/${width}: playlist header must not overflow`);
+        assert.ok(await evaluate("document.querySelector('.mygo-play-all').getBoundingClientRect().height >= 44"));
+        await browser("screenshot", `${artifacts}/mygo-playlist-${theme}-${width}.png`);
+      }
+    }
+    await browser("set", "viewport", "1440", "900");
+    sourcePlaylistPage = { tracks: [{ ...sourceTracks[1], id: "next-page" }], more: false };
+    await clickVisible(".mygo-source-content > button:last-child");
+    await browser("wait", "--fn", "document.querySelector('.mygo-play-all')?.textContent === '全部播放' && !document.querySelector('.mygo-play-all').disabled");
+    streamFailure = false;
+    await browser("click", ".mygo-play-all");
+    await browser("wait", "--fn", "!document.querySelector('audio').error && document.querySelector('audio').currentTime > 0.05 && !document.querySelector('audio').paused");
+    await evaluate("document.querySelector('audio').pause(); true");
+    assert.deepEqual(savedSourceQueue().songs.map(song => song.mygo.track), [...playlistTracks.map(track => track.id), "next-page"], "Play all must include manually appended pages");
+    await browser("click", ".mygo-source-tabs button:first-child");
+    await browser("wait", "--fn", "!document.querySelector('.mygo-play-all')");
+    sourcePlaylistPage = { tracks: [], more: false };
+    await clickVisible(".mygo-collection-button:first-child");
+    await browser("wait", "--fn", "!!document.querySelector('.mygo-play-all')?.disabled");
+    sourcePlaylistPage = { tracks: [{ id: "unavailable", name: "Unavailable track", duration: 2000, unavailable: true }] };
+    await browser("click", ".mygo-source-tabs button:first-child");
+    await browser("wait", "--fn", "!document.querySelector('.mygo-play-all')");
+    await clickVisible(".mygo-collection-button:first-child");
+    await browser("wait", "--fn", "!!document.querySelector('.mygo-play-all')?.disabled");
+    sourcePlaylistPage = null;
     await browser("click", ".mygo-sign-out");
     await browser("wait", "--fn", "document.querySelector('.mygo-account-status')?.dataset.state === 'signed-out'");
     sourceTracks = [];
