@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	connectrpc.com/connect v1.19.1
 	entgo.io/ent v0.14.6
-	github.com/MoeForge/moejs v0.1.0-alpha.11
+	github.com/MoeForge/moejs v0.1.0
 	github.com/ca-x/lark/protocol v0.0.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/dgraph-io/badger/v4 v4.9.1
@@ -32,6 +32,7 @@ require (
 require (
 	ariga.io/atlas v0.36.2-0.20250730182955-2c6300d0a3e1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/MoeForge/moego v0.1.0-alpha.1 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
