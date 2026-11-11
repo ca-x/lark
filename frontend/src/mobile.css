@@ -5662,9 +5662,9 @@
   }
 
   .app-shell.lyrics-mode .full-lyrics[data-display-style='immersive'] {
-    --mobile-lyrics-readable:var(--lyrics-immersive-dim, color-mix(in srgb, var(--mobile-lyrics-live) 72%, transparent));
-    --lyrics-active-text:var(--lyrics-immersive-active, var(--mobile-lyrics-live));
-    --lyrics-pending-text:var(--lyrics-immersive-pending, color-mix(in srgb, var(--mobile-lyrics-live) 45%, transparent));
+    --mobile-lyrics-readable:color-mix(in srgb, var(--mobile-lyrics-live) 72%, transparent);
+    --lyrics-active-text:var(--mobile-lyrics-live);
+    --lyrics-pending-text:color-mix(in srgb, var(--mobile-lyrics-live) 45%, transparent);
     --lyrics-cover-base:var(--lyrics-immersive-cover-base, color-mix(in srgb, var(--lyrics-cover-tone, var(--mobile-lyrics-accent)) 30%, var(--bg) 70%));
     --lyrics-live-start:var(--lyrics-immersive-live-start, var(--lyrics-active-text));
     --lyrics-live-mid:var(--lyrics-immersive-live-mid, color-mix(in srgb, var(--mobile-lyrics-accent) 72%, var(--lyrics-active-text)));
@@ -8885,6 +8885,11 @@
     border:1px solid var(--mobile-lyrics-border);
   }
 
+  .app-shell.lyrics-mode .lyrics-tools[data-online-enabled='false'] { grid-template-rows:auto minmax(0,1fr); }
+  .app-shell.lyrics-mode .lyrics-tools-head strong { color:var(--mobile-lyrics-live); }
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded output { color:var(--mobile-lyrics-live); }
+  .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-hint { color:var(--mobile-lyrics-muted); }
+
   .app-shell.lyrics-mode .lyrics-tools-tabs button {
     min-width:0;
     min-height:44px;
@@ -8966,7 +8971,7 @@
     display:grid;
     grid-template-columns:1fr;
     gap:8px;
-    overflow:visible;
+    overflow:auto;
     scrollbar-width:auto;
   }
 
@@ -8995,7 +9000,7 @@
 
   .app-shell.lyrics-mode .lyrics-offset-panel--embedded .lyrics-offset-actions button {
     min-width:0;
-    min-height:42px;
+    min-height:44px;
     padding:0 4px;
     border-radius:13px;
     color:var(--mobile-lyrics-live);

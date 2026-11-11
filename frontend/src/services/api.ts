@@ -144,7 +144,7 @@ export const api = {
   updateShare: (token: string, expires_at?: string) => request<Share>(`/api/shares/${encodeURIComponent(token)}`, { method: 'PATCH', body: JSON.stringify({ expires_at: expires_at || null }) }),
   deleteShare: (token: string) => request<void>(`/api/shares/${encodeURIComponent(token)}`, { method: 'DELETE' }),
   publicShare: (token: string) => request<PublicShare>(`/api/public/shares/${encodeURIComponent(token)}`),
-  lyrics: (id: number, sourceId?: string) => request<Lyrics>(`/api/songs/${id}/lyrics${sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ''}`),
+  lyrics: (id: number, sourceId?: string, signal?: AbortSignal) => request<Lyrics>(`/api/songs/${id}/lyrics${sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ''}`, { signal }),
   lyricCandidates: (id: number, refresh = false) => request<LyricCandidate[]>(`/api/songs/${id}/lyrics/candidates${refresh ? '?refresh=true' : ''}`),
   selectLyrics: (id: number, source: string, candidateId: string) => request<Lyrics>(`/api/songs/${id}/lyrics/select`, { method: 'POST', body: JSON.stringify({ source, id: candidateId }) }),
   songMetadataCandidates: (id: number, scope: 'path' | 'online' | 'all' = 'all', refresh = false) => request<MetadataCandidate[] | null>(`/api/songs/${id}/metadata-candidates?scope=${encodeURIComponent(scope)}${refresh ? '&refresh=true' : ''}`).then(arrayOrEmpty),

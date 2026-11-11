@@ -5,6 +5,24 @@
 
 ---
 
+## 0.18.19：可选在线歌词与歌词工具优化
+
+发布日期 / Released: 2026-11-11
+
+- 在“设置 → 歌词”新增默认开启的“内置在线歌词搜索”开关；关闭后停止内置联网检索并隐藏候选选择、刷新和在线入口，本地、已保存及音源插件歌词不受影响。
+- 服务端同步限制显式歌词查询、缓存候选和旧候选选择；旧客户端省略开关字段时保留原设置，普通用户可读取能力状态但不能更改全局开关。
+- 歌词设置区分搜索来源与字体排版，增加实时字体预览；歌词工具优化层级、触控尺寸、键盘切换和深浅色适配。停用搜索后仍可调整单曲偏移，开关切换和过期候选响应不重置播放进度。
+- MoeJS 升级至 v0.1.0；Songloft 继续使用原有 QuickJS / `.jsc` 运行时。
+
+### English
+
+- Add a default-on **Built-in online lyrics search** switch under Settings → Lyrics. Disabling it stops built-in network lookup and hides candidate selection, refresh, and online entry points while keeping local, saved, and source-plugin lyrics.
+- Enforce the switch for explicit lookups, cached candidates, and stale selections. Older clients preserve the flag when omitted; listeners can read capability state but only administrators can change it.
+- Separate search and typography settings, add a live font preview, and refine lyric tools for touch, keyboard, responsive layouts, and light/dark themes. Per-song timing remains available without resetting playback on capability changes or stale responses.
+- Upgrade MoeJS to v0.1.0; Songloft retains its QuickJS / `.jsc` runtime.
+
+---
+
 ## 0.18.18：音乐源导航、搜索与播放历史
 
 发布日期 / Released: 2026-11-09

@@ -3,15 +3,30 @@ package library
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"lark/backend/ent"
+	"lark/backend/ent/appsetting"
 	"lark/backend/ent/song"
 	"lark/backend/internal/models"
 	"lark/backend/internal/online"
 )
+
+var ErrOnlineLyricsDisabled = errors.New("built-in online lyrics search is disabled")
+
+func (s *Service) onlineLyricsEnabled(ctx context.Context) (bool, error) {
+	setting, err := s.client.AppSetting.Query().Where(appsetting.Key("online_lyrics_enabled")).Only(ctx)
+	if ent.IsNotFound(err) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return setting.Value != "false", nil
+}
 
 func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.Lyrics, error) {
 	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().WithAlbum().Only(ctx)
@@ -66,6 +81,16 @@ func (s *Service) Lyrics(ctx context.Context, id int, sourceID string) (models.L
 			return models.Lyrics{SongID: id, Source: pluginSource, Lyrics: lyric, Fetched: true}, nil
 		}
 	}
+	enabled, err := s.onlineLyricsEnabled(ctx)
+	if err != nil {
+		return models.Lyrics{}, err
+	}
+	if !enabled {
+		if explicitSource {
+			return models.Lyrics{}, ErrOnlineLyricsDisabled
+		}
+		return models.Lyrics{SongID: id, Source: "online:disabled"}, nil
+	}
 	cleanArtist, cleanTitle := cleanLyricArtistTitle(artistName, item.Title)
 	var lyric, matchedID, matchedSource string
 	for index, title := range lyricTitleQueryVariants(cleanTitle) {
@@ -108,6 +133,13 @@ func (s *Service) LyricCandidates(ctx context.Context, id int) ([]models.LyricCa
 }
 
 func (s *Service) LyricCandidatesForUser(ctx context.Context, userID, id int, refresh bool) ([]models.LyricCandidate, error) {
+	enabled, err := s.onlineLyricsEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return []models.LyricCandidate{}, nil
+	}
 	item, err := s.client.Song.Query().Where(song.ID(id)).WithArtist().WithAlbum().Only(ctx)
 	if err != nil {
 		return nil, err
@@ -276,6 +308,13 @@ func (s *Service) matchOnlineLyrics(ctx context.Context, title, artist, preferre
 	return "", "", "", nil
 }
 func (s *Service) fetchLyricsBySource(ctx context.Context, source, sourceID string) (string, error) {
+	enabled, err := s.onlineLyricsEnabled(ctx)
+	if err != nil {
+		return "", err
+	}
+	if !enabled {
+		return "", ErrOnlineLyricsDisabled
+	}
 	source = strings.ToLower(strings.TrimSpace(source))
 	switch source {
 	case "netease", "":

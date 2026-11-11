@@ -184,6 +184,7 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 		SleepTimerMins:               0,
 		LibraryPath:                  s.libraryDir,
 		NeteaseFallback:              true,
+		OnlineLyricsEnabled:          true,
 		RegistrationEnabled:          false,
 		DLNACastEnabled:              false,
 		DLNALibraryEnabled:           false,
@@ -241,6 +242,8 @@ func (s *Service) GetSettings(ctx context.Context) (models.Settings, error) {
 			settings.WebFontURL = item.Value
 		case "lyrics_auto_save_to_song_dir":
 			settings.LyricsAutoSaveToSongDir = item.Value == "true"
+		case "online_lyrics_enabled":
+			settings.OnlineLyricsEnabled = item.Value != "false"
 		case "lyrics_font_family":
 			settings.LyricsFontFamily = item.Value
 		case "lyrics_font_url":
@@ -324,6 +327,7 @@ func (s *Service) SaveSettings(ctx context.Context, settings models.Settings) (m
 		"web_font_family":                 settings.WebFontFamily,
 		"web_font_url":                    settings.WebFontURL,
 		"lyrics_auto_save_to_song_dir":    strconv.FormatBool(settings.LyricsAutoSaveToSongDir),
+		"online_lyrics_enabled":           strconv.FormatBool(settings.OnlineLyricsEnabled),
 		"lyrics_font_family":              settings.LyricsFontFamily,
 		"lyrics_font_url":                 settings.LyricsFontURL,
 		"lyrics_font_size":                strconv.Itoa(settings.LyricsFontSize),

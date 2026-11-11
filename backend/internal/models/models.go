@@ -381,6 +381,7 @@ type Settings struct {
 	PlaybackHistoryRetentionDays int    `json:"playback_history_retention_days"`
 	WebFontFamily                string `json:"web_font_family"`
 	WebFontURL                   string `json:"web_font_url"`
+	OnlineLyricsEnabled          bool   `json:"online_lyrics_enabled"`
 	LyricsAutoSaveToSongDir      bool   `json:"lyrics_auto_save_to_song_dir"`
 	LyricsFontFamily             string `json:"lyrics_font_family"`
 	LyricsFontURL                string `json:"lyrics_font_url"`

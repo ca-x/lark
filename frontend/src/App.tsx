@@ -338,6 +338,7 @@ const defaultSettings: Settings = {
   playback_history_retention_days: 0,
   web_font_url: "",
   web_font_family: "",
+  online_lyrics_enabled: true,
   lyrics_auto_save_to_song_dir: false,
   lyrics_font_family: "",
   lyrics_font_url: "",
@@ -1129,6 +1130,9 @@ export default function App() {
   const [lyricCandidates, setLyricCandidates] = useState<LyricCandidate[]>([]);
   const [lyricCandidatesOpen, setLyricCandidatesOpen] = useState(false);
   const [lyricCandidatesLoading, setLyricCandidatesLoading] = useState(false);
+  const lyricRequestGeneration = useRef(0);
+  const onlineLyricsEnabledRef = useRef(settings.online_lyrics_enabled);
+  onlineLyricsEnabledRef.current = settings.online_lyrics_enabled;
   const [lyricOffsetMs, setLyricOffsetMs] = useState(0);
   const [lyricsFullScreen, setLyricsFullScreen] = useState(false);
   const [metadataEditorTarget, setMetadataEditorTarget] = useState<MetadataEditorTarget | null>(null);
@@ -1798,17 +1802,24 @@ export default function App() {
     setBuffering(false);
     setStreamOffset(nextMode === "adaptive" ? resume : 0);
     setStreamMode(nextMode);
+  }, [current?.id]);
+  useEffect(() => {
+    lyricRequestGeneration.current += 1;
+    if (!current) return;
+    invalidateLyricCandidateCache([current.id]);
     setLyrics(null);
     setLyricCandidates([]);
     setLyricCandidatesOpen(false);
+    setLyricCandidatesLoading(false);
     setLyricsLoading(true);
     let canceled = false;
+    const controller = new AbortController();
     const lyricRequest = current.mygo
       ? api.mygoCall<Parameters<typeof mygoLyricsToLRC>[0]>(current.mygo.plugin, "lyrics", { id: current.mygo.track }, current.mygo.identity).then((value) => ({ song_id: current.id, source: "mygo", lyrics: mygoLyricsToLRC(value), fetched: true }))
-      : api.lyrics(current.id);
+      : api.lyrics(current.id, undefined, controller.signal);
     void lyricRequest.then((value) => { if (!canceled) setLyrics(value); }).catch(() => { if (!canceled) setLyrics(null); }).finally(() => { if (!canceled) setLyricsLoading(false); });
-    return () => { canceled = true; };
-  }, [current?.id]);
+    return () => { canceled = true; controller.abort(); };
+  }, [current?.id, settings.online_lyrics_enabled]);
   useEffect(() => {
     if (!current) return;
     const cachedEntry = findOfflineSongEntry(offlineIndex, current.id, settings.transcode_quality_kbps);
@@ -4230,10 +4241,12 @@ export default function App() {
 
   async function openLyricCandidates() {
     if (!current) return;
+    setLyricCandidatesOpen(true);
+    if (!onlineLyricsEnabledRef.current || current.mygo) return;
+    const generation = lyricRequestGeneration.current;
     const songID = current.id;
     const key = lyricCandidateCacheKey(songID);
     const cached = getCandidateCache<LyricCandidate>(key);
-    setLyricCandidatesOpen(true);
     if (cached !== undefined) {
       setLyricCandidates(cached);
       setLyricCandidatesLoading(false);
@@ -4242,41 +4255,48 @@ export default function App() {
     setLyricCandidatesLoading(true);
     try {
       const items = await loadCandidateCache(key, () => api.lyricCandidates(songID));
-      if (currentRef.current?.id === songID) setLyricCandidates(items);
+      if (currentRef.current?.id === songID && generation === lyricRequestGeneration.current) setLyricCandidates(items);
     } catch {
-      if (currentRef.current?.id === songID) setLyricCandidates([]);
+      if (currentRef.current?.id === songID && generation === lyricRequestGeneration.current) setLyricCandidates([]);
     } finally {
-      if (currentRef.current?.id === songID) setLyricCandidatesLoading(false);
+      if (currentRef.current?.id === songID && generation === lyricRequestGeneration.current) setLyricCandidatesLoading(false);
     }
   }
 
   async function selectLyricCandidate(candidate: LyricCandidate) {
-    if (!current) return;
+    if (!current || current.mygo || !onlineLyricsEnabledRef.current) return;
+    const songID = current.id;
+    const generation = lyricRequestGeneration.current;
     setLyricsLoading(true);
     try {
       const selected = await api.selectLyrics(
-        current.id,
+        songID,
         candidate.source,
         candidate.id,
       );
+      if (currentRef.current?.id !== songID || generation !== lyricRequestGeneration.current) return;
       setLyrics(selected);
-      invalidateLyricCandidateCache([current.id]);
+      invalidateLyricCandidateCache([songID]);
       setLyricCandidatesOpen(false);
-      setProgress(0);
+    } catch {
+      if (currentRef.current?.id === songID && generation === lyricRequestGeneration.current) showMessage(t("noLyricsTitle"));
     } finally {
-      setLyricsLoading(false);
+      if (currentRef.current?.id === songID && generation === lyricRequestGeneration.current) setLyricsLoading(false);
     }
   }
 
   async function refreshLyricCandidates() {
-    if (!current || lyricCandidatesLoading) return;
+    if (!current || current.mygo || !onlineLyricsEnabledRef.current || lyricCandidatesLoading) return;
+    const generation = lyricRequestGeneration.current;
     const songID = current.id;
     setLyricCandidatesLoading(true);
     try {
       const items = await reloadCandidateCache(lyricCandidateCacheKey(songID), () => api.lyricCandidates(songID, true));
-      if (currentRef.current?.id === songID) setLyricCandidates(items);
+      if (currentRef.current?.id === songID && generation === lyricRequestGeneration.current) setLyricCandidates(items);
+    } catch {
+      if (currentRef.current?.id === songID && generation === lyricRequestGeneration.current) setLyricCandidates([]);
     } finally {
-      if (currentRef.current?.id === songID) setLyricCandidatesLoading(false);
+      if (currentRef.current?.id === songID && generation === lyricRequestGeneration.current) setLyricCandidatesLoading(false);
     }
   }
 
@@ -4380,8 +4400,13 @@ export default function App() {
       }
       if (pendingAutoplayRef.current) setBuffering(true);
     }
-    setSettings(nextSettings);
-    const saved = await api.saveSettings(nextSettings).catch(() => nextSettings);
+    setSettings({ ...nextSettings, online_lyrics_enabled: settings.online_lyrics_enabled });
+    const saved = await api.saveSettings(nextSettings).catch(() => {
+      setSettings(settings);
+      showMessage(t("settingsSaveFailed"));
+      return null;
+    });
+    if (!saved) return;
     setSettings({ ...defaultSettings, ...saved, theme: normalizeTheme(saved.theme) });
     setSmartPlaylists(await api.smartPlaylists().catch(() => []));
   }
@@ -5813,6 +5838,7 @@ export default function App() {
             candidates={lyricCandidates}
             candidatesOpen={lyricCandidatesOpen}
             candidatesLoading={lyricCandidatesLoading}
+            onlineLyricsEnabled={settings.online_lyrics_enabled && !current?.mygo}
             onOpenCandidates={() => void openLyricCandidates()}
             onRefreshCandidates={() => void refreshLyricCandidates()}
             onSelectCandidate={(candidate) => void selectLyricCandidate(candidate)}
@@ -6348,7 +6374,7 @@ export default function App() {
             {view === "settings" && (
               <SettingsPanel
                 settings={settings}
-                setSettings={(s) => void saveSettings(s)}
+                setSettings={saveSettings}
                 interfaceScale={interfaceScale}
                 onInterfaceScaleChange={setInterfaceScale}
                 libraryDirectories={libraryDirectories}
@@ -9825,6 +9851,7 @@ function FullLyrics({
   candidates,
   candidatesOpen,
   candidatesLoading,
+  onlineLyricsEnabled,
   onOpenCandidates,
   onRefreshCandidates,
   onSelectCandidate,
@@ -9854,6 +9881,7 @@ function FullLyrics({
   candidates: LyricCandidate[];
   candidatesOpen: boolean;
   candidatesLoading: boolean;
+  onlineLyricsEnabled: boolean;
   onOpenCandidates: () => void;
   onRefreshCandidates: () => void;
   onSelectCandidate: (candidate: LyricCandidate) => void;
@@ -9885,7 +9913,8 @@ function FullLyrics({
   const userScrollUntil = useRef(0);
   const seekTimer = useRef<number | null>(null);
   const lyricsTitle = song?.title ?? `${t("brand")} Music`;
-  const onlineLyrics = hasOnlineLyricsSource(lyricsSource) && lines.length > 0;
+  const onlineLyrics = onlineLyricsEnabled && hasOnlineLyricsSource(lyricsSource) && lines.length > 0;
+  const activeToolsTab = onlineLyricsEnabled ? lyricsToolsTab : "offset";
   const matchConfidence = lyricsMatchConfidence(song, lyrics, lines);
   const showMatchWarning = onlineLyrics && matchConfidence === "low";
   const lyricOffsetSeconds = lyricOffsetMs / 1000;
@@ -10016,7 +10045,7 @@ function FullLyrics({
     window.requestAnimationFrame(syncSeekTargetFromScroll);
   };
   const openLyricsTools = () => {
-    setLyricsToolsTab("candidates");
+    setLyricsToolsTab(onlineLyricsEnabled ? "candidates" : "offset");
     onOpenCandidates();
   };
   return (
@@ -10152,8 +10181,8 @@ function FullLyrics({
             <button
               className={onlineLyrics ? "lyrics-pick icon-only has-source" : "lyrics-pick icon-only"}
               onClick={openLyricsTools}
-              title={t("chooseLyrics")}
-              aria-label={t("chooseLyrics")}
+              title={t(onlineLyricsEnabled ? "chooseLyrics" : "lyricsOffset")}
+              aria-label={t(onlineLyricsEnabled ? "chooseLyrics" : "lyricsOffset")}
             >
               {onlineLyrics ? (
                 <Cloud
@@ -10176,39 +10205,51 @@ function FullLyrics({
         ) : null}
       </div>
       {candidatesOpen ? (
-        <div className="lyrics-candidates lyrics-tools">
+        <div className="lyrics-candidates lyrics-tools" data-online-enabled={onlineLyricsEnabled}>
           <div className="lyrics-tools-head">
-            <strong>{t("chooseLyrics")}</strong>
+            <strong>{t(onlineLyricsEnabled ? "chooseLyrics" : "lyricsOffset")}</strong>
             <span>
-              <button type="button" onClick={onRefreshCandidates} disabled={candidatesLoading}><ArrowClockwise /> {t("refresh")}</button>
-              <button onClick={onCloseCandidates}>{t("close")}</button>
+              {onlineLyricsEnabled ? <button type="button" onClick={onRefreshCandidates} disabled={candidatesLoading}><ArrowClockwise /> {t("refresh")}</button> : null}
+              <button type="button" className="lyrics-tools-close" onClick={onCloseCandidates} aria-label={t("close")}><X aria-hidden="true" /></button>
             </span>
           </div>
-          <div className="lyrics-tools-tabs" role="tablist" aria-label={t("chooseLyrics")}>
-            <button
+          {onlineLyricsEnabled ? <div className="lyrics-tools-tabs" role="tablist" aria-label={t("chooseLyrics")} onKeyDown={(event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+            const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
+            const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+            event.preventDefault();
+            tabs[next]?.focus();
+            tabs[next]?.click();
+          }}>
+            {onlineLyricsEnabled ? <button
               type="button"
               role="tab"
-              aria-selected={lyricsToolsTab === "candidates"}
+              id="lyrics-candidates-tab"
+              tabIndex={activeToolsTab === "candidates" ? 0 : -1}
+              aria-selected={activeToolsTab === "candidates"}
               aria-controls="lyrics-candidates-panel"
-              className={lyricsToolsTab === "candidates" ? "active" : ""}
+              className={activeToolsTab === "candidates" ? "active" : ""}
               onClick={() => setLyricsToolsTab("candidates")}
             >
               {t("chooseLyrics")}
-            </button>
+            </button> : null}
             <button
               type="button"
               role="tab"
-              aria-selected={lyricsToolsTab === "offset"}
+              id="lyrics-offset-tab"
+              tabIndex={activeToolsTab === "offset" ? 0 : -1}
+              aria-selected={activeToolsTab === "offset"}
               aria-controls="lyrics-offset-panel"
-              className={lyricsToolsTab === "offset" ? "active" : ""}
+              className={activeToolsTab === "offset" ? "active" : ""}
               onClick={() => setLyricsToolsTab("offset")}
             >
               <span>{t("lyricsOffset")}</span>
               <strong>{formatLyricOffset(lyricOffsetMs)}</strong>
             </button>
-          </div>
-          {lyricsToolsTab === "candidates" ? (
-            <div id="lyrics-candidates-panel" className="lyrics-candidates-list" role="tabpanel">
+          </div> : null}
+          {activeToolsTab === "candidates" ? (
+            <div id="lyrics-candidates-panel" className="lyrics-candidates-list" role="tabpanel" aria-labelledby="lyrics-candidates-tab">
               {candidatesLoading ? (
                 <p>{t("matchingLyrics")}</p>
               ) : candidates.length ? (
@@ -10245,8 +10286,9 @@ function FullLyrics({
             >
               <div>
                 <span>{t("lyricsOffset")}</span>
-                <strong>{formatLyricOffset(lyricOffsetMs)}</strong>
+                <output aria-live="polite">{formatLyricOffset(lyricOffsetMs)}</output>
               </div>
+              <p className="lyrics-offset-hint">{t("lyricsOffsetHint")}</p>
               <div className="lyrics-offset-actions">
                 {LYRIC_OFFSET_STEP_MS.map((step) => (
                   <button
@@ -10264,6 +10306,7 @@ function FullLyrics({
                   className="lyrics-offset-reset"
                   onClick={onResetLyricOffset}
                   disabled={lyricOffsetMs === 0}
+                  aria-label={t("lyricsOffsetReset")}
                 >
                   <ArrowClockwise />
                   <span>{t("lyricsOffsetReset")}</span>
@@ -10937,7 +10980,7 @@ function SettingsPanel({
   t,
 }: {
   settings: Settings;
-  setSettings: (settings: Settings) => void;
+  setSettings: (settings: Settings) => void | Promise<void>;
   interfaceScale: InterfaceScale;
   onInterfaceScaleChange: (next: InterfaceScale) => void;
   libraryDirectories: LibraryDirectory[];
@@ -10998,6 +11041,7 @@ function SettingsPanel({
   const [libraryDirError, setLibraryDirError] = useState("");
   const [fonts, setFonts] = useState<WebFont[]>([]);
   const [fontsLoading, setFontsLoading] = useState(false);
+  const [lyricsSearchSaving, setLyricsSearchSaving] = useState(false);
   const [fontUploading, setFontUploading] = useState(false);
   const [mcpToken, setMcpToken] = useState<MCPTokenStatus | null>(null);
   const [mcpLoading, setMcpLoading] = useState(false);
@@ -12150,10 +12194,39 @@ function SettingsPanel({
             </label>
           ) : null}
           {user.role === "admin" ? (
-            <div className="font-settings-card settings-wide-row" data-settings-owner="lyrics">
-              <div>
-                <strong>{t("lyricsSettings")}</strong>
-                <span>{t("lyricsDisplayStyleHint")}</span>
+            <div className="feature-settings-card lyrics-source-settings settings-wide-row" data-settings-owner="lyrics">
+              <label className="switch-row" aria-busy={lyricsSearchSaving}>
+                <span>
+                  <span>{t("onlineLyricsEnabled")}</span>
+                  <small>{t("onlineLyricsEnabledHint")}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  aria-label={t("onlineLyricsEnabled")}
+                  checked={settings.online_lyrics_enabled}
+                  disabled={lyricsSearchSaving}
+                  onChange={async (event) => {
+                    setLyricsSearchSaving(true);
+                    try {
+                      await setSettings({ ...settings, online_lyrics_enabled: event.target.checked });
+                    } finally {
+                      setLyricsSearchSaving(false);
+                    }
+                  }}
+                />
+              </label>
+              <p className="lyrics-source-note"><MusicNotes aria-hidden="true" />{t("lyricsSourceNote")}</p>
+            </div>
+          ) : null}
+          {user.role === "admin" ? (
+            <div className="font-settings-card lyrics-type-settings settings-wide-row" data-settings-owner="lyrics">
+              <div className="lyrics-settings-heading">
+                <strong>{t("lyricsTypography")}</strong>
+                <span>{t("lyricsTypographyHint")}</span>
+              </div>
+              <div className="lyrics-font-preview" aria-label={t("lyricsFontPreview")} style={{ fontFamily: settings.lyrics_font_family ? `"${settings.lyrics_font_family}", var(--app-font)` : undefined, fontSize: settings.lyrics_font_size ? `clamp(18px, ${settings.lyrics_font_size}px, 36px)` : undefined }}>
+                <span>{t("lyricsPreviewPrevious")}</span>
+                <strong>{t("lyricsPreviewCurrent")}</strong>
               </div>
               <div className="settings-mini-grid">
                 <label>

@@ -30,6 +30,9 @@ let sounds = { enabled: false, volume: 0.5 };
 let history = { separate_by_device: false };
 const writes = [];
 const pluginFlow = process.argv.includes("--plugin-flow-only");
+const lyricsFlow = process.argv.includes("--lyrics-flow-only");
+let lyricCandidateRequests = 0;
+let failLyricsSettingsSave = false;
 const sourceArtwork = process.env.LARK_MYGO_ARTWORK_FIXTURE ? await readFile(process.env.LARK_MYGO_ARTWORK_FIXTURE) : Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aP1cAAAAASUVORK5CYII=", "base64");
 const sourceFixture = { manifest: { id: "netease", name: "网易云音乐", version: "0.1.3", playback: "stream", permissions: { network: ["music.163.com"] } }, identity: "github:sogud/mygo-music-netease", origin: "https://github.com/sogud/mygo-music-netease@v0.1.3", digest: "a".repeat(64), enabled: false, exports: ["account", "home", "search", "stream", "signIn", "signOut"] };
 let mygoPlugins = [];
@@ -67,6 +70,24 @@ const pluginDeletes = [];
 const server = createServer(async (request, response) => {
   const path = new URL(request.url, "http://localhost").pathname;
   if (path.startsWith("/api/")) {
+    if (lyricsFlow) {
+      if (path === "/api/settings" && request.method === "PUT" && failLyricsSettingsSave) {
+        response.writeHead(503, { "Content-Type": "application/json" }).end(JSON.stringify({ message: "Fixture unavailable" })); return;
+      }
+      let result;
+      if (path === "/api/playback/queue" && request.method === "GET") result = { queue: { song_ids: [1], current_id: 1 } };
+      if (path === "/api/songs/page") result = { items: [{ ...localCatalogSong, duration_seconds: 30 }], total: 1, page: 1, limit: 100 };
+      if (path === "/api/songs/1/lyrics") result = { song_id: 1, source: "embedded", lyrics: "[00:00.00]让旋律慢慢流淌\n[00:10.00]把此刻留在歌里" };
+      if (path === "/api/songs/1/lyrics/candidates") { lyricCandidateRequests++; result = [{ id: "42", title: "让旋律慢慢流淌", artist: "测试歌手", source: "fixture" }]; }
+      if (path === "/api/songs/1/lyrics/select") result = { song_id: 1, source: "fixture", lyrics: "[00:00.00]选择的歌词" };
+      if (path === "/api/songs/1/stream") {
+        const range = request.headers.range?.match(/^bytes=(\d+)-(\d*)$/);
+        const start = range ? Number(range[1]) : 0;
+        const end = range?.[2] ? Math.min(Number(range[2]), sourceIntegrationAudio.length - 1) : sourceIntegrationAudio.length - 1;
+        response.writeHead(range ? 206 : 200, { "Content-Type": "audio/wav", "Accept-Ranges": "bytes", "Content-Length": end - start + 1, ...(range ? { "Content-Range": `bytes ${start}-${end}/${sourceIntegrationAudio.length}` } : {}) }).end(sourceIntegrationAudio.subarray(start, end + 1)); return;
+      }
+      if (result !== undefined) { response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(result)); return; }
+    }
     if (pluginFlow) {
       pluginRequests.push({ path, method: request.method });
       let result;
@@ -225,6 +246,14 @@ const selectCategory = async (id) => {
   }
   await browser("wait", "--fn", `document.querySelector('.settings-category-picker select').value === '${id}'`);
 };
+const openPlayingLyrics = async () => {
+  await browser("click", '.desktop-sidebar nav button[aria-label="曲库"]');
+  await browser("wait", "--fn", "!!document.querySelector('.song-row-play')");
+  await browser("click", '.song-row-play');
+  await browser("wait", "--fn", "!!document.querySelector('.player button[aria-label=\"暂停\"]')");
+  await browser("click", '.player button[aria-label="歌词"]');
+  await browser("wait", "--fn", "!!document.querySelector('.full-lyrics .lyrics-actions')");
+};
 const checkLayout = async () => {
   const result = await evaluate(`(() => {
     const root = document.querySelector('.settings-page');
@@ -377,7 +406,81 @@ const checkWorkspace = async () => {
   console.log(`PASS ordinary-user category and search permissions; screenshots: ${artifacts}`);
 };
 try {
-  if (pluginFlow) {
+  if (lyricsFlow) {
+    await browser("set", "viewport", "1440", "900");
+    await browser("open", url);
+    await evaluate("localStorage.setItem('lark.persistent-queue-enabled', 'true'); true");
+    await openSettings();
+    await selectCategory("lyrics");
+    await browser("wait", "--fn", "!!document.querySelector('.lyrics-font-preview')");
+    assert.equal(await evaluate("document.querySelector('[aria-label=\"内置在线歌词搜索\"]').checked"), true);
+    await browser("screenshot", `${artifacts}/lyrics-settings-light.png`);
+    for (const [width, height] of [[320, 740], [768, 1024], [1440, 900]]) {
+      await browser("set", "viewport", String(width), String(height));
+      await checkLayout();
+      await evaluate("document.querySelector('.lyrics-type-settings').scrollIntoView({block:'center'}); true");
+      await browser("screenshot", `${artifacts}/lyrics-typography-${width}.png`);
+    }
+    await clickVisible('[aria-label="内置在线歌词搜索"]');
+    await browser("wait", "--fn", "!document.querySelector('[aria-label=\"内置在线歌词搜索\"]').checked");
+    assert.ok(writes.some(write => write.path === "/api/settings" && write.payload.online_lyrics_enabled === false));
+    await openSettings();
+    await selectCategory("lyrics");
+    assert.equal(await evaluate("document.querySelector('[aria-label=\"内置在线歌词搜索\"]').checked"), false, "Switch survives reload");
+    await openPlayingLyrics();
+    assert.equal(await evaluate("!!document.querySelector('.full-lyrics [aria-label=\"选择歌词\"]')"), false);
+    await browser("click", '.lyrics-actions button[aria-label="歌词偏移"]');
+    await browser("wait", "--fn", "!!document.querySelector('#lyrics-offset-panel')");
+    await browser("click", '#lyrics-offset-panel button[aria-label="+100 ms"]');
+    assert.ok((await evaluate("document.querySelector('#lyrics-offset-panel output').textContent")).includes("100"));
+    await browser("screenshot", `${artifacts}/lyrics-tools-disabled.png`);
+    assert.equal(lyricCandidateRequests, 0, "Disabled tools must never request candidates");
+    for (const [width, height] of [[320, 740], [390, 844], [844, 390], [1440, 900]]) {
+      await browser("set", "viewport", String(width), String(height));
+      await browser("wait", "--fn", "!document.querySelector('.lyrics-tools').getAnimations().some(animation => animation.playState === 'running')");
+      const bounds = await evaluate("(() => { const panel=document.querySelector('.lyrics-tools'); return {width:panel.clientWidth,scroll:panel.scrollWidth,document:document.scrollingElement.scrollWidth,viewport:innerWidth}; })()");
+      assert.ok(bounds.scroll <= bounds.width + 1, `Tools horizontal overflow ${width}: ${JSON.stringify(bounds)}`);
+      assert.ok(bounds.document <= bounds.viewport + 1);
+      await browser("screenshot", `${artifacts}/lyrics-offset-${width}.png`);
+    }
+    await browser("set", "viewport", "1440", "900");
+    settings = { ...settings, theme: "apple-dark" };
+    await openSettings();
+    await selectCategory("lyrics");
+    assert.equal(await evaluate("document.documentElement.dataset.theme"), "apple-dark");
+    await browser("wait", "--fn", "getComputedStyle(document.querySelector('.lyrics-style-control button.active')).color === getComputedStyle(document.querySelector('.lyrics-settings-heading strong')).color");
+    await clickVisible('[aria-label="内置在线歌词搜索"]');
+    await browser("screenshot", `${artifacts}/lyrics-settings-dark.png`);
+    await openPlayingLyrics();
+    await browser("click", '.lyrics-actions button[aria-label="选择歌词"]');
+    await browser("wait", "--fn", "!!document.querySelector('.lyrics-candidate-item')");
+    assert.equal(lyricCandidateRequests, 1);
+    await browser("click", '#lyrics-candidates-tab');
+    await browser("press", "ArrowRight");
+    assert.equal(await evaluate("document.activeElement.id"), "lyrics-offset-tab");
+    await browser("press", "Home");
+    assert.equal(await evaluate("document.activeElement.id"), "lyrics-candidates-tab");
+    await browser("screenshot", `${artifacts}/lyrics-candidates-dark.png`);
+    await browser("click", '.full-lyrics-cover-button');
+    await browser("click", '.desktop-sidebar nav button[aria-label="设置"]');
+    await selectCategory("lyrics");
+    await evaluate("document.querySelector('audio').currentTime = 12; document.querySelector('audio').dispatchEvent(new Event('timeupdate')); true");
+    await browser("wait", "--fn", "document.querySelector('audio').currentTime >= 11.5 && !document.querySelector('audio').seeking");
+    await clickVisible('[aria-label="内置在线歌词搜索"]');
+    await browser("wait", "--fn", "!document.querySelector('[aria-label=\"内置在线歌词搜索\"]').checked && !document.querySelector('[aria-label=\"内置在线歌词搜索\"]').disabled");
+    assert.ok(await evaluate("document.querySelector('audio').currentTime >= 11.5"), "Capability changes must not reset audio progress");
+    failLyricsSettingsSave = true;
+    await clickVisible('[aria-label="内置在线歌词搜索"]');
+    await browser("wait", "--fn", "!document.querySelector('[aria-label=\"内置在线歌词搜索\"]').disabled");
+    assert.equal(await evaluate("document.querySelector('[aria-label=\"内置在线歌词搜索\"]').checked"), false, "Failed save must not enable search");
+    failLyricsSettingsSave = false;
+    role = "member";
+    await openSettings();
+    await selectCategory("lyrics");
+    assert.equal(await evaluate("!!document.querySelector('[aria-label=\"内置在线歌词搜索\"]')"), false);
+    assert.ok(await evaluate("!!document.querySelector('[data-settings-owner=\"lyrics\"]')"), "Personal lyric settings remain available");
+    console.log(`PASS online lyrics default, save/reload, disabled entry, offset controls, no disabled request, reenable, keyboard tabs, member access, responsive layout and dark contrast; screenshots: ${artifacts}`);
+  } else if (pluginFlow) {
     settings = { ...settings, theme: "spotify-dark" };
     await browser("set", "viewport", "1440", "900");
     await openSettings();
@@ -793,6 +896,10 @@ try {
     await checkNavigationColors();
     if (!process.argv.includes("--navigation-colors-only")) await checkWorkspace();
   }
+} catch (error) {
+  await browser("screenshot", `${artifacts}/failure.png`).catch(() => {});
+  if (lyricsFlow) console.log(await browser("snapshot", "-i"));
+  throw error;
 } finally {
   await browser("close").catch(() => {});
   await new Promise((done) => server.close(done));

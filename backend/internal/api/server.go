@@ -231,6 +231,7 @@ type settingsRequest struct {
 	PlaybackHistoryRetentionDays int    `json:"playback_history_retention_days"`
 	WebFontFamily                string `json:"web_font_family"`
 	WebFontURL                   string `json:"web_font_url"`
+	OnlineLyricsEnabled          *bool  `json:"online_lyrics_enabled"`
 	LyricsAutoSaveToSongDir      bool   `json:"lyrics_auto_save_to_song_dir"`
 	LyricsFontFamily             string `json:"lyrics_font_family"`
 	LyricsFontURL                string `json:"lyrics_font_url"`
@@ -2389,6 +2390,7 @@ func (s *Server) handleGetSettings(c *echo.Context) error {
 			"sharing_enabled":         settings.SharingEnabled,
 			"subsonic_server_enabled": settings.SubsonicServerEnabled,
 			"desktop_grpc_enabled":    settings.DesktopGRPCEnabled,
+			"online_lyrics_enabled":   settings.OnlineLyricsEnabled,
 			"transcode_policy":        settings.TranscodePolicy,
 			"transcode_quality_kbps":  settings.TranscodeQualityKbps,
 		})
@@ -2402,11 +2404,16 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	desktopGRPCEnabled := true
+	onlineLyricsEnabled := true
 	if current, err := s.lib.GetSettings(c.Request().Context()); err == nil {
 		desktopGRPCEnabled = current.DesktopGRPCEnabled
+		onlineLyricsEnabled = current.OnlineLyricsEnabled
 	}
 	if req.DesktopGRPCEnabled != nil {
 		desktopGRPCEnabled = *req.DesktopGRPCEnabled
+	}
+	if req.OnlineLyricsEnabled != nil {
+		onlineLyricsEnabled = *req.OnlineLyricsEnabled
 	}
 	nextSettings := models.Settings{
 		Language:                     req.Language,
@@ -2427,6 +2434,7 @@ func (s *Server) handleSaveSettings(c *echo.Context) error {
 		WebFontFamily:                req.WebFontFamily,
 		WebFontURL:                   req.WebFontURL,
 		LyricsAutoSaveToSongDir:      req.LyricsAutoSaveToSongDir,
+		OnlineLyricsEnabled:          onlineLyricsEnabled,
 		LyricsFontFamily:             req.LyricsFontFamily,
 		LyricsFontURL:                req.LyricsFontURL,
 		LyricsFontSize:               req.LyricsFontSize,
@@ -2680,6 +2688,9 @@ func sanitizePublicShareErrors(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func mapError(err error) error {
+	if errors.Is(err, library.ErrOnlineLyricsDisabled) {
+		return echo.NewHTTPError(http.StatusConflict, err.Error())
+	}
 	if errors.Is(err, larkhost.ErrInvalidPlaylistID) {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}

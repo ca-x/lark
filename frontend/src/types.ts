@@ -539,6 +539,7 @@ export interface Settings {
   playback_history_retention_days: number;
   web_font_family: string;
   web_font_url: string;
+  online_lyrics_enabled: boolean;
   lyrics_auto_save_to_song_dir: boolean;
   lyrics_font_family: string;
   lyrics_font_url: string;
