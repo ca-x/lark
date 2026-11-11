@@ -78,7 +78,7 @@ const server = createServer(async (request, response) => {
       if (path === "/api/playback/queue" && request.method === "GET") result = { queue: { song_ids: [1], current_id: 1 } };
       if (path === "/api/songs/page") result = { items: [{ ...localCatalogSong, duration_seconds: 30 }], total: 1, page: 1, limit: 100 };
       if (path === "/api/songs/1/lyrics") result = { song_id: 1, source: "embedded", lyrics: "[00:00.00]让旋律慢慢流淌\n[00:10.00]把此刻留在歌里" };
-      if (path === "/api/songs/1/lyrics/candidates") { lyricCandidateRequests++; result = [{ id: "42", title: "让旋律慢慢流淌", artist: "测试歌手", source: "fixture" }]; }
+      if (path === "/api/songs/1/lyrics/candidates") { lyricCandidateRequests++; result = Array.from({ length: 20 }, (_, index) => ({ id: String(42 + index), title: index ? "让旋律慢慢流淌（现场演出及特别收录的长标题版本）" : "让旋律慢慢流淌", artist: "测试歌手", source: "fixture" })); }
       if (path === "/api/songs/1/lyrics/select") result = { song_id: 1, source: "fixture", lyrics: "[00:00.00]选择的歌词" };
       if (path === "/api/songs/1/stream") {
         const range = request.headers.range?.match(/^bytes=(\d+)-(\d*)$/);
@@ -427,7 +427,9 @@ try {
     await openSettings();
     await selectCategory("lyrics");
     assert.equal(await evaluate("document.querySelector('[aria-label=\"内置在线歌词搜索\"]').checked"), false, "Switch survives reload");
+    assert.ok((await evaluate("document.querySelector('.lyrics-source-note').textContent")).includes("内置在线搜索已关闭"));
     await openPlayingLyrics();
+    assert.ok((await evaluate("document.querySelector('.full-lyrics-lines').textContent")).includes("让旋律慢慢流淌"), "Disabling search preserves existing lyrics, rather than hiding them");
     assert.equal(await evaluate("!!document.querySelector('.full-lyrics [aria-label=\"选择歌词\"]')"), false);
     await browser("click", '.lyrics-actions button[aria-label="歌词偏移"]');
     await browser("wait", "--fn", "!!document.querySelector('#lyrics-offset-panel')");
@@ -460,6 +462,42 @@ try {
     assert.equal(await evaluate("document.activeElement.id"), "lyrics-offset-tab");
     await browser("press", "Home");
     assert.equal(await evaluate("document.activeElement.id"), "lyrics-candidates-tab");
+    for (const theme of ["apple-light", "apple-dark", "spotify-dark"]) {
+      await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}; true`);
+      for (const [width, height] of [[1440, 900], [1440, 600], [320, 740], [390, 844], [844, 390]]) {
+        await browser("set", "viewport", String(width), String(height));
+        await browser("wait", "--fn", "!document.querySelector('.lyrics-tools').getAnimations().some(animation => animation.playState === 'running')");
+        const layout = await evaluate(`(() => {
+          const list = document.querySelector('.lyrics-candidates-list');
+          const rows = [...list.querySelectorAll('.lyrics-candidate-item')];
+          const rects = rows.map(row => row.getBoundingClientRect());
+          return {
+            count: rows.length,
+            scrolls: list.scrollHeight > list.clientHeight,
+            horizontalOverflow: list.scrollWidth > list.clientWidth + 1,
+            contained: rows.every((row, index) => {
+              const bounds = rects[index];
+              return bounds.height >= 44 && [...row.children].every(child => {
+                const content = child.getBoundingClientRect();
+                return content.top >= bounds.top + 1 && content.bottom <= bounds.bottom - 1;
+              }) && (!index || bounds.top >= rects[index - 1].bottom + 1);
+            }),
+            heights: rects.slice(0, 3).map(bounds => bounds.height),
+          };
+        })()`);
+        assert.equal(layout.count, 20);
+        assert.ok(layout.contained, `Candidate content exceeds row: ${theme} ${width}x${height} ${JSON.stringify(layout)}`);
+        assert.ok(layout.scrolls, `Long candidate list must scroll: ${theme} ${width}x${height}`);
+        assert.equal(layout.horizontalOverflow, false);
+        await evaluate("document.querySelector('.lyrics-candidate-item:nth-last-child(2)').focus({preventScroll:true}); true");
+        await browser("press", "Tab");
+        const focused = await evaluate("(() => {const list=document.querySelector('.lyrics-candidates-list').getBoundingClientRect();const row=document.activeElement.getBoundingClientRect();return {listTop:list.top,listBottom:list.bottom,rowTop:row.top,rowBottom:row.bottom};})()");
+        assert.ok(focused.rowTop >= focused.listTop - 1 && focused.rowBottom <= focused.listBottom + 1, `Last candidate stays reachable by keyboard: ${theme} ${width}x${height} ${JSON.stringify(focused)}`);
+        await evaluate("document.querySelector('.lyrics-candidates-list').scrollTop=0; true");
+        await browser("screenshot", `${artifacts}/lyrics-candidates-${theme}-${width}-${height}.png`);
+      }
+    }
+    await browser("set", "viewport", "1440", "900");
     await browser("screenshot", `${artifacts}/lyrics-candidates-dark.png`);
     await browser("click", '.full-lyrics-cover-button');
     await browser("click", '.desktop-sidebar nav button[aria-label="设置"]');

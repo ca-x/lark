@@ -99,7 +99,7 @@ By default, Lark stores app data and uploaded music in the `lark_data` Docker vo
 - Embedded lyrics are preferred. When they are missing, Lark can search online lyrics and let you choose a better candidate.
 - LRC parsing supports offset tags, multiple timestamps on one line, millisecond precision, and original/translation grouping at the same timestamp.
 - Lyrics can be shifted with an offset and saved automatically as a same-name `.lrc` file when that option is enabled.
-- Administrators can turn off the default-on **Built-in online lyrics search** in Settings → Lyrics. This stops built-in lookup and hides online candidate/refresh controls while preserving local, saved, and source-plugin lyrics. Per-song timing remains available in full-screen lyrics, and typography settings include a live preview.
+- Administrators can turn off the default-on **Built-in online lyrics search** in Settings → Lyrics. This stops built-in lookup and hides online candidate/refresh controls, not lyric display: local lyrics, previous downloads/cache, saved `.lrc` files, and source-plugin lyrics still appear automatically and are not deleted. Per-song timing remains available in full-screen lyrics, and typography settings include a live preview.
 - Song and album editors support online candidates, file-path candidates, manual input, cover URLs, and uploaded covers.
 - Supported source files can be updated with corrected tags and artwork after confirmation. Lark shows per-file writeback results before you move on.
 - Path-assisted metadata can repair bad tags during scans without writing back to source files unless tag writeback is enabled.

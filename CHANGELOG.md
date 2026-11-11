@@ -5,6 +5,22 @@
 
 ---
 
+## 0.18.20：歌词候选列表布局修复
+
+发布日期 / Released: 2026-11-11
+
+- 修复歌词工具的旧按钮样式压缩候选行高度，导致图标和文字超出行边界的问题；长列表保留独立滚动，窄屏和低高度窗口不再挤压候选项。
+- 明确“关闭内置在线歌词搜索”并非关闭歌词显示：已有本地、下载缓存、`.lrc` 文件和音源插件歌词仍会自动显示，不删除已保存歌词。
+- 增加多候选、深浅主题、窄屏与低高度窗口的浏览器回归检查，并验证键盘可访问列表末项。仅更新服务端二进制与 Docker。
+
+### English
+
+- Fix legacy lyric-tool button styles compressing candidate rows and causing icons and text to overflow. Long lists scroll independently without squeezing rows in narrow or short windows.
+- Clarify that disabling built-in online search does not hide or delete existing local lyrics, downloaded/cache entries, `.lrc` files, or source-plugin lyrics.
+- Add browser regression coverage for long lists, light/dark themes, narrow/short viewports, and keyboard access to the final candidate. Server binaries and Docker only.
+
+---
+
 ## 0.18.19：可选在线歌词与歌词工具优化
 
 发布日期 / Released: 2026-11-11

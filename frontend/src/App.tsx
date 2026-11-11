@@ -12215,7 +12215,7 @@ function SettingsPanel({
                   }}
                 />
               </label>
-              <p className="lyrics-source-note"><MusicNotes aria-hidden="true" />{t("lyricsSourceNote")}</p>
+              <p className="lyrics-source-note"><MusicNotes aria-hidden="true" />{t(settings.online_lyrics_enabled ? "lyricsSourceNote" : "onlineLyricsDisabledNote")}</p>
             </div>
           ) : null}
           {user.role === "admin" ? (

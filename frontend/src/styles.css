@@ -971,7 +971,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .lyrics-pick:hover { border-color:color-mix(in srgb, var(--accent) 44%, var(--line)); background:color-mix(in srgb, var(--accent) 12%, var(--panel2)); }
 .lyrics-source-icon { color:var(--accent); filter:drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 42%, transparent)); }
 .lyrics-candidates { position:relative; z-index:4; grid-row:2; justify-self:end; width:min(420px, 100%); max-height:min(420px, 38dvh); overflow:auto; display:grid; gap:8px; margin:14px 0 0; padding:14px; border-radius:22px; border:1px solid color-mix(in srgb, var(--accent) 26%, var(--line)); background:color-mix(in srgb, var(--panel) 94%, transparent); box-shadow:0 26px 80px rgba(0,0,0,.34); backdrop-filter:blur(18px); }
-.lyrics-candidates > div button { min-height:34px; padding:6px 10px; border-radius:999px; color:var(--muted); }
+.lyrics-tools-head button { min-height:34px; padding:6px 10px; border-radius:999px; color:var(--muted); }
 .lyrics-candidates > button { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:3px 10px; text-align:left; padding:10px 12px; border-radius:16px; background:var(--panel2); border:1px solid var(--line); }
 .lyrics-candidates > button:hover { border-color:var(--accent); }
 .lyrics-candidates > button strong, .lyrics-candidates > button span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -991,7 +991,7 @@ nav button:active, .media-card:active, .cover-button:active { transform:scale(.9
 .lyrics-tools-tabs button { min-width:0; min-height:44px; display:flex; align-items:center; justify-content:center; gap:6px; padding:6px 10px; border-radius:999px; color:var(--muted); font-size:calc(13px * var(--interface-text-in-button-scale)); font-weight:600; }
 .lyrics-tools-tabs button.active { color:var(--text); background:var(--panel); box-shadow:0 1px 3px color-mix(in srgb, var(--bg) 20%, transparent); }
 .lyrics-tools-tabs button strong { color:inherit; font-size:calc(12px * var(--interface-text-in-button-scale)); font-variant-numeric:tabular-nums; }
-.lyrics-candidates-list { display:grid; gap:8px; min-width:0; overflow:auto; overscroll-behavior:contain; padding:1px 2px 2px; scrollbar-gutter:stable; }
+.lyrics-candidates-list { display:grid; grid-auto-rows:max-content; align-content:start; gap:8px; min-width:0; overflow:auto; overscroll-behavior:contain; padding:1px 2px 2px; scrollbar-gutter:stable; }
 .lyrics-candidates-list > p { margin:4px 2px; color:var(--muted); }
 .lyrics-candidate-item { min-width:0; min-height:62px; display:grid; grid-template-columns:38px minmax(0,1fr) minmax(72px,auto); gap:10px; align-items:center; text-align:left; padding:9px 10px; border-radius:16px; color:var(--text); background:var(--panel2); border:1px solid var(--line); transition:border-color .18s var(--ease), background .18s var(--ease), transform .18s var(--ease); }
 .lyrics-candidate-item:hover, .lyrics-candidate-item:focus-visible { border-color:color-mix(in srgb, var(--accent) 72%, var(--line)); background:color-mix(in srgb, var(--accent) 9%, var(--panel2)); }
