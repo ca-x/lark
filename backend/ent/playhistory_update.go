@@ -120,21 +120,37 @@ func (_u *PlayHistoryUpdate) SetUpdatedAt(v time.Time) *PlayHistoryUpdate {
 	return _u
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (_u *PlayHistoryUpdate) SetUserID(id int) *PlayHistoryUpdate {
-	_u.mutation.SetUserID(id)
+// SetSongID sets the "song_id" field.
+func (_u *PlayHistoryUpdate) SetSongID(v int) *PlayHistoryUpdate {
+	_u.mutation.SetSongID(v)
+	return _u
+}
+
+// SetNillableSongID sets the "song_id" field if the given value is not nil.
+func (_u *PlayHistoryUpdate) SetNillableSongID(v *int) *PlayHistoryUpdate {
+	if v != nil {
+		_u.SetSongID(*v)
+	}
+	return _u
+}
+
+// SetUserID sets the "user_id" field.
+func (_u *PlayHistoryUpdate) SetUserID(v int) *PlayHistoryUpdate {
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *PlayHistoryUpdate) SetNillableUserID(v *int) *PlayHistoryUpdate {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
 	return _u
 }
 
 // SetUser sets the "user" edge to the User entity.
 func (_u *PlayHistoryUpdate) SetUser(v *User) *PlayHistoryUpdate {
 	return _u.SetUserID(v.ID)
-}
-
-// SetSongID sets the "song" edge to the Song entity by ID.
-func (_u *PlayHistoryUpdate) SetSongID(id int) *PlayHistoryUpdate {
-	_u.mutation.SetSongID(id)
-	return _u
 }
 
 // SetSong sets the "song" edge to the Song entity.
@@ -410,21 +426,37 @@ func (_u *PlayHistoryUpdateOne) SetUpdatedAt(v time.Time) *PlayHistoryUpdateOne 
 	return _u
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (_u *PlayHistoryUpdateOne) SetUserID(id int) *PlayHistoryUpdateOne {
-	_u.mutation.SetUserID(id)
+// SetSongID sets the "song_id" field.
+func (_u *PlayHistoryUpdateOne) SetSongID(v int) *PlayHistoryUpdateOne {
+	_u.mutation.SetSongID(v)
+	return _u
+}
+
+// SetNillableSongID sets the "song_id" field if the given value is not nil.
+func (_u *PlayHistoryUpdateOne) SetNillableSongID(v *int) *PlayHistoryUpdateOne {
+	if v != nil {
+		_u.SetSongID(*v)
+	}
+	return _u
+}
+
+// SetUserID sets the "user_id" field.
+func (_u *PlayHistoryUpdateOne) SetUserID(v int) *PlayHistoryUpdateOne {
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *PlayHistoryUpdateOne) SetNillableUserID(v *int) *PlayHistoryUpdateOne {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
 	return _u
 }
 
 // SetUser sets the "user" edge to the User entity.
 func (_u *PlayHistoryUpdateOne) SetUser(v *User) *PlayHistoryUpdateOne {
 	return _u.SetUserID(v.ID)
-}
-
-// SetSongID sets the "song" edge to the Song entity by ID.
-func (_u *PlayHistoryUpdateOne) SetSongID(id int) *PlayHistoryUpdateOne {
-	_u.mutation.SetSongID(id)
-	return _u
 }
 
 // SetSong sets the "song" edge to the Song entity.

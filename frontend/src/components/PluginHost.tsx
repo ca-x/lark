@@ -51,8 +51,20 @@ function isHostCallMessage(value: unknown): value is HostCallMessage {
     && message.method.length <= 64;
 }
 
-function hostColorScheme() {
-  const style = window.getComputedStyle(document.documentElement);
+function luminance(hex: string) {
+  const channels = [1, 3, 5].map((offset) => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+}
+
+function contrastingInk(background: string) {
+  return luminance(background) > 0.179 ? "#000000" : "#FFFFFF";
+}
+
+function hostColorScheme(element: HTMLElement) {
+  const style = window.getComputedStyle(element);
   const read = (name: string, fallback: string) => {
     const value = style.getPropertyValue(name).trim();
     const short = /^#([0-9a-f]{3})$/i.exec(value);
@@ -74,19 +86,19 @@ function hostColorScheme() {
 
   return {
     primary,
-    onPrimary: background,
+    onPrimary: contrastingInk(primary),
     primaryContainer: surfaceContainer,
     onPrimaryContainer: text,
     secondary,
-    onSecondary: background,
+    onSecondary: contrastingInk(secondary),
     secondaryContainer: surfaceContainer,
     onSecondaryContainer: text,
     tertiary,
-    onTertiary: background,
+    onTertiary: contrastingInk(tertiary),
     tertiaryContainer: surfaceContainer,
     onTertiaryContainer: text,
     error,
-    onError: "#FFFFFF",
+    onError: contrastingInk(error),
     errorContainer: surfaceContainer,
     onErrorContainer: text,
     surface,
@@ -127,13 +139,15 @@ export function PluginHost({
     iframeRef.current?.contentWindow?.postMessage(message, window.location.origin);
   }
 
-  function syncPluginContext(state = playerState) {
-    postToPlugin({ type: "songloft-theme", theme, colors: hostColorScheme() });
-    postToPlugin({ type: "songloft-player-state", state });
-  }
-
   const invokeHostCall = useEffectEvent((call: SongloftHostCall) => onHostCall(call));
-  const pushPluginContext = useEffectEvent(() => syncPluginContext());
+  function syncTheme() {
+    const frame = iframeRef.current;
+    if (!frame) return;
+    const colors = hostColorScheme(frame);
+    const appearance = luminance(colors.surface) > luminance(colors.onSurface) ? "light" : "dark";
+    postToPlugin({ type: "songloft-theme", theme: appearance, colors });
+  }
+  const pushTheme = useEffectEvent(syncTheme);
   const pushPlayerState = useEffectEvent(() => {
     postToPlugin({ type: "songloft-player-state", state: playerState });
   });
@@ -167,7 +181,16 @@ export function PluginHost({
   }, []);
 
   useEffect(() => {
-    if (frameState === "ready") pushPluginContext();
+    if (frameState !== "ready") return;
+    pushTheme();
+    const observer = new MutationObserver(() => pushTheme());
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    const shell = iframeRef.current?.closest(".app-shell");
+    if (shell) observer.observe(shell, { attributes: true, attributeFilter: ["data-mobile-theme"] });
+    const viewport = window.matchMedia("(max-width: 720px), (max-width: 960px) and (max-height: 500px) and (orientation: landscape)");
+    const onViewportChange = () => pushTheme();
+    viewport.addEventListener("change", onViewportChange);
+    return () => { observer.disconnect(); viewport.removeEventListener("change", onViewportChange); };
   }, [frameState, theme]);
 
   const stateSignature = JSON.stringify(playerState);
@@ -194,7 +217,11 @@ export function PluginHost({
         referrerPolicy="same-origin"
         onLoad={() => {
           setFrameState("ready");
-          window.requestAnimationFrame(() => syncPluginContext());
+          // A plugin can navigate within the frame while the host stays ready.
+          if (frameState === "ready") {
+            syncTheme();
+            postToPlugin({ type: "songloft-player-state", state: playerState });
+          }
         }}
         onError={() => setFrameState("error")}
       />

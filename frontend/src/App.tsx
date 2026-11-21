@@ -5470,9 +5470,12 @@ export default function App() {
   };
   const pluginHostTheme = themes.find((theme) => theme.id === settings.theme)?.mode ?? "dark";
   const songloftPlayMode = toSongloftPlayMode(playMode);
+  const pluginQueue = useMemo(() => queue.map(toSongloftSong), [queue]);
+  const currentSongID = current?.id;
+  const pluginQueueIndex = useMemo(() => currentSongID == null ? -1 : queue.findIndex((song) => song.id === currentSongID), [queue, currentSongID]);
   const pluginHostPlayerState: SongloftPlayerState = {
-    queue: queue.map(toSongloftSong),
-    current_index: current ? queue.findIndex((song) => song.id === current.id) : -1,
+    queue: pluginQueue,
+    current_index: pluginQueueIndex,
     current_song: current ? toSongloftSong(current) : null,
     is_playing: remoteDLNAPlaying || playing,
     current_time: progress,

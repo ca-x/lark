@@ -94,31 +94,21 @@ func (msgs Messages) QuitApp() string {
 	return Catalog.Format(msgs.locale, "quitApp", nil)
 }
 
-// ConnectEyebrow says "LARK MUSIC · CONNECT YOUR LIBRARY"
-// in the language the app shows.
-func ConnectEyebrow() string { return In(i18n.Locale()).ConnectEyebrow() }
-
-// ConnectEyebrow says "LARK MUSIC · CONNECT YOUR LIBRARY"
-// in the language of msgs.
-func (msgs Messages) ConnectEyebrow() string {
-	return Catalog.Format(msgs.locale, "connectEyebrow", nil)
-}
-
-// ConnectTitle says "Bring music back to your desktop."
+// ConnectTitle says "Connect to your library"
 // in the language the app shows.
 func ConnectTitle() string { return In(i18n.Locale()).ConnectTitle() }
 
-// ConnectTitle says "Bring music back to your desktop."
+// ConnectTitle says "Connect to your library"
 // in the language of msgs.
 func (msgs Messages) ConnectTitle() string {
 	return Catalog.Format(msgs.locale, "connectTitle", nil)
 }
 
-// ConnectIntro says "Enter your server and account once. Pick up where you left off whenever you open the app."
+// ConnectIntro says "Sign in with the server address and account you use on the web."
 // in the language the app shows.
 func ConnectIntro() string { return In(i18n.Locale()).ConnectIntro() }
 
-// ConnectIntro says "Enter your server and account once. Pick up where you left off whenever you open the app."
+// ConnectIntro says "Sign in with the server address and account you use on the web."
 // in the language of msgs.
 func (msgs Messages) ConnectIntro() string {
 	return Catalog.Format(msgs.locale, "connectIntro", nil)
@@ -312,16 +302,6 @@ func SearchSongs() string { return In(i18n.Locale()).SearchSongs() }
 // in the language of msgs.
 func (msgs Messages) SearchSongs() string {
 	return Catalog.Format(msgs.locale, "searchSongs", nil)
-}
-
-// CollectionEyebrow says "YOUR COLLECTION"
-// in the language the app shows.
-func CollectionEyebrow() string { return In(i18n.Locale()).CollectionEyebrow() }
-
-// CollectionEyebrow says "YOUR COLLECTION"
-// in the language of msgs.
-func (msgs Messages) CollectionEyebrow() string {
-	return Catalog.Format(msgs.locale, "collectionEyebrow", nil)
 }
 
 // SongsIntro says "Start with the music you own."
@@ -664,6 +644,16 @@ func (msgs Messages) LoadingRecords() string {
 	return Catalog.Format(msgs.locale, "loadingRecords", nil)
 }
 
+// LoadingLyrics says "Loading lyrics…"
+// in the language the app shows.
+func LoadingLyrics() string { return In(i18n.Locale()).LoadingLyrics() }
+
+// LoadingLyrics says "Loading lyrics…"
+// in the language of msgs.
+func (msgs Messages) LoadingLyrics() string {
+	return Catalog.Format(msgs.locale, "loadingLyrics", nil)
+}
+
 // PreviousPage says "Previous page"
 // in the language the app shows.
 func PreviousPage() string { return In(i18n.Locale()).PreviousPage() }
@@ -782,16 +772,6 @@ func ArtistCountUnit() string { return In(i18n.Locale()).ArtistCountUnit() }
 // in the language of msgs.
 func (msgs Messages) ArtistCountUnit() string {
 	return Catalog.Format(msgs.locale, "artistCountUnit", nil)
-}
-
-// RecordTagline says "YOUR LIBRARY, CLOSE AT HAND"
-// in the language the app shows.
-func RecordTagline() string { return In(i18n.Locale()).RecordTagline() }
-
-// RecordTagline says "YOUR LIBRARY, CLOSE AT HAND"
-// in the language of msgs.
-func (msgs Messages) RecordTagline() string {
-	return Catalog.Format(msgs.locale, "recordTagline", nil)
 }
 
 // InvalidServerURL says "Enter a full server URL, such as https://music.example.com"

@@ -20,7 +20,8 @@ import type { PluginPlatform } from "../features/plugins/mygo";
 import { songloftIdentity } from "../features/plugins/songloftIdentity";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
 
-type PluginView = "installed" | "marketplace" | "sources";
+const pluginViews = ["installed", "marketplace", "sources"] as const;
+type PluginView = (typeof pluginViews)[number];
 
 const dangerousPermissions = new Set(["command", "fs:external", "fs:music", "net"]);
 
@@ -134,6 +135,17 @@ function SongloftPluginSettings({
     if (nextView === "marketplace" && marketplace.length === 0) void loadMarketplace();
   }
 
+  function navigateTabs(event: React.KeyboardEvent, index: number) {
+    const last = pluginViews.length - 1;
+    const next = event.key === "Home" ? 0 : event.key === "End" ? last
+      : event.key === "ArrowLeft" ? (index + last) % pluginViews.length
+      : event.key === "ArrowRight" ? (index + 1) % pluginViews.length : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    selectView(pluginViews[next]);
+    document.getElementById(`songloft-tab-${pluginViews[next]}`)?.focus();
+  }
+
   async function uploadPlugin(file: File) {
     await runPluginAction(`upload:${file.name}`, () => api.uploadPlugin(file));
   }
@@ -180,7 +192,7 @@ function SongloftPluginSettings({
       {deletingPlugin && <ConfirmActionDialog title={t("deletePlugin")} message={`${deletingPlugin.name} — ${t("deletePluginConfirm")}`} cancelLabel={t("cancel")} confirmLabel={busyKey ? t("loading") : t("deletePlugin")} busy={Boolean(busyKey)} error={error} onCancel={() => { setDeletingPlugin(null); setError(""); }} onConfirm={() => { void runPluginAction(`delete:${deletingPlugin.id}`, async () => { await api.deletePlugin(deletingPlugin.id); setPlugins((current) => current.filter((plugin) => plugin.id !== deletingPlugin.id)); setDeletingPlugin(null); }); }} />}
       <div className="plugin-settings-head">
         <div>
-          <strong>{t("pluginManagement")}</strong>
+          <h3>{t("songloftTools")}</h3>
           <span>{t("pluginManagementHint")}</span>
         </div>
         <button type="button" className="plugin-upload-button" onClick={() => uploadRef.current?.click()} disabled={Boolean(busyKey)}>
@@ -202,13 +214,11 @@ function SongloftPluginSettings({
       </div>
 
       <div className="plugin-view-tabs" role="tablist" aria-label={t("pluginManagement")}>
-        {([
-          ["installed", t("installedPlugins")],
-          ["marketplace", t("pluginMarketplace")],
-          ["sources", t("pluginSources")],
-        ] as const).map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={view === id} className={view === id ? "active" : ""} onClick={() => selectView(id)}>
-            {label}
+        {pluginViews.map((id, index) => (
+          <button key={id} id={`songloft-tab-${id}`} type="button" role="tab" aria-selected={view === id}
+            aria-controls={`songloft-panel-${id}`} tabIndex={view === id ? 0 : -1}
+            className={view === id ? "active" : ""} onKeyDown={(event) => navigateTabs(event, index)} onClick={() => selectView(id)}>
+            {t(id === "installed" ? "installedPlugins" : id === "marketplace" ? "pluginMarketplace" : "pluginSources")}
           </button>
         ))}
       </div>
@@ -217,7 +227,7 @@ function SongloftPluginSettings({
       {loading ? <div className="settings-empty">{t("loading")}</div> : null}
 
       {!loading && view === "installed" ? (
-        <div className="plugin-installed-view" role="tabpanel">
+        <div className="plugin-installed-view" id="songloft-panel-installed" role="tabpanel" aria-labelledby="songloft-tab-installed">
           <div className="plugin-list">
             {plugins.map((plugin) => {
               const active = plugin.status === "active";
@@ -293,7 +303,7 @@ function SongloftPluginSettings({
       ) : null}
 
       {!loading && view === "marketplace" ? (
-        <div className="plugin-marketplace-view" role="tabpanel">
+        <div className="plugin-marketplace-view" id="songloft-panel-marketplace" role="tabpanel" aria-labelledby="songloft-tab-marketplace">
           <div className="plugin-marketplace-toolbar">
             <span>{marketLoading ? t("loading") : t("pluginMarketplaceHint")}</span>
             <button type="button" className="plugin-icon-button" title={t("refresh")} aria-label={t("refresh")} disabled={marketLoading} onClick={() => void loadMarketplace()}>
@@ -329,7 +339,7 @@ function SongloftPluginSettings({
       ) : null}
 
       {!loading && view === "sources" ? (
-        <div className="plugin-sources-view" role="tabpanel">
+        <div className="plugin-sources-view" id="songloft-panel-sources" role="tabpanel" aria-labelledby="songloft-tab-sources">
           <div className="plugin-sources-toolbar">
             <span>{t("pluginSourcesHint")}</span>
             <button type="button" onClick={() => setRegistries((current) => [...current, { name: "", url: "", homepage: "", enabled: true }])}>

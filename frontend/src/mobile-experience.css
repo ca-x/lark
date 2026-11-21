@@ -86,7 +86,7 @@
   .listening-shelf { display:grid; grid-auto-flow:column; grid-auto-columns:46%; gap:14px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; scrollbar-width:none; margin-inline:calc(-1 * var(--listening-gutter)); padding:0 var(--listening-gutter) 5px; scroll-padding-inline:var(--listening-gutter); }
   .listening-shelf::-webkit-scrollbar { display:none; }
   .listening-home .listening-album { display:grid; align-content:start; gap:6px; padding:0; scroll-snap-align:start; }
-  .listening-album .listening-cover { margin-bottom:3px; }
+  .listening-album .listening-cover { margin-bottom:3px; box-shadow:var(--artwork-shadow); }
   .listening-album strong { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:15px; line-height:1.45; font-weight:650; }
   .listening-album small { color:var(--mobile-ui-muted); font-size:12px; line-height:1.5; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   .listening-artist-shelf { grid-auto-columns:30%; gap:18px; }
@@ -130,6 +130,9 @@
   .mobile-experience .mobile-bottom-nav button.active .mobile-bottom-nav-icon { background:transparent; }
   .mobile-experience .mobile-bottom-nav button span:last-child { font-size:calc(11px * var(--interface-text-in-button-scale)); }
   .mobile-experience .mobile-bottom-nav button svg { width:24px; height:24px; }
+  .mobile-experience .mobile-bottom-nav-icon { transition:transform var(--listening-press); }
+  .mobile-experience .mobile-bottom-nav button:active:not(:focus-visible) .mobile-bottom-nav-icon { transform:scale(.94); }
+  .mobile-experience :is(.mobile-bottom-nav,.mobile-mini-player) button:focus-visible { outline:2px solid var(--mobile-ui-text); outline-offset:-3px; }
 
   .mobile-experience .song-title-play { display:grid; align-content:center; min-height:48px; width:100%; gap:5px; }
   .mobile-experience .song-title-play strong { font-size:calc(15px * var(--interface-text-in-button-scale)); font-weight:600; }
@@ -310,7 +313,8 @@
 }
 
 @media (prefers-reduced-motion:reduce) {
-  .listening-home button, .listening-page-header button { transition:none; }
+  .mobile-experience .mobile-bottom-nav button:active:not(:focus-visible) .mobile-bottom-nav-icon { transform:none; }
+  .mobile-experience .mobile-bottom-nav-icon, .listening-home button, .listening-page-header button { transition:none; }
   .listening-home button:active, .listening-page-header button:active { transform:none; }
   .listening-shelf { scroll-behavior:auto; }
   .app-shell.mobile-experience .mobile-art-phone { transition:none !important; }

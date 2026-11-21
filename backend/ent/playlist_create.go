@@ -126,6 +126,20 @@ func (_c *PlaylistCreate) SetNillableUpdatedAt(v *time.Time) *PlaylistCreate {
 	return _c
 }
 
+// SetOwnerID sets the "owner_id" field.
+func (_c *PlaylistCreate) SetOwnerID(v int) *PlaylistCreate {
+	_c.mutation.SetOwnerID(v)
+	return _c
+}
+
+// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
+func (_c *PlaylistCreate) SetNillableOwnerID(v *int) *PlaylistCreate {
+	if v != nil {
+		_c.SetOwnerID(*v)
+	}
+	return _c
+}
+
 // AddSongIDs adds the "songs" edge to the Song entity by IDs.
 func (_c *PlaylistCreate) AddSongIDs(ids ...int) *PlaylistCreate {
 	_c.mutation.AddSongIDs(ids...)
@@ -139,20 +153,6 @@ func (_c *PlaylistCreate) AddSongs(v ...*Song) *PlaylistCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddSongIDs(ids...)
-}
-
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_c *PlaylistCreate) SetOwnerID(id int) *PlaylistCreate {
-	_c.mutation.SetOwnerID(id)
-	return _c
-}
-
-// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
-func (_c *PlaylistCreate) SetNillableOwnerID(id *int) *PlaylistCreate {
-	if id != nil {
-		_c = _c.SetOwnerID(*id)
-	}
-	return _c
 }
 
 // SetOwner sets the "owner" edge to the User entity.
@@ -344,7 +344,7 @@ func (_c *PlaylistCreate) createSpec() (*Playlist, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.user_playlists = &nodes[0]
+		_node.OwnerID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

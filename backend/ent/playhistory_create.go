@@ -106,21 +106,21 @@ func (_c *PlayHistoryCreate) SetNillableUpdatedAt(v *time.Time) *PlayHistoryCrea
 	return _c
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (_c *PlayHistoryCreate) SetUserID(id int) *PlayHistoryCreate {
-	_c.mutation.SetUserID(id)
+// SetSongID sets the "song_id" field.
+func (_c *PlayHistoryCreate) SetSongID(v int) *PlayHistoryCreate {
+	_c.mutation.SetSongID(v)
+	return _c
+}
+
+// SetUserID sets the "user_id" field.
+func (_c *PlayHistoryCreate) SetUserID(v int) *PlayHistoryCreate {
+	_c.mutation.SetUserID(v)
 	return _c
 }
 
 // SetUser sets the "user" edge to the User entity.
 func (_c *PlayHistoryCreate) SetUser(v *User) *PlayHistoryCreate {
 	return _c.SetUserID(v.ID)
-}
-
-// SetSongID sets the "song" edge to the Song entity by ID.
-func (_c *PlayHistoryCreate) SetSongID(id int) *PlayHistoryCreate {
-	_c.mutation.SetSongID(id)
-	return _c
 }
 
 // SetSong sets the "song" edge to the Song entity.
@@ -209,6 +209,12 @@ func (_c *PlayHistoryCreate) check() error {
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "PlayHistory.updated_at"`)}
 	}
+	if _, ok := _c.mutation.SongID(); !ok {
+		return &ValidationError{Name: "song_id", err: errors.New(`ent: missing required field "PlayHistory.song_id"`)}
+	}
+	if _, ok := _c.mutation.UserID(); !ok {
+		return &ValidationError{Name: "user_id", err: errors.New(`ent: missing required field "PlayHistory.user_id"`)}
+	}
 	if len(_c.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "PlayHistory.user"`)}
 	}
@@ -279,7 +285,7 @@ func (_c *PlayHistoryCreate) createSpec() (*PlayHistory, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.user_play_history = &nodes[0]
+		_node.UserID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.SongIDs(); len(nodes) > 0 {
@@ -296,7 +302,7 @@ func (_c *PlayHistoryCreate) createSpec() (*PlayHistory, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.song_play_history = &nodes[0]
+		_node.SongID = nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

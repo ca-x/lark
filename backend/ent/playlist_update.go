@@ -134,6 +134,26 @@ func (_u *PlaylistUpdate) SetUpdatedAt(v time.Time) *PlaylistUpdate {
 	return _u
 }
 
+// SetOwnerID sets the "owner_id" field.
+func (_u *PlaylistUpdate) SetOwnerID(v int) *PlaylistUpdate {
+	_u.mutation.SetOwnerID(v)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
+func (_u *PlaylistUpdate) SetNillableOwnerID(v *int) *PlaylistUpdate {
+	if v != nil {
+		_u.SetOwnerID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerID clears the value of the "owner_id" field.
+func (_u *PlaylistUpdate) ClearOwnerID() *PlaylistUpdate {
+	_u.mutation.ClearOwnerID()
+	return _u
+}
+
 // AddSongIDs adds the "songs" edge to the Song entity by IDs.
 func (_u *PlaylistUpdate) AddSongIDs(ids ...int) *PlaylistUpdate {
 	_u.mutation.AddSongIDs(ids...)
@@ -147,20 +167,6 @@ func (_u *PlaylistUpdate) AddSongs(v ...*Song) *PlaylistUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.AddSongIDs(ids...)
-}
-
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_u *PlaylistUpdate) SetOwnerID(id int) *PlaylistUpdate {
-	_u.mutation.SetOwnerID(id)
-	return _u
-}
-
-// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
-func (_u *PlaylistUpdate) SetNillableOwnerID(id *int) *PlaylistUpdate {
-	if id != nil {
-		_u = _u.SetOwnerID(*id)
-	}
-	return _u
 }
 
 // SetOwner sets the "owner" edge to the User entity.
@@ -480,6 +486,26 @@ func (_u *PlaylistUpdateOne) SetUpdatedAt(v time.Time) *PlaylistUpdateOne {
 	return _u
 }
 
+// SetOwnerID sets the "owner_id" field.
+func (_u *PlaylistUpdateOne) SetOwnerID(v int) *PlaylistUpdateOne {
+	_u.mutation.SetOwnerID(v)
+	return _u
+}
+
+// SetNillableOwnerID sets the "owner_id" field if the given value is not nil.
+func (_u *PlaylistUpdateOne) SetNillableOwnerID(v *int) *PlaylistUpdateOne {
+	if v != nil {
+		_u.SetOwnerID(*v)
+	}
+	return _u
+}
+
+// ClearOwnerID clears the value of the "owner_id" field.
+func (_u *PlaylistUpdateOne) ClearOwnerID() *PlaylistUpdateOne {
+	_u.mutation.ClearOwnerID()
+	return _u
+}
+
 // AddSongIDs adds the "songs" edge to the Song entity by IDs.
 func (_u *PlaylistUpdateOne) AddSongIDs(ids ...int) *PlaylistUpdateOne {
 	_u.mutation.AddSongIDs(ids...)
@@ -493,20 +519,6 @@ func (_u *PlaylistUpdateOne) AddSongs(v ...*Song) *PlaylistUpdateOne {
 		ids[i] = v[i].ID
 	}
 	return _u.AddSongIDs(ids...)
-}
-
-// SetOwnerID sets the "owner" edge to the User entity by ID.
-func (_u *PlaylistUpdateOne) SetOwnerID(id int) *PlaylistUpdateOne {
-	_u.mutation.SetOwnerID(id)
-	return _u
-}
-
-// SetNillableOwnerID sets the "owner" edge to the User entity by ID if the given value is not nil.
-func (_u *PlaylistUpdateOne) SetNillableOwnerID(id *int) *PlaylistUpdateOne {
-	if id != nil {
-		_u = _u.SetOwnerID(*id)
-	}
-	return _u
 }
 
 // SetOwner sets the "owner" edge to the User entity.

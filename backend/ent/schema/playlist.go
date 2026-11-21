@@ -21,18 +21,20 @@ func (Playlist) Fields() []ent.Field {
 		field.Bool("favorite").Default(false),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
+		field.Int("owner_id").StorageKey("user_playlists").Optional().Nillable().StructTag(`json:"-" sql:"user_playlists"`),
 	}
 }
 
 func (Playlist) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("songs", Song.Type),
-		edge.From("owner", User.Type).Ref("playlists").Unique(),
+		edge.From("owner", User.Type).Ref("playlists").Field("owner_id").Unique(),
 	}
 }
 
 func (Playlist) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Edges("owner").Fields("updated_at"),
+		index.Fields("owner_id", "updated_at", "id").StorageKey("playlist_owner_updated"),
 	}
 }

@@ -30,6 +30,8 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldOwnerID holds the string denoting the owner_id field in the database.
+	FieldOwnerID = "user_playlists"
 	// EdgeSongs holds the string denoting the songs edge name in mutations.
 	EdgeSongs = "songs"
 	// EdgeOwner holds the string denoting the owner edge name in mutations.
@@ -61,12 +63,7 @@ var Columns = []string{
 	FieldFavorite,
 	FieldCreatedAt,
 	FieldUpdatedAt,
-}
-
-// ForeignKeys holds the SQL foreign-keys that are owned by the "playlists"
-// table and are not defined as standalone fields in the schema.
-var ForeignKeys = []string{
-	"user_playlists",
+	FieldOwnerID,
 }
 
 var (
@@ -79,11 +76,6 @@ var (
 func ValidColumn(column string) bool {
 	for i := range Columns {
 		if column == Columns[i] {
-			return true
-		}
-	}
-	for i := range ForeignKeys {
-		if column == ForeignKeys[i] {
 			return true
 		}
 	}
@@ -157,6 +149,11 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByOwnerID orders the results by the owner_id field.
+func ByOwnerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOwnerID, opts...).ToFunc()
 }
 
 // BySongsCount orders the results by songs count.

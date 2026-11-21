@@ -215,6 +215,16 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{PlayHistoriesColumns[6], PlayHistoriesColumns[8], PlayHistoriesColumns[7]},
 			},
+			{
+				Name:    "playhistory_user_song_latest",
+				Unique:  false,
+				Columns: []*schema.Column{PlayHistoriesColumns[8], PlayHistoriesColumns[7], PlayHistoriesColumns[6], PlayHistoriesColumns[1], PlayHistoriesColumns[0]},
+			},
+			{
+				Name:    "playhistory_user_song_device_latest",
+				Unique:  false,
+				Columns: []*schema.Column{PlayHistoriesColumns[8], PlayHistoriesColumns[7], PlayHistoriesColumns[5], PlayHistoriesColumns[6], PlayHistoriesColumns[1], PlayHistoriesColumns[0]},
+			},
 		},
 	}
 	// PlaylistsColumns holds the columns for the "playlists" table.
@@ -248,6 +258,11 @@ var (
 				Name:    "playlist_updated_at_user_playlists",
 				Unique:  false,
 				Columns: []*schema.Column{PlaylistsColumns[8], PlaylistsColumns[9]},
+			},
+			{
+				Name:    "playlist_owner_updated",
+				Unique:  false,
+				Columns: []*schema.Column{PlaylistsColumns[9], PlaylistsColumns[8], PlaylistsColumns[0]},
 			},
 		},
 	}

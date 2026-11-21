@@ -1187,6 +1187,8 @@
   overflow-wrap: anywhere;
 }
 
+.ts-lyrics-lines, .ts-help-body { overscroll-behavior: contain; scrollbar-gutter: stable; }
+
 .ts-lyrics-lines {
   overflow: auto;
   padding: 22px 18px 28px;

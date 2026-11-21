@@ -10,14 +10,14 @@ export function useDesktopShortcuts({ enabled, onSearch, onTogglePlayback }: {
   useEffect(() => {
     if (!enabled) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing || document.querySelector('[role="dialog"], [role="menu"]')) return;
+      if (event.defaultPrevented || event.isComposing || document.querySelector('dialog[open], [role="dialog"], [role="menu"]')) return;
       if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
         search();
         return;
       }
       if (event.code !== "Space" || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="button"], [role="slider"], [role="tab"]')) return;
+      if (event.target instanceof Element && event.target.closest('input, textarea, select, button, summary, a, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="slider"], [role="tab"]')) return;
       event.preventDefault();
       toggle();
     };

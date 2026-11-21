@@ -1851,28 +1851,24 @@ func (s *Service) PlaylistsPage(ctx context.Context, userID, limit, offset int) 
 	} else if ok {
 		return cached, nil
 	}
-	total, err := s.client.Playlist.Query().Where(playlist.HasOwnerWith(user.ID(userID))).Count(ctx)
+	owned := s.client.Playlist.Query().Where(playlist.OwnerID(userID))
+	total, err := owned.Clone().Count(ctx)
 	if err != nil {
 		return models.PlaylistPage{}, err
 	}
-	query := s.client.Playlist.Query().
-		Where(playlist.HasOwnerWith(user.ID(userID))).
-		Order(ent.Desc(playlist.FieldUpdatedAt)).
-		Limit(limit)
-	if offset > 0 {
-		query = query.Offset(offset)
+	var rows []struct {
+		ent.Playlist
+		SongCount int `sql:"song_count"`
 	}
-	items, err := query.All(ctx)
+	err = owned.Order(ent.Desc(playlist.FieldUpdatedAt), ent.Desc(playlist.FieldID)).
+		Limit(limit).Offset(offset).Select(playlist.Columns...).
+		Aggregate(playlistSongCount).Scan(ctx, &rows)
 	if err != nil {
 		return models.PlaylistPage{}, err
 	}
-	out := make([]models.Playlist, 0, len(items))
-	for _, p := range items {
-		count, err := s.playlistSongCount(ctx, p)
-		if err != nil {
-			return models.PlaylistPage{}, err
-		}
-		out = append(out, mapPlaylistWithCount(p, count))
+	out := make([]models.Playlist, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, mapPlaylistWithCount(&row.Playlist, row.SongCount))
 	}
 	page := models.PlaylistPage{Items: out, Total: total, Limit: limit, Offset: offset, Page: offset/limit + 1}
 	_ = s.cacheSetJSON(ctx, key, page)

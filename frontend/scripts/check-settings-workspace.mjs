@@ -168,8 +168,25 @@ const server = createServer(async (request, response) => {
         if (path === "/api/plugins/1") toolPlugins = [];
         result = {};
       }
-      if (path === "/api/v1/jsplugin-assets/common.js") { response.writeHead(200, { "Content-Type": "text/javascript" }).end(await readFile(new URL("../../backend/internal/api/pluginassets/common.js", import.meta.url))); return; }
-      if (path.includes("/static/index.html")) { response.writeHead(200, { "Content-Type": "text/html" }).end('<!doctype html><html><body>Fixture tool<script src="/api/v1/jsplugin-assets/common.js"></script><script>window.states=[];SongloftPlugin.player.onStateChange(state=>window.states.push(state));</script></body></html>'); return; }
+      const asset = /^\/api\/v1\/jsplugin-assets\/(common\.js|theme\.css|components\.css|lark\.css)$/.exec(path)?.[1];
+      if (asset) {
+        const file = await readFile(new URL(`../../backend/internal/api/pluginassets/${asset}`, import.meta.url));
+        response.writeHead(200, { "Content-Type": asset.endsWith(".js") ? "text/javascript" : "text/css" }).end(file);
+        return;
+      }
+      if (path.includes("/static/index.html")) {
+        response.writeHead(200, { "Content-Type": "text/html" }).end(`<!doctype html><html><head>
+          <link rel="stylesheet" href="/api/v1/jsplugin-assets/theme.css">
+          <link rel="stylesheet" href="/api/v1/jsplugin-assets/components.css">
+          <link rel="stylesheet" href="/api/v1/jsplugin-assets/lark.css"></head><body>
+          <nav class="tab-bar">${["Recently played tracks", "Favorite collections", "Playlist settings", "Search preferences"].map(label => `<button class="tab-item">${label}</button>`).join("")}</nav>
+          <main class="tab-content active"><h2 class="section-title">Track search</h2><div class="card">
+            <div class="text-field"><input id="query" placeholder=" "><label for="query">Song or artist</label></div>
+            <button class="btn">Search</button></div></main>
+          <script src="/api/v1/jsplugin-assets/common.js"></script>
+          <script>window.states=[];SongloftPlugin.player.onStateChange(state=>window.states.push(state));</script></body></html>`);
+        return;
+      }
       if (/^\/api\/songs\/\d+$/.test(path)) result = toolSongs.find(song => song.id === Number(path.split("/").at(-1)));
       if (/^\/api\/songs\/\d+\/stream$/.test(path)) { response.writeHead(200, { "Content-Type": "audio/wav", "Content-Length": sourceAudio.length }).end(sourceAudio); return; }
       if (result !== undefined) { response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(result)); return; }
@@ -523,6 +540,12 @@ try {
     await browser("set", "viewport", "1440", "900");
     await openSettings();
     await selectCategory("plugins");
+    await browser("wait", "--fn", "!!document.querySelector('#songloft-tab-installed')");
+    await evaluate("document.querySelector('#songloft-tab-installed').focus(); true");
+    for (const [key, tab] of [["ArrowRight", "marketplace"], ["End", "sources"], ["Home", "installed"]]) {
+      await browser("press", key);
+      assert.ok(await evaluate(`document.activeElement.id === 'songloft-tab-${tab}' && document.activeElement.getAttribute('aria-selected') === 'true' && document.getElementById(document.activeElement.getAttribute('aria-controls'))?.getAttribute('role') === 'tabpanel'`));
+    }
     await browser("wait", "--fn", "!!document.querySelector('#mygo-panel-marketplace .mygo-cards button')");
     assert.equal(await evaluate("document.querySelector('#mygo-tab-marketplace').getAttribute('aria-selected')"), "true");
     assert.equal(await evaluate("document.querySelector('.mygo-manual-install').open"), false);
@@ -550,12 +573,12 @@ try {
     await browser("wait", "--fn", "document.querySelector('.mygo-account-status').textContent.includes('未登录')");
     await browser("fill", ".mygo-source-search input", "source-private query");
     await browser("click", '.mygo-source-picker button[data-source="other-source"]');
-    await browser("wait", "--fn", "document.querySelector('.mygo-source-heading h3').textContent==='Other source'");
+    await browser("wait", "--fn", "document.querySelector('.mygo-source-picker [aria-current=true]')?.textContent==='Other source'");
     assert.equal(await evaluate("document.querySelector('.mygo-source-search input').value"), "");
     assert.ok(await evaluate("document.activeElement === document.querySelector('.mygo-source-picker [data-source=\"other-source\"]')"), "Switching sources must retain navigation focus");
     await browser("press", "Tab");
     await browser("press", "Enter");
-    await browser("wait", "--fn", "document.querySelector('.mygo-source-heading h3').textContent==='网易云音乐'");
+    await browser("wait", "--fn", "document.querySelector('.mygo-source-picker [aria-current=true]')?.textContent==='网易云音乐'");
     mygoPlugins = mygoPlugins.filter((plugin) => plugin.manifest.id !== "other-source");
     await evaluate("window.dispatchEvent(new Event('lark:plugins-changed')); true");
     await browser("set", "viewport", "390", "844");
@@ -573,6 +596,13 @@ try {
     };
     const clickLibraryTab = async (text) => { await evaluate(`(() => {const button=[...document.querySelectorAll('.library-view button')].find(button=>button.textContent===${JSON.stringify(text)});button.click();return true;})()`); };
     await openLibrary();
+    await evaluate("document.querySelector('.user-menu-trigger').focus(); true");
+    await browser("press", "ArrowDown");
+    await browser("wait", "--fn", "document.activeElement.matches('[role=menuitem]')");
+    await browser("press", "End");
+    assert.ok(await evaluate("document.activeElement.matches('[role=menuitem]:last-child')"));
+    await browser("press", "Escape");
+    assert.ok(await evaluate("document.activeElement.matches('.user-menu-trigger') && !document.querySelector('.user-menu-popover')"));
     await browser("wait", "--fn", "document.querySelector('.library-view').textContent.includes('音乐源') && document.querySelector('.library-view').textContent.includes('插件工具')");
     await clickLibraryTab("插件工具");
     await browser("click", ".mygo-catalog button");
@@ -582,6 +612,29 @@ try {
     const inTool = async expression => evaluate(`(async () => { const tool = document.querySelector('.plugin-surface iframe').contentWindow; const sdk = tool.SongloftPlugin; return ${expression}; })()`);
     assert.equal(await inTool("typeof sdk.invokeHost"), "function");
     assert.equal(await inTool("typeof sdk.favorite?.refresh"), "function");
+    assert.ok(await evaluate("document.activeElement.matches('.plugin-surface-title h3')"));
+    assert.ok(await evaluate("!new URL(document.querySelector('.plugin-surface-actions a').href).searchParams.has('embed')"));
+    assert.ok(await inTool("tool.document.querySelector('#query').getBoundingClientRect().height > 0"));
+    await inTool("tool.document.querySelector('#query').value = 'unfinished search'");
+    const hostTheme = await evaluate("document.documentElement.dataset.theme");
+    for (const theme of ["apple-dark", "spotify-dark", "apple-light"]) {
+      await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(theme)}; true`);
+      await browser("wait", "--fn", `(() => {
+        const frame = document.querySelector('.plugin-surface iframe');
+        const inner = frame.contentDocument.documentElement;
+        return inner.dataset.theme === '${theme.endsWith("light") ? "light" : "dark"}' &&
+          getComputedStyle(inner).getPropertyValue('--md-primary').trim().toLowerCase() === getComputedStyle(frame).getPropertyValue('--accent').trim().toLowerCase();
+      })()`);
+      assert.equal(await inTool("tool.document.querySelector('#query').value"), "unfinished search");
+      assert.match(await inTool("tool.document.documentElement.style.getPropertyValue('--md-on-primary')"), /^#(000000|ffffff)$/i);
+    }
+    await evaluate(`document.documentElement.dataset.theme=${JSON.stringify(hostTheme)}; true`);
+    await browser("set", "viewport", "390", "844");
+    await browser("wait", "--fn", "!!document.querySelector('.plugin-surface iframe')?.contentDocument?.querySelector('.tab-bar')");
+    assert.ok(await inTool("(() => { const tabs = tool.document.querySelector('.tab-bar'); return tabs.scrollWidth > tabs.clientWidth && tool.document.documentElement.scrollWidth <= tool.innerWidth + 1; })()"), "Long Songloft tabs scroll inside their own strip");
+    await browser("screenshot", `${artifacts}/songloft-tool-phone.png`);
+    await browser("set", "viewport", "1440", "900");
+    await browser("screenshot", `${artifacts}/songloft-tool-desktop.png`);
     await browser("click", ".plugin-surface-title");
     await inTool("sdk.player.setQueue([1,2,3],{startIndex:0,sourcePlaylistId:1000000001})");
     await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.some(state=>state.current_time>0.05)");
@@ -601,6 +654,8 @@ try {
     await inTool("sdk.favorite.refresh()");
     await browser("wait", "--fn", "document.querySelector('.plugin-surface iframe').contentWindow.states.at(-1)?.current_song?.favorite===false");
     await inTool("sdk.player.clearQueue()");
+    await browser("click", ".plugin-surface-actions button");
+    await browser("wait", "--fn", "document.activeElement.matches('.plugin-tool-list button')");
     await clickLibraryTab("音乐源");
     await browser("click", ".mygo-source-tabs button:first-child");
     await browser("wait", "--fn", "document.querySelector('.mygo-panel').textContent.includes('Fixture source home')");
@@ -647,6 +702,7 @@ try {
     await browser("wait", "--fn", "!!document.querySelector('.mygo-tracks li') && !document.querySelector('.mygo-tracks button').disabled");
     await browser("wait", "--fn", "document.querySelector('.mygo-tracks img')?.naturalWidth > 0 && document.querySelectorAll('.mygo-tracks .mygo-artwork > svg').length===2");
     assert.ok(await evaluate("!document.querySelector('.mygo-tracks img').src.includes('url=%2Fapi')"), "Signed artwork references must not be double-proxied");
+    assert.ok(await evaluate("[...document.querySelectorAll('.mygo-track-play')].every(button => button.querySelector('.mygo-track-cover') && button.getAttribute('aria-label').includes(button.querySelector('strong').textContent))"), "Covers and song names share the named play target");
     assert.ok(await evaluate("!document.querySelector('.mygo-playlist-tools').open"), "Secondary playlist actions must be collapsed by default");
     await browser("wait", "--fn", "document.querySelector('.mygo-collections img')?.naturalWidth > 0");
     await clickVisible(".mygo-collection-button:first-child");
@@ -693,6 +749,7 @@ try {
     await clickVisible(".mygo-collection-button:first-child");
     await browser("wait", "--fn", "document.querySelector('.mygo-play-all')?.textContent === '播放已加载' && !document.querySelector('.mygo-play-all').disabled");
     const playlistCallsBeforePlay = sourcePlaylistCalls;
+    await browser("wait", "--fn", "document.querySelector('.mygo-page-cover img')?.naturalWidth > 0");
     const writesBeforePlay = writes.length;
     await browser("click", ".mygo-play-all");
     await browser("wait", "--fn", "!!document.querySelector('audio').error");
@@ -715,6 +772,7 @@ try {
     sourcePlaylistPage = { tracks: [{ ...sourceTracks[1], id: "next-page" }], more: false };
     await clickVisible(".mygo-source-content > button:last-child");
     await browser("wait", "--fn", "document.querySelector('.mygo-play-all')?.textContent === '全部播放' && !document.querySelector('.mygo-play-all').disabled");
+    assert.ok(await evaluate("document.querySelector('.mygo-page-heading h4').textContent.startsWith('A long source playlist') && !!document.querySelector('.mygo-page-cover img')"));
     streamFailure = false;
     await browser("click", ".mygo-play-all");
     await browser("wait", "--fn", "!document.querySelector('audio').error && document.querySelector('audio').currentTime > 0.05 && !document.querySelector('audio').paused");

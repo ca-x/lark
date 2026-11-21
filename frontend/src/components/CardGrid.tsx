@@ -121,7 +121,7 @@ export const CardGrid = memo(function CardGrid({
                     <button
                       type="button"
                       className="card-play"
-                      aria-label={t("play")}
+                      aria-label={`${t("play")} · ${item.title}`}
                       onClick={(event) => {
                         event.stopPropagation();
                         item.onPlay?.();
@@ -136,7 +136,7 @@ export const CardGrid = memo(function CardGrid({
                       className={
                         item.favorite ? "card-favorite active" : "card-favorite"
                       }
-                      aria-label={t(item.favorite ? "removeFavorite" : "addFavorite")}
+                      aria-label={`${t(item.favorite ? "removeFavorite" : "addFavorite")} · ${item.title}`}
                       aria-pressed={Boolean(item.favorite)}
                       onClick={(event) => {
                         event.stopPropagation();

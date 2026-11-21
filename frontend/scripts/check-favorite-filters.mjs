@@ -156,6 +156,6 @@ assert.match(styles, /\.card-meta small \{ color:var\(--muted-strong\)/);
 assert.match(mobile, /section-head \.favorite-filter-toggle[^}]*min-height:48px/s);
 assert.match(mobile, /card-favorite[^}]*width:44px[^}]*height:44px/s);
 assert.match(mobile, /collection-browse-actions[^}]*grid-template-columns:minmax\(0,1fr\)/s);
-assert.match(cards, /aria-label=\{t\(item\.favorite \? "removeFavorite" : "addFavorite"\)\}/);
+assert.match(cards, /aria-label=\{`\$\{t\(item\.favorite \? "removeFavorite" : "addFavorite"\)\} · \$\{item\.title\}`\}/);
 
 console.log("favorite collection filter contracts verified");

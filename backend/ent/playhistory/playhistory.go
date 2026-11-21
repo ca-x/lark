@@ -26,6 +26,10 @@ const (
 	FieldDeviceType = "device_type"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// FieldSongID holds the string denoting the song_id field in the database.
+	FieldSongID = "song_play_history"
+	// FieldUserID holds the string denoting the user_id field in the database.
+	FieldUserID = "user_play_history"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// EdgeSong holds the string denoting the song edge name in mutations.
@@ -57,24 +61,14 @@ var Columns = []string{
 	FieldCompleted,
 	FieldDeviceType,
 	FieldUpdatedAt,
-}
-
-// ForeignKeys holds the SQL foreign-keys that are owned by the "play_histories"
-// table and are not defined as standalone fields in the schema.
-var ForeignKeys = []string{
-	"song_play_history",
-	"user_play_history",
+	FieldSongID,
+	FieldUserID,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
 	for i := range Columns {
 		if column == Columns[i] {
-			return true
-		}
-	}
-	for i := range ForeignKeys {
-		if column == ForeignKeys[i] {
 			return true
 		}
 	}
@@ -134,6 +128,16 @@ func ByDeviceType(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// BySongID orders the results by the song_id field.
+func BySongID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSongID, opts...).ToFunc()
+}
+
+// ByUserID orders the results by the user_id field.
+func ByUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserID, opts...).ToFunc()
 }
 
 // ByUserField orders the results by user field.

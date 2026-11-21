@@ -28,15 +28,11 @@ export interface Messages {
    */
   quitApp(): string;
   /**
-   * `LARK MUSIC · CONNECT YOUR LIBRARY`
-   */
-  connectEyebrow(): string;
-  /**
-   * `Bring music back to your desktop.`
+   * `Connect to your library`
    */
   connectTitle(): string;
   /**
-   * `Enter your server and account once. Pick up where you left off whenever you open the app.`
+   * `Sign in with the server address and account you use on the web.`
    */
   connectIntro(): string;
   /**
@@ -115,10 +111,6 @@ export interface Messages {
    * `Search songs`
    */
   searchSongs(): string;
-  /**
-   * `YOUR COLLECTION`
-   */
-  collectionEyebrow(): string;
   /**
    * `Start with the music you own.`
    */
@@ -256,6 +248,10 @@ export interface Messages {
    */
   loadingRecords(): string;
   /**
+   * `Loading lyrics…`
+   */
+  loadingLyrics(): string;
+  /**
    * `Previous page`
    */
   previousPage(): string;
@@ -303,10 +299,6 @@ export interface Messages {
    * `artists`
    */
   artistCountUnit(): string;
-  /**
-   * `YOUR LIBRARY, CLOSE AT HAND`
-   */
-  recordTagline(): string;
   /**
    * `Enter a full server URL, such as https://music.example.com`
    */
@@ -403,7 +395,6 @@ const catalog = createCatalog<Messages>({
     "previous": [],
     "next": [],
     "quitApp": [],
-    "connectEyebrow": [],
     "connectTitle": [],
     "connectIntro": [],
     "serverAddress": [],
@@ -425,7 +416,6 @@ const catalog = createCatalog<Messages>({
     "signOut": [],
     "allSongs": [],
     "searchSongs": [],
-    "collectionEyebrow": [],
     "songsIntro": [],
     "albumsIntro": [],
     "artistsIntro": [],
@@ -460,6 +450,7 @@ const catalog = createCatalog<Messages>({
     "cassette": [],
     "emptyLibrary": [],
     "loadingRecords": [],
+    "loadingLyrics": [],
     "previousPage": [],
     "nextPage": [],
     "readyToPlay": [],
@@ -472,7 +463,6 @@ const catalog = createCatalog<Messages>({
     "songCountUnit": [],
     "albumCountUnit": [],
     "artistCountUnit": [],
-    "recordTagline": [],
     "invalidServerURL": [],
     "serverSchemeRequired": [],
     "localHttpRestricted": [],
@@ -502,9 +492,8 @@ const catalog = createCatalog<Messages>({
       "previous": "Previous",
       "next": "Next",
       "quitApp": "Quit Lark Music",
-      "connectEyebrow": "LARK MUSIC · CONNECT YOUR LIBRARY",
-      "connectTitle": "Bring music back to your desktop.",
-      "connectIntro": "Enter your server and account once. Pick up where you left off whenever you open the app.",
+      "connectTitle": "Connect to your library",
+      "connectIntro": "Sign in with the server address and account you use on the web.",
       "serverAddress": "Server address",
       "username": "Username",
       "password": "Password",
@@ -524,7 +513,6 @@ const catalog = createCatalog<Messages>({
       "signOut": "Sign out",
       "allSongs": "All Songs",
       "searchSongs": "Search songs",
-      "collectionEyebrow": "YOUR COLLECTION",
       "songsIntro": "Start with the music you own.",
       "albumsIntro": "Revisit your collection one record at a time.",
       "artistsIntro": "Find familiar voices.",
@@ -559,6 +547,7 @@ const catalog = createCatalog<Messages>({
       "cassette": "Cassette",
       "emptyLibrary": "Nothing here yet.",
       "loadingRecords": "Organizing records…",
+      "loadingLyrics": "Loading lyrics…",
       "previousPage": "Previous page",
       "nextPage": "Next page",
       "readyToPlay": "Ready to play",
@@ -571,7 +560,6 @@ const catalog = createCatalog<Messages>({
       "songCountUnit": "songs",
       "albumCountUnit": "albums",
       "artistCountUnit": "artists",
-      "recordTagline": "YOUR LIBRARY, CLOSE AT HAND",
       "invalidServerURL": "Enter a full server URL, such as https://music.example.com",
       "serverSchemeRequired": "Server address must start with https:// or http://",
       "localHttpRestricted": "HTTP is only allowed for an explicitly approved local server; use HTTPS for remote servers",
@@ -600,9 +588,8 @@ const catalog = createCatalog<Messages>({
       "previous": "上一首",
       "next": "下一首",
       "quitApp": "退出百灵音乐",
-      "connectEyebrow": "百灵音乐 · 连接私人曲库",
-      "connectTitle": "让音乐回到桌面。",
-      "connectIntro": "输入一次服务器和账号。之后打开应用，就能接着听你的收藏。",
+      "connectTitle": "连接到你的曲库",
+      "connectIntro": "使用网页版的服务器地址和账号登录。",
       "serverAddress": "服务器地址",
       "username": "账号",
       "password": "密码",
@@ -622,7 +609,6 @@ const catalog = createCatalog<Messages>({
       "signOut": "退出账号",
       "allSongs": "所有歌曲",
       "searchSongs": "搜索歌曲",
-      "collectionEyebrow": "YOUR COLLECTION",
       "songsIntro": "从你自己的音乐开始。",
       "albumsIntro": "按唱片重访你的收藏。",
       "artistsIntro": "找到熟悉的声音。",
@@ -657,6 +643,7 @@ const catalog = createCatalog<Messages>({
       "cassette": "磁带",
       "emptyLibrary": "这里还没有内容。",
       "loadingRecords": "正在整理唱片…",
+      "loadingLyrics": "正在加载歌词…",
       "previousPage": "上一页",
       "nextPage": "下一页",
       "readyToPlay": "准备播放",
@@ -669,7 +656,6 @@ const catalog = createCatalog<Messages>({
       "songCountUnit": "首",
       "albumCountUnit": "张",
       "artistCountUnit": "位",
-      "recordTagline": "你的曲库，近在身边",
       "invalidServerURL": "请输入完整的服务器地址，例如 https://music.example.com",
       "serverSchemeRequired": "服务器地址必须以 https:// 或 http:// 开头",
       "localHttpRestricted": "HTTP 仅用于明确允许的本地或局域网服务器；远程服务器请使用 HTTPS",

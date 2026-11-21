@@ -5,6 +5,26 @@
 
 ---
 
+## 0.18.21 / Desktop 0.2.1 · 插件融入曲库与浏览性能优化
+
+2026-11-21
+
+- MyGo 音乐源里，点击封面或歌名即可播放。歌单详情保留来源封面、标题和播放入口，加载下一页也能接着听。收藏、歌单操作和账号状态各有独立位置。
+- Songloft 工具跟随当前设备的曲库配色，切换主题会保留正在填写的内容。插件页支持键盘切换标签，手机上的长标签栏可以横向滚动。
+- Web 与 PWA 调整了歌曲和专辑操作的对齐、登录表单、分享列表和弹层焦点。独立桌面端简化连接页，支持快捷搜索，队列、歌词和设置面板可用 Esc 关闭并返回原按钮。歌词在打开时加载。
+- 歌单分页用两条 SQL 读取总数、歌单和各自的歌曲数。SQLite 内存基准在同机、无应用缓存、每页 100 个歌单的条件下，五轮中位耗时从 3.82 ms 降至 0.81 ms。首次启动自动建立歌单和播放历史索引。
+- 修复反复播放一首歌后，另一首歌的续播位置可能消失的问题。已用 0.18.20 的 SQLite 数据验证收藏、歌单、播放历史与登录会话的升级。
+
+### English
+
+- Play a MyGo track from its cover or title. Playlist artwork, titles and playback controls stay in place across pagination. Favorites and playlist actions have separate controls.
+- Songloft tools inherit the library palette and preserve form input when the theme changes. Tool tabs support keyboard navigation and scroll horizontally on small screens.
+- Web and PWA updates refine library controls, sign-in, shared playlists and keyboard focus. Desktop 0.2.1 simplifies sign-in, supports keyboard search, and returns focus after closing the queue, lyrics or settings with Escape. Lyrics load when opened.
+- A playlist page now uses two SQL queries for the total, the page and its song counts. With 100 playlists per page and no application cache, the median of five in-memory SQLite benchmark runs on the same machine fell from 3.82 ms to 0.81 ms. The server creates playlist and playback-history indexes at startup.
+- Fix missing resume positions for less frequently played tracks. Upgrade checks with a 0.18.20 SQLite library covered favorites, playlist membership, play history and the existing login session.
+
+---
+
 ## 0.18.20：歌词候选列表布局修复
 
 发布日期 / Released: 2026-11-11

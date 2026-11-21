@@ -27,7 +27,6 @@ type PlaylistQuery struct {
 	predicates []predicate.Playlist
 	withSongs  *SongQuery
 	withOwner  *UserQuery
-	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -407,19 +406,12 @@ func (_q *PlaylistQuery) prepareQuery(ctx context.Context) error {
 func (_q *PlaylistQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Playlist, error) {
 	var (
 		nodes       = []*Playlist{}
-		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
 		loadedTypes = [2]bool{
 			_q.withSongs != nil,
 			_q.withOwner != nil,
 		}
 	)
-	if _q.withOwner != nil {
-		withFKs = true
-	}
-	if withFKs {
-		_spec.Node.Columns = append(_spec.Node.Columns, playlist.ForeignKeys...)
-	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Playlist).scanValues(nil, columns)
 	}
@@ -519,10 +511,10 @@ func (_q *PlaylistQuery) loadOwner(ctx context.Context, query *UserQuery, nodes 
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*Playlist)
 	for i := range nodes {
-		if nodes[i].user_playlists == nil {
+		if nodes[i].OwnerID == nil {
 			continue
 		}
-		fk := *nodes[i].user_playlists
+		fk := *nodes[i].OwnerID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -539,7 +531,7 @@ func (_q *PlaylistQuery) loadOwner(ctx context.Context, query *UserQuery, nodes 
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "user_playlists" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "owner_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -572,6 +564,9 @@ func (_q *PlaylistQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != playlist.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withOwner != nil {
+			_spec.Node.AddColumnOnce(playlist.FieldOwnerID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

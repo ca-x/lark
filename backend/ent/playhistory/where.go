@@ -85,6 +85,16 @@ func UpdatedAt(v time.Time) predicate.PlayHistory {
 	return predicate.PlayHistory(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
+// SongID applies equality check predicate on the "song_id" field. It's identical to SongIDEQ.
+func SongID(v int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldSongID, v))
+}
+
+// UserID applies equality check predicate on the "user_id" field. It's identical to UserIDEQ.
+func UserID(v int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldUserID, v))
+}
+
 // PlayedAtEQ applies the EQ predicate on the "played_at" field.
 func PlayedAtEQ(v time.Time) predicate.PlayHistory {
 	return predicate.PlayHistory(sql.FieldEQ(FieldPlayedAt, v))
@@ -318,6 +328,46 @@ func UpdatedAtLT(v time.Time) predicate.PlayHistory {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.PlayHistory {
 	return predicate.PlayHistory(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// SongIDEQ applies the EQ predicate on the "song_id" field.
+func SongIDEQ(v int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldSongID, v))
+}
+
+// SongIDNEQ applies the NEQ predicate on the "song_id" field.
+func SongIDNEQ(v int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNEQ(FieldSongID, v))
+}
+
+// SongIDIn applies the In predicate on the "song_id" field.
+func SongIDIn(vs ...int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldIn(FieldSongID, vs...))
+}
+
+// SongIDNotIn applies the NotIn predicate on the "song_id" field.
+func SongIDNotIn(vs ...int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNotIn(FieldSongID, vs...))
+}
+
+// UserIDEQ applies the EQ predicate on the "user_id" field.
+func UserIDEQ(v int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldEQ(FieldUserID, v))
+}
+
+// UserIDNEQ applies the NEQ predicate on the "user_id" field.
+func UserIDNEQ(v int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNEQ(FieldUserID, v))
+}
+
+// UserIDIn applies the In predicate on the "user_id" field.
+func UserIDIn(vs ...int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldIn(FieldUserID, vs...))
+}
+
+// UserIDNotIn applies the NotIn predicate on the "user_id" field.
+func UserIDNotIn(vs ...int) predicate.PlayHistory {
+	return predicate.PlayHistory(sql.FieldNotIn(FieldUserID, vs...))
 }
 
 // HasUser applies the HasEdge predicate on the "user" edge.

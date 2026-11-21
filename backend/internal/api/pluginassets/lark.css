@@ -1,0 +1,42 @@
+/* Lark's browser host loads these defaults before the plugin's own styles. */
+html.embed .tab-bar {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+html.embed .tab-item {
+  flex: 1 0 auto !important;
+  min-width: 44px;
+  white-space: nowrap;
+}
+html.embed .tab-item.active { font-weight: 650; }
+html.embed .section-title {
+  padding-inline-start: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+html.embed .tab-content { scroll-padding-block-start: 56px; }
+html.embed .btn, html.embed .btn-icon { min-height: 44px; }
+html.embed .btn-icon { min-width: 44px; }
+html.embed .text-field label { transition: top 120ms ease-out, font-size 120ms ease-out, color 120ms ease; }
+html.embed .dialog {
+  box-sizing: border-box;
+  min-width: 0;
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--md-outline-variant);
+  box-shadow: 0 2px 6px #0002, 0 16px 40px #0003;
+}
+html.embed .dialog-actions { flex-wrap: wrap; }
+html.embed .dialog-content { overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: no-preference) {
+  html.embed :is(.btn, .btn-icon):active:not(:disabled, :focus-visible) { transform: scale(.98); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.embed :is(.btn, .btn-icon, .tab-item, .switch-thumb, .text-field label, .snackbar),
+  html.embed .tab-item::after { transition: none; }
+}

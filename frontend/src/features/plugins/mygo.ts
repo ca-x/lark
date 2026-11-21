@@ -14,6 +14,7 @@ export interface MygoEntity { id: string; name: string; imageUrl?: string; track
 export interface MygoAccount { id: string; name: string; imageUrl?: string }
 export interface MygoPage {
   title?: string;
+  imageUrl?: string;
   tracks?: MygoTrack[];
   episodes?: MygoTrack[];
   playlists?: MygoEntity[];
@@ -138,6 +139,8 @@ export function mygoPageTracks(page: MygoPage): MygoTrack[] {
 export function appendMygoPage(previous: MygoPage, next: MygoPage): MygoPage {
   return {
     ...next,
+    title: next.title ?? previous.title,
+    imageUrl: next.imageUrl ?? previous.imageUrl,
     tracks: [...(previous.tracks || []), ...(next.tracks || [])],
     episodes: [...(previous.episodes || []), ...(next.episodes || [])],
     albums: [...(previous.albums || []), ...(next.albums || [])],

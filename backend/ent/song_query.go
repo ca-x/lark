@@ -751,7 +751,9 @@ func (_q *SongQuery) loadPlayHistory(ctx context.Context, query *PlayHistoryQuer
 			init(nodes[i])
 		}
 	}
-	query.withFKs = true
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(playhistory.FieldSongID)
+	}
 	query.Where(predicate.PlayHistory(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(song.PlayHistoryColumn), fks...))
 	}))
@@ -760,13 +762,10 @@ func (_q *SongQuery) loadPlayHistory(ctx context.Context, query *PlayHistoryQuer
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.song_play_history
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "song_play_history" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
+		fk := n.SongID
+		node, ok := nodeids[fk]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "song_play_history" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "song_id" returned %v for node %v`, fk, n.ID)
 		}
 		assign(node, n)
 	}

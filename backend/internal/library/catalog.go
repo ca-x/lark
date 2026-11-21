@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	entsql "entgo.io/ent/dialect/sql"
+
 	"lark/backend/ent"
 	"lark/backend/ent/album"
 	"lark/backend/ent/artist"
@@ -134,12 +136,17 @@ func collectArtistIDs(items []*ent.Artist) []int {
 	}
 	return ids
 }
-func (s *Service) playlistSongCount(ctx context.Context, item *ent.Playlist) (int, error) {
-	if item == nil {
-		return 0, nil
-	}
-	return item.QuerySongs().Count(ctx)
+
+// Count memberships against the join table's (playlist_id, song_id) primary key.
+func playlistSongCount(s *entsql.Selector) string {
+	dialect := entsql.Dialect(s.Dialect())
+	links := dialect.Table(playlist.SongsTable)
+	count := dialect.Select(entsql.Count("*")).From(links).
+		Where(entsql.ColumnsEQ(links.C(playlist.SongsPrimaryKey[0]), s.C(playlist.FieldID)))
+	query, _ := count.Query() // Only schema identifiers occur in this subquery.
+	return "(" + query + ") AS song_count"
 }
+
 func (s *Service) CreatePlaylist(ctx context.Context, userID int, name, description, theme string) (models.Playlist, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {

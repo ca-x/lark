@@ -137,7 +137,7 @@ export function PublicShareView({
           <img src="/logo.png" alt={t("brand")} /> <span>{t("brand")}</span>
         </div>
         {error ? (
-          <div className="settings-empty error public-share-error">{error}</div>
+          <div className="settings-empty error public-share-error" role="alert">{error}</div>
         ) : !share ? (
           <LoadingStage t={t} />
         ) : currentSong ? (
@@ -148,6 +148,7 @@ export function PublicShareView({
                 <button
                   type="button"
                   className={playerStyle === "vinyl" ? "active" : ""}
+                  aria-pressed={playerStyle === "vinyl"}
                   onClick={() => setPlayerStyle("vinyl")}
                   title={t("homePlayerVinyl")}
                   aria-label={t("homePlayerVinyl")}
@@ -157,6 +158,7 @@ export function PublicShareView({
                 <button
                   type="button"
                   className={playerStyle === "cassette" ? "active" : ""}
+                  aria-pressed={playerStyle === "cassette"}
                   onClick={() => setPlayerStyle("cassette")}
                   title={t("homePlayerCassette")}
                   aria-label={t("homePlayerCassette")}
@@ -166,6 +168,7 @@ export function PublicShareView({
                 <button
                   type="button"
                   className={playerStyle === "audio-scope" ? "active" : ""}
+                  aria-pressed={playerStyle === "audio-scope"}
                   onClick={() => setPlayerStyle("audio-scope")}
                   title={t("homePlayerAudioScope")}
                   aria-label={t("homePlayerAudioScope")}
@@ -175,6 +178,7 @@ export function PublicShareView({
                 <button
                   type="button"
                   className={playerStyle === "album-slide" ? "active" : ""}
+                  aria-pressed={playerStyle === "album-slide"}
                   onClick={() => setPlayerStyle("album-slide")}
                   title={t("homePlayerAlbumSlide")}
                   aria-label={t("homePlayerAlbumSlide")}

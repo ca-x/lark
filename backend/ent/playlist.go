@@ -15,7 +15,7 @@ import (
 
 // Playlist is the model entity for the Playlist schema.
 type Playlist struct {
-	config `json:"-"`
+	config `json:"-" sql:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// Name holds the value of the "name" field.
@@ -34,11 +34,12 @@ type Playlist struct {
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// OwnerID holds the value of the "owner_id" field.
+	OwnerID *int `json:"-" sql:"user_playlists"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PlaylistQuery when eager-loading is set.
-	Edges          PlaylistEdges `json:"edges"`
-	user_playlists *int
-	selectValues   sql.SelectValues
+	Edges        PlaylistEdges `json:"edges"`
+	selectValues sql.SelectValues
 }
 
 // PlaylistEdges holds the relations/edges for other nodes in the graph.
@@ -79,14 +80,12 @@ func (*Playlist) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case playlist.FieldFavorite:
 			values[i] = new(sql.NullBool)
-		case playlist.FieldID:
+		case playlist.FieldID, playlist.FieldOwnerID:
 			values[i] = new(sql.NullInt64)
 		case playlist.FieldName, playlist.FieldSourceType, playlist.FieldDescription, playlist.FieldCoverTheme, playlist.FieldCoverURL:
 			values[i] = new(sql.NullString)
 		case playlist.FieldCreatedAt, playlist.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
-		case playlist.ForeignKeys[0]: // user_playlists
-			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -156,12 +155,12 @@ func (_m *Playlist) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
-		case playlist.ForeignKeys[0]:
+		case playlist.FieldOwnerID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field user_playlists", value)
+				return fmt.Errorf("unexpected type %T for field owner_id", values[i])
 			} else if value.Valid {
-				_m.user_playlists = new(int)
-				*_m.user_playlists = int(value.Int64)
+				_m.OwnerID = new(int)
+				*_m.OwnerID = int(value.Int64)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -232,6 +231,11 @@ func (_m *Playlist) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	if v := _m.OwnerID; v != nil {
+		builder.WriteString("owner_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

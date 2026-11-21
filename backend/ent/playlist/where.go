@@ -95,6 +95,11 @@ func UpdatedAt(v time.Time) predicate.Playlist {
 	return predicate.Playlist(sql.FieldEQ(FieldUpdatedAt, v))
 }
 
+// OwnerID applies equality check predicate on the "owner_id" field. It's identical to OwnerIDEQ.
+func OwnerID(v int) predicate.Playlist {
+	return predicate.Playlist(sql.FieldEQ(FieldOwnerID, v))
+}
+
 // NameEQ applies the EQ predicate on the "name" field.
 func NameEQ(v string) predicate.Playlist {
 	return predicate.Playlist(sql.FieldEQ(FieldName, v))
@@ -508,6 +513,36 @@ func UpdatedAtLT(v time.Time) predicate.Playlist {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.Playlist {
 	return predicate.Playlist(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// OwnerIDEQ applies the EQ predicate on the "owner_id" field.
+func OwnerIDEQ(v int) predicate.Playlist {
+	return predicate.Playlist(sql.FieldEQ(FieldOwnerID, v))
+}
+
+// OwnerIDNEQ applies the NEQ predicate on the "owner_id" field.
+func OwnerIDNEQ(v int) predicate.Playlist {
+	return predicate.Playlist(sql.FieldNEQ(FieldOwnerID, v))
+}
+
+// OwnerIDIn applies the In predicate on the "owner_id" field.
+func OwnerIDIn(vs ...int) predicate.Playlist {
+	return predicate.Playlist(sql.FieldIn(FieldOwnerID, vs...))
+}
+
+// OwnerIDNotIn applies the NotIn predicate on the "owner_id" field.
+func OwnerIDNotIn(vs ...int) predicate.Playlist {
+	return predicate.Playlist(sql.FieldNotIn(FieldOwnerID, vs...))
+}
+
+// OwnerIDIsNil applies the IsNil predicate on the "owner_id" field.
+func OwnerIDIsNil() predicate.Playlist {
+	return predicate.Playlist(sql.FieldIsNull(FieldOwnerID))
+}
+
+// OwnerIDNotNil applies the NotNil predicate on the "owner_id" field.
+func OwnerIDNotNil() predicate.Playlist {
+	return predicate.Playlist(sql.FieldNotNull(FieldOwnerID))
 }
 
 // HasSongs applies the HasEdge predicate on the "songs" edge.

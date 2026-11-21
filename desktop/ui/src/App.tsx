@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   User,
 } from "@phosphor-icons/react";
+import { useDesktopShortcuts } from "../../../frontend/src/hooks/useDesktopShortcuts";
 import { CassetteDeck } from "../../../frontend/src/components/player-themes/CassetteDeck";
 import { VinylTurntable } from "../../../frontend/src/components/player-themes/VinylTurntable";
 import { isMyGo, locale as mygoLocale, onLocaleChange } from "mygo-runtime";
@@ -158,13 +159,11 @@ function ConnectScreen({
         <div className="connect-record">
           <div />
         </div>
-        <span>{t("recordTagline")}</span>
       </div>
       <form className="connect-form" aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <div className="connect-logo">
           <MusicNotes weight="fill" /> {t("appName")}
         </div>
-        <p className="eyebrow">{t("connectEyebrow")}</p>
         <h1>{t("connectTitle")}</h1>
         <p className="connect-intro">{t("connectIntro")}</p>
         <label>
@@ -223,10 +222,6 @@ function ConnectScreen({
           />
           {t("allowLocalHttp")}
         </label>
-        <div className="connect-transport-hint" id="desktop-transport-hint">
-          <ShieldCheck aria-hidden="true" />
-          <div><strong>{t("automaticTransport")}</strong><p>{t("transportHint")}</p></div>
-        </div>
         {error ? (
           <p className="connect-error" role="alert">
             {error}
@@ -246,6 +241,10 @@ function ConnectScreen({
           {busy ? <CircleNotch className="connection-spinner" aria-hidden="true" /> : null}
           <span aria-live="polite">{busy ? t("connecting") : t("connectAction")}</span> {!busy ? <ArrowRight aria-hidden="true" /> : null}
         </button>
+        <details className="connect-transport-hint" id="desktop-transport-hint">
+          <summary><ShieldCheck aria-hidden="true" />{t("automaticTransport")}</summary>
+          <p>{t("transportHint")}</p>
+        </details>
         <small>{t("connectionSecurity")} {t("sessionHint")}</small>
       </form>
     </main>
@@ -275,28 +274,26 @@ export function App() {
   const [progress, setProgress] = useState(0);
   const [volume, setVolume] = useState(0.8);
   const [theme, setTheme] = useState<Theme>("classic");
-  const [lyrics, setLyrics] = useState("");
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [showQueue, setShowQueue] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [lyrics, setLyrics] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState<"queue" | "lyrics" | "settings" | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const drawerTriggerRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
-    if (!showQueue && !showSettings) return;
+    if (!drawer) return;
+    const trigger = drawerTriggerRef.current;
     const frame = requestAnimationFrame(() => drawerRef.current?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true }));
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented || document.querySelector('[aria-modal="true"]')) return;
+      if (event.key !== "Escape" || event.defaultPrevented || document.querySelector("dialog[open]")) return;
       event.preventDefault();
-      setShowQueue(false);
-      setShowSettings(false);
+      setDrawer(null);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKeyDown);
-      if (drawerTriggerRef.current?.isConnected) drawerTriggerRef.current.focus({ preventScroll: true });
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
     };
-  }, [showQueue, showSettings]);
+  }, [drawer]);
   const [checkingConnection, setCheckingConnection] = useState(false);
   const [settingsConnection, setSettingsConnection] = useState<ConnectionStatus | null>(null);
   const [closeBehavior, setCloseBehavior] = useState<"tray" | "quit">("tray");
@@ -501,14 +498,17 @@ export function App() {
   }, [volume, engine?.kind]);
 
   useEffect(() => {
-    if (!current?.has_lyrics) {
+    if (drawer !== "lyrics" || !current?.has_lyrics) {
       setLyrics("");
       return;
     }
+    let active = true;
+    setLyrics(null);
     void Desktop.lyrics(current.id)
-      .then(setLyrics)
-      .catch(() => setLyrics(""));
-  }, [current?.id, current?.has_lyrics]);
+      .then((value) => { if (active) setLyrics(value); })
+      .catch(() => { if (active) setLyrics(""); });
+    return () => { active = false; };
+  }, [drawer, current?.id, current?.has_lyrics]);
 
   useEffect(() => {
     if (!navigator.mediaSession || !current) return;
@@ -655,41 +655,19 @@ export function App() {
       void openLink(pendingLink).catch((cause) => void reportError(cause));
   }, [pendingLink, connection?.connected, openLink]);
 
+  const switchDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    if (!serverSwitch) return;
-    const button = document.querySelector<HTMLButtonElement>(
-      ".server-switch-dialog button",
-    );
-    button?.focus();
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setServerSwitch(null);
-        setPendingLink(null);
-      }
-    };
-    window.addEventListener("keydown", onEscape);
-    return () => window.removeEventListener("keydown", onEscape);
+    const dialog = switchDialog.current;
+    if (!serverSwitch || !dialog) return;
+    dialog.showModal();
+    return () => dialog.close();
   }, [serverSwitch]);
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-      if (
-        event.code === "Space" &&
-        !(event.target instanceof HTMLInputElement) &&
-        !(event.target instanceof HTMLTextAreaElement) &&
-        !(event.target instanceof HTMLButtonElement)
-      ) {
-        event.preventDefault();
-        setPlaying((value) => !value);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+  useDesktopShortcuts({
+    enabled: Boolean(connection?.connected),
+    onSearch: () => { searchRef.current?.focus(); searchRef.current?.select(); },
+    onTogglePlayback: () => { if (current) setPlaying((value) => !value); },
+  });
 
   function switchSection(nextSection: Section) {
     setSection(nextSection);
@@ -861,10 +839,11 @@ export function App() {
           <button
             title={t("settings")}
             aria-label={t("settings")}
+            aria-expanded={drawer === "settings"}
             onClick={(event) => {
               drawerTriggerRef.current = event.currentTarget;
-              setShowSettings(true);
-              setShowQueue(false);
+              if (drawer === "settings") { setDrawer(null); return; }
+              setDrawer("settings");
               setCheckingConnection(true);
               void Desktop.status().then(setSettingsConnection).catch((cause) => setSettingsConnection({ ...connection, connected: false, error: errorText(cause) })).finally(() => setCheckingConnection(false));
             }}
@@ -1035,7 +1014,6 @@ export function App() {
           {!detail ? (
             <div className="page-heading">
               <div>
-                <span className="eyebrow">{t("collectionEyebrow")}</span>
                 <h1>
                   {section === "songs"
                     ? t("library")
@@ -1071,6 +1049,7 @@ export function App() {
                 <button
                   key={name}
                   className={favoriteSection === name ? "active" : ""}
+                  aria-pressed={favoriteSection === name}
                   onClick={() => {
                     setFavoriteSection(name);
                     setOffset(0);
@@ -1151,6 +1130,7 @@ export function App() {
                   </div>
                   <button
                     className="song-album-link"
+                    disabled={!song.album_id}
                     onClick={() => {
                       if (song.album_id)
                         void Desktop.album(song.album_id)
@@ -1291,11 +1271,9 @@ export function App() {
       </div>
 
       {serverSwitch ? (
-        <div className="server-switch-layer" role="presentation">
-          <div
+          <dialog ref={switchDialog}
             className="server-switch-dialog"
-            role="dialog"
-            aria-modal="true"
+            onCancel={(event) => { event.preventDefault(); setServerSwitch(null); setPendingLink(null); }}
             aria-label={t("switchServer")}
           >
             <strong>{t("linkServerMismatch")}</strong>
@@ -1325,25 +1303,24 @@ export function App() {
                 {t("switchServer")}
               </button>
             </div>
-          </div>
-        </div>
+          </dialog>
       ) : null}
-      {showLyrics ? (
-        <aside className="lyrics-drawer">
+      {drawer === "lyrics" ? (
+        <aside className="lyrics-drawer" ref={drawerRef} role="region" aria-label={t("lyrics")}>
           <div>
             <strong>{t("lyrics")}</strong>
-            <button onClick={() => setShowLyrics(false)}>{t("close")}</button>
+            <button onClick={() => setDrawer(null)}>{t("close")}</button>
           </div>
           <p>
-            {lyrics ? lyrics.replace(/\[[^\]]+\]/g, "").trim() : t("noLyrics")}
+            {lyrics === null ? t("loadingLyrics") : lyrics ? lyrics.replace(/\[[^\]]+\]/g, "").trim() : t("noLyrics")}
           </p>
         </aside>
       ) : null}
-      {showSettings ? (
+      {drawer === "settings" ? (
         <aside className="settings-drawer" ref={drawerRef} role="region" aria-label={t("desktopSettings")}>
           <div>
             <strong>{t("desktopSettings")}</strong>
-            <button onClick={() => setShowSettings(false)}>{t("close")}</button>
+            <button onClick={() => setDrawer(null)}>{t("close")}</button>
           </div>
           <div className="desktop-connection-setting">
             <strong>{t("grpcConnection")}</strong>
@@ -1395,12 +1372,13 @@ export function App() {
           </label>
         </aside>
       ) : null}
-      {showQueue ? (
+      {drawer === "queue" ? (
         <aside className="queue-drawer" ref={drawerRef} role="region" aria-label={t("queue")}>
           <div>
             <strong>{t("queue")}</strong>
-            <button onClick={() => setShowQueue(false)}>{t("close")}</button>
+            <button onClick={() => setDrawer(null)}>{t("close")}</button>
           </div>
+          {!queue.length && <p className="queue-empty">{t("chooseSong")}</p>}
           {queue.map((song, index) => (
             <button
               key={`${song.id}-${index}`}
@@ -1543,14 +1521,16 @@ export function App() {
           <button
             title={t("lyrics")}
             aria-label={t("lyrics")}
-            onClick={() => setShowLyrics((value) => !value)}
+            aria-expanded={drawer === "lyrics"}
+            onClick={(event) => { drawerTriggerRef.current = event.currentTarget; setDrawer(drawer === "lyrics" ? null : "lyrics"); }}
           >
             <TextAlignLeft />
           </button>
           <button
             title={t("queue")}
             aria-label={t("queue")}
-            onClick={(event) => { drawerTriggerRef.current = event.currentTarget; setShowSettings(false); setShowQueue((value) => !value); }}
+            aria-expanded={drawer === "queue"}
+            onClick={(event) => { drawerTriggerRef.current = event.currentTarget; setDrawer(drawer === "queue" ? null : "queue"); }}
           >
             <Queue />
           </button>

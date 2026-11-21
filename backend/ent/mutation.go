@@ -4029,27 +4029,87 @@ func (m *PlayHistoryMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
-// SetUserID sets the "user" edge to the User entity by id.
-func (m *PlayHistoryMutation) SetUserID(id int) {
-	m.user = &id
+// SetSongID sets the "song_id" field.
+func (m *PlayHistoryMutation) SetSongID(i int) {
+	m.song = &i
+}
+
+// SongID returns the value of the "song_id" field in the mutation.
+func (m *PlayHistoryMutation) SongID() (r int, exists bool) {
+	v := m.song
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSongID returns the old "song_id" field's value of the PlayHistory entity.
+// If the PlayHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayHistoryMutation) OldSongID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSongID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSongID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSongID: %w", err)
+	}
+	return oldValue.SongID, nil
+}
+
+// ResetSongID resets all changes to the "song_id" field.
+func (m *PlayHistoryMutation) ResetSongID() {
+	m.song = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *PlayHistoryMutation) SetUserID(i int) {
+	m.user = &i
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *PlayHistoryMutation) UserID() (r int, exists bool) {
+	v := m.user
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the PlayHistory entity.
+// If the PlayHistory object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlayHistoryMutation) OldUserID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *PlayHistoryMutation) ResetUserID() {
+	m.user = nil
 }
 
 // ClearUser clears the "user" edge to the User entity.
 func (m *PlayHistoryMutation) ClearUser() {
 	m.cleareduser = true
+	m.clearedFields[playhistory.FieldUserID] = struct{}{}
 }
 
 // UserCleared reports if the "user" edge to the User entity was cleared.
 func (m *PlayHistoryMutation) UserCleared() bool {
 	return m.cleareduser
-}
-
-// UserID returns the "user" edge ID in the mutation.
-func (m *PlayHistoryMutation) UserID() (id int, exists bool) {
-	if m.user != nil {
-		return *m.user, true
-	}
-	return
 }
 
 // UserIDs returns the "user" edge IDs in the mutation.
@@ -4068,27 +4128,15 @@ func (m *PlayHistoryMutation) ResetUser() {
 	m.cleareduser = false
 }
 
-// SetSongID sets the "song" edge to the Song entity by id.
-func (m *PlayHistoryMutation) SetSongID(id int) {
-	m.song = &id
-}
-
 // ClearSong clears the "song" edge to the Song entity.
 func (m *PlayHistoryMutation) ClearSong() {
 	m.clearedsong = true
+	m.clearedFields[playhistory.FieldSongID] = struct{}{}
 }
 
 // SongCleared reports if the "song" edge to the Song entity was cleared.
 func (m *PlayHistoryMutation) SongCleared() bool {
 	return m.clearedsong
-}
-
-// SongID returns the "song" edge ID in the mutation.
-func (m *PlayHistoryMutation) SongID() (id int, exists bool) {
-	if m.song != nil {
-		return *m.song, true
-	}
-	return
 }
 
 // SongIDs returns the "song" edge IDs in the mutation.
@@ -4141,7 +4189,7 @@ func (m *PlayHistoryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlayHistoryMutation) Fields() []string {
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 8)
 	if m.played_at != nil {
 		fields = append(fields, playhistory.FieldPlayedAt)
 	}
@@ -4159,6 +4207,12 @@ func (m *PlayHistoryMutation) Fields() []string {
 	}
 	if m.updated_at != nil {
 		fields = append(fields, playhistory.FieldUpdatedAt)
+	}
+	if m.song != nil {
+		fields = append(fields, playhistory.FieldSongID)
+	}
+	if m.user != nil {
+		fields = append(fields, playhistory.FieldUserID)
 	}
 	return fields
 }
@@ -4180,6 +4234,10 @@ func (m *PlayHistoryMutation) Field(name string) (ent.Value, bool) {
 		return m.DeviceType()
 	case playhistory.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case playhistory.FieldSongID:
+		return m.SongID()
+	case playhistory.FieldUserID:
+		return m.UserID()
 	}
 	return nil, false
 }
@@ -4201,6 +4259,10 @@ func (m *PlayHistoryMutation) OldField(ctx context.Context, name string) (ent.Va
 		return m.OldDeviceType(ctx)
 	case playhistory.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case playhistory.FieldSongID:
+		return m.OldSongID(ctx)
+	case playhistory.FieldUserID:
+		return m.OldUserID(ctx)
 	}
 	return nil, fmt.Errorf("unknown PlayHistory field %s", name)
 }
@@ -4251,6 +4313,20 @@ func (m *PlayHistoryMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUpdatedAt(v)
+		return nil
+	case playhistory.FieldSongID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSongID(v)
+		return nil
+	case playhistory.FieldUserID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown PlayHistory field %s", name)
@@ -4345,6 +4421,12 @@ func (m *PlayHistoryMutation) ResetField(name string) error {
 		return nil
 	case playhistory.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case playhistory.FieldSongID:
+		m.ResetSongID()
+		return nil
+	case playhistory.FieldUserID:
+		m.ResetUserID()
 		return nil
 	}
 	return fmt.Errorf("unknown PlayHistory field %s", name)
@@ -4853,6 +4935,55 @@ func (m *PlaylistMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// SetOwnerID sets the "owner_id" field.
+func (m *PlaylistMutation) SetOwnerID(i int) {
+	m.owner = &i
+}
+
+// OwnerID returns the value of the "owner_id" field in the mutation.
+func (m *PlaylistMutation) OwnerID() (r int, exists bool) {
+	v := m.owner
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOwnerID returns the old "owner_id" field's value of the Playlist entity.
+// If the Playlist object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PlaylistMutation) OldOwnerID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOwnerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOwnerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOwnerID: %w", err)
+	}
+	return oldValue.OwnerID, nil
+}
+
+// ClearOwnerID clears the value of the "owner_id" field.
+func (m *PlaylistMutation) ClearOwnerID() {
+	m.owner = nil
+	m.clearedFields[playlist.FieldOwnerID] = struct{}{}
+}
+
+// OwnerIDCleared returns if the "owner_id" field was cleared in this mutation.
+func (m *PlaylistMutation) OwnerIDCleared() bool {
+	_, ok := m.clearedFields[playlist.FieldOwnerID]
+	return ok
+}
+
+// ResetOwnerID resets all changes to the "owner_id" field.
+func (m *PlaylistMutation) ResetOwnerID() {
+	m.owner = nil
+	delete(m.clearedFields, playlist.FieldOwnerID)
+}
+
 // AddSongIDs adds the "songs" edge to the Song entity by ids.
 func (m *PlaylistMutation) AddSongIDs(ids ...int) {
 	if m.songs == nil {
@@ -4907,27 +5038,15 @@ func (m *PlaylistMutation) ResetSongs() {
 	m.removedsongs = nil
 }
 
-// SetOwnerID sets the "owner" edge to the User entity by id.
-func (m *PlaylistMutation) SetOwnerID(id int) {
-	m.owner = &id
-}
-
 // ClearOwner clears the "owner" edge to the User entity.
 func (m *PlaylistMutation) ClearOwner() {
 	m.clearedowner = true
+	m.clearedFields[playlist.FieldOwnerID] = struct{}{}
 }
 
 // OwnerCleared reports if the "owner" edge to the User entity was cleared.
 func (m *PlaylistMutation) OwnerCleared() bool {
-	return m.clearedowner
-}
-
-// OwnerID returns the "owner" edge ID in the mutation.
-func (m *PlaylistMutation) OwnerID() (id int, exists bool) {
-	if m.owner != nil {
-		return *m.owner, true
-	}
-	return
+	return m.OwnerIDCleared() || m.clearedowner
 }
 
 // OwnerIDs returns the "owner" edge IDs in the mutation.
@@ -4980,7 +5099,7 @@ func (m *PlaylistMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PlaylistMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.name != nil {
 		fields = append(fields, playlist.FieldName)
 	}
@@ -5004,6 +5123,9 @@ func (m *PlaylistMutation) Fields() []string {
 	}
 	if m.updated_at != nil {
 		fields = append(fields, playlist.FieldUpdatedAt)
+	}
+	if m.owner != nil {
+		fields = append(fields, playlist.FieldOwnerID)
 	}
 	return fields
 }
@@ -5029,6 +5151,8 @@ func (m *PlaylistMutation) Field(name string) (ent.Value, bool) {
 		return m.CreatedAt()
 	case playlist.FieldUpdatedAt:
 		return m.UpdatedAt()
+	case playlist.FieldOwnerID:
+		return m.OwnerID()
 	}
 	return nil, false
 }
@@ -5054,6 +5178,8 @@ func (m *PlaylistMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldCreatedAt(ctx)
 	case playlist.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
+	case playlist.FieldOwnerID:
+		return m.OldOwnerID(ctx)
 	}
 	return nil, fmt.Errorf("unknown Playlist field %s", name)
 }
@@ -5119,6 +5245,13 @@ func (m *PlaylistMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetUpdatedAt(v)
 		return nil
+	case playlist.FieldOwnerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOwnerID(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Playlist field %s", name)
 }
@@ -5126,13 +5259,16 @@ func (m *PlaylistMutation) SetField(name string, value ent.Value) error {
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *PlaylistMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *PlaylistMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	}
 	return nil, false
 }
 
@@ -5148,7 +5284,11 @@ func (m *PlaylistMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *PlaylistMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(playlist.FieldOwnerID) {
+		fields = append(fields, playlist.FieldOwnerID)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -5161,6 +5301,11 @@ func (m *PlaylistMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *PlaylistMutation) ClearField(name string) error {
+	switch name {
+	case playlist.FieldOwnerID:
+		m.ClearOwnerID()
+		return nil
+	}
 	return fmt.Errorf("unknown Playlist nullable field %s", name)
 }
 
@@ -5191,6 +5336,9 @@ func (m *PlaylistMutation) ResetField(name string) error {
 		return nil
 	case playlist.FieldUpdatedAt:
 		m.ResetUpdatedAt()
+		return nil
+	case playlist.FieldOwnerID:
+		m.ResetOwnerID()
 		return nil
 	}
 	return fmt.Errorf("unknown Playlist field %s", name)

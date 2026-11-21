@@ -14,10 +14,11 @@ export function MygoSourceSettings({ plugin, t }: { plugin: MygoPlugin; t: Trans
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
   useEffect(() => {
+    if (!plugin.manifest.settings?.length) return;
     let alive = true;
     void api.mygoSettings(plugin.manifest.id, plugin.identity).then((next) => { if (alive) setValues(next); }).catch((error) => { if (alive) setFeedback(String(error)); });
     return () => { alive = false; };
-  }, [plugin.manifest.id, plugin.identity]);
+  }, [plugin.manifest.id, plugin.identity, plugin.manifest.settings?.length]);
   if (!plugin.manifest.settings?.length) return null;
   return <details className="mygo-source-settings"><summary>{t("mygoUserSettings")}</summary>
     <form onSubmit={(event) => {
@@ -86,7 +87,8 @@ export function MygoPluginManager({ t, platformEnabled, onOpenSource }: { t: Tra
     catch (error) { setError(mygoErrorMessage(error)); return false; }
     finally { actionInFlight.current = false; setBusy(false); setPendingRepository(""); }
   }
-  const visibleCatalog = catalog.filter((entry) => `${entry.name} ${entry.repository} ${entry.description}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const term = query.trim().toLowerCase();
+  const visibleCatalog = catalog.filter((entry) => `${entry.name} ${entry.repository} ${entry.description}`.toLowerCase().includes(term));
   const selectTab = (next: typeof tab) => { setTab(next); setError(""); };
   const startInstall = (address: string) => void run(async () => { setPendingRepository(address); setPreview(await api.mygoPreview(address)); });
   const tabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {

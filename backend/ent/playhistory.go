@@ -31,12 +31,14 @@ type PlayHistory struct {
 	DeviceType string `json:"device_type,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// SongID holds the value of the "song_id" field.
+	SongID int `json:"-"`
+	// UserID holds the value of the "user_id" field.
+	UserID int `json:"-"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the PlayHistoryQuery when eager-loading is set.
-	Edges             PlayHistoryEdges `json:"edges"`
-	song_play_history *int
-	user_play_history *int
-	selectValues      sql.SelectValues
+	Edges        PlayHistoryEdges `json:"edges"`
+	selectValues sql.SelectValues
 }
 
 // PlayHistoryEdges holds the relations/edges for other nodes in the graph.
@@ -81,16 +83,12 @@ func (*PlayHistory) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case playhistory.FieldProgressSeconds, playhistory.FieldDurationSeconds:
 			values[i] = new(sql.NullFloat64)
-		case playhistory.FieldID:
+		case playhistory.FieldID, playhistory.FieldSongID, playhistory.FieldUserID:
 			values[i] = new(sql.NullInt64)
 		case playhistory.FieldDeviceType:
 			values[i] = new(sql.NullString)
 		case playhistory.FieldPlayedAt, playhistory.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
-		case playhistory.ForeignKeys[0]: // song_play_history
-			values[i] = new(sql.NullInt64)
-		case playhistory.ForeignKeys[1]: // user_play_history
-			values[i] = new(sql.NullInt64)
 		default:
 			values[i] = new(sql.UnknownType)
 		}
@@ -148,19 +146,17 @@ func (_m *PlayHistory) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UpdatedAt = value.Time
 			}
-		case playhistory.ForeignKeys[0]:
+		case playhistory.FieldSongID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field song_play_history", value)
+				return fmt.Errorf("unexpected type %T for field song_id", values[i])
 			} else if value.Valid {
-				_m.song_play_history = new(int)
-				*_m.song_play_history = int(value.Int64)
+				_m.SongID = int(value.Int64)
 			}
-		case playhistory.ForeignKeys[1]:
+		case playhistory.FieldUserID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for edge-field user_play_history", value)
+				return fmt.Errorf("unexpected type %T for field user_id", values[i])
 			} else if value.Valid {
-				_m.user_play_history = new(int)
-				*_m.user_play_history = int(value.Int64)
+				_m.UserID = int(value.Int64)
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -225,6 +221,12 @@ func (_m *PlayHistory) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("song_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SongID))
+	builder.WriteString(", ")
+	builder.WriteString("user_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.UserID))
 	builder.WriteByte(')')
 	return builder.String()
 }

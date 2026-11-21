@@ -26,7 +26,6 @@ type PlayHistoryQuery struct {
 	predicates []predicate.PlayHistory
 	withUser   *UserQuery
 	withSong   *SongQuery
-	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -406,19 +405,12 @@ func (_q *PlayHistoryQuery) prepareQuery(ctx context.Context) error {
 func (_q *PlayHistoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*PlayHistory, error) {
 	var (
 		nodes       = []*PlayHistory{}
-		withFKs     = _q.withFKs
 		_spec       = _q.querySpec()
 		loadedTypes = [2]bool{
 			_q.withUser != nil,
 			_q.withSong != nil,
 		}
 	)
-	if _q.withUser != nil || _q.withSong != nil {
-		withFKs = true
-	}
-	if withFKs {
-		_spec.Node.Columns = append(_spec.Node.Columns, playhistory.ForeignKeys...)
-	}
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*PlayHistory).scanValues(nil, columns)
 	}
@@ -456,10 +448,7 @@ func (_q *PlayHistoryQuery) loadUser(ctx context.Context, query *UserQuery, node
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*PlayHistory)
 	for i := range nodes {
-		if nodes[i].user_play_history == nil {
-			continue
-		}
-		fk := *nodes[i].user_play_history
+		fk := nodes[i].UserID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -476,7 +465,7 @@ func (_q *PlayHistoryQuery) loadUser(ctx context.Context, query *UserQuery, node
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "user_play_history" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "user_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -488,10 +477,7 @@ func (_q *PlayHistoryQuery) loadSong(ctx context.Context, query *SongQuery, node
 	ids := make([]int, 0, len(nodes))
 	nodeids := make(map[int][]*PlayHistory)
 	for i := range nodes {
-		if nodes[i].song_play_history == nil {
-			continue
-		}
-		fk := *nodes[i].song_play_history
+		fk := nodes[i].SongID
 		if _, ok := nodeids[fk]; !ok {
 			ids = append(ids, fk)
 		}
@@ -508,7 +494,7 @@ func (_q *PlayHistoryQuery) loadSong(ctx context.Context, query *SongQuery, node
 	for _, n := range neighbors {
 		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "song_play_history" returned %v`, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "song_id" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -541,6 +527,12 @@ func (_q *PlayHistoryQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != playhistory.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withUser != nil {
+			_spec.Node.AddColumnOnce(playhistory.FieldUserID)
+		}
+		if _q.withSong != nil {
+			_spec.Node.AddColumnOnce(playhistory.FieldSongID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

@@ -103,6 +103,7 @@
   .app-shell .song-row-actions-more { display:inline-flex; }
   .app-shell .song-row-actions svg { width:18px; height:18px; }
   .app-shell .song-row-more-menu { max-height:min(520px,75dvh); overflow-y:auto; overscroll-behavior:contain; background:var(--panel); border-radius:12px; }
+  .app-shell .song-row-more-menu { box-shadow:var(--floating-shadow); }
   .app-shell .song-row-more-menu button { min-height:38px; }
   .app-shell .song-row-more-menu button:focus-visible { outline-offset:-3px; }
   .song-row .song-metadata-issues { font-size:10px; line-height:14px; min-height:0; }
@@ -126,7 +127,7 @@
 
   .app-shell .cards { grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:24px 20px; }
   .app-shell .media-card { padding:0; border:0; border-radius:8px; background:transparent; box-shadow:none; gap:6px; }
-  .app-shell .media-card .cover { border-radius:8px; margin-bottom:4px; }
+  .app-shell .media-card .cover { box-shadow:var(--artwork-shadow); border-radius:8px; margin-bottom:4px; }
   .app-shell .media-card-title { white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-size:14px; line-height:1.5; font-weight:650; }
   .app-shell .card-meta { font-size:12px; line-height:1.5; gap:3px; }
   .app-shell .media-card:focus-within :is(.card-play,.card-favorite) { opacity:1; transform:none; }

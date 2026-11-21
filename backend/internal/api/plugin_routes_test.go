@@ -53,6 +53,7 @@ func TestInjectPluginHTMLSetsSongLoftResourceBaseFirst(t *testing.T) {
 		[]byte(`/api/v1/jsplugin-assets/theme.css?v=`),
 		[]byte(`/api/v1/jsplugin-assets/components.css?v=`),
 		[]byte(`/api/v1/jsplugin-assets/webf-shims.css?v=`),
+		[]byte(`/api/v1/jsplugin-assets/lark.css?v=`),
 		[]byte(`/api/v1/jsplugin-assets/common.js?v=`),
 		[]byte(`/api/v1/jsplugin-assets/webf-shims.js?v=`),
 	}

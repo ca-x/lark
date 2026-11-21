@@ -2063,7 +2063,7 @@ body, button, input, select { font-family: var(--app-font); }
 .plugin-settings { min-width:0; display:grid; gap:16px; }
 .plugin-settings-head { min-width:0; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding-bottom:14px; border-bottom:1px solid var(--line); }
 .plugin-settings-head > div { min-width:0; display:grid; gap:4px; }
-.plugin-settings-head strong { color:var(--text); font-size:18px; }
+.plugin-settings-head h3 { margin:0; color:var(--text); font-size:20px; line-height:1.4; }
 .plugin-settings-head span, .plugin-section-title span, .plugin-sources-toolbar > span, .plugin-source-save-row > span, .plugin-marketplace-toolbar > span { color:var(--muted); font-size:13px; line-height:1.5; }
 .plugin-upload-button, .plugin-install-button, .plugin-sources-toolbar > button, .plugin-source-save-row > button { min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:9px 14px; border:1px solid color-mix(in srgb,var(--accent) 34%,var(--line)); border-radius:8px; background:color-mix(in srgb,var(--accent) 12%,var(--panel)); color:var(--text); font-weight:850; transition:transform 150ms cubic-bezier(.23,1,.32,1), background-color 160ms ease; }
 .plugin-upload-button svg, .plugin-install-button svg, .plugin-sources-toolbar > button svg { width:18px; height:18px; }
@@ -2133,14 +2133,14 @@ body, button, input, select { font-family: var(--app-font); }
 .plugin-runtime-page .plugin-surface { min-height:calc(100dvh - var(--player-h) - 88px); }
 .plugin-surface-head { min-width:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px 10px 16px; border-bottom:1px solid var(--line); background:var(--panel2); }
 .plugin-surface-title { min-width:0; display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
-.plugin-surface-title strong { color:var(--text); }
+.plugin-surface-title h3 { min-width:0; margin:0; color:var(--text); font-size:16px; line-height:1.4; overflow-wrap:anywhere; }
+.plugin-surface-symbol { width:22px; height:22px; flex:none; color:var(--muted-strong); }
 .plugin-surface-title code { padding:3px 6px; border-radius:5px; color:var(--muted); background:color-mix(in srgb,var(--text) 6%,transparent); font-size:11px; }
 .plugin-surface-title .plugin-render-engine { color:var(--accent); border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line)); background:color-mix(in srgb,var(--accent) 9%,var(--panel2)); }
-.plugin-surface-title span { color:var(--muted); font-size:12px; }
 .plugin-surface-actions { display:flex; align-items:center; gap:6px; }
 .plugin-surface-frame { min-width:0; min-height:0; overflow:hidden; background:var(--panel2); }
 .plugin-host { position:relative; width:100%; height:100%; min-height:clamp(440px, 64vh, 680px); overflow:hidden; background:var(--panel2); }
-.plugin-surface-iframe { display:block; width:100%; height:100%; min-height:clamp(440px, 64vh, 680px); border:0; background:#fff; }
+.plugin-surface-iframe { display:block; width:100%; height:100%; min-height:clamp(440px, 64vh, 680px); border:0; background:var(--panel); }
 .plugin-host-status { position:absolute; inset:0; z-index:1; display:flex; align-items:center; justify-content:center; gap:9px; padding:24px; color:var(--muted); background:var(--panel2); text-align:center; }
 .plugin-host-status.error { flex-direction:column; color:var(--text); }
 .plugin-host-status.error > svg { width:28px; height:28px; color:var(--accent); }
@@ -2165,8 +2165,8 @@ body, button, input, select { font-family: var(--app-font); }
   .plugin-surface { min-height:calc(100dvh - 116px); border-radius:12px; }
   .plugin-runtime-page .plugin-surface { min-height:calc(100dvh - 126px); border-radius:0; border-inline:0; }
   .plugin-surface-head { align-items:flex-start; }
-  .plugin-surface-title { display:grid; grid-template-columns:auto auto; gap:4px 7px; }
-  .plugin-surface-title span { grid-column:1 / -1; }
+  .plugin-surface-title { gap:4px 7px; }
+  .plugin-surface-actions { flex:none; }
   .plugin-surface-iframe { min-height:calc(100vh - 198px); }
   .plugin-runtime-page .plugin-surface-iframe, .plugin-runtime-page .plugin-host { min-height:calc(100dvh - 184px); }
   .plugin-settings-head { align-items:stretch; flex-direction:column; }

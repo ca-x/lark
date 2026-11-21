@@ -1,4 +1,5 @@
-import { ArrowSquareOut, X } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowSquareOut, PuzzlePiece, X } from "@phosphor-icons/react";
 import type { Plugin } from "../types";
 import type { createT } from "../i18n";
 import { PluginHost, type SongloftHostCall, type SongloftPlayerState } from "./PluginHost";
@@ -13,7 +14,10 @@ type PluginSurfaceProps = {
 };
 
 export function PluginSurface({ plugin, t, theme, playerState, onHostCall, onClose }: PluginSurfaceProps) {
-  const src = `/api/v1/jsplugin/${encodeURIComponent(plugin.entry_path)}/static/index.html?embed=1&theme=${theme}`;
+  const [initialTheme] = useState(theme);
+  const title = useRef<HTMLHeadingElement>(null);
+  const path = `/api/v1/jsplugin/${encodeURIComponent(plugin.entry_path)}/static/index.html`;
+  useEffect(() => { title.current?.focus(); }, []);
   const webfFallback = plugin.render_engine === "webf";
   const lynxFallback = plugin.render_engine === "lynx";
 
@@ -21,16 +25,16 @@ export function PluginSurface({ plugin, t, theme, playerState, onHostCall, onClo
     <section className="plugin-surface" aria-label={plugin.name}>
       <header className="plugin-surface-head">
         <div className="plugin-surface-title">
-          <strong>{plugin.name}</strong>
+          <PuzzlePiece className="plugin-surface-symbol" weight="duotone" aria-hidden="true" />
+          <h3 ref={title} tabIndex={-1}>{plugin.name}</h3>
           <code>{plugin.version}</code>
           {webfFallback ? <code className="plugin-render-engine">WebF → Web</code> : null}
           {lynxFallback ? <code className="plugin-render-engine">Lynx → Web</code> : null}
-          <span>{t("pluginSurfaceHint")}</span>
         </div>
         <div className="plugin-surface-actions">
           <a
             className="plugin-icon-button"
-            href={src}
+            href={`${path}?theme=${theme}`}
             target="_blank"
             rel="noreferrer"
             title={t("openPluginInNewWindow")}
@@ -51,7 +55,7 @@ export function PluginSurface({ plugin, t, theme, playerState, onHostCall, onClo
       </header>
       <div className="plugin-surface-frame">
         <PluginHost
-          src={src}
+          src={`${path}?embed=1&theme=${initialTheme}`}
           title={plugin.name}
           theme={theme}
           playerState={playerState}

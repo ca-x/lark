@@ -1,3 +1,4 @@
+import { useDialogLifecycle } from "../../hooks/useDialogLifecycle";
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { createT } from "../../i18n";
 import { api } from "../../services/api";
@@ -523,6 +524,8 @@ export function TerminalShell({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const helpDialog = useDialogLifecycle<HTMLDivElement>(() => setHelpOpen(false), helpOpen);
+  const lyricsDialog = useDialogLifecycle<HTMLDivElement>(() => setLyricsOpen(false), lyricsOpen);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchPage, setSearchPage] = useState<SongPage | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -629,18 +632,7 @@ export function TerminalShell({
         onExit();
         return;
       }
-      if (helpOpen) {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          setHelpOpen(false);
-        }
-        return;
-      }
-      if (lyricsOpen && event.key === "Escape") {
-        event.preventDefault();
-        setLyricsOpen(false);
-        return;
-      }
+      if (helpOpen || lyricsOpen) return;
 
       const editing = isEditableTarget(event.target);
       if (editing) {
@@ -1216,7 +1208,7 @@ export function TerminalShell({
       </footer>
 
       {lyricsOpen ? (
-        <div className="ts-overlay" role="dialog" aria-modal="true" aria-labelledby="ts-lyrics-title">
+        <div className="ts-overlay" ref={lyricsDialog} role="dialog" aria-modal="true" aria-labelledby="ts-lyrics-title">
           <div className="ts-lyrics" ref={lyricsRef}>
             <div className="ts-overlay-head">
               <div>
@@ -1243,7 +1235,7 @@ export function TerminalShell({
       ) : null}
 
       {helpOpen ? (
-        <div className="ts-overlay" role="dialog" aria-modal="true" aria-labelledby="ts-help-title">
+        <div className="ts-overlay" ref={helpDialog} role="dialog" aria-modal="true" aria-labelledby="ts-help-title">
           <div className="ts-help">
             <div className="ts-overlay-head">
               <div>

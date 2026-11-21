@@ -11,6 +11,8 @@
   --motion-popover: 200ms;
   --motion-modal: 250ms;
   --on-accent: var(--bg);
+  --artwork-shadow: 0 1px 2px #0002, 0 4px 12px #0001;
+  --floating-shadow: 0 1px 4px #0002, 0 12px 36px #0003;
   --chrome-edge: color-mix(in srgb, var(--text) 10%, var(--line));
   --surface-highlight: color-mix(in srgb, #fff 7%, transparent);
   --focus-strong: color-mix(in srgb, var(--accent) 74%, var(--text));
@@ -388,19 +390,20 @@ body {
 /* Authentication details: explicit labels, a stable password affordance, and pending feedback. */
 .auth-card {
   border-color: var(--chrome-edge);
-  box-shadow:
-    inset 0 1px 0 var(--surface-highlight),
-    0 24px 70px color-mix(in srgb, #000 32%, transparent);
+  padding: clamp(20px, 5vw, 32px);
+  border-radius: 20px;
+  box-shadow: var(--floating-shadow);
 }
 
 .auth-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .auth-field > label {
-  color: var(--muted);
-  font-weight: 700;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .auth-password-control {
@@ -632,3 +635,13 @@ body {
     transform: none !important;
   }
 }
+
+/* Keep the same visual depth for artwork and floating controls across palettes. */
+.auth-card h1, .public-share-hero h1 { line-height: 1.12; }
+.auth-form input { min-height: 44px; border-radius: 10px; }
+.public-share-list { overscroll-behavior: contain; scroll-padding: 32px 0 4px; }
+.public-share-list-head { position: sticky; z-index: 1; top: -4px; padding-block: 8px; background: var(--panel); }
+.public-share-list button:focus-visible { outline-offset: -3px; }
+.public-share-theme-toggle { max-width: 100%; }
+.public-share-kicker-row > p { padding: 0; color: var(--muted-strong); background: transparent; font-weight: 600; }
+.user-menu-popover { transform-origin: top right; box-shadow: var(--floating-shadow); }

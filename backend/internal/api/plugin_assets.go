@@ -27,6 +27,7 @@ func computePluginAssetVersions() map[string]string {
 		"theme.css",
 		"components.css",
 		"webf-shims.css",
+		"lark.css",
 		"common.js",
 		"webf-shims.js",
 	}

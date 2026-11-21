@@ -361,8 +361,8 @@ func servePluginStaticFile(c *echo.Context, filePath string) error {
 var emptyPluginSrcAttr = regexp.MustCompile(`\s+src\s*=\s*(""|'')`)
 
 // injectPluginHTML installs Songloft's complete browser page contract before
-// any plugin-owned relative resource. The ordering matches Songloft:
-// base, theme, components, WebF CSS fallback, common bridge, WebF JS fallback.
+// any plugin-owned relative resource. Lark styles follow the reference CSS
+// so a plugin can still override host defaults with its own stylesheet.
 func injectPluginHTML(document []byte, entryPath string) []byte {
 	document = emptyPluginSrcAttr.ReplaceAll(document, nil)
 	payload := []byte(
@@ -370,6 +370,7 @@ func injectPluginHTML(document []byte, entryPath string) []byte {
 			`<link rel="stylesheet" href="` + pluginAssetURL("theme.css") + `">` +
 			`<link rel="stylesheet" href="` + pluginAssetURL("components.css") + `">` +
 			`<link rel="stylesheet" href="` + pluginAssetURL("webf-shims.css") + `">` +
+			`<link rel="stylesheet" href="` + pluginAssetURL("lark.css") + `">` +
 			`<script src="` + pluginAssetURL("common.js") + `"></script>` +
 			`<script src="` + pluginAssetURL("webf-shims.js") + `"></script>`,
 	)

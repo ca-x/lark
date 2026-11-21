@@ -5,11 +5,10 @@ import (
 	"strconv"
 	"time"
 
+	entsql "entgo.io/ent/dialect/sql"
 	"golang.org/x/sync/errgroup"
 
 	"lark/backend/ent"
-	"lark/backend/ent/album"
-	"lark/backend/ent/artist"
 	"lark/backend/ent/playhistory"
 	"lark/backend/ent/predicate"
 	"lark/backend/ent/song"
@@ -254,26 +253,19 @@ func (s *Service) applySongUserStateWithDevice(ctx context.Context, userID int, 
 
 	// Run all three queries concurrently — SQLite WAL supports concurrent readers.
 	var (
-		favoriteIDs     map[int]bool
-		playCounts      map[int]int
-		lastPlayed      map[int]time.Time
-		resumePositions map[int]float64
+		favoriteIDs map[int]bool
+		playCounts  map[int]int
+		latest      map[int]songHistoryState
 	)
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		favorites, err := s.client.UserSongFavorite.Query().
-			Where(usersongfavorite.HasUserWith(user.ID(userID)), usersongfavorite.HasSongWith(song.IDIn(ids...))).
-			WithSong().
-			All(gctx)
+			Where(entsql.FieldEQ(usersongfavorite.UserColumn, userID), entsql.FieldIn(usersongfavorite.SongColumn, ids...)).
+			Select(usersongfavorite.SongColumn).Ints(gctx)
 		if err != nil {
 			return err
 		}
-		favoriteIDs = make(map[int]bool, len(favorites))
-		for _, favorite := range favorites {
-			if favorite.Edges.Song != nil {
-				favoriteIDs[favorite.Edges.Song.ID] = true
-			}
-		}
+		favoriteIDs = favoriteIDSet(favorites)
 		return nil
 	})
 	g.Go(func() error {
@@ -283,7 +275,7 @@ func (s *Service) applySongUserStateWithDevice(ctx context.Context, userID int, 
 	})
 	g.Go(func() error {
 		var err error
-		lastPlayed, resumePositions, err = s.latestPlayHistoryStateForSongs(gctx, userID, items, deviceScope)
+		latest, err = s.latestPlayHistoryStateForSongs(gctx, userID, ids, deviceScope)
 		return err
 	})
 	if err := g.Wait(); err != nil {
@@ -292,17 +284,23 @@ func (s *Service) applySongUserStateWithDevice(ctx context.Context, userID int, 
 	for i := range items {
 		items[i].Favorite = favoriteIDs[items[i].ID]
 		items[i].PlayCount = playCounts[items[i].ID]
-		items[i].ResumePosition = resumePositions[items[i].ID]
-		if playedAt, ok := lastPlayed[items[i].ID]; ok {
-			items[i].LastPlayedAt = &playedAt
-		} else {
-			items[i].LastPlayedAt = nil
+		items[i].LastPlayedAt = nil
+		items[i].ResumePosition = 0
+		if state, ok := latest[items[i].ID]; ok {
+			items[i].LastPlayedAt = &state.PlayedAt
+			duration := state.DurationSeconds
+			if duration <= 0 {
+				duration = items[i].DurationSeconds
+			}
+			if !state.Completed && state.ProgressSeconds >= 5 && (duration <= 0 || state.ProgressSeconds < duration-5) {
+				items[i].ResumePosition = state.ProgressSeconds
+			}
 		}
 	}
 	return items, nil
 }
 func playHistoryUserPredicates(userID int, deviceScope string) []predicate.PlayHistory {
-	predicates := []predicate.PlayHistory{playhistory.HasUserWith(user.ID(userID))}
+	predicates := []predicate.PlayHistory{playhistory.UserID(userID)}
 	if deviceScope != "" {
 		predicates = append(predicates, playhistory.DeviceTypeEQ(deviceScope))
 	}
@@ -310,19 +308,16 @@ func playHistoryUserPredicates(userID int, deviceScope string) []predicate.PlayH
 }
 func playHistorySongPredicates(userID, songID int, deviceScope string) []predicate.PlayHistory {
 	predicates := playHistoryUserPredicates(userID, deviceScope)
-	predicates = append(predicates, playhistory.HasSongWith(song.ID(songID)))
-	return predicates
-}
-func playHistorySongsPredicates(userID int, songIDs []int, deviceScope string) []predicate.PlayHistory {
-	predicates := playHistoryUserPredicates(userID, deviceScope)
-	predicates = append(predicates, playhistory.HasSongWith(song.IDIn(songIDs...)))
+	predicates = append(predicates, playhistory.SongID(songID))
 	return predicates
 }
 func (s *Service) playHistoryCountsForSongs(ctx context.Context, userID int, ids []int, deviceScope string) (map[int]int, error) {
 	rows := []playHistorySongCountRow{}
-	if err := s.client.PlayHistory.Query().
-		Where(playHistorySongsPredicates(userID, ids, deviceScope)...).
-		GroupBy(playhistory.SongColumn).
+	query := s.client.PlayHistory.Query().Where(playhistory.UserID(userID), playhistory.SongIDIn(ids...))
+	if deviceScope != "" {
+		query.Where(playhistory.DeviceTypeEQ(deviceScope))
+	}
+	if err := query.GroupBy(playhistory.SongColumn).
 		Aggregate(ent.Count()).
 		Scan(ctx, &rows); err != nil {
 		return nil, err
@@ -335,49 +330,53 @@ func (s *Service) playHistoryCountsForSongs(ctx context.Context, userID int, ids
 	}
 	return counts, nil
 }
-func (s *Service) latestPlayHistoryStateForSongs(ctx context.Context, userID int, items []models.Song, deviceScope string) (map[int]time.Time, map[int]float64, error) {
-	lastPlayed := map[int]time.Time{}
-	resumePositions := map[int]float64{}
-	ids := make([]int, 0, len(items))
-	durationByID := make(map[int]float64, len(items))
-	for i := range items {
-		ids = append(ids, items[i].ID)
-		durationByID[items[i].ID] = items[i].DurationSeconds
-	}
-	limit := maxInt(len(ids)*4, 200)
-	if limit > 1000 {
-		limit = 1000
-	}
-	histories, err := s.client.PlayHistory.Query().
-		Where(playHistorySongsPredicates(userID, ids, deviceScope)...).
-		WithSong(func(q *ent.SongQuery) { q.Select(song.FieldID, song.FieldDurationSeconds) }).
-		Order(ent.Desc(playhistory.FieldUpdatedAt), ent.Desc(playhistory.FieldPlayedAt)).
-		Limit(limit).
-		All(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, history := range histories {
-		if history.Edges.Song == nil {
-			continue
-		}
-		songID := history.Edges.Song.ID
-		if _, ok := lastPlayed[songID]; ok {
-			continue
-		}
-		lastPlayed[songID] = history.PlayedAt
-		if !history.Completed && history.ProgressSeconds >= 5 {
-			duration := history.DurationSeconds
-			if duration <= 0 {
-				duration = durationByID[songID]
-			}
-			if duration <= 0 || history.ProgressSeconds < duration-5 {
-				resumePositions[songID] = history.ProgressSeconds
-			}
-		}
-	}
-	return lastPlayed, resumePositions, nil
+
+type songHistoryState struct {
+	SongID          int       `sql:"song_play_history"`
+	PlayedAt        time.Time `sql:"played_at"`
+	Completed       bool
+	ProgressSeconds float64 `sql:"progress_seconds"`
+	DurationSeconds float64 `sql:"duration_seconds"`
 }
+
+func (s *Service) latestPlayHistoryStateForSongs(ctx context.Context, userID int, ids []int, deviceScope string) (map[int]songHistoryState, error) {
+	// Select one history ID for each requested song, including seldom-played
+	// tracks on pages where a single song has hundreds of more recent plays.
+	var rows []songHistoryState
+	err := s.client.PlayHistory.Query().Where(func(s *entsql.Selector) {
+		dialect := entsql.Dialect(s.Dialect())
+		tracks := dialect.Table(song.Table)
+		history := dialect.Table(playhistory.Table)
+		latest := dialect.Select(history.C(playhistory.FieldID)).From(history).
+			Where(entsql.ColumnsEQ(history.C(playhistory.SongColumn), tracks.C(song.FieldID))).
+			Where(entsql.EQ(history.C(playhistory.UserColumn), userID)).
+			OrderBy(entsql.Desc(history.C(playhistory.FieldUpdatedAt)), entsql.Desc(history.C(playhistory.FieldPlayedAt)), entsql.Desc(history.C(playhistory.FieldID))).
+			Limit(1)
+		if deviceScope != "" {
+			latest.Where(entsql.EQ(history.C(playhistory.FieldDeviceType), deviceScope))
+		}
+		page := dialect.Select().From(tracks).AppendSelectExprAs(latest, "latest_id")
+		entsql.FieldIn(song.FieldID, ids...)(page)
+		s.Where(entsql.In(s.C(playhistory.FieldID), page))
+	}).Select(playhistory.SongColumn, playhistory.FieldPlayedAt, playhistory.FieldCompleted, playhistory.FieldProgressSeconds, playhistory.FieldDurationSeconds).Scan(ctx, &rows)
+	if err != nil {
+		return nil, err
+	}
+	states := make(map[int]songHistoryState, len(rows))
+	for _, row := range rows {
+		states[row.SongID] = row
+	}
+	return states, nil
+}
+
+func favoriteIDSet(ids []int) map[int]bool {
+	set := make(map[int]bool, len(ids))
+	for _, id := range ids {
+		set[id] = true
+	}
+	return set
+}
+
 func (s *Service) applyAlbumUserState(ctx context.Context, userID int, items []models.Album) ([]models.Album, error) {
 	if len(items) == 0 {
 		return items, nil
@@ -387,18 +386,12 @@ func (s *Service) applyAlbumUserState(ctx context.Context, userID int, items []m
 		ids = append(ids, item.ID)
 	}
 	favorites, err := s.client.UserAlbumFavorite.Query().
-		Where(useralbumfavorite.HasUserWith(user.ID(userID)), useralbumfavorite.HasAlbumWith(album.IDIn(ids...))).
-		WithAlbum().
-		All(ctx)
+		Where(entsql.FieldEQ(useralbumfavorite.UserColumn, userID), entsql.FieldIn(useralbumfavorite.AlbumColumn, ids...)).
+		Select(useralbumfavorite.AlbumColumn).Ints(ctx)
 	if err != nil {
 		return nil, err
 	}
-	favoriteIDs := map[int]bool{}
-	for _, favorite := range favorites {
-		if favorite.Edges.Album != nil {
-			favoriteIDs[favorite.Edges.Album.ID] = true
-		}
-	}
+	favoriteIDs := favoriteIDSet(favorites)
 	for i := range items {
 		items[i].Favorite = favoriteIDs[items[i].ID]
 	}
@@ -413,18 +406,12 @@ func (s *Service) applyArtistUserState(ctx context.Context, userID int, items []
 		ids = append(ids, item.ID)
 	}
 	favorites, err := s.client.UserArtistFavorite.Query().
-		Where(userartistfavorite.HasUserWith(user.ID(userID)), userartistfavorite.HasArtistWith(artist.IDIn(ids...))).
-		WithArtist().
-		All(ctx)
+		Where(entsql.FieldEQ(userartistfavorite.UserColumn, userID), entsql.FieldIn(userartistfavorite.ArtistColumn, ids...)).
+		Select(userartistfavorite.ArtistColumn).Ints(ctx)
 	if err != nil {
 		return nil, err
 	}
-	favoriteIDs := map[int]bool{}
-	for _, favorite := range favorites {
-		if favorite.Edges.Artist != nil {
-			favoriteIDs[favorite.Edges.Artist.ID] = true
-		}
-	}
+	favoriteIDs := favoriteIDSet(favorites)
 	for i := range items {
 		items[i].Favorite = favoriteIDs[items[i].ID]
 	}
